@@ -1,0 +1,55 @@
+# Trip canvas: map-first interaction, travel times, weather
+
+*Design opinions agreed 2026-06-10. Feeds M3 (canvas, travel times) and M5
+(weather). Sibling to `trip-time-model.md` — both are "planning feedback over
+a day-relative itinerary."*
+
+## Map as canvas, day as lens
+
+The trip's home view is the map (Jon is a visual thinker; V1/V2 both keyed
+trip interaction off maps). Rules:
+
+- **Day chips** select a lens: one day's stops as numbered pins connected in
+  sequence (polyline), camera framed to that day's region. Whole-trip view =
+  all days, color-coded.
+- **Bottom sheet** holds the day timeline (V1 used BottomSheet; Apple
+  Maps/Find My pattern). Map and timeline are two projections of the same
+  selection — never two separate screens.
+- The **pool is not map-first** — it gets list+filter as the primary surface,
+  map as an alternate view. Capture/browse must stay fast.
+- Modern SwiftUI Map (MapPolyline/Annotation/camera APIs; check
+  `swiftui-whats-new-27`) makes this far cheaper than the V1 PowerMap-era
+  UIKit bridging. PowerMap's rebuild (MINING M2) should anticipate
+  day-sequence rendering.
+
+## Directions: planning feedback, not navigation
+
+- **Travel-time connectors (M3):** MKDirections ETAs between a day's
+  consecutive stops, shown in the timeline ("stop → 12 min walk → stop") and
+  as the day's polylines. Derived feedback: daily walking total, and **gap
+  conflicts** — a `timed`/`exact` stop pair whose gap < travel time gets
+  flagged (same pure-function family as the start-day solver). Cache ETAs by
+  (from, to, transport mode); MKDirections throttles.
+- **Handoff (M3, trivial):** `MKMapItem.openInMaps(launchOptions:)` with
+  directions mode per stop — finishes what V1 PowerMap's `directions`
+  capability + Maps URL scheme started. Apple Maps owns turn-by-turn.
+- **Out of scope forever:** in-app navigation. **Distant stretch:** day-order
+  optimization suggestions (pure function over the cached ETA matrix).
+
+## Weather: two horizons, one UI slot
+
+Per-day chip on itinerary day headers (calendar view and timeline), data
+source chosen by proximity:
+
+- **Undated trips / >10 days out: climate normals** — typical high/low,
+  precip frequency, **daylight hours** for the location + month. A decision
+  input for the undated phase ("Denmark in May vs September?"), sibling to
+  the start-day solver. Source: WeatherKit if its normals coverage suffices,
+  else Open-Meteo climate API (free, keyless) or bundled monthly normals —
+  decide at build.
+- **Dated trips ≤10 days out: WeatherKit forecast** — high/low, precip,
+  **sunset time** (the most actionable number: daylight budget, dinner
+  timing). Free at household scale; requires the paid-membership
+  entitlement (joins CloudKit on that list).
+- Sunrise/sunset needs no API at all (astronomical calc) — implement
+  independent of weather source.

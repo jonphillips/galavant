@@ -1,0 +1,60 @@
+# Trip time model: undated trips, day numbers, and the start-day solver
+
+*Recovered requirements (2026-06-10) — Jon was mid-build on these in V1/V2.
+The schema-shaped parts land in M3; the solver UI can come later, but the data
+model must not preclude it.*
+
+## 1. Trips don't require dates
+
+A trip may exist as just a **duration** ("9 days in Denmark"), optionally with
+a coarse target (year + season — V1's `YearSeasonPicker` exists for this).
+Exact dates bind late, possibly weeks before departure, and may change.
+
+**Schema consequence (M3):** `Trip.startDate` is optional; `lengthInDays` (or
+derived) is the stable fact. Nothing downstream may key off calendar dates.
+
+**Refinement (recovered from V1/V2, see recovered-requirements.md #1):** trip
+dating is a *pipeline*, not a boolean — `someday(rank) → targeted(year,
+quarter) → dated(start)` as one enum. Both prior versions carried
+`potentialYear/Quarter/Position` for exactly this.
+
+## 2. The itinerary is day-number-relative
+
+Days, region stops, and scheduling all key off **day number (1…N)**, never
+dates. V2's `Schedule` enum already does this (`approximated(DayNumber,
+DayPart?)`, `timed(DayNumber, …)`) — that design survives as-is. Assigning or
+changing the trip's start date re-derives the calendar view; it never rewrites
+the itinerary.
+
+## 3. The start-day solver (the payoff)
+
+Because the itinerary is day-relative, the start date becomes a **free
+variable to play with**: slide the start date / starting weekday and check
+whether key stops are *open* on the weekday their day number lands on.
+Canonical case: the destination restaurant in the town you reach on day 6 is
+closed Mondays — which start dates make day 6 not-a-Monday?
+
+Pieces this needs:
+- **Opening days/hours on Idea** (weekday-level granularity is enough for the
+  solver; hours are a bonus). Sources: schema.org `openingHours` in the M4
+  enrichment pipeline — *the V1 server parsed past this field and skipped it
+  (`# Include????` in the restaurant/business mappers); V3 captures it* — plus
+  manual entry from day one (M2 field).
+- **"Key" flag or implicit rule** — solver checks shortlisted/scheduled stops,
+  weighted toward ones marked must-do (shortlist rank can stand in for this).
+- **Solver view (M3 stretch / M5):** for each candidate start weekday (7
+  cases) or candidate start date range, show conflicts: "Day 6 → Monday →
+  Restaurant X closed." Pure function over (itinerary day numbers × idea
+  opening days × candidate start date) — a STYLE.md functional-core showcase,
+  trivially testable.
+
+## Status of the third recalled requirement
+
+Stops needing "exact time **or** daypart, not everything scheduled exactly" is
+already covered: V2's `Schedule` enum ports in M3 (ADR-0004). No action.
+
+## Staleness rule
+
+Opening days are scraped-or-typed snapshots and rot. The solver's output is
+advisory ("closed Mondays *as of when we saved it*"), and the UI should show
+the captured-at date next to any hours-based conflict.
