@@ -1,0 +1,89 @@
+name: Galavant
+options:
+  bundleIdPrefix: com.jonphillips
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+packages:
+  GalavantLibrary:
+    path: GalavantLibrary
+  sqlite-data:
+    url: https://github.com/pointfreeco/sqlite-data
+    from: 1.0.0
+  swift-navigation:
+    url: https://github.com/pointfreeco/swift-navigation
+    from: 2.0.0
+  swift-dependencies:
+    url: https://github.com/pointfreeco/swift-dependencies
+    from: 1.0.0
+  swift-case-paths:
+    url: https://github.com/pointfreeco/swift-case-paths
+    from: 1.0.0
+targets:
+  Galavant:
+    type: application
+    platform: iOS
+    sources:
+      - Galavant
+    dependencies:
+      - target: GalavantShare
+      - package: GalavantLibrary
+        product: GalavantSchema
+      - package: sqlite-data
+        product: SQLiteData
+      - package: swift-navigation
+        product: SwiftUINavigation
+      - package: swift-dependencies
+        product: Dependencies
+      - package: swift-case-paths
+        product: CasePaths
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jonphillips.galavant
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_ENTITLEMENTS: Galavant/Galavant.entitlements
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: 0.1.0
+  GalavantShare:
+    type: app-extension
+    platform: iOS
+    sources:
+      - GalavantShare
+    info:
+      path: GalavantShare/Info.plist
+      properties:
+        CFBundleDisplayName: Galavant
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jonphillips.galavant.share
+        CODE_SIGN_ENTITLEMENTS: GalavantShare/GalavantShare.entitlements
+        GENERATE_INFOPLIST_FILE: NO
+  GalavantUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - GalavantUITests
+    dependencies:
+      - target: Galavant
+schemes:
+  Galavant:
+    build:
+      targets:
+        Galavant: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - GalavantUITests

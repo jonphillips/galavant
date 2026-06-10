@@ -37,16 +37,22 @@ See `docs/MINING.md` for the per-milestone port/adapt/skip inventory.
 
 ## Toolchain (June 2026 — WWDC26 cycle)
 
-- Build with the **Xcode 27 beta**; keep Xcode 26 installed side-by-side as the
-  fallback (first-beta compilers historically break macro-heavy libs like
-  SQLiteData/StructuredQueries until Point-Free patches).
+- Build with the **Xcode 27 beta** at `/Applications/Xcode-beta.app` via
+  `export DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer` —
+  do not `xcode-select -s`; Xcode 26.5 at `/Applications/Xcode.app` stays the
+  system default fallback (first-beta compilers historically break macro-heavy
+  libs like SQLiteData/StructuredQueries until Point-Free patches).
+- iOS 27 simulator runtime is installed (iPhone 17 family). Old iOS 17
+  runtimes also present — ignore them.
 - **Deployment target: iOS 26** until a new API earns the bump (candidate:
   SwiftUI reorderable containers for M3's shortlist ranking). Wife's devices
   stay on stable OS.
 - Xcode 27 ships Apple-authored agent skills (`swiftui-specialist`,
-  `swiftui-whats-new-27`, …) exportable via `xcrun agent skills export` — link
-  them into `~/.claude/skills` after installing the beta. New OS-27 APIs are
-  past Claude's training cutoff; prefer those skills + current docs over memory.
+  `swiftui-whats-new-27`, …). Export via
+  `xcrun mcpbridge run-agent skills export --output-dir ~/.claude/skills` —
+  **requires Xcode-beta to be running** (errors otherwise; retry after Jon has
+  launched it once). New OS-27 APIs are past Claude's training cutoff; prefer
+  those skills + current docs over memory.
 
 ## Conventions
 

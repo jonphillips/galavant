@@ -3,7 +3,7 @@
 Vertical slices; each milestone ends with something that runs. Riskiest unknowns
 first. Update this file when reality diverges — it's a living doc, not a contract.
 
-## M0 — Skeleton that persists *(no dev account needed)*
+## M0 — Skeleton that persists ✅ (done 2026-06-10, Xcode 27 beta 1)
 - Xcode project: multiplatform SwiftUI app + share-extension target stub + local SPM package
 - SQLiteData wired up; database in the **app group container** from day one
 - Minimal `Idea` model (name, coordinate, region, notes) with CloudKit-legal schema (UUID PKs)
