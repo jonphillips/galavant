@@ -36,5 +36,5 @@ Not going to the App Store — this is a private app for two people. Distributio
 **TestFlight** (avoids 7-day free-signing expiry on the wife's devices). Requires the
 paid Apple Developer membership, which CloudKit needs anyway.
 
-**Open item:** Jon's membership may be lapsed — verify/renew before Roadmap M1.
-Everything in M0 runs locally without it.
+**Resolved 2026-06-11:** membership confirmed active (Jonathan Phillips —
+Developer Team, Admin). CloudKit/TestFlight/WeatherKit all available.

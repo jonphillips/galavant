@@ -10,7 +10,7 @@ first. Update this file when reality diverges — it's a living doc, not a contr
 - List + add/edit form proving @FetchAll observation and swift-navigation Destination pattern
 - ✅ Done when: add an idea on iPhone sim, relaunch, it's still there
 
-## M1 — The CloudKit bet *(needs paid dev account — verify membership first)*
+## M1 — The CloudKit bet *(membership confirmed active 2026-06-11)*
 - Turn on SQLiteData CloudKit sync for the toy schema
 - Prove sync across two devices on one account
 - Prove the **household share**: second iCloud account (wife's) accepts one share and
