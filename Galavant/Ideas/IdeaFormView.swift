@@ -43,6 +43,8 @@ struct IdeaFormView: View {
   private func saveButtonTapped() {
     withErrorReporting {
       try database.write { db in
+        var draft = draft
+        draft.householdID = try Household.ensure(in: db).id
         try Idea.upsert { draft }.execute(db)
       }
     }

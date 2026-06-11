@@ -9,6 +9,7 @@ public struct Idea: Identifiable, Equatable, Sendable {
   public var regionName: String?
   public var latitude: Double?
   public var longitude: Double?
+  public var householdID: Household.ID?
 
   public init(
     id: UUID,
@@ -16,7 +17,8 @@ public struct Idea: Identifiable, Equatable, Sendable {
     notes: String = "",
     regionName: String? = nil,
     latitude: Double? = nil,
-    longitude: Double? = nil
+    longitude: Double? = nil,
+    householdID: Household.ID? = nil
   ) {
     self.id = id
     self.name = name
@@ -24,5 +26,6 @@ public struct Idea: Identifiable, Equatable, Sendable {
     self.regionName = regionName
     self.latitude = latitude
     self.longitude = longitude
+    self.householdID = householdID
   }
 }

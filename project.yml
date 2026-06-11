@@ -12,6 +12,8 @@ settings:
     STRING_CATALOG_GENERATE_SYMBOLS: YES
     MARKETING_VERSION: 0.1.0
     CURRENT_PROJECT_VERSION: 1
+    DEVELOPMENT_TEAM: XZWX2M8H8V
+    CODE_SIGN_STYLE: Automatic
 packages:
   GalavantLibrary:
     path: GalavantLibrary
@@ -33,6 +35,13 @@ targets:
     platform: iOS
     sources:
       - Galavant
+    info:
+      path: Galavant/Info.plist
+      properties:
+        UILaunchScreen: {}
+        UIBackgroundModes: [remote-notification]
+        CKSharingSupported: true
+        CFBundleDisplayName: Galavant
     dependencies:
       - target: GalavantShare
       - package: GalavantLibrary
@@ -48,8 +57,6 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jonphillips.galavant
-        GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
         TARGETED_DEVICE_FAMILY: "1,2"
         CODE_SIGN_ENTITLEMENTS: Galavant/Galavant.entitlements
   GalavantShare:

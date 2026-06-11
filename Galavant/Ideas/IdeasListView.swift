@@ -38,6 +38,11 @@ struct IdeasListView: View {
     }
     .toolbar {
       Button {
+        Task { await model.shareHouseholdButtonTapped() }
+      } label: {
+        Label("Share Household", systemImage: "person.2")
+      }
+      Button {
         model.addIdeaButtonTapped()
       } label: {
         Label("Add Idea", systemImage: "plus")
@@ -45,6 +50,9 @@ struct IdeasListView: View {
     }
     .sheet(item: $model.destination.form, id: \.id) { draft in
       IdeaFormView(draft: draft)
+    }
+    .sheet(item: $model.sharedRecord) { sharedRecord in
+      CloudSharingView(sharedRecord: sharedRecord)
     }
   }
 }

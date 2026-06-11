@@ -1,4 +1,5 @@
 import CasePaths
+import CloudKit
 import Dependencies
 import Foundation
 import GalavantSchema
@@ -8,12 +9,25 @@ import SQLiteData
 @Observable
 final class IdeasListModel {
   @ObservationIgnored @Dependency(\.defaultDatabase) var database
+  @ObservationIgnored @Dependency(\.defaultSyncEngine) var syncEngine
   @ObservationIgnored @FetchAll(Idea.order(by: \.name)) var ideas
   var destination: Destination?
+  var sharedRecord: SharedRecord?
 
   @CasePathable
   enum Destination {
     case form(Idea.Draft)
+  }
+
+  func shareHouseholdButtonTapped() async {
+    await withErrorReporting {
+      let household = try await database.write { db in
+        try Household.ensure(in: db)
+      }
+      sharedRecord = try await syncEngine.share(record: household) {
+        $0[CKShare.SystemFieldKey.title] = "Galavant Household"
+      }
+    }
   }
 
   func addIdeaButtonTapped() {

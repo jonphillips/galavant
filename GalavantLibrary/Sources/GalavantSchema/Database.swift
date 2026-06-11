@@ -22,13 +22,19 @@ public enum GalavantStorage {
 }
 
 extension DependencyValues {
-  public mutating func bootstrapDatabase() throws {
+  public mutating func bootstrapDatabase(startSyncEngine: Bool = true) throws {
     @Dependency(\.context) var context
+    var configuration = Configuration()
+    configuration.prepareDatabase { db in
+      try db.attachMetadatabase()
+    }
     let database: any DatabaseWriter =
       if context == .live {
-        try SQLiteData.defaultDatabase(path: GalavantStorage.liveDatabasePath())
+        try SQLiteData.defaultDatabase(
+          path: GalavantStorage.liveDatabasePath(), configuration: configuration
+        )
       } else {
-        try SQLiteData.defaultDatabase()
+        try SQLiteData.defaultDatabase(configuration: configuration)
       }
     var migrator = DatabaseMigrator()
     #if DEBUG
@@ -49,7 +55,37 @@ extension DependencyValues {
       )
       .execute(db)
     }
+    migrator.registerMigration("Create households table; add householdID to ideas") { db in
+      try #sql(
+        """
+        CREATE TABLE "households" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "name" TEXT NOT NULL DEFAULT ''
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        ALTER TABLE "ideas"
+        ADD COLUMN "householdID" TEXT REFERENCES "households"("id") ON DELETE CASCADE
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_ideas_on_householdID" ON "ideas"("householdID")
+        """
+      )
+      .execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
+    if context == .live, startSyncEngine {
+      defaultSyncEngine = try SyncEngine(
+        for: database,
+        tables: Household.self, Idea.self
+      )
+    }
   }
 }
