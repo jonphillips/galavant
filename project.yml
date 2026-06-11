@@ -86,6 +86,9 @@ targets:
     platform: iOS
     sources:
       - GalavantUITests
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
     dependencies:
       - target: Galavant
 schemes:
