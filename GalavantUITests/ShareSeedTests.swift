@@ -6,7 +6,7 @@ final class ShareSeedTests: XCTestCase {
     let app = XCUIApplication()
     app.launch()
 
-    app.buttons["Share Household"].tap()
+    app.buttons["Share Travel Party"].tap()
     sleep(25)
   }
 }

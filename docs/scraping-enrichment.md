@@ -66,11 +66,16 @@ place data + the web page's description, images, and links.
   in-app browser can hand over `document.documentElement.outerHTML` from
   WKWebView. Plain `URLSession` fetch is only the fallback, with a
   Safari-like User-Agent.
-- **Add JSON-LD.** The V1 microdata parser explicitly did not support JSON-LD
-  (`<script type="application/ld+json">`) — which is how most sites ship
-  schema.org data today. It's also the easiest format to parse (Codable/
-  JSONSerialization against the same schema.org property mapping). Implement
-  JSON-LD first, keep microdata as the second source, feed both into the voting.
+- **Implement JSON-LD first.** *(Corrected 2026-06-12 after a Codex audit:
+  an earlier version of this doc claimed travelex lacked JSON-LD support,
+  based on the vendored microdata library's stale README. In fact
+  `microdata_parsing.ex` parses with `Microdata.Strategy.JSONLD` — V1's
+  pipeline already prioritized JSON-LD.)* JSON-LD
+  (`<script type="application/ld+json">`) is how most sites ship schema.org
+  data today and is the easiest format to parse in Swift (JSONSerialization
+  against the same schema.org property mapping). V3 follows V1's own
+  precedent: JSON-LD first, HTML microdata as the second source, both feeding
+  the voting.
 - Port the three tag-mapping tables (metatag/OpenGraph/schema.org) as data, not
   code — they're the distilled knowledge.
 - **Capture `openingHours`.** The V1 server's restaurant/business mappers parsed

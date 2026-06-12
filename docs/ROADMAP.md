@@ -20,6 +20,7 @@ first. Update this file when reality diverges — it's a living doc, not a contr
 - ✅ M2a: TravelParty/Planner/IdeaInterest schema, kinds, per-planner first-run identity, his/hers interest UI
 - ✅ M2b: MapKit location search in the form (idea gets coordinates) + pool map with pins + list/map toggle
 - ⏳ MapRegions + region/tag/kind filtering; tags; capture polish
+- ⏳ Second-device identity hardening (ADR-0008): bind-or-create planner picker, stray-party cleanup, IdeaInterest dedup-on-read
 - Full Idea model: kinds, visited state, tags, URLs, images, opening days/hours and reservable-from (manual entry)
 - Planner identity (ADR-0007): Planner table, device-local currentPlannerID, first-run name capture
 - **Per-planner flames ratings + notes** via single-FK Rating record (Must Do…Decide Later, his-and-hers; ADR-0007)
@@ -51,6 +52,7 @@ first. Update this file when reality diverges — it's a living doc, not a contr
 - iPad/Mac split-view layouts properly done
 - Weather chips on itinerary days: climate normals when far out/undated, WeatherKit forecast inside 10 days (docs/trip-canvas.md)
 - Unsplash header images (port GalavantLibrary's UnsplashSearch) if still wanted
+- Sync health surface: show whether CloudKit sync is active or local-only (silent degradation is fine for dev, not for two-person use)
 - TestFlight setup; app on wife's phone
 - Future/backlog: booking-window local notifications with time-of-day precision (the 3 a.m. hard-to-get-restaurant alarm — docs/recovered-requirements.md Q2)
 - ✅ Done when: both phones run it daily

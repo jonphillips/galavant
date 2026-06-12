@@ -45,6 +45,8 @@ targets:
         UIBackgroundModes: [remote-notification]
         CKSharingSupported: true
         CFBundleDisplayName: Galavant
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
     dependencies:
       - target: GalavantShare
       - package: GalavantLibrary
