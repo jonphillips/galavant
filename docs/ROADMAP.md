@@ -17,7 +17,9 @@ first. Update this file when reality diverges — it's a living doc, not a contr
 - ⏳ Accept handshake deferred to real-device test at M5/TestFlight (simulator can't route it; ADR-0003)
 
 ## M2 — The pool
-- Full Idea model: kinds, **per-spouse flames ratings + notes** (Must Do…Decide Later; docs/recovered-requirements.md), visited state, tags, URLs, images, opening days/hours and reservable-from (manual entry)
+- Full Idea model: kinds, visited state, tags, URLs, images, opening days/hours and reservable-from (manual entry)
+- Planner identity (ADR-0007): Planner table, device-local currentPlannerID, first-run name capture
+- **Per-planner flames ratings + notes** via single-FK Rating record (Must Do…Decide Later, his-and-hers; ADR-0007)
 - MapRegions (port V2's working implementation) + region/tag/category/distance filtering
 - Capture via MapKit search + manual entry
 - Pool map view (PowerMap descendant)
