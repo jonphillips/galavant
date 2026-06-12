@@ -8,6 +8,9 @@
 
 /* Begin PBXBuildFile section */
 		0BB238241FF15660518799F8 /* GalavantSchema in Frameworks */ = {isa = PBXBuildFile; productRef = 9CF31E175F7DCB4D59EAF394 /* GalavantSchema */; };
+		4344BF96EA3F3DB017E4CCDF /* InterestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 292BC932AEA1B53EB11DA125 /* InterestView.swift */; };
+		4A303DECCB8DFE842751E12F /* PoolFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 895F90CCD6B6EE453DBD785D /* PoolFlowUITests.swift */; };
+		52949A4330FDF85D0EBF5AEA /* Sharing in Frameworks */ = {isa = PBXBuildFile; productRef = 5A93A34322120B8F1DC99E7B /* Sharing */; };
 		626DB4453DDF7BA57BE9AF1C /* SwiftUINavigation in Frameworks */ = {isa = PBXBuildFile; productRef = A0C2774E35241633FE89B7A7 /* SwiftUINavigation */; };
 		666F98ED751CC0C6994CFED4 /* CasePaths in Frameworks */ = {isa = PBXBuildFile; productRef = 26D83C2182F9FE47C3A1CA25 /* CasePaths */; };
 		6DFEFA57B8BACC403A250F18 /* ShareSeedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8885060D462E6E53320A2831 /* ShareSeedTests.swift */; };
@@ -56,10 +59,12 @@
 
 /* Begin PBXFileReference section */
 		0CA9E000AA9AEEE1E3D68F79 /* GalavantUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = GalavantUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		292BC932AEA1B53EB11DA125 /* InterestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterestView.swift; sourceTree = "<group>"; };
 		43AABFB8B03E2303AECAF355 /* GalavantApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GalavantApp.swift; sourceTree = "<group>"; };
 		51B1DF18254B63AD4237897B /* IdeaPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaPersistenceTests.swift; sourceTree = "<group>"; };
 		5F046B49AE38F92268A2FA12 /* GalavantShare.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = GalavantShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		8885060D462E6E53320A2831 /* ShareSeedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSeedTests.swift; sourceTree = "<group>"; };
+		895F90CCD6B6EE453DBD785D /* PoolFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoolFlowUITests.swift; sourceTree = "<group>"; };
 		92EB0541350B5FCB540931D3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		9C956244AC0CCEFCA45A4128 /* IdeaFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaFormView.swift; sourceTree = "<group>"; };
 		AD3E24952C44337E688A4D00 /* Galavant.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Galavant.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -83,6 +88,7 @@
 				626DB4453DDF7BA57BE9AF1C /* SwiftUINavigation in Frameworks */,
 				82FB0503EEB4041AC202479B /* Dependencies in Frameworks */,
 				666F98ED751CC0C6994CFED4 /* CasePaths in Frameworks */,
+				52949A4330FDF85D0EBF5AEA /* Sharing in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -93,6 +99,7 @@
 			isa = PBXGroup;
 			children = (
 				51B1DF18254B63AD4237897B /* IdeaPersistenceTests.swift */,
+				895F90CCD6B6EE453DBD785D /* PoolFlowUITests.swift */,
 				8885060D462E6E53320A2831 /* ShareSeedTests.swift */,
 				C0A1B810182571FD874E4261 /* SyncSeedTests.swift */,
 			);
@@ -155,6 +162,7 @@
 				9C956244AC0CCEFCA45A4128 /* IdeaFormView.swift */,
 				E146770B6C9957BA19FC94EC /* IdeasListModel.swift */,
 				D23CFF371B4DC6A94E98D9DB /* IdeasListView.swift */,
+				292BC932AEA1B53EB11DA125 /* InterestView.swift */,
 			);
 			path = Ideas;
 			sourceTree = "<group>";
@@ -182,6 +190,7 @@
 				A0C2774E35241633FE89B7A7 /* SwiftUINavigation */,
 				45E72731DDF6FA076EAEC92F /* Dependencies */,
 				26D83C2182F9FE47C3A1CA25 /* CasePaths */,
+				5A93A34322120B8F1DC99E7B /* Sharing */,
 			);
 			productName = Galavant;
 			productReference = AD3E24952C44337E688A4D00 /* Galavant.app */;
@@ -260,6 +269,7 @@
 				3D0FC9D09FB137795B0DD611 /* XCRemoteSwiftPackageReference "swift-case-paths" */,
 				72A7015AEBE6B87356CCFD60 /* XCRemoteSwiftPackageReference "swift-dependencies" */,
 				E0CE6503B137FDB710DCCCFE /* XCRemoteSwiftPackageReference "swift-navigation" */,
+				13970F0E37C9FD2AC7DDBCFD /* XCRemoteSwiftPackageReference "swift-sharing" */,
 				5228AC59CF5F59825B063F97 /* XCLocalSwiftPackageReference "GalavantLibrary" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -280,6 +290,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C6651664BD80959BDC624431 /* IdeaPersistenceTests.swift in Sources */,
+				4A303DECCB8DFE842751E12F /* PoolFlowUITests.swift in Sources */,
 				6DFEFA57B8BACC403A250F18 /* ShareSeedTests.swift in Sources */,
 				A2E63468073408305AED0762 /* SyncSeedTests.swift in Sources */,
 			);
@@ -293,6 +304,7 @@
 				E0CB76C004B10C1F20EC249A /* IdeaFormView.swift in Sources */,
 				7B999C65BDCCA5657877F9CD /* IdeasListModel.swift in Sources */,
 				92FA2E7F1A29694A0A6221F6 /* IdeasListView.swift in Sources */,
+				4344BF96EA3F3DB017E4CCDF /* InterestView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -602,6 +614,14 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		13970F0E37C9FD2AC7DDBCFD /* XCRemoteSwiftPackageReference "swift-sharing" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pointfreeco/swift-sharing";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
 		3D0FC9D09FB137795B0DD611 /* XCRemoteSwiftPackageReference "swift-case-paths" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/pointfreeco/swift-case-paths";
@@ -646,6 +666,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 72A7015AEBE6B87356CCFD60 /* XCRemoteSwiftPackageReference "swift-dependencies" */;
 			productName = Dependencies;
+		};
+		5A93A34322120B8F1DC99E7B /* Sharing */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 13970F0E37C9FD2AC7DDBCFD /* XCRemoteSwiftPackageReference "swift-sharing" */;
+			productName = Sharing;
 		};
 		9CF31E175F7DCB4D59EAF394 /* GalavantSchema */ = {
 			isa = XCSwiftPackageProductDependency;

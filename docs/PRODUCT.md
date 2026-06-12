@@ -11,7 +11,7 @@ to the App Store; distributed to exactly two phones (plus iPads/Macs) via TestFl
 ## The core loop: collect → pull → schedule
 
 1. **Collect** — either person captures an idea from anywhere (Safari share
-   sheet, in-app browser, map search, manual entry) into one shared household pool.
+   sheet, in-app browser, map search, manual entry) into one shared travel-party pool.
    The pool is geographic and eternal: ideas are bucketed by **map regions** and tags,
    and may sit for years. The pool is *designed* to be a junk drawer with good filters.
 2. **Pull** — when a trip becomes real, its planning view shows the pool filtered
@@ -27,6 +27,32 @@ actual Copenhagen trip pulls the 12 that fit; the Skagen beaches stay in the poo
 unconsumed, for a someday-Jutland trip. After the trip, "done" and "skipped" statuses
 flow back to the pool so future trips see an honest picture.
 
+## Scoping the pool: map-and-filter as the "guide" (the Virginia case)
+
+Saving an idea is itself the first filter — the pool is already "the world reduced
+to things that interest us," like a personal map of saved pins, not a raw firehose.
+So there is **no separate Boards/Guides entity** (ADR-0004); the *dynamic map+filter
+view is the guide*, and the *trip shortlist is the curated output*.
+
+The recurring example: we live near **Virginia** and take a Virginia trip most
+years, hitting different ideas each time.
+
+1. Open the pool map (PowerMap), scope to the **Virginia region** → only Virginia
+   ideas show.
+2. Layer **tag/kind filters** ("Michelin", food) → the visible pins thin to what fits.
+3. Process them *visually on the map* — this is the thinking surface, not a scroll list.
+4. **Pull** the ones that fit into the trip being planned (current or someday).
+
+Why this needs the pull model (and forbids an `idea.tripID`): a **MapRegion is a
+permanent geographic bucket**; many trips draw from it over years. After the 2026
+Virginia trip, the places visited get marked **visited**; planning 2027, filter
+**"not yet visited"** and the untouched ideas are still in the pool, waiting. The
+same Virginia pin feeds a decade of annual trips, each pulling a different slice.
+
+A curated "guide" you want to keep = a **someday-trip**: pull ideas into it (an idea
+can be in several), and it grows dates to become the real trip — the curation done
+while dreaming is never thrown away.
+
 ## Key model rule
 
 An idea is never *in* a trip. Trip membership is a join record with a
@@ -35,7 +61,7 @@ clean; the pool stays intact; history feeds back.
 
 ## In scope
 
-- Shared household library: everything visible and editable by both spouses, synced via iCloud
+- Shared travel-party library: everything visible and editable by all party members, synced via iCloud
 - Idea pool with region/tag/category/rating/visited filtering and map views
 - Capture: Safari share extension (essential), in-app browser with page scraping, map search, manual entry
 - Trips: regions, **optional dates** (duration + year/season until dates bind — see docs/trip-time-model.md), shortlist with drag-to-rank ordering, day-number-relative itinerary, stops with booking details

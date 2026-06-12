@@ -26,7 +26,13 @@ extension DependencyValues {
     @Dependency(\.context) var context
     var configuration = Configuration()
     configuration.prepareDatabase { db in
-      try db.attachMetadatabase()
+      // The sync metadatabase needs a CloudKit container; skip it (local-only)
+      // when unavailable rather than failing every database connection.
+      do {
+        try db.attachMetadatabase()
+      } catch {
+        reportIssue("Sync metadatabase unavailable; running local-only: \(error)")
+      }
     }
     let database: any DatabaseWriter =
       if context == .live {
@@ -55,10 +61,10 @@ extension DependencyValues {
       )
       .execute(db)
     }
-    migrator.registerMigration("Create households table; add householdID to ideas") { db in
+    migrator.registerMigration("Create travelParties table; add travelPartyID to ideas") { db in
       try #sql(
         """
-        CREATE TABLE "households" (
+        CREATE TABLE "travelParties" (
           "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
           "name" TEXT NOT NULL DEFAULT ''
         ) STRICT
@@ -68,13 +74,61 @@ extension DependencyValues {
       try #sql(
         """
         ALTER TABLE "ideas"
-        ADD COLUMN "householdID" TEXT REFERENCES "households"("id") ON DELETE CASCADE
+        ADD COLUMN "travelPartyID" TEXT REFERENCES "travelParties"("id") ON DELETE CASCADE
         """
       )
       .execute(db)
       try #sql(
         """
-        CREATE INDEX "index_ideas_on_householdID" ON "ideas"("householdID")
+        CREATE INDEX "index_ideas_on_travelPartyID" ON "ideas"("travelPartyID")
+        """
+      )
+      .execute(db)
+    }
+    migrator.registerMigration("Pool foundation: planners, ratings, idea fields") { db in
+      try #sql(
+        """
+        CREATE TABLE "planners" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "displayName" TEXT NOT NULL DEFAULT '',
+          "travelPartyID" TEXT REFERENCES "travelParties"("id") ON DELETE CASCADE
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE TABLE "ideaInterests" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "ideaID" TEXT NOT NULL REFERENCES "ideas"("id") ON DELETE CASCADE,
+          "plannerID" TEXT NOT NULL,
+          "level" INTEGER,
+          "note" TEXT NOT NULL DEFAULT ''
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_ideaInterests_on_ideaID" ON "ideaInterests"("ideaID")
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        ALTER TABLE "ideas" ADD COLUMN "kind" TEXT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        ALTER TABLE "ideas" ADD COLUMN "url" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT ''
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        ALTER TABLE "ideas" ADD COLUMN "visited" INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT 0
         """
       )
       .execute(db)
@@ -82,10 +136,17 @@ extension DependencyValues {
     try migrator.migrate(database)
     defaultDatabase = database
     if context == .live, startSyncEngine {
-      defaultSyncEngine = try SyncEngine(
-        for: database,
-        tables: Household.self, Idea.self
-      )
+      // Degrade to local-only if CloudKit is unavailable (no entitlement in an
+      // unsigned dev build, or the user isn't signed into iCloud) rather than
+      // crashing the app.
+      do {
+        defaultSyncEngine = try SyncEngine(
+          for: database,
+          tables: TravelParty.self, Idea.self, Planner.self, IdeaInterest.self
+        )
+      } catch {
+        reportIssue("CloudKit sync unavailable; running local-only: \(error)")
+      }
     }
   }
 }

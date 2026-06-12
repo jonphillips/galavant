@@ -29,6 +29,9 @@ packages:
   swift-case-paths:
     url: https://github.com/pointfreeco/swift-case-paths
     from: 1.0.0
+  swift-sharing:
+    url: https://github.com/pointfreeco/swift-sharing
+    from: 2.0.0
 targets:
   Galavant:
     type: application
@@ -54,6 +57,8 @@ targets:
         product: Dependencies
       - package: swift-case-paths
         product: CasePaths
+      - package: swift-sharing
+        product: Sharing
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jonphillips.galavant

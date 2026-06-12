@@ -61,6 +61,6 @@ See `docs/MINING.md` for the per-milestone port/adapt/skip inventory.
   modules, bundle ID, app group, CloudKit container are plain Galavant. "V3" is
   docs-only history.
 - UUID primary keys everywhere (CloudKit schema rules)
-- No `mine`/ownership flags — everything is household-shared (ADR-0003)
+- No `mine`/ownership flags — everything is travel-party-shared (ADR-0003)
 - 2-space indentation (Jon's existing style)
 - When SQLiteData API questions arise, check current docs — the library moves fast

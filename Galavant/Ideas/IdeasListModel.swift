@@ -5,6 +5,7 @@ import Foundation
 import GalavantSchema
 import os
 import SQLiteData
+import Sharing
 
 @MainActor
 @Observable
@@ -12,28 +13,65 @@ final class IdeasListModel {
   @ObservationIgnored @Dependency(\.defaultDatabase) var database
   @ObservationIgnored @Dependency(\.defaultSyncEngine) var syncEngine
   @ObservationIgnored @FetchAll(Idea.order(by: \.name)) var ideas
+  @ObservationIgnored @FetchAll(Planner.all) var planners
+  @ObservationIgnored @FetchAll(IdeaInterest.all) var interests
+  @ObservationIgnored @Shared(.appStorage("currentPlannerID")) var currentPlannerIDString = ""
   var destination: Destination?
   var sharedRecord: SharedRecord?
 
   @CasePathable
   enum Destination {
     case form(Idea.Draft)
+    case nameCapture
   }
 
-  func shareHouseholdButtonTapped() async {
-    await withErrorReporting {
-      let household = try await database.write { db in
-        try Household.ensure(in: db)
+  var currentPlanner: Planner? {
+    guard let id = UUID(uuidString: currentPlannerIDString) else { return nil }
+    return planners.first { $0.id == id }
+  }
+
+  func task() async {
+    if currentPlanner == nil {
+      destination = .nameCapture
+    }
+  }
+
+  func nameSubmitted(_ name: String) {
+    let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return }
+    withErrorReporting {
+      let planner = try database.write { db in
+        try Planner.create(displayName: trimmed, in: db)
       }
-      sharedRecord = try await syncEngine.share(record: household) {
-        $0[CKShare.SystemFieldKey.title] = "Galavant Household"
+      $currentPlannerIDString.withLock { $0 = planner.id.uuidString }
+    }
+    destination = nil
+  }
+
+  func interests(for idea: Idea) -> [(planner: Planner, level: Interest)] {
+    interests
+      .filter { $0.ideaID == idea.id && $0.level != nil }
+      .compactMap { ideaInterest in
+        guard
+          let planner = planners.first(where: { $0.id == ideaInterest.plannerID }),
+          let level = ideaInterest.level
+        else { return nil }
+        return (planner, level)
       }
-      #if DEBUG
-        if let url = sharedRecord?.share.url {
-          Logger(subsystem: "com.jonphillips.galavant", category: "Sharing")
-            .warning("HOUSEHOLD SHARE URL: \(url.absoluteString, privacy: .public)")
-        }
-      #endif
+      .sorted { $0.planner.displayName < $1.planner.displayName }
+  }
+
+  func myInterest(for idea: Idea) -> Interest? {
+    guard let me = currentPlanner else { return nil }
+    return interests.first { $0.ideaID == idea.id && $0.plannerID == me.id }?.level
+  }
+
+  func setMyInterest(_ level: Interest?, for idea: Idea) {
+    guard let me = currentPlanner else { return }
+    withErrorReporting {
+      try database.write { db in
+        try IdeaInterest.set(level: level, ideaID: idea.id, plannerID: me.id, in: db)
+      }
     }
   }
 
@@ -51,6 +89,23 @@ final class IdeasListModel {
       try database.write { db in
         try Idea.where { $0.id.in(ids) }.delete().execute(db)
       }
+    }
+  }
+
+  func shareTravelPartyButtonTapped() async {
+    await withErrorReporting {
+      let travelParty = try await database.write { db in
+        try TravelParty.ensureDefault(in: db)
+      }
+      sharedRecord = try await syncEngine.share(record: travelParty) {
+        $0[CKShare.SystemFieldKey.title] = "Galavant Travel Party"
+      }
+      #if DEBUG
+        if let url = sharedRecord?.share.url {
+          Logger(subsystem: "com.jonphillips.galavant", category: "Sharing")
+            .warning("TRAVEL PARTY SHARE URL: \(url.absoluteString, privacy: .public)")
+        }
+      #endif
     }
   }
 }

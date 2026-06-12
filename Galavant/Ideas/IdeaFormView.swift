@@ -12,6 +12,12 @@ struct IdeaFormView: View {
     NavigationStack {
       Form {
         TextField("Name", text: $draft.name)
+        Picker("Kind", selection: $draft.kind) {
+          Text("Unspecified").tag(IdeaKind?.none)
+          ForEach(IdeaKind.allCases, id: \.self) { kind in
+            Label(kind.label, systemImage: kind.systemImage).tag(IdeaKind?.some(kind))
+          }
+        }
         TextField(
           "Region",
           text: Binding(
@@ -19,6 +25,11 @@ struct IdeaFormView: View {
             set: { draft.regionName = $0.isEmpty ? nil : $0 }
           )
         )
+        TextField("Link", text: $draft.url)
+          .textContentType(.URL)
+          .textInputAutocapitalization(.never)
+          .autocorrectionDisabled()
+        Toggle("Visited", isOn: $draft.visited)
         Section("Notes") {
           TextEditor(text: $draft.notes)
             .frame(minHeight: 120)
@@ -27,14 +38,11 @@ struct IdeaFormView: View {
       .navigationTitle(draft.id == nil ? "New Idea" : "Edit Idea")
       .toolbar {
         ToolbarItem(placement: .confirmationAction) {
-          Button("Save") {
-            saveButtonTapped()
-          }
+          Button("Save") { saveButtonTapped() }
+            .disabled(draft.name.trimmingCharacters(in: .whitespaces).isEmpty)
         }
         ToolbarItem(placement: .cancellationAction) {
-          Button("Cancel") {
-            dismiss()
-          }
+          Button("Cancel") { dismiss() }
         }
       }
     }
@@ -44,7 +52,7 @@ struct IdeaFormView: View {
     withErrorReporting {
       try database.write { db in
         var draft = draft
-        draft.householdID = try Household.ensure(in: db).id
+        draft.travelPartyID = try TravelParty.ensureDefault(in: db).id
         try Idea.upsert { draft }.execute(db)
       }
     }

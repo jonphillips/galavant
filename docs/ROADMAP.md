@@ -11,9 +11,9 @@ first. Update this file when reality diverges — it's a living doc, not a contr
 - ✅ Done when: add an idea on iPhone sim, relaunch, it's still there
 
 ## M1 — The CloudKit bet ✅ (2026-06-12, architecture proven)
-- ✅ SQLiteData CloudKit sync live (SyncEngine over households+ideas; container iCloud.com.jonphillips.galavant)
+- ✅ SQLiteData CloudKit sync live (SyncEngine over travelParties+ideas; container iCloud.com.jonphillips.galavant)
 - ✅ Two-device sync on one account — both directions, ~10s latency (sim 17 Pro ↔ 17 Pro Max)
-- ✅ Household share CREATED over the full graph (household root + ideas); valid share URL
+- ✅ Travel-party share CREATED over the full graph (TravelParty root + ideas); valid share URL
 - ⏳ Accept handshake deferred to real-device test at M5/TestFlight (simulator can't route it; ADR-0003)
 
 ## M2 — The pool
