@@ -16,7 +16,10 @@ first. Update this file when reality diverges — it's a living doc, not a contr
 - ✅ Travel-party share CREATED over the full graph (TravelParty root + ideas); valid share URL
 - ⏳ Accept handshake deferred to real-device test at M5/TestFlight (simulator can't route it; ADR-0003)
 
-## M2 — The pool
+## M2 — The pool *(in progress)*
+- ✅ M2a: TravelParty/Planner/IdeaInterest schema, kinds, per-planner first-run identity, his/hers interest UI
+- ✅ M2b: MapKit location search in the form (idea gets coordinates) + pool map with pins + list/map toggle
+- ⏳ MapRegions + region/tag/kind filtering; tags; capture polish
 - Full Idea model: kinds, visited state, tags, URLs, images, opening days/hours and reservable-from (manual entry)
 - Planner identity (ADR-0007): Planner table, device-local currentPlannerID, first-run name capture
 - **Per-planner flames ratings + notes** via single-FK Rating record (Must Do…Decide Later, his-and-hers; ADR-0007)

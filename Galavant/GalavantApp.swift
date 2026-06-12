@@ -17,7 +17,7 @@ struct GalavantApp: App {
   var body: some Scene {
     WindowGroup {
       NavigationStack {
-        IdeasListView()
+        IdeasScreen()
       }
     }
   }

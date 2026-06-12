@@ -4,42 +4,47 @@ import SQLiteData
 import SwiftUI
 import SwiftUINavigation
 
-struct IdeasListView: View {
+struct IdeasScreen: View {
   @State private var model = IdeasListModel()
+  @State private var mode: Mode = .list
+
+  enum Mode: String, CaseIterable {
+    case list, map
+    var systemImage: String { self == .list ? "list.bullet" : "map" }
+  }
 
   var body: some View {
-    List {
-      ForEach(model.ideas) { idea in
-        IdeaRow(
-          idea: idea,
-          interests: model.interests(for: idea),
-          myInterest: model.myInterest(for: idea),
-          onTap: { model.ideaTapped(idea) },
-          onSetInterest: { model.setMyInterest($0, for: idea) }
-        )
+    Group {
+      switch mode {
+      case .list:
+        ideasList
+      case .map:
+        PoolMapView(ideas: model.ideas, onSelect: model.ideaTapped)
       }
-      .onDelete { model.deleteIdeas(at: $0) }
     }
     .navigationTitle("Ideas")
-    .overlay {
-      if model.ideas.isEmpty {
-        ContentUnavailableView(
-          "No ideas yet",
-          systemImage: "lightbulb",
-          description: Text("Tap + to capture your first travel idea.")
-        )
-      }
-    }
     .toolbar {
-      Button {
-        Task { await model.shareTravelPartyButtonTapped() }
-      } label: {
-        Label("Share Travel Party", systemImage: "person.2")
+      ToolbarItem(placement: .principal) {
+        Picker("View", selection: $mode) {
+          ForEach(Mode.allCases, id: \.self) { mode in
+            Image(systemName: mode.systemImage).tag(mode)
+          }
+        }
+        .pickerStyle(.segmented)
       }
-      Button {
-        model.addIdeaButtonTapped()
-      } label: {
-        Label("Add Idea", systemImage: "plus")
+      ToolbarItem {
+        Button {
+          Task { await model.shareTravelPartyButtonTapped() }
+        } label: {
+          Label("Share Travel Party", systemImage: "person.2")
+        }
+      }
+      ToolbarItem {
+        Button {
+          model.addIdeaButtonTapped()
+        } label: {
+          Label("Add Idea", systemImage: "plus")
+        }
       }
     }
     .task { await model.task() }
@@ -52,6 +57,30 @@ struct IdeasListView: View {
     }
     .sheet(item: $model.sharedRecord) { sharedRecord in
       CloudSharingView(sharedRecord: sharedRecord)
+    }
+  }
+
+  private var ideasList: some View {
+    List {
+      ForEach(model.ideas) { idea in
+        IdeaRow(
+          idea: idea,
+          interests: model.interests(for: idea),
+          myInterest: model.myInterest(for: idea),
+          onTap: { model.ideaTapped(idea) },
+          onSetInterest: { model.setMyInterest($0, for: idea) }
+        )
+      }
+      .onDelete { model.deleteIdeas(at: $0) }
+    }
+    .overlay {
+      if model.ideas.isEmpty {
+        ContentUnavailableView(
+          "No ideas yet",
+          systemImage: "lightbulb",
+          description: Text("Tap + to capture your first travel idea.")
+        )
+      }
     }
   }
 }
@@ -137,6 +166,6 @@ private struct NameCaptureView: View {
     try! $0.bootstrapDatabase()
   }
   NavigationStack {
-    IdeasListView()
+    IdeasScreen()
   }
 }

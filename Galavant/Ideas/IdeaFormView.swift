@@ -1,12 +1,18 @@
 import Dependencies
 import GalavantSchema
+import MapKit
 import SQLiteData
 import SwiftUI
 
 struct IdeaFormView: View {
   @State var draft: Idea.Draft
+  @State private var search = LocationSearchModel()
   @Environment(\.dismiss) private var dismiss
   @Dependency(\.defaultDatabase) private var database
+
+  private var hasLocation: Bool {
+    draft.latitude != nil && draft.longitude != nil
+  }
 
   var body: some View {
     NavigationStack {
@@ -18,13 +24,40 @@ struct IdeaFormView: View {
             Label(kind.label, systemImage: kind.systemImage).tag(IdeaKind?.some(kind))
           }
         }
-        TextField(
-          "Region",
-          text: Binding(
-            get: { draft.regionName ?? "" },
-            set: { draft.regionName = $0.isEmpty ? nil : $0 }
-          )
-        )
+
+        Section("Location") {
+          if hasLocation {
+            HStack {
+              Image(systemName: "mappin.circle.fill")
+                .foregroundStyle(.red)
+              VStack(alignment: .leading) {
+                Text(draft.name.isEmpty ? "Pinned location" : draft.name)
+                if let regionName = draft.regionName, !regionName.isEmpty {
+                  Text(regionName).font(.caption).foregroundStyle(.secondary)
+                }
+              }
+              Spacer()
+              Button("Clear", role: .destructive) { clearLocation() }
+                .buttonStyle(.borderless)
+            }
+          } else {
+            TextField("Search a place", text: $search.query)
+              .textInputAutocapitalization(.words)
+            ForEach(search.results, id: \.self) { completion in
+              Button {
+                Task { await pickPlace(completion) }
+              } label: {
+                VStack(alignment: .leading) {
+                  Text(completion.title).foregroundStyle(.primary)
+                  if !completion.subtitle.isEmpty {
+                    Text(completion.subtitle).font(.caption).foregroundStyle(.secondary)
+                  }
+                }
+              }
+            }
+          }
+        }
+
         TextField("Link", text: $draft.url)
           .textContentType(.URL)
           .textInputAutocapitalization(.never)
@@ -46,6 +79,22 @@ struct IdeaFormView: View {
         }
       }
     }
+  }
+
+  private func pickPlace(_ completion: MKLocalSearchCompletion) async {
+    guard let place = await search.resolve(completion) else { return }
+    if draft.name.trimmingCharacters(in: .whitespaces).isEmpty {
+      draft.name = place.name
+    }
+    draft.latitude = place.latitude
+    draft.longitude = place.longitude
+    draft.regionName = place.regionName
+    search.query = ""
+  }
+
+  private func clearLocation() {
+    draft.latitude = nil
+    draft.longitude = nil
   }
 
   private func saveButtonTapped() {
