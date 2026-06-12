@@ -24,6 +24,19 @@ risk in the project** — SQLiteData's CloudKit sharing must support the
 everything-shared-with-one-person pattern with acceptable ergonomics. Prove it with a
 toy entity on two real devices before building features on top (Roadmap M1).
 
+## Validation status (2026-06-12, M1)
+
+- ✅ **Two-device sync, one account**: bidirectional, ~10s latency.
+- ✅ **Share creation over the full graph**: `SyncEngine.share(record: household)`
+  succeeds and returns a real `icloud.com/share` URL; the `Household` root carries
+  its `Idea`s along as single-FK associations. This is the part the ADR was
+  actually unsure about — SQLiteData *does* support everything-shared-with-one.
+- ⏳ **Accept handshake**: deferred to real-device test (M5/TestFlight). The
+  simulator can't drive it — `simctl openurl` routes a share link to the system
+  `sharingd` daemon, which never hands `CKShare.Metadata` to the app's scene
+  delegate. The accept code is verbatim from the pfw-sqlite-data template; it
+  only runs when a human taps a real link on a real device. Low residual risk.
+
 ## Consequences
 
 - No per-item ownership/privacy semantics anywhere in the schema (no `mine` flags —

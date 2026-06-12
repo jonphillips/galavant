@@ -3,6 +3,7 @@ import CloudKit
 import Dependencies
 import Foundation
 import GalavantSchema
+import os
 import SQLiteData
 
 @MainActor
@@ -27,6 +28,12 @@ final class IdeasListModel {
       sharedRecord = try await syncEngine.share(record: household) {
         $0[CKShare.SystemFieldKey.title] = "Galavant Household"
       }
+      #if DEBUG
+        if let url = sharedRecord?.share.url {
+          Logger(subsystem: "com.jonphillips.galavant", category: "Sharing")
+            .warning("HOUSEHOLD SHARE URL: \(url.absoluteString, privacy: .public)")
+        }
+      #endif
     }
   }
 

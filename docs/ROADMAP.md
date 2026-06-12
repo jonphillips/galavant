@@ -10,12 +10,11 @@ first. Update this file when reality diverges — it's a living doc, not a contr
 - List + add/edit form proving @FetchAll observation and swift-navigation Destination pattern
 - ✅ Done when: add an idea on iPhone sim, relaunch, it's still there
 
-## M1 — The CloudKit bet *(in progress)*
+## M1 — The CloudKit bet ✅ (2026-06-12, architecture proven)
 - ✅ SQLiteData CloudKit sync live (SyncEngine over households+ideas; container iCloud.com.jonphillips.galavant)
-- ✅ Two-device sync on one account proven 2026-06-11 — both directions, ~10s latency (sim 17 Pro ↔ 17 Pro Max)
-- ⏳ Prove the **household share**: second iCloud account accepts one share and
-  sees/edits everything — this is the project's #1 risk (ADR-0003)
-- ✅ Done when: edit on Jon's phone appears on wife's device and vice versa
+- ✅ Two-device sync on one account — both directions, ~10s latency (sim 17 Pro ↔ 17 Pro Max)
+- ✅ Household share CREATED over the full graph (household root + ideas); valid share URL
+- ⏳ Accept handshake deferred to real-device test at M5/TestFlight (simulator can't route it; ADR-0003)
 
 ## M2 — The pool
 - Full Idea model: kinds, **per-spouse flames ratings + notes** (Must Do…Decide Later; docs/recovered-requirements.md), visited state, tags, URLs, images, opening days/hours and reservable-from (manual entry)
