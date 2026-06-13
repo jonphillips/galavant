@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0BB238241FF15660518799F8 /* GalavantSchema in Frameworks */ = {isa = PBXBuildFile; productRef = 9CF31E175F7DCB4D59EAF394 /* GalavantSchema */; };
+		163235D89FEB136F5C5F73ED /* PoolIdentityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00154E6FD53486C6ECD8CBD9 /* PoolIdentityUITests.swift */; };
 		1837DF07507FDA3791A5EF8E /* LocationSearchModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A4CEB693F2E177C2E2F109F /* LocationSearchModel.swift */; };
 		1C3D2E2D9EEF8BC709447AE6 /* PoolMapUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17EBCBAEA0AF8C840A0DA921 /* PoolMapUITests.swift */; };
 		3DF889FDCBE7A7C979E41F13 /* IdeasScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E13450922E6B719B55DC57BC /* IdeasScreen.swift */; };
@@ -62,6 +63,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		00154E6FD53486C6ECD8CBD9 /* PoolIdentityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoolIdentityUITests.swift; sourceTree = "<group>"; };
 		0CA9E000AA9AEEE1E3D68F79 /* GalavantUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = GalavantUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1791F203077D8B7907351B9F /* PoolMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoolMapView.swift; sourceTree = "<group>"; };
 		17EBCBAEA0AF8C840A0DA921 /* PoolMapUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoolMapUITests.swift; sourceTree = "<group>"; };
@@ -108,6 +110,7 @@
 			children = (
 				51B1DF18254B63AD4237897B /* IdeaPersistenceTests.swift */,
 				895F90CCD6B6EE453DBD785D /* PoolFlowUITests.swift */,
+				00154E6FD53486C6ECD8CBD9 /* PoolIdentityUITests.swift */,
 				17EBCBAEA0AF8C840A0DA921 /* PoolMapUITests.swift */,
 				8885060D462E6E53320A2831 /* ShareSeedTests.swift */,
 				C0A1B810182571FD874E4261 /* SyncSeedTests.swift */,
@@ -311,6 +314,7 @@
 			files = (
 				C6651664BD80959BDC624431 /* IdeaPersistenceTests.swift in Sources */,
 				4A303DECCB8DFE842751E12F /* PoolFlowUITests.swift in Sources */,
+				163235D89FEB136F5C5F73ED /* PoolIdentityUITests.swift in Sources */,
 				1C3D2E2D9EEF8BC709447AE6 /* PoolMapUITests.swift in Sources */,
 				6DFEFA57B8BACC403A250F18 /* ShareSeedTests.swift in Sources */,
 				A2E63468073408305AED0762 /* SyncSeedTests.swift in Sources */,

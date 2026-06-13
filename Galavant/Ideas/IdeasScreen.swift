@@ -51,8 +51,8 @@ struct IdeasScreen: View {
     .sheet(item: $model.destination.form, id: \.id) { draft in
       IdeaFormView(draft: draft)
     }
-    .sheet(isPresented: Binding($model.destination.nameCapture)) {
-      NameCaptureView(onSubmit: model.nameSubmitted)
+    .sheet(isPresented: Binding($model.destination.identity)) {
+      IdentityView(model: model)
         .interactiveDismissDisabled()
     }
     .sheet(item: $model.sharedRecord) { sharedRecord in
@@ -134,27 +134,63 @@ private struct IdeaRow: View {
   }
 }
 
-private struct NameCaptureView: View {
-  let onSubmit: (String) -> Void
+/// First-run / new-device identity. If the travel party already has synced
+/// planners, offer to *pick* one (bind this device) rather than creating a
+/// duplicate (ADR-0008); otherwise capture the first planner's name.
+private struct IdentityView: View {
+  let model: IdeasListModel
   @State private var name = ""
+  @State private var creatingNew = false
+
+  private var showNameField: Bool {
+    model.planners.isEmpty || creatingNew
+  }
 
   var body: some View {
     NavigationStack {
       Form {
-        Section {
-          TextField("Your name", text: $name)
-        } header: {
-          Text("Who's planning?")
-        } footer: {
-          Text("Your ratings and notes are labeled with this name so you and your travel party can tell them apart.")
+        if showNameField {
+          Section {
+            TextField("Your name", text: $name)
+          } header: {
+            Text("Who's planning?")
+          } footer: {
+            Text("Your ratings and notes are labeled with this name so you and your travel party can tell them apart.")
+          }
+        } else {
+          Section {
+            ForEach(model.planners) { planner in
+              Button {
+                model.selectPlanner(planner)
+              } label: {
+                HStack {
+                  Text(planner.displayName).foregroundStyle(.primary)
+                  Spacer()
+                  Image(systemName: "chevron.right").foregroundStyle(.tertiary)
+                }
+              }
+            }
+            Button("Someone new…") { creatingNew = true }
+          } header: {
+            Text("Who are you?")
+          } footer: {
+            Text("Pick yourself so your ratings show up under your name. This only sets who you are on this device.")
+          }
         }
       }
       .navigationTitle("Welcome to Galavant")
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
-        ToolbarItem(placement: .confirmationAction) {
-          Button("Continue") { onSubmit(name) }
-            .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+        if showNameField {
+          ToolbarItem(placement: .confirmationAction) {
+            Button("Continue") { model.createPlanner(named: name) }
+              .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+          }
+          if creatingNew {
+            ToolbarItem(placement: .cancellationAction) {
+              Button("Back") { creatingNew = false }
+            }
+          }
         }
       }
     }

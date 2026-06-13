@@ -19,10 +19,18 @@ final class IdeasListModel {
   var destination: Destination?
   var sharedRecord: SharedRecord?
 
+  init() {
+    // Test hook: simulate a device that doesn't yet know which planner it is
+    // (e.g. a freshly synced second device) without wiping the shared data.
+    if CommandLine.arguments.contains("--reset-identity") {
+      $currentPlannerIDString.withLock { $0 = "" }
+    }
+  }
+
   @CasePathable
   enum Destination {
     case form(Idea.Draft)
-    case nameCapture
+    case identity
   }
 
   var currentPlanner: Planner? {
@@ -32,11 +40,19 @@ final class IdeasListModel {
 
   func task() async {
     if currentPlanner == nil {
-      destination = .nameCapture
+      destination = .identity
     }
   }
 
-  func nameSubmitted(_ name: String) {
+  /// Bind this device to an existing synced planner (ADR-0008) — the second-device
+  /// path. Only the device-local `currentPlannerID` changes; no new row is created.
+  func selectPlanner(_ planner: Planner) {
+    $currentPlannerIDString.withLock { $0 = planner.id.uuidString }
+    destination = nil
+  }
+
+  /// Create a brand-new planner and bind to it — the genuinely-first-run path.
+  func createPlanner(named name: String) {
     let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !trimmed.isEmpty else { return }
     withErrorReporting {
