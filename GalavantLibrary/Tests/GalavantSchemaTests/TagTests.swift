@@ -49,12 +49,12 @@ struct TagTests {
     ]
     // Selecting Michelin keeps only Noma.
     let result = poolFiltered(
-      [noma, cafe], region: nil, tagIDs: [michelin], ideaTagIDs: ideaTagIDs
+      [noma, cafe], tagIDs: [michelin], ideaTagIDs: ideaTagIDs
     )
     #expect(result.map(\.name) == ["Noma"])
     // Selecting Michelin + outdoor still only Noma (cafe lacks Michelin).
     let both = poolFiltered(
-      [noma, cafe], region: nil, tagIDs: [michelin, outdoor], ideaTagIDs: ideaTagIDs
+      [noma, cafe], tagIDs: [michelin, outdoor], ideaTagIDs: ideaTagIDs
     )
     #expect(both.map(\.name) == ["Noma"])
   }

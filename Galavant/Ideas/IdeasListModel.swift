@@ -68,7 +68,7 @@ final class IdeasListModel {
   var filteredIdeas: [Idea] {
     poolFiltered(
       ideas,
-      region: selectedRegion,
+      regions: selectedRegion.map { [$0] } ?? [],
       kinds: selectedKinds,
       includeVisited: includeVisited,
       tagIDs: selectedTagIDs,

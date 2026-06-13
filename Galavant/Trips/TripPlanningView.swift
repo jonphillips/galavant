@@ -50,6 +50,7 @@ struct TripPlanningView: View {
     .sheet(item: $model.destination.edit, id: \.id) { draft in
       TripFormView(draft: draft)
     }
+    .task { model.seedLensIfNeeded() }
   }
 
   // MARK: - Shortlist mode
@@ -191,17 +192,12 @@ struct TripPlanningView: View {
 
   private var filterMenu: some View {
     Menu {
-      Menu("Region") {
-        Button {
-          model.selectedRegionID = nil
-        } label: {
-          checked("All regions", on: model.selectedRegionID == nil)
-        }
+      Menu("Regions") {
         ForEach(model.sortedRegions) { region in
           Button {
-            model.selectedRegionID = region.id
+            model.toggleRegion(region.id)
           } label: {
-            checked(region.name, on: model.selectedRegionID == region.id)
+            checked(region.name, on: model.selectedRegionIDs.contains(region.id))
           }
         }
       }

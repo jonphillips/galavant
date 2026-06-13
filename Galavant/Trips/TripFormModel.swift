@@ -11,6 +11,7 @@ import SQLiteData
 @Observable
 final class TripFormModel {
   @ObservationIgnored @Dependency(\.defaultDatabase) var database
+  @ObservationIgnored @FetchAll(MapRegion.order(by: \.name)) var allRegions
 
   var draft: Trip.Draft
   var stage: CertaintyStage
@@ -18,6 +19,8 @@ final class TripFormModel {
   var targetQuarter: Quarter?
   var startDate: Date
   var lengthInDays: Int
+  /// The regions this trip spans — the persistent planning lens (M3b.1).
+  var selectedRegionIDs: Set<MapRegion.ID> = []
 
   init(draft: Trip.Draft) {
     @Dependency(\.date.now) var now
@@ -32,6 +35,29 @@ final class TripFormModel {
 
   var isNew: Bool { draft.id == nil }
   var canSave: Bool { !draft.name.trimmingCharacters(in: .whitespaces).isEmpty }
+
+  var sortedRegions: [MapRegion] {
+    allRegions.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+  }
+
+  /// Load the editing trip's existing regions into the multi-select.
+  func task() async {
+    guard let id = draft.id else { return }
+    await withErrorReporting {
+      let ids = try await database.read { db in
+        try TripRegion.regionIDs(forTrip: id, in: db)
+      }
+      selectedRegionIDs = Set(ids)
+    }
+  }
+
+  func toggleRegion(_ id: MapRegion.ID) {
+    if selectedRegionIDs.contains(id) {
+      selectedRegionIDs.remove(id)
+    } else {
+      selectedRegionIDs.insert(id)
+    }
+  }
 
   /// Five sensible years to target from, starting at the current one.
   var selectableYears: [Int] { Array(targetYear...(targetYear + 5)) }
@@ -48,21 +74,25 @@ final class TripFormModel {
   func saveButtonTapped() {
     let lengthInDays = lengthInDays
     let certainty = certainty
+    let regionIDs = selectedRegionIDs
     var draft = draft
     draft.lengthInDays = lengthInDays
     withErrorReporting {
       try database.write { db in
-        if draft.id == nil {
-          _ = try Trip.create(
+        let tripID: Trip.ID
+        if let id = draft.id {
+          try Trip.update(draft, certainty: certainty, in: db)
+          tripID = id
+        } else {
+          tripID = try Trip.create(
             name: draft.name,
             certainty: certainty,
             lengthInDays: lengthInDays,
             notes: draft.notes,
             in: db
-          )
-        } else {
-          try Trip.update(draft, certainty: certainty, in: db)
+          ).id
         }
+        try TripRegion.setRegions(regionIDs, forTrip: tripID, in: db)
       }
     }
   }

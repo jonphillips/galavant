@@ -23,27 +23,40 @@ struct RegionFilterTests {
     let inside = idea(name: "Tivoli", lat: 55.67, lon: 12.57)
     let outside = idea(name: "Central Park", lat: 40.78, lon: -73.96)
     let unlocated = idea(name: "Someday spa", lat: nil, lon: nil)
-    let result = poolFiltered([inside, outside, unlocated], region: copenhagen)
+    let result = poolFiltered([inside, outside, unlocated], regions: [copenhagen])
     #expect(result.map(\.name) == ["Tivoli"])
   }
 
   @Test func kindFilter() {
     let food = idea(name: "Noma", kind: .food)
     let museum = idea(name: "SMK", kind: .museum)
-    let result = poolFiltered([food, museum], region: nil, kinds: [.food])
+    let result = poolFiltered([food, museum], kinds: [.food])
     #expect(result.map(\.name) == ["Noma"])
   }
 
   @Test func visitedExclusion() {
     let fresh = idea(name: "Fresh", visited: false)
     let been = idea(name: "Been there", visited: true)
-    let result = poolFiltered([fresh, been], region: nil, includeVisited: false)
+    let result = poolFiltered([fresh, been], includeVisited: false)
     #expect(result.map(\.name) == ["Fresh"])
+  }
+
+  @Test func multipleRegionsUnion() {
+    let nyc = MapRegion(
+      id: UUID(), name: "NYC",
+      centerLatitude: 40.7, centerLongitude: -74.0, latitudeDelta: 2, longitudeDelta: 2
+    )
+    let inCph = idea(name: "Tivoli", lat: 55.67, lon: 12.57)
+    let inNyc = idea(name: "Central Park", lat: 40.78, lon: -73.96)
+    let elsewhere = idea(name: "Tokyo Tower", lat: 35.66, lon: 139.74)
+    // An idea matches if it's inside *any* of the trip's regions.
+    let result = poolFiltered([inCph, inNyc, elsewhere], regions: [copenhagen, nyc])
+    #expect(Set(result.map(\.name)) == ["Tivoli", "Central Park"])
   }
 
   @Test func noFiltersReturnsEverything() {
     let all = [idea(name: "A"), idea(name: "B", lat: nil, lon: nil)]
-    #expect(poolFiltered(all, region: nil).count == 2)
+    #expect(poolFiltered(all).count == 2)
   }
 
   private func idea(

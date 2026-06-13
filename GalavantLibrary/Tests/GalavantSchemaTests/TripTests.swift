@@ -231,6 +231,29 @@ struct TripTests {
     #expect(TripIdea.shortlist(entries).map(\.shortlistRank) == [0, 1])
   }
 
+  // MARK: - Trip regions (M3b.1)
+
+  @Test func setRegionsReconcilesToExactSet() async throws {
+    let (a, b, c) = (UUID(), UUID(), UUID())
+    let ids = try await database.write { db -> Set<UUID> in
+      let trip = try Trip.create(name: "Denmark", in: db)
+      try TripRegion.setRegions([a, b], forTrip: trip.id, in: db)
+      try TripRegion.setRegions([b, c], forTrip: trip.id, in: db)  // drop a, add c
+      return Set(try TripRegion.regionIDs(forTrip: trip.id, in: db))
+    }
+    #expect(ids == [b, c])
+  }
+
+  @Test func deletingTripCascadesItsRegions() async throws {
+    let count = try await database.write { db -> Int in
+      let trip = try Trip.create(name: "Denmark", in: db)
+      try TripRegion.setRegions([UUID(), UUID()], forTrip: trip.id, in: db)
+      try Trip.find(trip.id).delete().execute(db)
+      return try TripRegion.all.fetchCount(db)
+    }
+    #expect(count == 0)
+  }
+
   // MARK: - Helpers
 
   private func trip(_ name: String, _ certainty: Certainty) -> Trip {

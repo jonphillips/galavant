@@ -55,11 +55,38 @@ struct TripFormView: View {
           )
         }
 
+        Section {
+          if model.sortedRegions.isEmpty {
+            Text("No regions yet — define them on the Ideas map.")
+              .font(.footnote)
+              .foregroundStyle(.secondary)
+          } else {
+            ForEach(model.sortedRegions) { region in
+              Button {
+                model.toggleRegion(region.id)
+              } label: {
+                HStack {
+                  Text(region.name).foregroundStyle(.primary)
+                  Spacer()
+                  if model.selectedRegionIDs.contains(region.id) {
+                    Image(systemName: "checkmark").foregroundStyle(.tint)
+                  }
+                }
+              }
+            }
+          }
+        } header: {
+          Text("Regions")
+        } footer: {
+          Text("The Add list pre-selects these when you plan the trip.")
+        }
+
         Section("Notes") {
           TextEditor(text: $model.draft.notes)
             .frame(minHeight: 120)
         }
       }
+      .task { await model.task() }
       .navigationTitle(model.isNew ? "New Trip" : "Edit Trip")
       .toolbar {
         ToolbarItem(placement: .confirmationAction) {

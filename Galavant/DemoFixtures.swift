@@ -40,16 +40,19 @@
         ("New York", 40.71, -74.0),
       ]
       var regions: [(String, Double, Double)] = []
+      var regionIDByName: [String: MapRegion.ID] = [:]
       for (name, lat, lon) in regionSpecs {
+        let regionID = UUID()
         try MapRegion.insert {
           MapRegion.Draft(
-            id: UUID(), name: name,
+            id: regionID, name: name,
             centerLatitude: lat, centerLongitude: lon,
             latitudeDelta: 1.5, longitudeDelta: 1.5, travelPartyID: partyID
           )
         }
         .execute(db)
         regions.append((name, lat, lon))
+        regionIDByName[name] = regionID
       }
 
       let tagNames = [
@@ -97,14 +100,20 @@
       // A trip in each certainty stage, plus a couple more in the backlog, so
       // the sectioned Trips list is populated.
       let christmas = DateComponents(calendar: .current, year: 2027, month: 12, day: 18).date
-      _ = try Trip.create(name: "Tokyo", in: db)
+      let tokyo = try Trip.create(name: "Tokyo", in: db)
       _ = try Trip.create(name: "Barcelona", in: db)
-      _ = try Trip.create(
+      let paris = try Trip.create(
         name: "Paris", certainty: .targeted(year: 2027, quarter: .q2), lengthInDays: 6, in: db
       )
-      _ = try Trip.create(
+      let copenhagen = try Trip.create(
         name: "Copenhagen", certainty: .dated(start: christmas ?? Date()), lengthInDays: 9, in: db
       )
+      // Pre-associate planning regions so the Add lens has something to show.
+      for (trip, regionName) in [(tokyo, "Tokyo"), (paris, "Paris"), (copenhagen, "Copenhagen")] {
+        if let regionID = regionIDByName[regionName] {
+          try TripRegion.setRegions([regionID], forTrip: trip.id, in: db)
+        }
+      }
 
       return jon.id
     }

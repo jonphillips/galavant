@@ -15,6 +15,7 @@ final class TripPlanningModel {
   @ObservationIgnored @FetchAll(Trip.all) var trips
   @ObservationIgnored @FetchAll(Idea.order(by: \.name)) var ideas
   @ObservationIgnored @FetchAll(TripIdea.all) var allTripIdeas
+  @ObservationIgnored @FetchAll(TripRegion.all) var allTripRegions
   @ObservationIgnored @FetchAll(MapRegion.order(by: \.name)) var regions
   @ObservationIgnored @FetchAll(Tag.order(by: \.name)) var tags
   @ObservationIgnored @FetchAll(IdeaTag.all) var ideaTags
@@ -23,8 +24,9 @@ final class TripPlanningModel {
   var mode: Mode = .shortlist
   var destination: Destination?
 
-  // Pool lens (reused from the Ideas screen, M2c).
-  var selectedRegionID: MapRegion.ID?
+  // Pool lens (reused from the Ideas screen, M2c), seeded from the trip's regions.
+  var selectedRegionIDs: Set<MapRegion.ID> = []
+  private var didSeedLens = false
   var selectedKinds: Set<IdeaKind> = []
   var selectedTagIDs: Set<Tag.ID> = []
   var includeVisited = true
@@ -80,12 +82,20 @@ final class TripPlanningModel {
   var ideaTagIDs: [Idea.ID: Set<Tag.ID>] {
     Dictionary(grouping: ideaTags, by: \.ideaID).mapValues { Set($0.map(\.tagID)) }
   }
-  var selectedRegion: MapRegion? { regions.first { $0.id == selectedRegionID } }
+  var selectedRegions: [MapRegion] { regions.filter { selectedRegionIDs.contains($0.id) } }
+
+  /// Seed the Add lens from the trip's saved regions, once (the persistent
+  /// planning lens, M3b.1). The user can adjust it per visit thereafter.
+  func seedLensIfNeeded() {
+    guard !didSeedLens else { return }
+    didSeedLens = true
+    selectedRegionIDs = Set(allTripRegions.filter { $0.tripID == tripID }.map(\.regionID))
+  }
 
   var filteredPool: [Idea] {
     poolFiltered(
       ideas,
-      region: selectedRegion,
+      regions: selectedRegions,
       kinds: selectedKinds,
       includeVisited: includeVisited,
       tagIDs: selectedTagIDs,
@@ -107,7 +117,11 @@ final class TripPlanningModel {
     tags.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
   }
   var isFiltering: Bool {
-    selectedRegionID != nil || !selectedKinds.isEmpty || !selectedTagIDs.isEmpty || !includeVisited
+    !selectedRegionIDs.isEmpty || !selectedKinds.isEmpty || !selectedTagIDs.isEmpty || !includeVisited
+  }
+
+  func toggleRegion(_ id: MapRegion.ID) {
+    if selectedRegionIDs.contains(id) { selectedRegionIDs.remove(id) } else { selectedRegionIDs.insert(id) }
   }
 
   func toggleKind(_ kind: IdeaKind) {
@@ -117,7 +131,7 @@ final class TripPlanningModel {
     if selectedTagIDs.contains(id) { selectedTagIDs.remove(id) } else { selectedTagIDs.insert(id) }
   }
   func clearFilters() {
-    selectedRegionID = nil
+    selectedRegionIDs = []
     selectedKinds = []
     selectedTagIDs = []
     includeVisited = true
