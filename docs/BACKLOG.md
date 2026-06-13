@@ -49,6 +49,17 @@ switching and sync health) should migrate into a dedicated settings or "You"
 nav section, not be buried in the filter. Punted for now; tracked here. Likely
 lands when the third nav section ("You"/Account) is built (M5-ish).
 
+## Multi-select tag assignment on Ideas (from Jon, 2026-06-13)
+
+The data model already supports many tags per idea (IdeaTag join), but the form
+adds them **one at a time** (type-and-add with autocomplete). Jon wants a
+**multi-select tag picker** (confirmed 2026-06-13): a scrollable list of all
+existing tags with checkmarks, toggling several on/off at once. **A dedicated
+screen is acceptable** (push from the form's Tags section → tag-picker screen →
+back). Keep the type-to-create-new-tag path available there too. The current
+one-at-a-time add stays as the inline quick path; this is the "manage many"
+surface. Likely reuses TagManagerView's list shell.
+
 ## Filter reminder above the list (from Jon, 2026-06-12) — DONE
 
 Show active filter settings in small text above the filtered list. Implemented

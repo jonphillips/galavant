@@ -9,9 +9,9 @@ struct TripsScreen: View {
 
   var body: some View {
     List {
-      somedaySection
-      certaintySection(model.sections.targeted, "Targeted")
       certaintySection(model.sections.dated, "Dated")
+      certaintySection(model.sections.targeted, "Targeted")
+      somedaySection
     }
     .reorderContainer(for: Trip.self) { difference in
       var someday = model.sections.someday

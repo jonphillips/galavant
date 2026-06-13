@@ -18,6 +18,8 @@ struct TripRow: View {
       .foregroundStyle(.secondary)
     }
     .padding(.vertical, 2)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .contentShape(Rectangle())
   }
 
   /// Human-readable commitment level, derived from the domain `Certainty`.
