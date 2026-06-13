@@ -21,6 +21,7 @@ final class TripFormModel {
   var lengthInDays: Int
   /// The regions this trip spans — the persistent planning lens (M3b.1).
   var selectedRegionIDs: Set<MapRegion.ID> = []
+  private var didLoadRegions = false
 
   init(draft: Trip.Draft) {
     @Dependency(\.date.now) var now
@@ -46,9 +47,13 @@ final class TripFormModel {
     return names.isEmpty ? "None" : names.joined(separator: ", ")
   }
 
-  /// Load the editing trip's existing regions into the multi-select.
+  /// Load the editing trip's existing regions into the multi-select — once.
+  /// (`.task` re-runs when the form reappears after the region-picker subscreen
+  /// pops; without this guard it would reload from the DB and discard the user's
+  /// in-picker toggles.)
   func task() async {
-    guard let id = draft.id else { return }
+    guard !didLoadRegions, let id = draft.id else { return }
+    didLoadRegions = true
     await withErrorReporting {
       let ids = try await database.read { db in
         try TripRegion.regionIDs(forTrip: id, in: db)
