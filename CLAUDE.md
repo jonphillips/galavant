@@ -55,9 +55,18 @@ See `docs/MINING.md` for the per-milestone port/adapt/skip inventory.
   those skills + current docs over memory.
 
 ## Context Management
-- When context exceeds 50%, suggest starting a new conversation or using subagents for independent tasks.
-- One task per conversation. Finish, then we should start fresh?
-- Proactively recommend context-saving strategies: use file reads instead of pasting, suggest /compact when context 1s heavy, recommend subagents for research tasks, and flag when a reference file would be better than inline instructions.
+- **Start a fresh conversation at commit/milestone boundaries** (not every task —
+  our exploratory multi-task sessions are fine). The repo (CLAUDE.md, docs/,
+  ADRs, ROADMAP, BACKLOG) + auto-memory hold all durable state, so a new session
+  resumes with zero loss. Suggest a fresh start when context is heavy AND the
+  tree is clean (committed).
+- **Don't paste large tool output** (crash reports, full compiler command lines,
+  whole build logs). Save to a file and tell Claude the path, or paste only the
+  error line — Claude greps/tails logs itself.
+- Prefer targeted file reads over re-reading whole files; use subagents for broad
+  codebase searches (they return just the conclusion).
+- `/compact` mid-task if context-heavy but not ready to stop; a fresh session is
+  better when you are.
 
 ## Conventions
 
