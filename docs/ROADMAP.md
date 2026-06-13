@@ -30,6 +30,9 @@ first. Update this file when reality diverges — it's a living doc, not a contr
 - Pool map view (PowerMap descendant)
 - ✅ Done when: the Denmark junk drawer works — collect, filter, browse on a map
 
+## M2→M3 — Adaptive nav shell ✅ (2026-06-12)
+- ✅ AppContainer: tabs on iPhone, sidebar+detail split on iPad/Mac (prefersTabNavigation, ported from V2). AppScreen sections: Ideas (real) + Trips (placeholder). Fixes the "stretched iPhone" iPad layout.
+
 ## M3 — Trips
 - Trip model: **certainty lifecycle** someday(rank) → targeted(year, quarter) → dated (docs/trip-time-model.md); duration in days; **day-number-relative itinerary** + **TripIdea join with status lifecycle** (ADR-0004)
 - Trips list grouped by certainty; drag-rank the someday backlog; trip link bookmarks (label+URL)
