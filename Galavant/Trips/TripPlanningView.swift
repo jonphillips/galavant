@@ -26,17 +26,20 @@ struct TripPlanningView: View {
       case .add: addList
       }
     }
+    .safeAreaInset(edge: .top, spacing: 0) {
+      Picker("Mode", selection: $model.mode) {
+        ForEach(TripPlanningModel.Mode.allCases) { mode in
+          Text(mode.label).tag(mode)
+        }
+      }
+      .pickerStyle(.segmented)
+      .padding(.horizontal)
+      .padding(.vertical, 8)
+      .background(.bar)
+    }
     .navigationTitle(model.trip?.name ?? "Trip")
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
-      ToolbarItem(placement: .principal) {
-        Picker("Mode", selection: $model.mode) {
-          ForEach(TripPlanningModel.Mode.allCases) { mode in
-            Text(mode.label).tag(mode)
-          }
-        }
-        .pickerStyle(.segmented)
-      }
       if model.mode == .add {
         ToolbarItem { filterMenu }
       }

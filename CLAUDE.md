@@ -53,6 +53,8 @@ See `docs/MINING.md` for the per-milestone port/adapt/skip inventory.
   **requires Xcode-beta to be running** (errors otherwise; retry after Jon has
   launched it once). New OS-27 APIs are past Claude's training cutoff; prefer
   those skills + current docs over memory.
+- Beta-sensitive bugs (likely Xcode/SDK beta regressions) live in
+  `docs/KNOWN-ISSUES.md` — re-verify them on each new beta before working around.
 
 ## Context Management
 - **Start a fresh conversation at commit/milestone boundaries** (not every task —
