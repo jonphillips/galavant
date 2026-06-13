@@ -34,6 +34,7 @@ first. Update this file when reality diverges — it's a living doc, not a contr
 - ✅ AppContainer: tabs on iPhone, sidebar+detail split on iPad/Mac (prefersTabNavigation, ported from V2). AppScreen sections: Ideas (real) + Trips (placeholder). Fixes the "stretched iPhone" iPad layout.
 
 ## M3 — Trips
+- ✅ M3a: Trip schema (certainty pipeline someday(rank)→targeted(year,quarter)→dated + lengthInDays, flat columns behind a `Certainty` enum facade) + TripIdea join with `considering→shortlisted→scheduled→done/skipped` status (ADR-0004); functional core (`Trip.create`/`update`/`reorderSomeday`/`sectioned`, `TripIdea.pull`/`setStatus`/`remove`) + 13 tests; Trips list grouped by certainty with create/edit form and reorderable() someday backlog (deployment target bumped to iOS 27 for native reorder). Demo trips seeded.
 - Trip model: **certainty lifecycle** someday(rank) → targeted(year, quarter) → dated (docs/trip-time-model.md); duration in days; **day-number-relative itinerary** + **TripIdea join with status lifecycle** (ADR-0004)
 - Trips list grouped by certainty; drag-rank the someday backlog; trip link bookmarks (label+URL)
 - Planning view: pool filtered by trip lens → pull to shortlist

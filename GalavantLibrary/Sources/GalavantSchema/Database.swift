@@ -177,6 +177,43 @@ extension DependencyValues {
       )
       .execute(db)
     }
+    migrator.registerMigration("Create trips and tripIdeas tables") { db in
+      try #sql(
+        """
+        CREATE TABLE "trips" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "name" TEXT NOT NULL DEFAULT '',
+          "notes" TEXT NOT NULL DEFAULT '',
+          "certaintyStage" INTEGER NOT NULL DEFAULT 0,
+          "somedayRank" INTEGER NOT NULL DEFAULT 0,
+          "targetYear" INTEGER,
+          "targetQuarter" INTEGER,
+          "startDate" TEXT,
+          "lengthInDays" INTEGER NOT NULL DEFAULT 7,
+          "travelPartyID" TEXT REFERENCES "travelParties"("id") ON DELETE CASCADE
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE TABLE "tripIdeas" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "tripID" TEXT NOT NULL REFERENCES "trips"("id") ON DELETE CASCADE,
+          "ideaID" TEXT NOT NULL,
+          "status" INTEGER NOT NULL DEFAULT 0,
+          "shortlistRank" INTEGER NOT NULL DEFAULT 0
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_tripIdeas_on_tripID" ON "tripIdeas"("tripID")
+        """
+      )
+      .execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if context == .live, startSyncEngine {
@@ -187,7 +224,7 @@ extension DependencyValues {
         defaultSyncEngine = try SyncEngine(
           for: database,
           tables: TravelParty.self, Idea.self, Planner.self, IdeaInterest.self,
-          MapRegion.self, Tag.self, IdeaTag.self
+          MapRegion.self, Tag.self, IdeaTag.self, Trip.self, TripIdea.self
         )
       } catch {
         reportIssue("CloudKit sync unavailable; running local-only: \(error)")

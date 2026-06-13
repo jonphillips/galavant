@@ -93,6 +93,19 @@
           }
         }
       }
+
+      // A trip in each certainty stage, plus a couple more in the backlog, so
+      // the sectioned Trips list is populated.
+      let christmas = DateComponents(calendar: .current, year: 2027, month: 12, day: 18).date
+      _ = try Trip.create(name: "Tokyo", in: db)
+      _ = try Trip.create(name: "Barcelona", in: db)
+      _ = try Trip.create(
+        name: "Paris", certainty: .targeted(year: 2027, quarter: .q2), lengthInDays: 6, in: db
+      )
+      _ = try Trip.create(
+        name: "Copenhagen", certainty: .dated(start: christmas ?? Date()), lengthInDays: 9, in: db
+      )
+
       return jon.id
     }
   }

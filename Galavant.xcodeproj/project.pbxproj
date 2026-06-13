@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		08AB246AC84A27EE2FC5F8A7 /* TripRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DAC9E1A5ABDBDA4BAAC80BB /* TripRow.swift */; };
 		0BB238241FF15660518799F8 /* GalavantSchema in Frameworks */ = {isa = PBXBuildFile; productRef = 9CF31E175F7DCB4D59EAF394 /* GalavantSchema */; };
 		0D52F2373EEF284921180A85 /* IdeaRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EF8BE4704C36D1A6FFB14D6 /* IdeaRow.swift */; };
 		163235D89FEB136F5C5F73ED /* PoolIdentityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00154E6FD53486C6ECD8CBD9 /* PoolIdentityUITests.swift */; };
@@ -18,11 +19,13 @@
 		4344BF96EA3F3DB017E4CCDF /* InterestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 292BC932AEA1B53EB11DA125 /* InterestView.swift */; };
 		474250E4E109ADF7680100C1 /* IdentityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E049286F9F226AF86DA12541 /* IdentityView.swift */; };
 		4A303DECCB8DFE842751E12F /* PoolFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 895F90CCD6B6EE453DBD785D /* PoolFlowUITests.swift */; };
+		4DAAA7D1E36518BAE6613248 /* TripFormModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20DAF6B7A5F203899F4C780 /* TripFormModel.swift */; };
 		4FA9D5986A89B2B51B88F5C2 /* AppScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82AECABDADDBF8957A5816F8 /* AppScreen.swift */; };
 		52949A4330FDF85D0EBF5AEA /* Sharing in Frameworks */ = {isa = PBXBuildFile; productRef = 5A93A34322120B8F1DC99E7B /* Sharing */; };
 		5FC0A092CF36738BE434FB6D /* IdeaCoordinate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 409050F2DDFD762C631818CF /* IdeaCoordinate.swift */; };
 		626DB4453DDF7BA57BE9AF1C /* SwiftUINavigation in Frameworks */ = {isa = PBXBuildFile; productRef = A0C2774E35241633FE89B7A7 /* SwiftUINavigation */; };
 		666F98ED751CC0C6994CFED4 /* CasePaths in Frameworks */ = {isa = PBXBuildFile; productRef = 26D83C2182F9FE47C3A1CA25 /* CasePaths */; };
+		66E8ED4BF33E10641C5CA1D9 /* TripsListModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07FF30B2A97AE7158A524026 /* TripsListModel.swift */; };
 		6DFEFA57B8BACC403A250F18 /* ShareSeedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8885060D462E6E53320A2831 /* ShareSeedTests.swift */; };
 		7B999C65BDCCA5657877F9CD /* IdeasListModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E146770B6C9957BA19FC94EC /* IdeasListModel.swift */; };
 		82FB0503EEB4041AC202479B /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = 45E72731DDF6FA076EAEC92F /* Dependencies */; };
@@ -34,6 +37,7 @@
 		A2E63468073408305AED0762 /* SyncSeedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A1B810182571FD874E4261 /* SyncSeedTests.swift */; };
 		C6651664BD80959BDC624431 /* IdeaPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B1DF18254B63AD4237897B /* IdeaPersistenceTests.swift */; };
 		DA333E1DC58A089ED9E9C3E1 /* GalavantApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43AABFB8B03E2303AECAF355 /* GalavantApp.swift */; };
+		DA85FF15D14C272FA8D11E03 /* TripFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 803A41898CEB755AAE0E4A68 /* TripFormView.swift */; };
 		E0CB76C004B10C1F20EC249A /* IdeaFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C956244AC0CCEFCA45A4128 /* IdeaFormView.swift */; };
 		E38A40C5C21F4D1087CDE391 /* GalavantShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5F046B49AE38F92268A2FA12 /* GalavantShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		F009B3192D02321202419379 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5AD27A1248EEA1D9B580277 /* ShareViewController.swift */; };
@@ -74,10 +78,12 @@
 
 /* Begin PBXFileReference section */
 		00154E6FD53486C6ECD8CBD9 /* PoolIdentityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoolIdentityUITests.swift; sourceTree = "<group>"; };
+		07FF30B2A97AE7158A524026 /* TripsListModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripsListModel.swift; sourceTree = "<group>"; };
 		0CA9E000AA9AEEE1E3D68F79 /* GalavantUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = GalavantUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1791F203077D8B7907351B9F /* PoolMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoolMapView.swift; sourceTree = "<group>"; };
 		17EBCBAEA0AF8C840A0DA921 /* PoolMapUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoolMapUITests.swift; sourceTree = "<group>"; };
 		1D62672E298B917B0707B6F4 /* TagManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagManagerView.swift; sourceTree = "<group>"; };
+		1DAC9E1A5ABDBDA4BAAC80BB /* TripRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripRow.swift; sourceTree = "<group>"; };
 		1EF8BE4704C36D1A6FFB14D6 /* IdeaRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaRow.swift; sourceTree = "<group>"; };
 		292BC932AEA1B53EB11DA125 /* InterestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterestView.swift; sourceTree = "<group>"; };
 		2A4CEB693F2E177C2E2F109F /* LocationSearchModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationSearchModel.swift; sourceTree = "<group>"; };
@@ -86,12 +92,14 @@
 		43AABFB8B03E2303AECAF355 /* GalavantApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GalavantApp.swift; sourceTree = "<group>"; };
 		51B1DF18254B63AD4237897B /* IdeaPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaPersistenceTests.swift; sourceTree = "<group>"; };
 		5F046B49AE38F92268A2FA12 /* GalavantShare.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = GalavantShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		803A41898CEB755AAE0E4A68 /* TripFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripFormView.swift; sourceTree = "<group>"; };
 		82AECABDADDBF8957A5816F8 /* AppScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppScreen.swift; sourceTree = "<group>"; };
 		8885060D462E6E53320A2831 /* ShareSeedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSeedTests.swift; sourceTree = "<group>"; };
 		895F90CCD6B6EE453DBD785D /* PoolFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoolFlowUITests.swift; sourceTree = "<group>"; };
 		92EB0541350B5FCB540931D3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		99EE3153CDA64E66C39149A9 /* IdeaFormModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaFormModel.swift; sourceTree = "<group>"; };
 		9C956244AC0CCEFCA45A4128 /* IdeaFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaFormView.swift; sourceTree = "<group>"; };
+		A20DAF6B7A5F203899F4C780 /* TripFormModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripFormModel.swift; sourceTree = "<group>"; };
 		AD3E24952C44337E688A4D00 /* Galavant.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Galavant.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BC5C21FC298AEA29CFE09DC6 /* TripsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripsScreen.swift; sourceTree = "<group>"; };
 		C071E50FDA62E29FC448F993 /* GalavantLibrary */ = {isa = PBXFileReference; lastKnownFileType = folder; name = GalavantLibrary; path = GalavantLibrary; sourceTree = SOURCE_ROOT; };
@@ -172,6 +180,10 @@
 		1D327EC924239E80FD30ED50 /* Trips */ = {
 			isa = PBXGroup;
 			children = (
+				A20DAF6B7A5F203899F4C780 /* TripFormModel.swift */,
+				803A41898CEB755AAE0E4A68 /* TripFormView.swift */,
+				1DAC9E1A5ABDBDA4BAAC80BB /* TripRow.swift */,
+				07FF30B2A97AE7158A524026 /* TripsListModel.swift */,
 				BC5C21FC298AEA29CFE09DC6 /* TripsScreen.swift */,
 			);
 			path = Trips;
@@ -388,6 +400,10 @@
 				25A7842AF8875EEF8BFA2887 /* PrefersTabNavigation.swift in Sources */,
 				8E9C72B6E2A50CCF9129E6E1 /* RegionManagerView.swift in Sources */,
 				17B078D23DE21D8057EEAD7B /* TagManagerView.swift in Sources */,
+				4DAAA7D1E36518BAE6613248 /* TripFormModel.swift in Sources */,
+				DA85FF15D14C272FA8D11E03 /* TripFormView.swift in Sources */,
+				08AB246AC84A27EE2FC5F8A7 /* TripRow.swift in Sources */,
+				66E8ED4BF33E10641C5CA1D9 /* TripsListModel.swift in Sources */,
 				9C1C9676A64367844856918E /* TripsScreen.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -471,7 +487,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
 				MARKETING_VERSION = 0.1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -619,7 +635,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
 				MARKETING_VERSION = 0.1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
