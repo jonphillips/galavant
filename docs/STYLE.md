@@ -26,6 +26,25 @@ clock access inside them — inputs in, value out.
 - Feature models orchestrate: hold state, call the pure core, run effects
   through dependencies.
 
+### Thin views (per pfw-observable-models)
+
+Views stay thin: bindings + delegating to a feature model. **Non-trivial
+save/load/reconcile logic — anything touching `database.write`/`read`,
+`TravelParty.ensure`, `findOrCreate`, multi-step persistence — lives in an
+`@Observable` model, never in a `View`.** Methods are named after the user
+action (`saveButtonTapped`), so the model reads like the UI.
+
+Exception: a *simple* draft form may write a one-line `upsert` directly in the
+view — that's the documented pfw-sqlite-data drafts pattern. But the moment it
+grows domain logic (tag reconciliation, association management, derived
+records), extract a model. `IdeaFormModel` is the cautionary tale: it started
+as a one-line upsert and accreted party resolution + tag diffing before being
+pulled out.
+
+Heuristic when reviewing: a view doing `database.write`/`read` is the smell to
+hunt. A large view that only *composes* (toolbars, menus, sheets) is fine —
+size alone isn't the problem; logic-in-the-view is.
+
 ## 3. Make impossible states unrepresentable
 
 Enums with associated values over flag combinations. The bar is V2's `Schedule`

@@ -54,6 +54,11 @@ See `docs/MINING.md` for the per-milestone port/adapt/skip inventory.
   launched it once). New OS-27 APIs are past Claude's training cutoff; prefer
   those skills + current docs over memory.
 
+## Context Management
+- When context exceeds 50%, suggest starting a new conversation or using subagents for independent tasks.
+- One task per conversation. Finish, then we should start fresh?
+- Proactively recommend context-saving strategies: use file reads instead of pasting, suggest /compact when context 1s heavy, recommend subagents for research tasks, and flag when a reference file would be better than inline instructions.
+
 ## Conventions
 
 - Keep dependencies minimal; each new package needs a reason
