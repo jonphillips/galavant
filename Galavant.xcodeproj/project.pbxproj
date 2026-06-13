@@ -28,6 +28,7 @@
 		66E8ED4BF33E10641C5CA1D9 /* TripsListModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07FF30B2A97AE7158A524026 /* TripsListModel.swift */; };
 		6DFEFA57B8BACC403A250F18 /* ShareSeedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8885060D462E6E53320A2831 /* ShareSeedTests.swift */; };
 		7B999C65BDCCA5657877F9CD /* IdeasListModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E146770B6C9957BA19FC94EC /* IdeasListModel.swift */; };
+		7C7C4BB8F9D526D37F31BD66 /* TripPlanningView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08F3A8C38B6B2977E3D8153F /* TripPlanningView.swift */; };
 		82FB0503EEB4041AC202479B /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = 45E72731DDF6FA076EAEC92F /* Dependencies */; };
 		8E9C72B6E2A50CCF9129E6E1 /* RegionManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0587DE2E1AA61B9BD3D0073 /* RegionManagerView.swift */; };
 		90C301112D6C03ED59D12E2C /* IdeaFormModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99EE3153CDA64E66C39149A9 /* IdeaFormModel.swift */; };
@@ -35,6 +36,7 @@
 		9C1C9676A64367844856918E /* TripsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC5C21FC298AEA29CFE09DC6 /* TripsScreen.swift */; };
 		9C3779832B3D8728517D947A /* PoolMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1791F203077D8B7907351B9F /* PoolMapView.swift */; };
 		A2E63468073408305AED0762 /* SyncSeedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A1B810182571FD874E4261 /* SyncSeedTests.swift */; };
+		C4D03D83083C9022183ABEF2 /* TripPlanningModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8238F43F540641D1FD4267BA /* TripPlanningModel.swift */; };
 		C6651664BD80959BDC624431 /* IdeaPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B1DF18254B63AD4237897B /* IdeaPersistenceTests.swift */; };
 		DA333E1DC58A089ED9E9C3E1 /* GalavantApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43AABFB8B03E2303AECAF355 /* GalavantApp.swift */; };
 		DA85FF15D14C272FA8D11E03 /* TripFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 803A41898CEB755AAE0E4A68 /* TripFormView.swift */; };
@@ -79,6 +81,7 @@
 /* Begin PBXFileReference section */
 		00154E6FD53486C6ECD8CBD9 /* PoolIdentityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoolIdentityUITests.swift; sourceTree = "<group>"; };
 		07FF30B2A97AE7158A524026 /* TripsListModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripsListModel.swift; sourceTree = "<group>"; };
+		08F3A8C38B6B2977E3D8153F /* TripPlanningView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripPlanningView.swift; sourceTree = "<group>"; };
 		0CA9E000AA9AEEE1E3D68F79 /* GalavantUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = GalavantUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1791F203077D8B7907351B9F /* PoolMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoolMapView.swift; sourceTree = "<group>"; };
 		17EBCBAEA0AF8C840A0DA921 /* PoolMapUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoolMapUITests.swift; sourceTree = "<group>"; };
@@ -93,6 +96,7 @@
 		51B1DF18254B63AD4237897B /* IdeaPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaPersistenceTests.swift; sourceTree = "<group>"; };
 		5F046B49AE38F92268A2FA12 /* GalavantShare.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = GalavantShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		803A41898CEB755AAE0E4A68 /* TripFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripFormView.swift; sourceTree = "<group>"; };
+		8238F43F540641D1FD4267BA /* TripPlanningModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripPlanningModel.swift; sourceTree = "<group>"; };
 		82AECABDADDBF8957A5816F8 /* AppScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppScreen.swift; sourceTree = "<group>"; };
 		8885060D462E6E53320A2831 /* ShareSeedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSeedTests.swift; sourceTree = "<group>"; };
 		895F90CCD6B6EE453DBD785D /* PoolFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoolFlowUITests.swift; sourceTree = "<group>"; };
@@ -182,6 +186,8 @@
 			children = (
 				A20DAF6B7A5F203899F4C780 /* TripFormModel.swift */,
 				803A41898CEB755AAE0E4A68 /* TripFormView.swift */,
+				8238F43F540641D1FD4267BA /* TripPlanningModel.swift */,
+				08F3A8C38B6B2977E3D8153F /* TripPlanningView.swift */,
 				1DAC9E1A5ABDBDA4BAAC80BB /* TripRow.swift */,
 				07FF30B2A97AE7158A524026 /* TripsListModel.swift */,
 				BC5C21FC298AEA29CFE09DC6 /* TripsScreen.swift */,
@@ -402,6 +408,8 @@
 				17B078D23DE21D8057EEAD7B /* TagManagerView.swift in Sources */,
 				4DAAA7D1E36518BAE6613248 /* TripFormModel.swift in Sources */,
 				DA85FF15D14C272FA8D11E03 /* TripFormView.swift in Sources */,
+				C4D03D83083C9022183ABEF2 /* TripPlanningModel.swift in Sources */,
+				7C7C4BB8F9D526D37F31BD66 /* TripPlanningView.swift in Sources */,
 				08AB246AC84A27EE2FC5F8A7 /* TripRow.swift in Sources */,
 				66E8ED4BF33E10641C5CA1D9 /* TripsListModel.swift in Sources */,
 				9C1C9676A64367844856918E /* TripsScreen.swift in Sources */,
