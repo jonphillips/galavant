@@ -56,27 +56,11 @@ struct TripFormView: View {
         }
 
         Section {
-          if model.sortedRegions.isEmpty {
-            Text("No regions yet — define them on the Ideas map.")
-              .font(.footnote)
-              .foregroundStyle(.secondary)
-          } else {
-            ForEach(model.sortedRegions) { region in
-              Button {
-                model.toggleRegion(region.id)
-              } label: {
-                HStack {
-                  Text(region.name).foregroundStyle(.primary)
-                  Spacer()
-                  if model.selectedRegionIDs.contains(region.id) {
-                    Image(systemName: "checkmark").foregroundStyle(.tint)
-                  }
-                }
-              }
-            }
+          NavigationLink {
+            TripRegionPicker(model: model)
+          } label: {
+            LabeledContent("Regions", value: model.selectedRegionsSummary)
           }
-        } header: {
-          Text("Regions")
         } footer: {
           Text("The Add list pre-selects these when you plan the trip.")
         }
@@ -101,5 +85,39 @@ struct TripFormView: View {
         }
       }
     }
+  }
+}
+
+/// Multi-select list of regions for a trip — pushed from the form so the trip
+/// detail can grow more fields without crowding one screen.
+struct TripRegionPicker: View {
+  let model: TripFormModel
+
+  var body: some View {
+    List {
+      if model.sortedRegions.isEmpty {
+        ContentUnavailableView {
+          Label("No regions yet", systemImage: "map")
+        } description: {
+          Text("Define regions on the Ideas map first, then attach them here.")
+        }
+      } else {
+        ForEach(model.sortedRegions) { region in
+          Button {
+            model.toggleRegion(region.id)
+          } label: {
+            HStack {
+              Text(region.name).foregroundStyle(.primary)
+              Spacer()
+              if model.selectedRegionIDs.contains(region.id) {
+                Image(systemName: "checkmark").foregroundStyle(.tint)
+              }
+            }
+          }
+        }
+      }
+    }
+    .navigationTitle("Regions")
+    .navigationBarTitleDisplayMode(.inline)
   }
 }

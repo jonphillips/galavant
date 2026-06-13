@@ -84,12 +84,24 @@ final class TripPlanningModel {
   }
   var selectedRegions: [MapRegion] { regions.filter { selectedRegionIDs.contains($0.id) } }
 
-  /// Seed the Add lens from the trip's saved regions, once (the persistent
-  /// planning lens, M3b.1). The user can adjust it per visit thereafter.
+  /// The regions currently associated with this trip (the saved lens).
+  var tripRegionIDs: Set<MapRegion.ID> {
+    Set(allTripRegions.filter { $0.tripID == tripID }.map(\.regionID))
+  }
+
+  /// Seed the Add lens from the trip's saved regions, once on first appear. The
+  /// user can adjust it per visit thereafter; editing the trip's regions
+  /// re-seeds it (see `reseedLens`).
   func seedLensIfNeeded() {
     guard !didSeedLens else { return }
     didSeedLens = true
-    selectedRegionIDs = Set(allTripRegions.filter { $0.tripID == tripID }.map(\.regionID))
+    selectedRegionIDs = tripRegionIDs
+  }
+
+  /// Re-seed the lens after the trip's regions change (e.g. the edit sheet, or
+  /// a sync update) so the Add pool reflects the new set.
+  func reseedLens() {
+    selectedRegionIDs = tripRegionIDs
   }
 
   var filteredPool: [Idea] {

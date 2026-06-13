@@ -51,6 +51,7 @@ struct TripPlanningView: View {
       TripFormView(draft: draft)
     }
     .task { model.seedLensIfNeeded() }
+    .onChange(of: model.tripRegionIDs) { _, _ in model.reseedLens() }
   }
 
   // MARK: - Shortlist mode

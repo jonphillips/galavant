@@ -40,6 +40,12 @@ final class TripFormModel {
     allRegions.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
   }
 
+  /// Comma-joined names of the selected regions, for the form's summary row.
+  var selectedRegionsSummary: String {
+    let names = sortedRegions.filter { selectedRegionIDs.contains($0.id) }.map(\.name)
+    return names.isEmpty ? "None" : names.joined(separator: ", ")
+  }
+
   /// Load the editing trip's existing regions into the multi-select.
   func task() async {
     guard let id = draft.id else { return }
