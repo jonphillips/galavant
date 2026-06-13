@@ -1,5 +1,6 @@
 import Dependencies
 import GalavantSchema
+import MapKit
 import SQLiteData
 import SwiftUI
 import SwiftUINavigation
@@ -7,6 +8,9 @@ import SwiftUINavigation
 struct IdeasScreen: View {
   @State private var model = IdeasListModel()
   @State private var mode: Mode = .list
+  @State private var visibleRegion: MKCoordinateRegion?
+  @State private var namingRegion = false
+  @State private var regionNameDraft = ""
 
   enum Mode: String, CaseIterable {
     case list, map
@@ -19,7 +23,11 @@ struct IdeasScreen: View {
       case .list:
         ideasList
       case .map:
-        PoolMapView(ideas: model.ideas, onSelect: model.ideaTapped)
+        PoolMapView(
+          ideas: model.filteredIdeas,
+          onSelect: model.ideaTapped,
+          visibleRegion: $visibleRegion
+        )
       }
     }
     .navigationTitle("Ideas")
@@ -31,6 +39,19 @@ struct IdeasScreen: View {
           }
         }
         .pickerStyle(.segmented)
+      }
+      ToolbarItem {
+        filterMenu
+      }
+      if mode == .map {
+        ToolbarItem {
+          Button {
+            namingRegion = true
+          } label: {
+            Label("Define Region", systemImage: "plus.viewfinder")
+          }
+          .disabled(visibleRegion == nil)
+        }
       }
       ToolbarItem {
         Button {
@@ -47,6 +68,18 @@ struct IdeasScreen: View {
         }
       }
     }
+    .alert("Name this area", isPresented: $namingRegion) {
+      TextField("Region name", text: $regionNameDraft)
+      Button("Save") {
+        if let region = visibleRegion {
+          model.saveRegion(named: regionNameDraft, center: region.center, span: region.span)
+        }
+        regionNameDraft = ""
+      }
+      Button("Cancel", role: .cancel) { regionNameDraft = "" }
+    } message: {
+      Text("Save the current map area as a region you can filter by.")
+    }
     .task { await model.task() }
     .sheet(item: $model.destination.form, id: \.id) { draft in
       IdeaFormView(draft: draft)
@@ -60,9 +93,61 @@ struct IdeasScreen: View {
     }
   }
 
+  private var filterMenu: some View {
+    Menu {
+      Picker("Region", selection: $model.selectedRegionID) {
+        Text("All regions").tag(MapRegion.ID?.none)
+        ForEach(model.regions) { region in
+          Text(region.name).tag(MapRegion.ID?.some(region.id))
+        }
+      }
+      Menu("Kinds") {
+        ForEach(IdeaKind.allCases, id: \.self) { kind in
+          Button {
+            model.toggleKind(kind)
+          } label: {
+            if model.selectedKinds.contains(kind) {
+              Label(kind.label, systemImage: "checkmark")
+            } else {
+              Text(kind.label)
+            }
+          }
+        }
+      }
+      Toggle("Show visited", isOn: $model.includeVisited)
+      if model.isFiltering {
+        Button("Clear filters", role: .destructive) { model.clearFilters() }
+      }
+    } label: {
+      Label(
+        "Filter",
+        systemImage: model.isFiltering
+          ? "line.3.horizontal.decrease.circle.fill"
+          : "line.3.horizontal.decrease.circle"
+      )
+    }
+  }
+
+  private var filterSummaryBar: some View {
+    HStack(spacing: 6) {
+      Image(systemName: "line.3.horizontal.decrease.circle.fill")
+        .foregroundStyle(.tint)
+      Text("Showing \(model.filteredIdeas.count) of \(model.ideas.count) · \(model.filterSummary)")
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+      Spacer()
+      Button("Clear") { model.clearFilters() }
+        .font(.footnote)
+    }
+    .padding(.horizontal)
+    .padding(.vertical, 6)
+    .background(.bar)
+  }
+
   private var ideasList: some View {
     List {
-      ForEach(model.ideas) { idea in
+      ForEach(model.filteredIdeas) { idea in
         IdeaRow(
           idea: idea,
           interests: model.interests(for: idea),
@@ -72,6 +157,11 @@ struct IdeasScreen: View {
         )
       }
       .onDelete { model.deleteIdeas(at: $0) }
+    }
+    .safeAreaInset(edge: .top, spacing: 0) {
+      if model.isFiltering {
+        filterSummaryBar
+      }
     }
     .overlay {
       if model.ideas.isEmpty {

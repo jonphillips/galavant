@@ -3,6 +3,7 @@ import CloudKit
 import Dependencies
 import Foundation
 import GalavantSchema
+import MapKit
 import os
 import SQLiteData
 import Sharing
@@ -15,9 +16,15 @@ final class IdeasListModel {
   @ObservationIgnored @FetchAll(Idea.order(by: \.name)) var ideas
   @ObservationIgnored @FetchAll(Planner.all) var planners
   @ObservationIgnored @FetchAll(IdeaInterest.all) var interests
+  @ObservationIgnored @FetchAll(MapRegion.order(by: \.name)) var regions
   @ObservationIgnored @Shared(.appStorage("currentPlannerID")) var currentPlannerIDString = ""
   var destination: Destination?
   var sharedRecord: SharedRecord?
+
+  // Pool filters (the "Virginia case" scoping).
+  var selectedRegionID: MapRegion.ID?
+  var selectedKinds: Set<IdeaKind> = []
+  var includeVisited = true
 
   init() {
     // Test hook: simulate a device that doesn't yet know which planner it is
@@ -36,6 +43,71 @@ final class IdeasListModel {
   var currentPlanner: Planner? {
     guard let id = UUID(uuidString: currentPlannerIDString) else { return nil }
     return planners.first { $0.id == id }
+  }
+
+  var selectedRegion: MapRegion? {
+    guard let id = selectedRegionID else { return nil }
+    return regions.first { $0.id == id }
+  }
+
+  var filteredIdeas: [Idea] {
+    poolFiltered(
+      ideas,
+      region: selectedRegion,
+      kinds: selectedKinds,
+      includeVisited: includeVisited
+    )
+  }
+
+  var isFiltering: Bool {
+    selectedRegionID != nil || !selectedKinds.isEmpty || !includeVisited
+  }
+
+  /// Human-readable summary of the active filters, for the reminder bar.
+  var filterSummary: String {
+    var parts: [String] = []
+    if let region = selectedRegion { parts.append(region.name) }
+    if !selectedKinds.isEmpty {
+      parts.append(selectedKinds.map(\.label).sorted().joined(separator: ", "))
+    }
+    if !includeVisited { parts.append("hiding visited") }
+    return parts.joined(separator: " · ")
+  }
+
+  func toggleKind(_ kind: IdeaKind) {
+    if selectedKinds.contains(kind) {
+      selectedKinds.remove(kind)
+    } else {
+      selectedKinds.insert(kind)
+    }
+  }
+
+  func clearFilters() {
+    selectedRegionID = nil
+    selectedKinds = []
+    includeVisited = true
+  }
+
+  func saveRegion(named name: String, center: CLLocationCoordinate2D, span: MKCoordinateSpan) {
+    let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return }
+    withErrorReporting {
+      try database.write { db in
+        let partyID = try TravelParty.ensureDefault(in: db).id
+        try MapRegion.insert {
+          MapRegion.Draft(
+            id: UUID(),
+            name: trimmed,
+            centerLatitude: center.latitude,
+            centerLongitude: center.longitude,
+            latitudeDelta: span.latitudeDelta,
+            longitudeDelta: span.longitudeDelta,
+            travelPartyID: partyID
+          )
+        }
+        .execute(db)
+      }
+    }
   }
 
   func task() async {

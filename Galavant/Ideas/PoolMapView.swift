@@ -7,6 +7,7 @@ import SwiftUI
 struct PoolMapView: View {
   let ideas: [Idea]
   let onSelect: (Idea) -> Void
+  @Binding var visibleRegion: MKCoordinateRegion?
 
   @State private var selectedIdeaID: Idea.ID?
 
@@ -27,6 +28,9 @@ struct PoolMapView: View {
           .tag(idea.id)
         }
       }
+    }
+    .onMapCameraChange(frequency: .onEnd) { context in
+      visibleRegion = context.region
     }
     .overlay {
       if mappableIdeas.isEmpty {

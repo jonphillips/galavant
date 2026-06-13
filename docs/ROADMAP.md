@@ -19,7 +19,8 @@ first. Update this file when reality diverges — it's a living doc, not a contr
 ## M2 — The pool *(in progress)*
 - ✅ M2a: TravelParty/Planner/IdeaInterest schema, kinds, per-planner first-run identity, his/hers interest UI
 - ✅ M2b: MapKit location search in the form (idea gets coordinates) + pool map with pins + list/map toggle
-- ⏳ MapRegions + region/tag/kind filtering; tags; capture polish
+- ✅ M2c: first-class MapRegion (containment-based), pool filter (region/kind/visited), filter UI + define-region-from-map, filter-summary bar
+- ⏳ Tags (first-class?); capture polish (search-first form, auto-populate from MapKit — docs/BACKLOG.md)
 - ⏳ Second-device identity hardening (ADR-0008): bind-or-create planner picker, stray-party cleanup, IdeaInterest dedup-on-read
 - Full Idea model: kinds, visited state, tags, URLs, images, opening days/hours and reservable-from (manual entry)
 - Planner identity (ADR-0007): Planner table, device-local currentPlannerID, first-run name capture
