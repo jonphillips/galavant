@@ -149,6 +149,34 @@ extension DependencyValues {
       )
       .execute(db)
     }
+    migrator.registerMigration("Create tags and ideaTags tables") { db in
+      try #sql(
+        """
+        CREATE TABLE "tags" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "name" TEXT NOT NULL DEFAULT '',
+          "travelPartyID" TEXT REFERENCES "travelParties"("id") ON DELETE CASCADE
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE TABLE "ideaTags" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "ideaID" TEXT NOT NULL REFERENCES "ideas"("id") ON DELETE CASCADE,
+          "tagID" TEXT NOT NULL
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_ideaTags_on_ideaID" ON "ideaTags"("ideaID")
+        """
+      )
+      .execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if context == .live, startSyncEngine {
@@ -159,7 +187,7 @@ extension DependencyValues {
         defaultSyncEngine = try SyncEngine(
           for: database,
           tables: TravelParty.self, Idea.self, Planner.self, IdeaInterest.self,
-          MapRegion.self
+          MapRegion.self, Tag.self, IdeaTag.self
         )
       } catch {
         reportIssue("CloudKit sync unavailable; running local-only: \(error)")

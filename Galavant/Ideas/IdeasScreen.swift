@@ -11,6 +11,8 @@ struct IdeasScreen: View {
   @State private var visibleRegion: MKCoordinateRegion?
   @State private var namingRegion = false
   @State private var regionNameDraft = ""
+  @State private var managingRegions = false
+  @State private var managingTags = false
 
   enum Mode: String, CaseIterable {
     case list, map
@@ -25,6 +27,7 @@ struct IdeasScreen: View {
       case .map:
         PoolMapView(
           ideas: model.filteredIdeas,
+          selectedRegion: model.selectedRegion,
           onSelect: model.ideaTapped,
           visibleRegion: $visibleRegion
         )
@@ -91,14 +94,43 @@ struct IdeasScreen: View {
     .sheet(item: $model.sharedRecord) { sharedRecord in
       CloudSharingView(sharedRecord: sharedRecord)
     }
+    .sheet(isPresented: $managingRegions) {
+      RegionManagerView(model: model)
+    }
+    .sheet(isPresented: $managingTags) {
+      TagManagerView(model: model)
+    }
+  }
+
+  @ViewBuilder
+  private func checked(_ title: String, on: Bool) -> some View {
+    if on {
+      Label(title, systemImage: "checkmark")
+    } else {
+      Text(title)
+    }
   }
 
   private var filterMenu: some View {
     Menu {
-      Picker("Region", selection: $model.selectedRegionID) {
-        Text("All regions").tag(MapRegion.ID?.none)
-        ForEach(model.regions) { region in
-          Text(region.name).tag(MapRegion.ID?.some(region.id))
+      Menu("Region") {
+        Button {
+          model.selectedRegionID = nil
+        } label: {
+          checked("All regions", on: model.selectedRegionID == nil)
+        }
+        ForEach(model.sortedRegions) { region in
+          Button {
+            model.selectedRegionID = region.id
+          } label: {
+            checked(region.name, on: model.selectedRegionID == region.id)
+          }
+        }
+        if !model.regions.isEmpty {
+          Divider()
+          Button("Manage Regions…", systemImage: "slider.horizontal.3") {
+            managingRegions = true
+          }
         }
       }
       Menu("Kinds") {
@@ -106,11 +138,22 @@ struct IdeasScreen: View {
           Button {
             model.toggleKind(kind)
           } label: {
-            if model.selectedKinds.contains(kind) {
-              Label(kind.label, systemImage: "checkmark")
-            } else {
-              Text(kind.label)
-            }
+            checked(kind.label, on: model.selectedKinds.contains(kind))
+          }
+        }
+      }
+      Menu("Tags") {
+        ForEach(model.sortedTags) { tag in
+          Button {
+            model.toggleTag(tag.id)
+          } label: {
+            checked(tag.name, on: model.selectedTagIDs.contains(tag.id))
+          }
+        }
+        if !model.tags.isEmpty {
+          Divider()
+          Button("Manage Tags…", systemImage: "slider.horizontal.3") {
+            managingTags = true
           }
         }
       }

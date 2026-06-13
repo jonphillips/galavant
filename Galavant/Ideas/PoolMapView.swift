@@ -6,9 +6,11 @@ import SwiftUI
 /// Tapping a pin opens that idea.
 struct PoolMapView: View {
   let ideas: [Idea]
+  let selectedRegion: MapRegion?
   let onSelect: (Idea) -> Void
   @Binding var visibleRegion: MKCoordinateRegion?
 
+  @State private var cameraPosition: MapCameraPosition = .automatic
   @State private var selectedIdeaID: Idea.ID?
 
   private var mappableIdeas: [Idea] {
@@ -16,7 +18,7 @@ struct PoolMapView: View {
   }
 
   var body: some View {
-    Map(selection: $selectedIdeaID) {
+    Map(position: $cameraPosition, selection: $selectedIdeaID) {
       ForEach(mappableIdeas) { idea in
         if let coordinate = idea.coordinate {
           Marker(
@@ -32,6 +34,7 @@ struct PoolMapView: View {
     .onMapCameraChange(frequency: .onEnd) { context in
       visibleRegion = context.region
     }
+    .onChange(of: selectedRegion?.id, initial: true) { frameSelectedRegion() }
     .overlay {
       if mappableIdeas.isEmpty {
         ContentUnavailableView(
@@ -45,6 +48,26 @@ struct PoolMapView: View {
       guard let id = newValue, let idea = ideas.first(where: { $0.id == id }) else { return }
       onSelect(idea)
       selectedIdeaID = nil
+    }
+  }
+
+  /// Zoom to the selected region's bounds, or auto-frame all pins when cleared.
+  private func frameSelectedRegion() {
+    if let region = selectedRegion {
+      cameraPosition = .region(
+        MKCoordinateRegion(
+          center: CLLocationCoordinate2D(
+            latitude: region.centerLatitude,
+            longitude: region.centerLongitude
+          ),
+          span: MKCoordinateSpan(
+            latitudeDelta: region.latitudeDelta,
+            longitudeDelta: region.longitudeDelta
+          )
+        )
+      )
+    } else {
+      cameraPosition = .automatic
     }
   }
 }

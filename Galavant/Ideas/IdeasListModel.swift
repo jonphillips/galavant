@@ -17,6 +17,8 @@ final class IdeasListModel {
   @ObservationIgnored @FetchAll(Planner.all) var planners
   @ObservationIgnored @FetchAll(IdeaInterest.all) var interests
   @ObservationIgnored @FetchAll(MapRegion.order(by: \.name)) var regions
+  @ObservationIgnored @FetchAll(Tag.order(by: \.name)) var tags
+  @ObservationIgnored @FetchAll(IdeaTag.all) var ideaTags
   @ObservationIgnored @Shared(.appStorage("currentPlannerID")) var currentPlannerIDString = ""
   var destination: Destination?
   var sharedRecord: SharedRecord?
@@ -24,7 +26,20 @@ final class IdeasListModel {
   // Pool filters (the "Virginia case" scoping).
   var selectedRegionID: MapRegion.ID?
   var selectedKinds: Set<IdeaKind> = []
+  var selectedTagIDs: Set<Tag.ID> = []
   var includeVisited = true
+
+  var ideaTagIDs: [Idea.ID: Set<Tag.ID>] {
+    Dictionary(grouping: ideaTags, by: \.ideaID).mapValues { Set($0.map(\.tagID)) }
+  }
+
+  var sortedTags: [Tag] {
+    tags.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+  }
+
+  var sortedRegions: [MapRegion] {
+    regions.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+  }
 
   init() {
     // Test hook: simulate a device that doesn't yet know which planner it is
@@ -55,12 +70,14 @@ final class IdeasListModel {
       ideas,
       region: selectedRegion,
       kinds: selectedKinds,
-      includeVisited: includeVisited
+      includeVisited: includeVisited,
+      tagIDs: selectedTagIDs,
+      ideaTagIDs: ideaTagIDs
     )
   }
 
   var isFiltering: Bool {
-    selectedRegionID != nil || !selectedKinds.isEmpty || !includeVisited
+    selectedRegionID != nil || !selectedKinds.isEmpty || !selectedTagIDs.isEmpty || !includeVisited
   }
 
   /// Human-readable summary of the active filters, for the reminder bar.
@@ -69,6 +86,10 @@ final class IdeasListModel {
     if let region = selectedRegion { parts.append(region.name) }
     if !selectedKinds.isEmpty {
       parts.append(selectedKinds.map(\.label).sorted().joined(separator: ", "))
+    }
+    if !selectedTagIDs.isEmpty {
+      let names = tags.filter { selectedTagIDs.contains($0.id) }.map(\.name).sorted()
+      parts.append(names.joined(separator: ", "))
     }
     if !includeVisited { parts.append("hiding visited") }
     return parts.joined(separator: " · ")
@@ -82,10 +103,63 @@ final class IdeasListModel {
     }
   }
 
+  func toggleTag(_ id: Tag.ID) {
+    if selectedTagIDs.contains(id) {
+      selectedTagIDs.remove(id)
+    } else {
+      selectedTagIDs.insert(id)
+    }
+  }
+
   func clearFilters() {
     selectedRegionID = nil
     selectedKinds = []
+    selectedTagIDs = []
     includeVisited = true
+  }
+
+  func deleteRegions(at offsets: IndexSet) {
+    let ids = offsets.map { regions[$0].id }
+    withErrorReporting {
+      try database.write { db in
+        try MapRegion.where { $0.id.in(ids) }.delete().execute(db)
+      }
+    }
+    if let selected = selectedRegionID, ids.contains(selected) {
+      selectedRegionID = nil
+    }
+  }
+
+  func renameRegion(_ region: MapRegion, to name: String) {
+    let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return }
+    withErrorReporting {
+      try database.write { db in
+        try MapRegion.find(region.id).update { $0.name = trimmed }.execute(db)
+      }
+    }
+  }
+
+  func deleteTags(at offsets: IndexSet) {
+    let ids = offsets.map { sortedTags[$0].id }
+    withErrorReporting {
+      try database.write { db in
+        try Tag.where { $0.id.in(ids) }.delete().execute(db)
+        // tagID is a loose UUID (not a SQL FK), so clean up join rows by hand.
+        try IdeaTag.where { $0.tagID.in(ids) }.delete().execute(db)
+      }
+    }
+    selectedTagIDs.subtract(ids)
+  }
+
+  func renameTag(_ tag: Tag, to name: String) {
+    let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return }
+    withErrorReporting {
+      try database.write { db in
+        try Tag.find(tag.id).update { $0.name = trimmed }.execute(db)
+      }
+    }
   }
 
   func saveRegion(named name: String, center: CLLocationCoordinate2D, span: MKCoordinateSpan) {

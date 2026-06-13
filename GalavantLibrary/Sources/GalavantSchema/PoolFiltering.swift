@@ -7,7 +7,9 @@ public func poolFiltered(
   _ ideas: [Idea],
   region: MapRegion?,
   kinds: Set<IdeaKind> = [],
-  includeVisited: Bool = true
+  includeVisited: Bool = true,
+  tagIDs selectedTagIDs: Set<Tag.ID> = [],
+  ideaTagIDs: [Idea.ID: Set<Tag.ID>] = [:]
 ) -> [Idea] {
   ideas.filter { idea in
     if let region {
@@ -20,6 +22,10 @@ public func poolFiltered(
     }
     if !kinds.isEmpty {
       guard let kind = idea.kind, kinds.contains(kind) else { return false }
+    }
+    if !selectedTagIDs.isEmpty {
+      // Selecting more tags narrows: the idea must carry all selected tags.
+      guard selectedTagIDs.isSubset(of: ideaTagIDs[idea.id] ?? []) else { return false }
     }
     if !includeVisited, idea.visited {
       return false

@@ -12,6 +12,9 @@ struct GalavantApp: App {
     try! prepareDependencies {
       try $0.bootstrapDatabase()
     }
+    #if DEBUG
+      DemoFixtures.seedIfRequested()
+    #endif
   }
 
   var body: some Scene {

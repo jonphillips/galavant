@@ -41,6 +41,14 @@ consented), `displayName` as editable override. Blocked on the M5 real-device
 share-accept flow. Cheap interim option: optional typed `email`/subtitle on
 `Planner` for picker disambiguation.
 
+## Consolidate management UIs into a settings/"You" area (from Jon, 2026-06-12)
+
+Tag and Region management currently hang off the filter menu (Manage Tags… /
+Manage Regions…). That's a temporary home — these (plus planner identity/
+switching and sync health) should migrate into a dedicated settings or "You"
+nav section, not be buried in the filter. Punted for now; tracked here. Likely
+lands when the third nav section ("You"/Account) is built (M5-ish).
+
 ## Filter reminder above the list (from Jon, 2026-06-12) — DONE
 
 Show active filter settings in small text above the filtered list. Implemented
