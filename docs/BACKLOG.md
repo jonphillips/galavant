@@ -31,6 +31,16 @@ completer by the user's current map region (or last-used region), and/or split
 trailing city tokens. Also confirm `resultTypes`/`pointOfInterestFilter` aren't
 over-narrowing.
 
+## Planner identity feels fly-by-night (from Jon, 2026-06-12)
+
+The name-only "Who are you?" prompt feels flimsy; Jon wants a stronger key
+(email on file, collision-resistant). Resolution direction recorded in
+**ADR-0008 → "Future: back planner identity with the CloudKit participant"**:
+derive identity from the accepting Apple ID (unique key + name/email when
+consented), `displayName` as editable override. Blocked on the M5 real-device
+share-accept flow. Cheap interim option: optional typed `email`/subtitle on
+`Planner` for picker disambiguation.
+
 ## Filter reminder above the list (from Jon, 2026-06-12) — DONE
 
 Show active filter settings in small text above the filtered list. Implemented

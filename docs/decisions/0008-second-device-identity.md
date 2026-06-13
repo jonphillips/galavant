@@ -49,6 +49,28 @@ pfw-sqlite-data iCloud documentation). So:
   cleanup pass deletes the losers when detected.
 - Test with deliberately seeded duplicates.
 
+## Future: back planner identity with the CloudKit participant (Apple ID)
+
+The current "Who are you? / type a name" flow is a **placeholder** for the
+identity CloudKit already has. The durable model (post-M5, once the real-device
+share-accept flow exists):
+
+- Each `Planner` is keyed to a **CloudKit share participant** (the person's
+  Apple ID — globally unique, the real strong key). This makes the Apple ID →
+  planner mapping deterministic, which *also* eliminates the duplicate-planner
+  race above (no two devices can mint two "Jon"s).
+- **Email and name come on file for free** from the Apple ID — *when the
+  participant consents* to share them (CloudKit gates this). The unique key is
+  always present; the human-readable fields are opt-in.
+- `displayName` stays an **editable override** (Apple may say "Jonathan"; the
+  travel party calls him "Jon").
+
+This fits ADR-0001 ("iCloud *is* the identity") — no auth, no server, the
+account is the key. Blocked on the M5 real-device share-accept flow and on
+handling the consent-gated/absent name+email case. A cheap interim stopgap, if
+display disambiguation is wanted sooner, is an optional typed `email`/subtitle
+on `Planner` — explicitly a placeholder this supersedes.
+
 ## Why this is an ADR and not just a bug fix
 
 Both items encode a general law of this architecture: **device-local state is
