@@ -124,16 +124,28 @@ extension TripIdea {
   }
 
   /// Advance (or retreat) an idea's lifecycle status on a trip. No-op if the
-  /// idea isn't on the trip.
+  /// idea isn't on the trip. Promoting *onto* the shortlist (from a status that
+  /// wasn't on it) appends it to the bottom of the shortlist order; demoting
+  /// leaves its rank untouched (harmless while off the shortlist).
   public static func setStatus(
     _ status: TripIdeaStatus,
     ideaID: Idea.ID,
     tripID: Trip.ID,
     in db: Database
   ) throws {
-    try TripIdea
+    let existing = try TripIdea
       .where { $0.tripID.eq(tripID) && $0.ideaID.eq(ideaID) }
-      .update { $0.status = status }
+      .fetchOne(db)
+    guard let existing else { return }
+    var rank = existing.shortlistRank
+    if status.isOnShortlist, !existing.status.isOnShortlist {
+      rank = try nextShortlistRank(tripID: tripID, in: db)
+    }
+    try TripIdea.find(existing.id)
+      .update {
+        $0.status = status
+        $0.shortlistRank = rank
+      }
       .execute(db)
   }
 
@@ -143,6 +155,39 @@ extension TripIdea {
       .where { $0.tripID.eq(tripID) && $0.ideaID.eq(ideaID) }
       .delete()
       .execute(db)
+  }
+
+  /// One past the current bottom of this trip's shortlist (0 when empty).
+  static func nextShortlistRank(tripID: Trip.ID, in db: Database) throws -> Int {
+    let ranks = try TripIdea
+      .where { $0.tripID.eq(tripID) }
+      .fetchAll(db)
+      .filter { $0.status.isOnShortlist }
+      .map(\.shortlistRank)
+    return (ranks.max() ?? -1) + 1
+  }
+
+  /// Persist a new shortlist order: each entry's `shortlistRank` becomes its
+  /// index in `orderedIDs` (TripIdea ids). Call after a drag-to-reorder.
+  public static func reorderShortlist(_ orderedIDs: [TripIdea.ID], in db: Database) throws {
+    for (index, id) in orderedIDs.enumerated() {
+      try TripIdea.find(id).update { $0.shortlistRank = index }.execute(db)
+    }
+  }
+
+  // MARK: - Pure partitioning (functional core)
+
+  /// This trip's shortlist — entries that earned a place (shortlisted onward),
+  /// in rank order. Pure.
+  public static func shortlist(_ entries: [TripIdea]) -> [TripIdea] {
+    entries
+      .filter { $0.status.isOnShortlist }
+      .sorted { $0.shortlistRank < $1.shortlistRank }
+  }
+
+  /// This trip's "considering" maybe-pile — pulled but not yet committed. Pure.
+  public static func considering(_ entries: [TripIdea]) -> [TripIdea] {
+    entries.filter { $0.status == .considering }
   }
 }
 

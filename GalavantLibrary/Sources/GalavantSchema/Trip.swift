@@ -8,7 +8,7 @@ import SQLiteData
 /// downstream keys off the calendar date (docs/trip-time-model.md). Single real
 /// FK to TravelParty so it rides the share (ADR-0007).
 @Table
-public struct Trip: Identifiable, Equatable, Sendable {
+public struct Trip: Identifiable, Equatable, Hashable, Sendable {
   public let id: UUID
   public var name = ""
   public var notes = ""

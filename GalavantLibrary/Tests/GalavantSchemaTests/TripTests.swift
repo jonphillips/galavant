@@ -180,6 +180,57 @@ struct TripTests {
     #expect(count == 0)
   }
 
+  // MARK: - Shortlist ranking (M3b)
+
+  @Test func promotingToShortlistAppendsRanks() async throws {
+    let ranks = try await database.write { db -> [Int] in
+      let trip = try Trip.create(name: "Copenhagen", in: db)
+      let a = try seedIdea(name: "Tivoli", in: db)
+      let b = try seedIdea(name: "Noma", in: db)
+      try TripIdea.pull(ideaID: a.id, into: trip.id, in: db)
+      try TripIdea.pull(ideaID: b.id, into: trip.id, in: db)
+      try TripIdea.setStatus(.shortlisted, ideaID: a.id, tripID: trip.id, in: db)
+      try TripIdea.setStatus(.shortlisted, ideaID: b.id, tripID: trip.id, in: db)
+      let entries = try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db)
+      return TripIdea.shortlist(entries).map(\.shortlistRank)
+    }
+    #expect(ranks == [0, 1])
+  }
+
+  @Test func reorderShortlistPersistsOrder() async throws {
+    let order = try await database.write { db -> [String] in
+      let trip = try Trip.create(name: "Copenhagen", in: db)
+      let ideas = try ["A", "B", "C"].map { try seedIdea(name: $0, in: db) }
+      for idea in ideas {
+        try TripIdea.pull(ideaID: idea.id, into: trip.id, in: db)
+        try TripIdea.setStatus(.shortlisted, ideaID: idea.id, tripID: trip.id, in: db)
+      }
+      let entries = try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db)
+      let joinID = Dictionary(uniqueKeysWithValues: entries.map { ($0.ideaID, $0.id) })
+      try TripIdea.reorderShortlist(
+        [joinID[ideas[2].id]!, joinID[ideas[0].id]!, joinID[ideas[1].id]!], in: db
+      )
+      let names = Dictionary(uniqueKeysWithValues: ideas.map { ($0.id, $0.name) })
+      let reordered = TripIdea.shortlist(try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db))
+      return reordered.map { names[$0.ideaID]! }
+    }
+    #expect(order == ["C", "A", "B"])
+  }
+
+  @Test func shortlistAndConsideringPartition() {
+    let trip = UUID()
+    let entries = [
+      TripIdea(id: UUID(), tripID: trip, ideaID: UUID(), status: .considering),
+      TripIdea(id: UUID(), tripID: trip, ideaID: UUID(), status: .shortlisted, shortlistRank: 1),
+      TripIdea(id: UUID(), tripID: trip, ideaID: UUID(), status: .scheduled, shortlistRank: 0),
+      TripIdea(id: UUID(), tripID: trip, ideaID: UUID(), status: .skipped),
+    ]
+    #expect(TripIdea.considering(entries).count == 1)
+    // scheduled (rank 0) and shortlisted (rank 1) are on the shortlist, in rank
+    // order; considering and skipped are excluded.
+    #expect(TripIdea.shortlist(entries).map(\.shortlistRank) == [0, 1])
+  }
+
   // MARK: - Helpers
 
   private func trip(_ name: String, _ certainty: Certainty) -> Trip {

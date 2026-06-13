@@ -10,7 +10,7 @@ struct TripRow: View {
       Text(trip.name.isEmpty ? "Untitled Trip" : trip.name)
         .font(.headline)
       HStack(spacing: 6) {
-        Text(certaintySummary)
+        Text(trip.certaintySummary)
         Text("·")
         Text("^[\(trip.lengthInDays) day](inflect: true)")
       }
@@ -21,10 +21,12 @@ struct TripRow: View {
     .frame(maxWidth: .infinity, alignment: .leading)
     .contentShape(Rectangle())
   }
+}
 
+extension Trip {
   /// Human-readable commitment level, derived from the domain `Certainty`.
-  private var certaintySummary: String {
-    switch trip.certainty {
+  var certaintySummary: String {
+    switch certainty {
     case .someday:
       "Someday"
     case let .targeted(year, quarter):

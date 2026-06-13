@@ -18,6 +18,9 @@ struct TripsScreen: View {
       difference.apply(to: &someday)
       model.reorderSomeday(someday.map(\.id))
     }
+    .navigationDestination(for: Trip.self) { trip in
+      TripPlanningView(trip: trip)
+    }
     .overlay {
       if model.trips.isEmpty {
         ContentUnavailableView {
@@ -69,12 +72,9 @@ struct TripsScreen: View {
   }
 
   private func tripButton(_ trip: Trip) -> some View {
-    Button {
-      model.tripTapped(trip)
-    } label: {
+    NavigationLink(value: trip) {
       TripRow(trip: trip)
     }
-    .buttonStyle(.plain)
   }
 }
 

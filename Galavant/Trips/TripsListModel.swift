@@ -27,10 +27,6 @@ final class TripsListModel {
     destination = .form(Trip.Draft())
   }
 
-  func tripTapped(_ trip: Trip) {
-    destination = .form(Trip.Draft(trip))
-  }
-
   func deleteTrips(_ trips: [Trip], at offsets: IndexSet) {
     let ids = offsets.map { trips[$0].id }
     withErrorReporting {
