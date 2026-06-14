@@ -8,6 +8,11 @@
 
 /* Begin PBXBuildFile section */
 		08AB246AC84A27EE2FC5F8A7 /* TripRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DAC9E1A5ABDBDA4BAAC80BB /* TripRow.swift */; };
+		5E0D3EF66303684B5E365FFB /* ReorderDifference+Apply.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3E410FB41C05D7929878B16 /* ReorderDifference+Apply.swift */; };
+		52894AE4520D850F95043F12 /* TripPlanningSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1DB1F968CEFDB5D211170CB /* TripPlanningSheets.swift */; };
+		893DE4A1286A30634F072B08 /* TripItineraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DC1CFA03198AC381237488E /* TripItineraryView.swift */; };
+		D0CB3A4B0EFF3AFF65EC826D /* TripIdeasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 828C3257FE1216FEC17017CB /* TripIdeasView.swift */; };
+		A0398ED4472369590A4431B6 /* PlanningRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D53DA585A2553AABF0E7175 /* PlanningRow.swift */; };
 		0BB238241FF15660518799F8 /* GalavantSchema in Frameworks */ = {isa = PBXBuildFile; productRef = 9CF31E175F7DCB4D59EAF394 /* GalavantSchema */; };
 		0D52F2373EEF284921180A85 /* IdeaRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EF8BE4704C36D1A6FFB14D6 /* IdeaRow.swift */; };
 		163235D89FEB136F5C5F73ED /* PoolIdentityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00154E6FD53486C6ECD8CBD9 /* PoolIdentityUITests.swift */; };
@@ -87,6 +92,11 @@
 		17EBCBAEA0AF8C840A0DA921 /* PoolMapUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoolMapUITests.swift; sourceTree = "<group>"; };
 		1D62672E298B917B0707B6F4 /* TagManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagManagerView.swift; sourceTree = "<group>"; };
 		1DAC9E1A5ABDBDA4BAAC80BB /* TripRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripRow.swift; sourceTree = "<group>"; };
+		A3E410FB41C05D7929878B16 /* ReorderDifference+Apply.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ReorderDifference+Apply.swift"; sourceTree = "<group>"; };
+		A1DB1F968CEFDB5D211170CB /* TripPlanningSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripPlanningSheets.swift"; sourceTree = "<group>"; };
+		6DC1CFA03198AC381237488E /* TripItineraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripItineraryView.swift"; sourceTree = "<group>"; };
+		828C3257FE1216FEC17017CB /* TripIdeasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripIdeasView.swift"; sourceTree = "<group>"; };
+		5D53DA585A2553AABF0E7175 /* PlanningRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PlanningRow.swift"; sourceTree = "<group>"; };
 		1EF8BE4704C36D1A6FFB14D6 /* IdeaRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaRow.swift; sourceTree = "<group>"; };
 		292BC932AEA1B53EB11DA125 /* InterestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterestView.swift; sourceTree = "<group>"; };
 		2A4CEB693F2E177C2E2F109F /* LocationSearchModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationSearchModel.swift; sourceTree = "<group>"; };
@@ -189,6 +199,11 @@
 				8238F43F540641D1FD4267BA /* TripPlanningModel.swift */,
 				08F3A8C38B6B2977E3D8153F /* TripPlanningView.swift */,
 				1DAC9E1A5ABDBDA4BAAC80BB /* TripRow.swift */,
+				A3E410FB41C05D7929878B16 /* ReorderDifference+Apply.swift */,
+				A1DB1F968CEFDB5D211170CB /* TripPlanningSheets.swift */,
+				6DC1CFA03198AC381237488E /* TripItineraryView.swift */,
+				828C3257FE1216FEC17017CB /* TripIdeasView.swift */,
+				5D53DA585A2553AABF0E7175 /* PlanningRow.swift */,
 				07FF30B2A97AE7158A524026 /* TripsListModel.swift */,
 				BC5C21FC298AEA29CFE09DC6 /* TripsScreen.swift */,
 			);
@@ -411,6 +426,11 @@
 				C4D03D83083C9022183ABEF2 /* TripPlanningModel.swift in Sources */,
 				7C7C4BB8F9D526D37F31BD66 /* TripPlanningView.swift in Sources */,
 				08AB246AC84A27EE2FC5F8A7 /* TripRow.swift in Sources */,
+				5E0D3EF66303684B5E365FFB /* ReorderDifference+Apply.swift in Sources */,
+				52894AE4520D850F95043F12 /* TripPlanningSheets.swift in Sources */,
+				893DE4A1286A30634F072B08 /* TripItineraryView.swift in Sources */,
+				D0CB3A4B0EFF3AFF65EC826D /* TripIdeasView.swift in Sources */,
+				A0398ED4472369590A4431B6 /* PlanningRow.swift in Sources */,
 				66E8ED4BF33E10641C5CA1D9 /* TripsListModel.swift in Sources */,
 				9C1C9676A64367844856918E /* TripsScreen.swift in Sources */,
 			);

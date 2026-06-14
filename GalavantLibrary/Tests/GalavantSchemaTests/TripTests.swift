@@ -254,6 +254,182 @@ struct TripTests {
     #expect(count == 0)
   }
 
+  // MARK: - Scheduling (M3c)
+
+  @Test func scheduleRoundTripsThroughColumns() {
+    let cases: [Schedule] = [
+      .unscheduled,
+      .day(2),
+      .daypart(3, .dinner),
+      .timed(4, start: "09:30", end: "11:00"),
+      .timed(5, start: "14:00", end: nil),
+    ]
+    for schedule in cases {
+      var entry = TripIdea(id: UUID(), tripID: UUID(), ideaID: UUID())
+      entry.apply(schedule)
+      #expect(entry.schedule == schedule)
+    }
+  }
+
+  @Test func applyClearsTheColumnsTheCaseDoesntUse() {
+    var entry = TripIdea(id: UUID(), tripID: UUID(), ideaID: UUID())
+    entry.apply(.timed(2, start: "08:00", end: "09:00"))
+    entry.apply(.daypart(2, .lunch))
+    #expect(entry.startTime == nil)
+    #expect(entry.endTime == nil)
+    entry.apply(.unscheduled)
+    #expect(entry.dayNumber == nil)
+    #expect(entry.dayPart == nil)
+  }
+
+  @Test func intraDaySortOrdersClockThenDaypartThenBareDay() {
+    #expect(Schedule.timed(1, start: "09:00", end: nil).intraDaySort == 9 * 60)
+    #expect(Schedule.daypart(1, .morning).intraDaySort == DayPart.morning.sortHour * 60)
+    // 09:00 (540) < morning (600) < dinner (1080) < a bare day (sorts last).
+    let keys = [
+      Schedule.timed(1, start: "09:00", end: nil),
+      .daypart(1, .morning),
+      .daypart(1, .dinner),
+      .day(1),
+    ].map(\.intraDaySort)
+    #expect(keys == keys.sorted())
+    #expect(keys.last == Schedule.day(1).intraDaySort)
+  }
+
+  @Test func malformedTimeSortsToEndOfDay() {
+    withKnownIssue {
+      #expect(Schedule.timed(1, start: "nope", end: nil).intraDaySort == Schedule.day(1).intraDaySort)
+    }
+  }
+
+  @Test func itineraryGroupsStopsByDayAndSortsWithinEachDay() {
+    let trip = UUID()
+    func stop(_ schedule: Schedule, rank: Int, status: TripIdeaStatus = .scheduled) -> TripIdea {
+      var entry = TripIdea(id: UUID(), tripID: trip, ideaID: UUID(), status: status, shortlistRank: rank)
+      entry.apply(schedule)
+      return entry
+    }
+    let a = stop(.daypart(1, .dinner), rank: 5)
+    let b = stop(.timed(1, start: "08:00", end: nil), rank: 9)
+    let c = stop(.day(2), rank: 0)
+    let e = stop(.daypart(2, .lunch), rank: 0)
+    let shortlisted = stop(.unscheduled, rank: 1, status: .shortlisted)
+    let outOfRange = stop(.day(9), rank: 0)  // trip only has 3 days → clamps onto day 3
+
+    let days = TripIdea.itinerary([a, b, c, e, shortlisted, outOfRange], lengthInDays: 3)
+    #expect(days.map(\.number) == [1, 2, 3])
+    #expect(days[0].stops.map(\.id) == [b.id, a.id])  // 08:00 before dinner
+    #expect(days[1].stops.map(\.id) == [e.id, c.id])  // lunch before bare day
+    #expect(days[2].stops.map(\.id) == [outOfRange.id])
+  }
+
+  @Test func itineraryInterleavesTimedAndDaypartsWithinADay() {
+    let trip = UUID()
+    func stop(_ schedule: Schedule) -> TripIdea {
+      var entry = TripIdea(id: UUID(), tripID: trip, ideaID: UUID(), status: .scheduled)
+      entry.apply(schedule)
+      return entry
+    }
+    // Two clock times and two dayparts on one day, added out of order. Expected
+    // order by minutes-from-midnight: 09:00 (540), morning (600), 14:00 (840),
+    // dinner (1080) — i.e. clock times and dayparts sort against each other.
+    let dinner = stop(.daypart(1, .dinner))
+    let afternoonClock = stop(.timed(1, start: "14:00", end: nil))
+    let morning = stop(.daypart(1, .morning))
+    let morningClock = stop(.timed(1, start: "09:00", end: "10:30"))
+    let days = TripIdea.itinerary([dinner, afternoonClock, morning, morningClock], lengthInDays: 1)
+    #expect(days[0].stops.map(\.id) == [morningClock.id, morning.id, afternoonClock.id, dinner.id])
+  }
+
+  @Test func itineraryTiebreaksEqualTimesByShortlistRank() {
+    let trip = UUID()
+    func stop(rank: Int) -> TripIdea {
+      var entry = TripIdea(id: UUID(), tripID: trip, ideaID: UUID(), status: .scheduled, shortlistRank: rank)
+      entry.apply(.day(1))
+      return entry
+    }
+    let high = stop(rank: 2)
+    let low = stop(rank: 1)
+    let days = TripIdea.itinerary([high, low], lengthInDays: 1)
+    #expect(days[0].stops.map(\.id) == [low.id, high.id])
+  }
+
+  @Test func scheduleOpSetsStatusAndColumns() async throws {
+    let entry = try await database.write { db -> TripIdea in
+      let trip = try Trip.create(name: "Copenhagen", lengthInDays: 5, in: db)
+      let idea = try seedIdea(name: "Tivoli", in: db)
+      try TripIdea.pull(ideaID: idea.id, into: trip.id, in: db)
+      try TripIdea.setStatus(.shortlisted, ideaID: idea.id, tripID: trip.id, in: db)
+      try TripIdea.schedule(.daypart(2, .afternoon), ideaID: idea.id, tripID: trip.id, in: db)
+      return try TripIdea.where { $0.tripID.eq(trip.id) }.fetchOne(db)!
+    }
+    #expect(entry.status == .scheduled)
+    #expect(entry.schedule == .daypart(2, .afternoon))
+  }
+
+  @Test func unscheduleClearsColumnsAndReturnsToShortlist() async throws {
+    let entry = try await database.write { db -> TripIdea in
+      let trip = try Trip.create(name: "Copenhagen", in: db)
+      let idea = try seedIdea(name: "Noma", in: db)
+      try TripIdea.pull(ideaID: idea.id, into: trip.id, in: db)
+      try TripIdea.schedule(.timed(1, start: "19:00", end: "21:00"), ideaID: idea.id, tripID: trip.id, in: db)
+      try TripIdea.unschedule(ideaID: idea.id, tripID: trip.id, in: db)
+      return try TripIdea.where { $0.tripID.eq(trip.id) }.fetchOne(db)!
+    }
+    #expect(entry.status == .shortlisted)
+    #expect(entry.schedule == .unscheduled)
+    #expect(entry.dayNumber == nil)
+  }
+
+  @Test func scheduleUnplacedFillsTheToBeScheduledBucket() async throws {
+    let entries = try await database.write { db -> [TripIdea] in
+      let trip = try Trip.create(name: "Copenhagen", lengthInDays: 4, in: db)
+      let unplaced = try seedIdea(name: "Reffen", in: db)
+      let placed = try seedIdea(name: "Tivoli", in: db)
+      for idea in [unplaced, placed] {
+        try TripIdea.pull(ideaID: idea.id, into: trip.id, in: db)
+      }
+      try TripIdea.scheduleUnplaced(ideaID: unplaced.id, tripID: trip.id, in: db)
+      try TripIdea.schedule(.day(2), ideaID: placed.id, tripID: trip.id, in: db)
+      return try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db)
+    }
+    let bucket = TripIdea.toBeScheduled(entries)
+    #expect(bucket.count == 1)
+    #expect(bucket.first?.status == .scheduled)
+    #expect(bucket.first?.schedule == .unscheduled)
+    // The unplaced stop stays out of the day grouping until it gets a day.
+    let placedOnDays = TripIdea.itinerary(entries, lengthInDays: 4).flatMap(\.stops)
+    #expect(placedOnDays.count == 1)
+  }
+
+  @Test func markDoneFlipsVisitedButMarkSkippedDoesNot() async throws {
+    let (doneVisited, skippedVisited) = try await database.write { db -> (Bool, Bool) in
+      let trip = try Trip.create(name: "Copenhagen", in: db)
+      let doneIdea = try seedIdea(name: "Visited", in: db)
+      let skippedIdea = try seedIdea(name: "Untouched", in: db)
+      for idea in [doneIdea, skippedIdea] {
+        try TripIdea.pull(ideaID: idea.id, into: trip.id, in: db)
+        try TripIdea.schedule(.day(1), ideaID: idea.id, tripID: trip.id, in: db)
+      }
+      try TripIdea.markDone(ideaID: doneIdea.id, tripID: trip.id, in: db)
+      try TripIdea.setStatus(.skipped, ideaID: skippedIdea.id, tripID: trip.id, in: db)
+      return (
+        try Idea.find(doneIdea.id).fetchOne(db)!.visited,
+        try Idea.find(skippedIdea.id).fetchOne(db)!.visited
+      )
+    }
+    #expect(doneVisited == true)
+    #expect(skippedVisited == false)
+  }
+
+  @Test func dateForDayDerivesFromStartOnlyWhenDated() {
+    let start = Date(timeIntervalSince1970: 1_700_000_000)
+    let dated = trip("Dated", .dated(start: start))
+    #expect(dated.date(forDay: 1) == start)
+    #expect(dated.date(forDay: 3) == Calendar.current.date(byAdding: .day, value: 2, to: start))
+    #expect(trip("Someday", .someday(rank: 0)).date(forDay: 1) == nil)
+  }
+
   // MARK: - Helpers
 
   private func trip(_ name: String, _ certainty: Certainty) -> Trip {

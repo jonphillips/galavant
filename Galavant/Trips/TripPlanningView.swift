@@ -2,9 +2,11 @@ import GalavantSchema
 import SwiftUI
 import SwiftUINavigation
 
-/// One trip's planning surface: a segmented Shortlist | Add. Shortlist shows the
-/// ranked (reorderable) pulls plus the "considering" pile; Add shows the
-/// filtered pool you pull from (ADR-0004).
+/// One trip's planning surface: a segmented Ideas | Itinerary. Ideas shows the
+/// pulled ideas grouped Shortlist / Scheduled / Considering (a `+` opens the
+/// filterable pool as a bottom sheet to add more); Itinerary lays the scheduled
+/// stops out by day (ADR-0004). The two tabs and the two sheets each live in
+/// their own file; this is just the shell that wires them to the model.
 struct TripPlanningView: View {
   @State private var model: TripPlanningModel
 
@@ -12,18 +14,12 @@ struct TripPlanningView: View {
     _model = State(initialValue: TripPlanningModel(tripID: trip.id))
   }
 
-  /// Statuses you can assign from a row's menu (post-trip `done` is a later
-  /// milestone).
-  private static let assignable: [TripIdeaStatus] = [
-    .considering, .shortlisted, .scheduled, .skipped,
-  ]
-
   var body: some View {
     @Bindable var model = model
     Group {
       switch model.mode {
-      case .shortlist: shortlistList
-      case .add: addList
+      case .ideas: TripIdeasView(model: model)
+      case .itinerary: TripItineraryView(model: model)
       }
     }
     .safeAreaInset(edge: .top, spacing: 0) {
@@ -40,206 +36,48 @@ struct TripPlanningView: View {
     .navigationTitle(model.trip?.name ?? "Trip")
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
-      if model.mode == .add {
-        ToolbarItem { filterMenu }
-      }
-      ToolbarItem {
+      // Trip-level action sits on the leading side, away from the content's
+      // add button on the trailing side.
+      ToolbarItem(placement: .topBarLeading) {
         Button("Edit") { model.editButtonTapped() }
+      }
+      ToolbarItem(placement: .topBarTrailing) {
+        switch model.mode {
+        case .ideas:
+          Button {
+            model.addIdeasButtonTapped()
+          } label: {
+            Label("Add Ideas", systemImage: "plus")
+          }
+        case .itinerary:
+          Button {
+            model.addStopButtonTapped()
+          } label: {
+            Label("Add Stop", systemImage: "plus")
+          }
+        }
       }
     }
     .sheet(item: $model.destination.edit, id: \.id) { draft in
       TripFormView(draft: draft)
     }
+    .sheet(
+      isPresented: Binding(
+        get: { model.destination?.is(\.addIdeas) ?? false },
+        set: { model.destination = $0 ? .addIdeas : nil }
+      )
+    ) {
+      AddIdeasSheet(model: model)
+    }
+    .sheet(
+      isPresented: Binding(
+        get: { model.destination?.is(\.scheduleStop) ?? false },
+        set: { model.destination = $0 ? .scheduleStop : nil }
+      )
+    ) {
+      ScheduleStopSheet(model: model)
+    }
     .task { model.seedLensIfNeeded() }
     .onChange(of: model.tripRegionIDs) { _, _ in model.reseedLens() }
-  }
-
-  // MARK: - Shortlist mode
-
-  private var shortlistList: some View {
-    List {
-      if let trip = model.trip {
-        Section {
-          HStack(spacing: 6) {
-            Text(trip.certaintySummary)
-            Text("·")
-            Text("^[\(trip.lengthInDays) day](inflect: true)")
-          }
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-        }
-      }
-      if !model.shortlist.isEmpty {
-        Section("Shortlist") {
-          ForEach(model.shortlist) { resolved in
-            row(resolved.idea, trailing: statusMenu(for: resolved.idea, current: resolved.entry.status))
-          }
-          .onDelete { model.deleteShortlist(at: $0) }
-          .reorderable()
-        }
-      }
-      if !model.considering.isEmpty {
-        Section("Considering") {
-          ForEach(model.considering) { resolved in
-            row(
-              resolved.idea,
-              trailing: Button {
-                model.setStatus(.shortlisted, for: resolved.idea)
-              } label: {
-                Label("Shortlist", systemImage: "star")
-              }
-              .buttonStyle(.borderless)
-            )
-          }
-          .onDelete { model.deleteConsidering(at: $0) }
-        }
-      }
-    }
-    .reorderContainer(for: TripPlanningModel.Resolved.self) { difference in
-      var entries = model.shortlist
-      difference.apply(to: &entries)
-      model.reorderShortlist(entries.map(\.id))
-    }
-    .overlay {
-      if model.shortlist.isEmpty, model.considering.isEmpty {
-        ContentUnavailableView {
-          Label("Nothing pulled yet", systemImage: "tray")
-        } description: {
-          Text("Switch to Add to pull ideas from the pool onto this trip.")
-        }
-      }
-    }
-  }
-
-  // MARK: - Add mode
-
-  private var addList: some View {
-    List {
-      ForEach(model.filteredPool) { idea in
-        let status = model.status(for: idea)
-        row(
-          idea,
-          trailing: Group {
-            if let status {
-              statusMenu(for: idea, current: status)
-            } else {
-              Menu {
-                Button("Add to Considering", systemImage: "tray.and.arrow.down") {
-                  model.pull(idea)
-                }
-                Button("Add to Shortlist", systemImage: "star") {
-                  model.pullToShortlist(idea)
-                }
-              } label: {
-                Image(systemName: "plus.circle")
-              }
-            }
-          }
-        )
-      }
-    }
-    .overlay {
-      if model.filteredPool.isEmpty {
-        ContentUnavailableView {
-          Label("No ideas to pull", systemImage: "lightbulb")
-        } description: {
-          Text(model.isFiltering ? "No pool ideas match the filter." : "Capture ideas first on the Ideas screen.")
-        }
-      }
-    }
-  }
-
-  // MARK: - Shared rows
-
-  private func row(_ idea: Idea, trailing: some View) -> some View {
-    HStack(alignment: .top, spacing: 12) {
-      Image(systemName: idea.kind?.systemImage ?? "mappin.and.ellipse")
-        .foregroundStyle(.secondary)
-        .frame(width: 24)
-        .padding(.top, 2)
-      VStack(alignment: .leading, spacing: 2) {
-        Text(idea.name)
-        if let regionName = idea.regionName, !regionName.isEmpty {
-          Text(regionName).font(.subheadline).foregroundStyle(.secondary)
-        }
-      }
-      Spacer()
-      trailing
-    }
-    .padding(.vertical, 2)
-  }
-
-  private func statusMenu(for idea: Idea, current: TripIdeaStatus) -> some View {
-    Menu {
-      ForEach(Self.assignable, id: \.self) { status in
-        Button {
-          model.setStatus(status, for: idea)
-        } label: {
-          if status == current {
-            Label(status.label, systemImage: "checkmark")
-          } else {
-            Text(status.label)
-          }
-        }
-      }
-      Divider()
-      Button("Remove from Trip", systemImage: "minus.circle", role: .destructive) {
-        model.remove(idea)
-      }
-    } label: {
-      Text(current.label).font(.subheadline).foregroundStyle(.secondary)
-    }
-  }
-
-  private var filterMenu: some View {
-    Menu {
-      Menu("Regions") {
-        ForEach(model.sortedRegions) { region in
-          Button {
-            model.toggleRegion(region.id)
-          } label: {
-            checked(region.name, on: model.selectedRegionIDs.contains(region.id))
-          }
-        }
-      }
-      Menu("Kinds") {
-        ForEach(IdeaKind.allCases, id: \.self) { kind in
-          Button {
-            model.toggleKind(kind)
-          } label: {
-            checked(kind.label, on: model.selectedKinds.contains(kind))
-          }
-        }
-      }
-      Menu("Tags") {
-        ForEach(model.sortedTags) { tag in
-          Button {
-            model.toggleTag(tag.id)
-          } label: {
-            checked(tag.name, on: model.selectedTagIDs.contains(tag.id))
-          }
-        }
-      }
-      Toggle("Show visited", isOn: Binding(get: { model.includeVisited }, set: { model.includeVisited = $0 }))
-      if model.isFiltering {
-        Button("Clear filters", role: .destructive) { model.clearFilters() }
-      }
-    } label: {
-      Label(
-        "Filter",
-        systemImage: model.isFiltering
-          ? "line.3.horizontal.decrease.circle.fill"
-          : "line.3.horizontal.decrease.circle"
-      )
-    }
-  }
-
-  @ViewBuilder
-  private func checked(_ title: String, on: Bool) -> some View {
-    if on {
-      Label(title, systemImage: "checkmark")
-    } else {
-      Text(title)
-    }
   }
 }

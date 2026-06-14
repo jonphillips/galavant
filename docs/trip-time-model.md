@@ -53,6 +53,35 @@ Pieces this needs:
 Stops needing "exact time **or** daypart, not everything scheduled exactly" is
 already covered: V2's `Schedule` enum ports in M3 (ADR-0004). No action.
 
+## 4. Booked reservations are absolute facts (refinement, M4)
+
+*Raised by Jon 2026-06-13, after M3c trimmed V2's `.exact(Date, Date,
+TimeZone)` out of the `Schedule` enum.* The day-relative rule (§2) is right for
+*planned* stops, but a **confirmed reservation** (OpenTable, a hotel, a timed
+museum entry) is an absolute fact: it is nailed to a calendar date and must
+**not** slide when the trip's start date moves. Day-relative stops should slide;
+a booking should not.
+
+This is **not precluded** by the M3c model, and re-introducing exactness is
+purely additive (the same nullable-column move M3c used):
+
+- **The time already round-trips.** For a *dated* trip, a booking maps to
+  `.timed(dayNumber, "19:30", …)`; `Trip.date(forDay:)` reconstructs the exact
+  datetime for display and iCal export. The common path (book *after* dates
+  bind) needs nothing new.
+- **The gap is the absolute pin, not the time.** Today a stop is pinned to a
+  day *number*, so a booking would drift if the trip's start slid. The clean
+  fix is an optional `TripIdea.pinnedDate: Date?` (plus booking metadata —
+  confirmation #, booking URL, party size, booked-vs-planned) that, when set,
+  locks the stop to that date, re-derives its `dayNumber` if the start moves,
+  and could even nudge an undated trip toward dating. No enum rewrite.
+
+**Decision:** land with **M4 (capture)** — that's when a share/OpenTable import
+actually creates such a stop, and it pairs naturally with the metadata and the
+"reservable-from" booking-window work (docs/BACKLOG.md). This *refines* the
+day-relative model; it does not re-open it. Until then, bookings are entered as
+day-relative `.timed` stops on a dated trip, which is faithful for display.
+
 ## Staleness rule
 
 Opening days are scraped-or-typed snapshots and rot. The solver's output is

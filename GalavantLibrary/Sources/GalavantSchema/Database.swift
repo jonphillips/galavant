@@ -232,6 +232,32 @@ extension DependencyValues {
       )
       .execute(db)
     }
+    migrator.registerMigration("Add scheduling columns to tripIdeas") { db in
+      try #sql(
+        """
+        ALTER TABLE "tripIdeas" ADD COLUMN "dayNumber" INTEGER
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        ALTER TABLE "tripIdeas" ADD COLUMN "dayPart" INTEGER
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        ALTER TABLE "tripIdeas" ADD COLUMN "startTime" TEXT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        ALTER TABLE "tripIdeas" ADD COLUMN "endTime" TEXT
+        """
+      )
+      .execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if context == .live, startSyncEngine {

@@ -84,6 +84,16 @@ extension Trip {
   }
 }
 
+extension Trip {
+  /// The calendar date day `number` (1-based) lands on when the trip is dated;
+  /// nil for undated trips. The itinerary is day-relative — this is derived for
+  /// display only, never stored (docs/trip-time-model.md §2).
+  public func date(forDay number: Int) -> Date? {
+    guard let startDate else { return nil }
+    return Calendar.current.date(byAdding: .day, value: number - 1, to: startDate)
+  }
+}
+
 /// Trips grouped by certainty stage, each section pre-sorted (see
 /// `Trip.sectioned`).
 public struct TripSections: Equatable, Sendable {
@@ -149,6 +159,78 @@ extension TripIdea {
       .execute(db)
   }
 
+  /// Place a shortlisted idea onto a day (or re-place an already-scheduled one):
+  /// set `status = .scheduled` and write the schedule columns in one update.
+  /// No-op if the idea isn't on the trip.
+  public static func schedule(
+    _ schedule: Schedule,
+    ideaID: Idea.ID,
+    tripID: Trip.ID,
+    in db: Database
+  ) throws {
+    let existing = try TripIdea
+      .where { $0.tripID.eq(tripID) && $0.ideaID.eq(ideaID) }
+      .fetchOne(db)
+    // A nil day would violate the `.scheduled ⇔ dayNumber != nil` invariant —
+    // callers wanting to clear a day use `unschedule` instead.
+    guard var updated = existing, schedule.dayNumber != nil else { return }
+    updated.status = .scheduled
+    updated.apply(schedule)
+    try TripIdea.find(updated.id)
+      .update {
+        $0.status = #bind(updated.status)
+        $0.dayNumber = #bind(updated.dayNumber)
+        $0.dayPart = #bind(updated.dayPart)
+        $0.startTime = #bind(updated.startTime)
+        $0.endTime = #bind(updated.endTime)
+      }
+      .execute(db)
+  }
+
+  /// Commit a stop to the itinerary without a day yet — the "To Be Scheduled"
+  /// bucket. Status becomes `.scheduled` with the day columns cleared; place it
+  /// on a day later with `schedule(_:)`. No-op if the idea isn't on the trip.
+  public static func scheduleUnplaced(ideaID: Idea.ID, tripID: Trip.ID, in db: Database) throws {
+    try TripIdea
+      .where { $0.tripID.eq(tripID) && $0.ideaID.eq(ideaID) }
+      .update {
+        $0.status = #bind(.scheduled)
+        $0.dayNumber = #bind(nil)
+        $0.dayPart = #bind(nil)
+        $0.startTime = #bind(nil)
+        $0.endTime = #bind(nil)
+      }
+      .execute(db)
+  }
+
+  /// Pull a scheduled stop back to the shortlist: clear its schedule columns and
+  /// set `status = .shortlisted` (it keeps its `shortlistRank`). No-op if the
+  /// idea isn't on the trip.
+  public static func unschedule(ideaID: Idea.ID, tripID: Trip.ID, in db: Database) throws {
+    try TripIdea
+      .where { $0.tripID.eq(tripID) && $0.ideaID.eq(ideaID) }
+      .update {
+        $0.status = #bind(.shortlisted)
+        $0.dayNumber = #bind(nil)
+        $0.dayPart = #bind(nil)
+        $0.startTime = #bind(nil)
+        $0.endTime = #bind(nil)
+      }
+      .execute(db)
+  }
+
+  /// Mark a stop done after the trip and feed that back to the pool: flip the
+  /// idea's `visited` flag in the same transaction (ADR-0004). No-op if the
+  /// idea isn't on the trip.
+  public static func markDone(ideaID: Idea.ID, tripID: Trip.ID, in db: Database) throws {
+    let existing = try TripIdea
+      .where { $0.tripID.eq(tripID) && $0.ideaID.eq(ideaID) }
+      .fetchOne(db)
+    guard let existing else { return }
+    try TripIdea.find(existing.id).update { $0.status = #bind(.done) }.execute(db)
+    try Idea.find(ideaID).update { $0.visited = #bind(true) }.execute(db)
+  }
+
   /// Remove an idea from a trip entirely (back to the untouched pool).
   public static func remove(ideaID: Idea.ID, from tripID: Trip.ID, in db: Database) throws {
     try TripIdea
@@ -188,6 +270,50 @@ extension TripIdea {
   /// This trip's "considering" maybe-pile — pulled but not yet committed. Pure.
   public static func considering(_ entries: [TripIdea]) -> [TripIdea] {
     entries.filter { $0.status == .considering }
+  }
+
+  /// Scheduled stops not yet placed on a day — the "To Be Scheduled" bucket that
+  /// sits atop the itinerary, in shortlist-rank order. Pure.
+  public static func toBeScheduled(_ entries: [TripIdea]) -> [TripIdea] {
+    entries
+      .filter { $0.status == .scheduled && $0.dayNumber == nil }
+      .sorted { $0.shortlistRank < $1.shortlistRank }
+  }
+
+  /// Lay the `scheduled` stops out across days 1…`lengthInDays`. Every day is
+  /// present (empty days included, so the view can offer them as drop targets);
+  /// each day's stops are ordered by their schedule's intra-day key, then
+  /// `shortlistRank` as a stable tiebreak. Stops whose day falls outside
+  /// 1…`lengthInDays` (e.g. the trip was shortened) collapse onto the last day
+  /// so nothing silently vanishes. Pure — the densely-tested core.
+  public static func itinerary(_ entries: [TripIdea], lengthInDays: Int) -> [ItineraryDay] {
+    let days = Swift.max(1, lengthInDays)
+    let scheduled = entries.filter { $0.status == .scheduled && $0.dayNumber != nil }
+    return (1...days).map { number in
+      let stops = scheduled
+        .filter { entry in
+          let day = entry.dayNumber ?? 1
+          return Swift.min(Swift.max(day, 1), days) == number
+        }
+        .sorted {
+          ($0.schedule.intraDaySort, $0.shortlistRank)
+            < ($1.schedule.intraDaySort, $1.shortlistRank)
+        }
+      return ItineraryDay(number: number, stops: stops)
+    }
+  }
+}
+
+/// One day of a trip's itinerary: its 1-based number and the stops placed on it,
+/// pre-ordered (see `TripIdea.itinerary`).
+public struct ItineraryDay: Equatable, Identifiable, Sendable {
+  public var number: Int
+  public var stops: [TripIdea]
+  public var id: Int { number }
+
+  public init(number: Int, stops: [TripIdea] = []) {
+    self.number = number
+    self.stops = stops
   }
 }
 

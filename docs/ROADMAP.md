@@ -36,7 +36,28 @@ first. Update this file when reality diverges — it's a living doc, not a contr
 ## M3 — Trips
 - ✅ M3a: Trip schema (certainty pipeline someday(rank)→targeted(year,quarter)→dated + lengthInDays, flat columns behind a `Certainty` enum facade) + TripIdea join with `considering→shortlisted→scheduled→done/skipped` status (ADR-0004); functional core (`Trip.create`/`update`/`reorderSomeday`/`sectioned`, `TripIdea.pull`/`setStatus`/`remove`) + 13 tests; Trips list grouped by certainty with create/edit form and reorderable() someday backlog (deployment target bumped to iOS 27 for native reorder). Demo trips seeded.
 - ✅ M3b: pull-to-shortlist. Tapping a trip pushes a **Trip Planning screen** (segmented Shortlist | Add); Add shows the pool scoped by the reused M2c filters (region/kind/tag/visited) with pull → considering / straight-to-shortlist; Shortlist shows ranked pulls (reorderable()) + a Considering pile; per-row status menu (considering/shortlisted/scheduled/skipped/remove). Core: `TripIdea.reorderShortlist` + rank-on-promote in `setStatus` + pure `shortlist()`/`considering()`; 3 new tests (29 total). Edit moved into the planning screen. Title fix: trip name now shows (segmented control moved to a bar under the nav bar).
-- ✅ M3b.1 (2026-06-13): **multiple regions per trip**. `TripRegion` join (single-FK→Trip ON DELETE CASCADE, loose regionID per ADR-0007) with `setRegions` reconcile + `regionIDs(forTrip:)`. `poolFiltered` now takes a region **union** (`regions: [MapRegion]`, empty = no constraint, match any); IdeasListModel + tests updated. Multi-region picker in the trip form; the Add lens (`Set<MapRegion.ID>`) **pre-seeds from the trip's regions** on appear. Demo trips pre-associated with regions. 32 tests green. (Reorder-on-fast-nav race parked as a beta-watch item — docs/KNOWN-ISSUES.md.)
+- ✅ M3c (2026-06-13): **the itinerary core** — day-relative scheduling. New
+  `Schedule` facade (`unscheduled / day / daypart(DayPart) / timed`, dates never
+  stored — derived from start; drops V2's `.exact`) over four flat columns on
+  `TripIdea` behind the `Certainty`-style apply/rebuild contract; `DayPart` enum
+  (Int-raw, `sortHour`). Functional core: `TripIdea.itinerary(_:lengthInDays:)`
+  → `[ItineraryDay]` (every day present, intra-day sorted by `intraDaySort` then
+  `shortlistRank`, out-of-range days clamp onto the last); `Trip.date(forDay:)`
+  derives the calendar date for dated trips. DB ops `schedule`/`unschedule`/
+  `markDone` (Done flips `Idea.visited` — post-trip feedback-to-pool, ADR-0004).
+  UI: third **Itinerary** segment in the planning screen — day sections (header
+  shows day # + weekday/date when dated) plus a **To Be Scheduled** bucket at the
+  top for stops committed to the trip but not yet placed on a day (`.scheduled`
+  with `dayNumber == nil`); an **Add Stop** sheet (pick idea + day or
+  to-be-scheduled + time-of-day), per-stop menu to set/move day / set
+  time-of-day / Skip / back-to-shortlist, and a swipe-to-Schedule on shortlist
+  rows. Ideas page is **Ideas | Itinerary** with shortlist/scheduled/considering
+  sections, one-tap state icons, and swipe Remove/Unschedule. 11 new tests (43 total). **Done is intentionally not a
+  per-stop action** (Jon: completion is assumed once the trip passes) — the
+  `markDone`→`visited` op stays as the mechanism for a future trip-level rollup +
+  a "now" marker (docs/BACKLOG.md). Deferred: clock-time *entry* UI, drag stops
+  between days, freeform (non-idea) stops, accommodations, per-day region stops
+  (`.timed` + schema already support the first). `TripRegion` join (single-FK→Trip ON DELETE CASCADE, loose regionID per ADR-0007) with `setRegions` reconcile + `regionIDs(forTrip:)`. `poolFiltered` now takes a region **union** (`regions: [MapRegion]`, empty = no constraint, match any); IdeasListModel + tests updated. Multi-region picker in the trip form; the Add lens (`Set<MapRegion.ID>`) **pre-seeds from the trip's regions** on appear. Demo trips pre-associated with regions. 32 tests green. (Reorder-on-fast-nav race parked as a beta-watch item — docs/KNOWN-ISSUES.md.)
 - Trip model: **certainty lifecycle** someday(rank) → targeted(year, quarter) → dated (docs/trip-time-model.md); duration in days; **day-number-relative itinerary** + **TripIdea join with status lifecycle** (ADR-0004)
 - Trips list grouped by certainty; drag-rank the someday backlog; trip link bookmarks (label+URL)
 - Planning view: pool filtered by trip lens → pull to shortlist
