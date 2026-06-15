@@ -1,120 +1,106 @@
 import GalavantSchema
 import SwiftUI
 
-/// The trip's Itinerary tab: a "To Be Scheduled" bucket atop the day-by-day
-/// layout (day-relative, never dates — docs/trip-time-model.md). Each stop's
-/// menu sets/moves its day and time of day. The Add button (in the parent shell)
-/// opens the Add-Stop sheet.
+/// The itinerary as a timeline (day-relative, never dates — docs/trip-time-model.md).
+/// In the trip canvas's bottom sheet it shows one **focused day** (the day chip's
+/// lens); with no focus it shows the whole trip — a "To Be Scheduled" bucket atop
+/// the day-by-day layout. Each row taps to select its stop (the shared canvas
+/// selection) and carries the `StopMenu` to set/move its day and time.
 struct TripItineraryView: View {
   let model: TripPlanningModel
+  /// When set, render only this day's stops (the canvas day lens). Nil = the
+  /// whole trip.
+  var focusedDay: Int?
 
   var body: some View {
-    if model.hasScheduledStops {
-      List {
-        if !model.toBeScheduledStops.isEmpty {
-          Section("To Be Scheduled") {
-            ForEach(model.toBeScheduledStops) { resolved in
-              PlanningRow(idea: resolved.idea) {
-                stopMenu(for: resolved.idea, schedule: resolved.entry.schedule)
-              }
-            }
-          }
+    ScrollViewReader { proxy in
+      content
+        // Selecting a stop on the map scrolls the matching row into view (the
+        // map→list half of the shared selection; list→map is the tap below).
+        .onChange(of: model.canvasSelectedStopID) { _, id in
+          guard let id else { return }
+          withAnimation { proxy.scrollTo(id, anchor: .center) }
         }
-        ForEach(model.itinerary) { day in
-          Section {
-            if day.stops.isEmpty {
-              Text("No stops yet")
-                .font(.subheadline)
-                .foregroundStyle(.tertiary)
-            } else {
-              ForEach(day.stops) { resolved in
-                PlanningRow(idea: resolved.idea) {
-                  stopMenu(for: resolved.idea, schedule: resolved.entry.schedule)
-                }
-              }
-            }
-          } header: {
-            Text(dayLabel(day.number, trip: model.trip))
-          }
-        }
-      }
-    } else {
-      // Shown in place of the list (not overlaid on it) so the empty message
-      // sits on its own opaque background instead of floating over day rows.
-      ContentUnavailableView {
-        Label("Nothing scheduled", systemImage: "calendar")
-      } description: {
-        Text("Pull ideas onto the shortlist, then tap + to schedule them onto days.")
-      } actions: {
-        Button("Add a Stop") { model.addStopButtonTapped() }
-      }
-      .frame(maxWidth: .infinity, maxHeight: .infinity)
-      .background(.background)
     }
   }
 
-  /// The time-and-lifecycle menu on an itinerary stop: set or move its day, set
-  /// its time of day, send it back to the To-Be-Scheduled bucket, skip it, or
-  /// return it to the shortlist. (Marking a stop "done" is deliberately absent —
-  /// completion is assumed once the trip passes; see docs/BACKLOG.md.)
-  private func stopMenu(for idea: Idea, schedule: Schedule) -> some View {
-    let placed = schedule.dayNumber != nil
-    let day = schedule.dayNumber ?? 1
-    return Menu {
-      if let length = model.trip?.lengthInDays {
-        Menu(placed ? "Move to Day" : "Set Day") {
-          ForEach(1...length, id: \.self) { n in
-            Button {
-              model.setSchedule(schedule.onDay(n), for: idea)
-            } label: {
-              let title = dayLabel(n, trip: model.trip)
-              if placed, n == day {
-                Label(title, systemImage: "checkmark")
-              } else {
-                Text(title)
-              }
-            }
-          }
+  @ViewBuilder private var content: some View {
+    if let day = focusedDay {
+      focusedDayList(day)
+    } else if model.hasScheduledStops {
+      fullItinerary
+    } else {
+      emptyState
+    }
+  }
+
+  /// One day's stops, for the canvas's day lens.
+  private func focusedDayList(_ day: Int) -> some View {
+    let stops = model.canvasDays.first { $0.number == day }?.stops ?? []
+    return List {
+      Section {
+        if stops.isEmpty {
+          Text("No stops on this day yet")
+            .font(.subheadline)
+            .foregroundStyle(.tertiary)
+        } else {
+          ForEach(stops) { resolved in stopRow(resolved) }
         }
-      }
-      if placed {
-        Menu("Time of Day") {
-          Button {
-            model.setSchedule(.day(day), for: idea)
-          } label: {
-            if schedule.dayPart == nil {
-              Label("Anytime", systemImage: "checkmark")
-            } else {
-              Text("Anytime")
-            }
-          }
-          ForEach(DayPart.allCases) { part in
-            Button {
-              model.setSchedule(.daypart(day, part), for: idea)
-            } label: {
-              if schedule.dayPart == part {
-                Label(part.label, systemImage: "checkmark")
-              } else {
-                Label(part.label, systemImage: part.systemImage)
-              }
-            }
-          }
-        }
-        Button("To Be Scheduled", systemImage: "calendar.badge.clock") {
-          model.sendToBeScheduled(idea)
-        }
-      }
-      Divider()
-      Button("Mark Skipped", systemImage: "xmark.circle") { model.markSkipped(idea) }
-      Button("Move to Shortlist", systemImage: "arrow.uturn.backward") {
-        model.unschedule(idea)
-      }
-    } label: {
-      if placed {
-        Text(schedule.display).font(.subheadline).foregroundStyle(.secondary)
-      } else {
-        Label("Set day", systemImage: "calendar.badge.plus").font(.subheadline)
+      } header: {
+        Text(dayLabel(day, trip: model.trip))
       }
     }
+  }
+
+  /// The whole trip: the dayless bucket, then every day.
+  private var fullItinerary: some View {
+    List {
+      if !model.toBeScheduledStops.isEmpty {
+        Section("To Be Scheduled") {
+          ForEach(model.toBeScheduledStops) { resolved in stopRow(resolved) }
+        }
+      }
+      ForEach(model.itinerary) { day in
+        Section {
+          if day.stops.isEmpty {
+            Text("No stops yet")
+              .font(.subheadline)
+              .foregroundStyle(.tertiary)
+          } else {
+            ForEach(day.stops) { resolved in stopRow(resolved) }
+          }
+        } header: {
+          Text(dayLabel(day.number, trip: model.trip))
+        }
+      }
+    }
+  }
+
+  private var emptyState: some View {
+    // Shown in place of the list (not overlaid on it) so the empty message sits
+    // on its own opaque background instead of floating over day rows.
+    ContentUnavailableView {
+      Label("Nothing scheduled", systemImage: "calendar")
+    } description: {
+      Text("Pull ideas onto the shortlist, then tap + to schedule them onto days.")
+    } actions: {
+      Button("Add a Stop") { model.addStopButtonTapped() }
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .background(.background)
+  }
+
+  /// A stop row: the idea, its `StopMenu`, tap-to-select (the shared canvas
+  /// selection), and a tint when it's the selected stop.
+  private func stopRow(_ resolved: TripPlanningModel.Resolved) -> some View {
+    PlanningRow(idea: resolved.idea) {
+      StopMenu(model: model, idea: resolved.idea, schedule: resolved.entry.schedule)
+    }
+    .listRowBackground(
+      model.canvasSelectedStopID == resolved.id ? Color.accentColor.opacity(0.12) : nil
+    )
+    .contentShape(Rectangle())
+    .onTapGesture { model.selectStop(resolved.id) }
+    .id(resolved.id)
   }
 }

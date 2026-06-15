@@ -23,6 +23,12 @@ first. Update this file when reality diverges — it's a living doc, not a contr
 - ⏳ Tags (first-class?); capture polish (search-first form, auto-populate from MapKit — docs/BACKLOG.md)
 - ⏳ Second-device identity hardening (ADR-0008): bind-or-create planner picker, stray-party cleanup, IdeaInterest dedup-on-read
 - Full Idea model: kinds, visited state, tags, URLs, images, opening days/hours and reservable-from (manual entry)
+  - **Image storage strategy** (cross-cutting; inherited by M4 scraped images + M5
+    Unsplash headers): CloudKit-native, **no S3/server** (ADR-0001 — S3 = the
+    UploadManager that stalled V1/V2; reopening it needs a new ADR). Watch the
+    ~1 MB `CKRecord` field cap: resize/compress on import (~1600px, ≈300 KB) and
+    store in a dedicated image table so Idea/Trip rows stay light. Full-res later
+    via `CKAsset` (verify current SQLiteData BLOB→asset support first; it moves fast).
 - Planner identity (ADR-0007): Planner table, device-local currentPlannerID, first-run name capture
 - **Per-planner flames ratings + notes** via single-FK Rating record (Must Do…Decide Later, his-and-hers; ADR-0007)
 - MapRegions (port V2's working implementation) + region/tag/category/distance filtering
@@ -58,6 +64,21 @@ first. Update this file when reality diverges — it's a living doc, not a contr
   a "now" marker (docs/BACKLOG.md). Deferred: clock-time *entry* UI, drag stops
   between days, freeform (non-idea) stops, accommodations, per-day region stops
   (`.timed` + schema already support the first). `TripRegion` join (single-FK→Trip ON DELETE CASCADE, loose regionID per ADR-0007) with `setRegions` reconcile + `regionIDs(forTrip:)`. `poolFiltered` now takes a region **union** (`regions: [MapRegion]`, empty = no constraint, match any); IdeasListModel + tests updated. Multi-region picker in the trip form; the Add lens (`Set<MapRegion.ID>`) **pre-seeds from the trip's regions** on appear. Demo trips pre-associated with regions. 32 tests green. (Reorder-on-fast-nav race parked as a beta-watch item — docs/KNOWN-ISSUES.md.)
+- ✅ M3d (done, 2026-06-14): **map-as-canvas trip view** — the map is the
+  trip's home (docs/trip-canvas.md). Full-bleed `TripCanvasMapView` with numbered,
+  day-coloured sequence pins + per-day `MapPolyline`; a `DayChipBar` lens (All +
+  Day 1…N) framing the camera via the pure `MapFraming` core (no MapKit, tested);
+  the **Itinerary | Ideas** list surface (`TripDetailContent`) is the second
+  projection of one shared selection (`canvasSelectedStopID`), with a pinned
+  switcher and pin-tap→list autoscroll. **Platform split:** iPhone gets a
+  persistent Apple-Maps-style bottom sheet; iPad gets a solid right-hand column
+  beside the map (`horizontalSizeClass`) so map + itinerary are usable at once.
+  Edit sits in the trip nav toolbar. Model `Mode`→`SheetTab` + canvas
+  selection/lens state; `StopMenu` extracted; `TripItineraryView` gains
+  `focusedDay` + selectable rows. 49 GalavantSchema tests green; builds clean.
+  **Travel-time connectors deferred to M3e** (canvas only). (Metal API Validation
+  off in the Run scheme — MapKit trips a false assert on the iOS 27 sim beta;
+  docs/KNOWN-ISSUES.md.)
 - Trip model: **certainty lifecycle** someday(rank) → targeted(year, quarter) → dated (docs/trip-time-model.md); duration in days; **day-number-relative itinerary** + **TripIdea join with status lifecycle** (ADR-0004)
 - Trips list grouped by certainty; drag-rank the someday backlog; trip link bookmarks (label+URL)
 - Planning view: pool filtered by trip lens → pull to shortlist

@@ -120,7 +120,7 @@ struct TripIdeasView: View {
   private func scheduledBadge(_ schedule: Schedule) -> some View {
     let placed = schedule.dayNumber != nil
     return Button {
-      model.mode = .itinerary
+      model.sheetTab = .itinerary
     } label: {
       Image(systemName: placed ? "calendar.badge.checkmark" : "calendar.badge.clock")
         .foregroundStyle(placed ? AnyShapeStyle(.green) : AnyShapeStyle(.yellow))

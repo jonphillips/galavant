@@ -2,82 +2,123 @@ import GalavantSchema
 import SwiftUI
 import SwiftUINavigation
 
-/// One trip's planning surface: a segmented Ideas | Itinerary. Ideas shows the
-/// pulled ideas grouped Shortlist / Scheduled / Considering (a `+` opens the
-/// filterable pool as a bottom sheet to add more); Itinerary lays the scheduled
-/// stops out by day (ADR-0004). The two tabs and the two sheets each live in
-/// their own file; this is just the shell that wires them to the model.
+/// One trip's planning surface, map-first (M3d, docs/trip-canvas.md): the home is
+/// the **canvas** — a map of the scheduled stops with day chips on top. The list
+/// surfaces (`TripDetailContent`: Itinerary timeline + Ideas pool) are the second
+/// projection of the same selection, and here the platforms diverge:
+///
+/// - **iPhone (compact):** a persistent Apple-Maps-style bottom sheet over a
+///   full-bleed map.
+/// - **iPad (regular):** a solid right-hand column beside the map, so the map and
+///   the itinerary can be panned/scrolled at the same time while planning.
+///
+/// Edit lives in the trip's navigation toolbar; the context Add lives on the
+/// sheet/column; the modal sheets are presented from here so they stack over
+/// either layout.
 struct TripPlanningView: View {
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @State private var model: TripPlanningModel
+  @State private var showDetailSheet = false
+  @State private var sheetDetent: PresentationDetent = .medium
+
+  /// The resting peek height — leaves most of the map (and the day chips) visible.
+  private static let peek: PresentationDetent = .height(120)
+  /// The iPad detail column width — wide enough for itinerary rows to read.
+  private static let columnWidth: CGFloat = 380
 
   init(trip: Trip) {
     _model = State(initialValue: TripPlanningModel(tripID: trip.id))
   }
 
+  /// iPad/Mac get the side column; iPhone (and a narrow iPad split) get the sheet.
+  private var usesColumn: Bool { horizontalSizeClass == .regular }
+
   var body: some View {
     @Bindable var model = model
-    Group {
-      switch model.mode {
-      case .ideas: TripIdeasView(model: model)
-      case .itinerary: TripItineraryView(model: model)
-      }
-    }
-    .safeAreaInset(edge: .top, spacing: 0) {
-      Picker("Mode", selection: $model.mode) {
-        ForEach(TripPlanningModel.Mode.allCases) { mode in
-          Text(mode.label).tag(mode)
+    layout
+      .navigationTitle(model.trip?.name ?? "Trip")
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .primaryAction) {
+          Button("Edit") { model.editButtonTapped() }
         }
       }
-      .pickerStyle(.segmented)
-      .padding(.horizontal)
-      .padding(.vertical, 8)
-      .background(.bar)
-    }
-    .navigationTitle(model.trip?.name ?? "Trip")
-    .navigationBarTitleDisplayMode(.inline)
-    .toolbar {
-      // Trip-level action sits on the leading side, away from the content's
-      // add button on the trailing side.
-      ToolbarItem(placement: .topBarLeading) {
-        Button("Edit") { model.editButtonTapped() }
+      .task {
+        model.pickInitialSheetTabIfNeeded()
+        model.seedLensIfNeeded()
+        // Present the persistent sheet on appear (compact only) — `.constant(true)`
+        // is unreliable on a NavigationStack push.
+        if !usesColumn { showDetailSheet = true }
       }
-      ToolbarItem(placement: .topBarTrailing) {
-        switch model.mode {
-        case .ideas:
-          Button {
-            model.addIdeasButtonTapped()
-          } label: {
-            Label("Add Ideas", systemImage: "plus")
-          }
-        case .itinerary:
-          Button {
-            model.addStopButtonTapped()
-          } label: {
-            Label("Add Stop", systemImage: "plus")
-          }
-        }
+      .onChange(of: model.tripRegionIDs) { _, _ in model.reseedLens() }
+      .onChange(of: model.canvasSelectedStopID) { _, id in
+        guard id != nil else { return }
+        // A selected stop lives on the Itinerary, so surface that tab — otherwise
+        // tapping a pin while on Ideas would scroll a list it isn't in.
+        model.sheetTab = .itinerary
+        // On iPhone, nudge the sheet up from its peek so the timeline shows.
+        if !usesColumn, sheetDetent == Self.peek { sheetDetent = .medium }
       }
+      // Modal sheets, hoisted to the host so they stack above either layout.
+      .sheet(item: $model.destination.edit, id: \.id) { draft in
+        TripFormView(draft: draft)
+      }
+      .sheet(
+        isPresented: Binding(
+          get: { model.destination?.is(\.addIdeas) ?? false },
+          set: { model.destination = $0 ? .addIdeas : nil }
+        )
+      ) {
+        AddIdeasSheet(model: model)
+      }
+      .sheet(
+        isPresented: Binding(
+          get: { model.destination?.is(\.scheduleStop) ?? false },
+          set: { model.destination = $0 ? .scheduleStop : nil }
+        )
+      ) {
+        ScheduleStopSheet(model: model)
+      }
+  }
+
+  @ViewBuilder private var layout: some View {
+    if usesColumn {
+      columnLayout
+    } else {
+      sheetLayout
     }
-    .sheet(item: $model.destination.edit, id: \.id) { draft in
-      TripFormView(draft: draft)
+  }
+
+  /// iPad: map on the left, a solid detail column on the right — both live at once,
+  /// no translucent overlay.
+  private var columnLayout: some View {
+    HStack(spacing: 0) {
+      canvas
+      Divider()
+      TripDetailContent(model: model)
+        .frame(width: Self.columnWidth)
+        .background(.background)
     }
-    .sheet(
-      isPresented: Binding(
-        get: { model.destination?.is(\.addIdeas) ?? false },
-        set: { model.destination = $0 ? .addIdeas : nil }
-      )
-    ) {
-      AddIdeasSheet(model: model)
-    }
-    .sheet(
-      isPresented: Binding(
-        get: { model.destination?.is(\.scheduleStop) ?? false },
-        set: { model.destination = $0 ? .scheduleStop : nil }
-      )
-    ) {
-      ScheduleStopSheet(model: model)
-    }
-    .task { model.seedLensIfNeeded() }
-    .onChange(of: model.tripRegionIDs) { _, _ in model.reseedLens() }
+    .ignoresSafeArea(.container, edges: .bottom)
+  }
+
+  /// iPhone: full-bleed map under a persistent, Apple-Maps-style bottom sheet.
+  private var sheetLayout: some View {
+    canvas
+      .ignoresSafeArea(.container, edges: .bottom)
+      .sheet(isPresented: $showDetailSheet) {
+        TripDetailContent(model: model)
+          .presentationDetents([Self.peek, .medium, .large], selection: $sheetDetent)
+          .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+          .presentationContentInteraction(.scrolls)
+          .interactiveDismissDisabled()
+          .presentationDragIndicator(.visible)
+      }
+  }
+
+  /// The map plus its day-chip lens — the left/full-bleed surface in both layouts.
+  private var canvas: some View {
+    TripCanvasMapView(model: model)
+      .safeAreaInset(edge: .top, spacing: 0) { DayChipBar(model: model) }
   }
 }

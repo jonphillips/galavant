@@ -21,8 +21,16 @@ final class TripPlanningModel {
   @ObservationIgnored @FetchAll(IdeaTag.all) var ideaTags
 
   let tripID: Trip.ID
-  var mode: Mode = .ideas
   var destination: Destination?
+
+  // Canvas state (M3d): the map is the trip's home. `canvasSelectedDay` is the
+  // day lens (nil = the whole trip, all days color-coded); `canvasSelectedStopID`
+  // is the one selection the map pins and the timeline rows both project.
+  var canvasSelectedDay: Int?
+  var canvasSelectedStopID: TripIdea.ID?
+  // The two surfaces the bottom sheet hosts (the segment moved into the sheet).
+  var sheetTab: SheetTab = .itinerary
+  private var didPickInitialTab = false
 
   // Pool lens (reused from the Ideas screen, M2c), seeded from the trip's regions.
   var selectedRegionIDs: Set<MapRegion.ID> = []
@@ -31,13 +39,14 @@ final class TripPlanningModel {
   var selectedTagIDs: Set<Tag.ID> = []
   var includeVisited = true
 
-  enum Mode: String, CaseIterable, Identifiable {
-    case ideas, itinerary
+  /// The two surfaces inside the bottom sheet over the map canvas.
+  enum SheetTab: String, CaseIterable, Identifiable {
+    case itinerary, ideas
     var id: Self { self }
     var label: String {
       switch self {
-      case .ideas: "Ideas"
       case .itinerary: "Itinerary"
+      case .ideas: "Ideas"
       }
     }
   }
@@ -130,6 +139,59 @@ final class TripPlanningModel {
     var number: Int
     var stops: [Resolved]
     var id: Int { number }
+  }
+
+  // MARK: - Canvas mode (the map is the trip's home, M3d)
+
+  /// The trip's days with their resolved scheduled stops — the canvas reads this
+  /// to lay out numbered pins and per-day polylines. (Alias of `itinerary`, named
+  /// for the surface that consumes it.)
+  var canvasDays: [ResolvedDay] { itinerary }
+
+  /// True when at least one scheduled stop carries coordinates to plot.
+  var hasLocatedStops: Bool {
+    itinerary.contains { day in
+      day.stops.contains { $0.idea.latitude != nil && $0.idea.longitude != nil }
+    }
+  }
+
+  /// Coordinates of the located scheduled stops to frame the camera on: one day's
+  /// when `day` is set, the whole trip's when nil. Ordered as they sit on the
+  /// itinerary; feeds the pure `MapFraming.box`.
+  func framingCoordinates(forDay day: Int?) -> [(latitude: Double, longitude: Double)] {
+    let days = day.map { d in itinerary.filter { $0.number == d } } ?? itinerary
+    return days.flatMap(\.stops).compactMap { resolved in
+      guard let lat = resolved.idea.latitude, let lon = resolved.idea.longitude
+      else { return nil }
+      return (latitude: lat, longitude: lon)
+    }
+  }
+
+  /// A day's located stops in itinerary order — the route the pins and the
+  /// polyline follow. Unlocated stops are dropped here (they still list in the
+  /// timeline). The view assigns the 1-based sequence number by position.
+  func locatedStops(forDay day: Int) -> [Resolved] {
+    (itinerary.first { $0.number == day }?.stops ?? [])
+      .filter { $0.idea.latitude != nil && $0.idea.longitude != nil }
+  }
+
+  /// The map regions this trip is scoped to — the camera's fallback frame when no
+  /// stops have coordinates yet.
+  var tripRegions: [MapRegion] { regions.filter { tripRegionIDs.contains($0.id) } }
+
+  /// On first appear, land on Ideas rather than Itinerary when nothing is
+  /// scheduled yet, so an empty map isn't a dead end. Runs once.
+  func pickInitialSheetTabIfNeeded() {
+    guard !didPickInitialTab else { return }
+    didPickInitialTab = true
+    sheetTab = hasScheduledStops ? .itinerary : .ideas
+  }
+
+  /// Focus a stop from the map or the timeline — the single shared selection both
+  /// surfaces project. Brings the Itinerary tab forward so the row is visible.
+  func selectStop(_ id: TripIdea.ID?) {
+    canvasSelectedStopID = id
+    if id != nil { sheetTab = .itinerary }
   }
 
   // MARK: - Add mode (the pool, scoped by the lens)

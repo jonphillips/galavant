@@ -105,6 +105,16 @@ schemes:
         Galavant: all
     run:
       config: Debug
+      # Metal API Validation off for Run: MapKit's own renderer trips a false
+      # MSAA-resolve assertion on the iOS 27 simulator beta (docs/KNOWN-ISSUES.md).
+      # Debug-only diagnostic, never in Release; the offending pass isn't ours.
+      enableGPUValidationMode: false
+      # Launch args live here (not just in Xcode) so `xcodegen generate` doesn't
+      # wipe them. --seed-demo populates the demo dataset; --reset-identity clears
+      # the device-local planner on launch.
+      commandLineArguments:
+        "--seed-demo": true
+        "--reset-identity": false
     test:
       config: Debug
       targets:

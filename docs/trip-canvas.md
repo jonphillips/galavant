@@ -12,9 +12,15 @@ trip interaction off maps). Rules:
 - **Day chips** select a lens: one day's stops as numbered pins connected in
   sequence (polyline), camera framed to that day's region. Whole-trip view =
   all days, color-coded.
-- **Bottom sheet** holds the day timeline (V1 used BottomSheet; Apple
-  Maps/Find My pattern). Map and timeline are two projections of the same
-  selection — never two separate screens.
+- **Detail surface** holds the day timeline + Ideas pool — two projections of
+  the same selection as the map, never two separate screens. It diverges by
+  platform (settled 2026-06-14, M3d): **iPhone** gets a persistent
+  Apple-Maps-style **bottom sheet** (V1 used BottomSheet); **iPad** gets a
+  **solid right-hand column** beside the map (V2's `TripDetailLarge` pattern) so
+  the map and itinerary are manipulable at once — no translucent float-over-map,
+  which only hurt readability. Branch on `horizontalSizeClass` (regular =
+  column). **Edit** lives in the trip's nav toolbar on both; the context Add
+  lives on the sheet/column.
 - The **pool is not map-first** — it gets list+filter as the primary surface,
   map as an alternate view. Capture/browse must stay fast.
 - Modern SwiftUI Map (MapPolyline/Annotation/camera APIs; check

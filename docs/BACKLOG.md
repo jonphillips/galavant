@@ -172,6 +172,153 @@ and drive each day's "home base" region (ties into the deferred per-day region
 stops). Likely its own record (a stay with check-in/out day numbers) rather than
 a `.timed` stop. Own design pass — sibling to per-day regions and the map canvas.
 
+## Portfolio extraction seams: parser engine + image processing (from Jon, 2026-06-14)
+
+Two capabilities coming up have a life beyond Galavant (Jon's wider app
+portfolio, e.g. a future recipe manager): **web capture/parsing** (M4) and
+**image storage tools** (M2 images). Decision: **isolate now, extract later** —
+do *not* stand up a shared package against a single consumer (premature
+extraction calcifies the wrong API). The expensive mistake is *entanglement*,
+not late extraction; so build both as cleanly-isolated targets in the local SPM
+package with strict boundaries, and lift to a neutrally-named shared package only
+when a **second real app** needs them and both consumers' requirements are
+visible (the "reason" CLAUDE.md requires for a new package).
+
+Boundary discipline to enforce while building:
+
+- **Parser engine = `HTML/text → generic structured struct`.** The portable unit
+  is the *pure transform* (schema.org/JSON-LD/OpenGraph → normalized result), not
+  "in-app browser." The browser is just one *source* of HTML (share extension and
+  server fetch are others). Engine must never import SwiftUI/CloudKit and never
+  see `Idea`/`Trip` — domain mapping (generic result → `Idea`) stays in the app.
+  This also makes it unit-testable with zero browser/network. Aligns with the M4
+  enrichment pipeline (docs/scraping-enrichment.md).
+- **Image tools = split processing from storage.** Resize/compress/thumbnail are
+  pure functions over `Data`/images — maximally portable, the clean extraction
+  candidate. *Storage* ("dedicated table, CloudKit-synced, no S3" — ROADMAP M2 +
+  ADR-0001) is stack-specific; it travels only if the other app also uses
+  SQLiteData+CloudKit. Keep processing free of any persistence import.
+- **Naming (ADR-0006):** a portfolio library needs a *neutral* name — no app
+  domain in it. V2's `GalavantLibrary` was within-app and Galavant-named; that
+  pattern is wrong for a cross-app package. Decide the name when the second
+  consumer is real, not now.
+
+No code action yet — this is intent to honor when M2 images and M4 capture get
+built, so the eventual extraction is a rename-and-move rather than surgery.
+
+## Icon enum — central SF Symbol vocabulary (from Jon, 2026-06-14)
+
+Adopt a single semantic icon enum (V2 had one; reviewed 2026-06-14). Today the
+app has ~65 `Image(systemName:)`/`systemImage:` call sites across 26 distinct
+stringly-typed symbols; a typo renders *blank*, never fails to compile. The enum
+names each symbol by **role** (`.edit`, not `"pencil"`) so a glyph swaps in one
+place and call sites read as intent. Lighter/stricter than V2's (which only got
+partial adoption): no dependency, role-named, enforce "no raw `systemName:` in
+chrome" in review. Domain enums (`IdeaKind`, `DayPart`) keep their own
+`systemImage` — this is for shared UI affordances only.
+
+**Do this as its own commit, after M3d is committed** (don't fold into M3d).
+Lives in `Galavant/Design/Icon.swift` (new dir). Ready-to-go draft (every symbol
+below is already in use, so all are known-valid):
+
+```swift
+import SwiftUI
+
+/// The app's icon vocabulary: every SF Symbol used in chrome/actions, named by
+/// *role* not glyph, so a symbol swaps in one place and call sites read as intent
+/// (`Icon.edit`, not `"pencil"`). A mistyped symbol can't reach a view — the case
+/// is the only spelling. Domain enums (`IdeaKind`, `DayPart`) keep their own
+/// `systemImage`; this is for shared affordances.
+enum Icon {
+  // Create / edit / destroy
+  case add            // primary add (toolbar / list)
+  case addInline      // inline "create this" affordance
+  case defineRegion   // create a map region
+  case edit
+  case delete         // permanently remove
+  case remove         // take out of a set (e.g. a tag)
+  case skip           // mark a stop skipped
+  case revert         // move back / undo a placement
+
+  // Status / controls
+  case checkmark      // selected / confirmed
+  case disclosure     // row chevron
+  case filterActive   // filter control, engaged
+  case manage         // manage / adjust (regions, tags)
+  case sidebar
+
+  // Scheduling
+  case calendar       // generic / "nothing scheduled"
+  case schedule       // place a stop on a day
+  case unschedule     // pull a stop off its day
+  case toBeScheduled  // committed but dayless
+
+  // Places
+  case map
+  case location       // a stop/idea that has coordinates
+
+  // Domains / sections
+  case trips
+  case ideas
+  case shortlist
+  case interest
+  case tag
+  case travelParty
+  case emptyPool      // empty idea pool
+
+  var systemName: String {
+    switch self {
+    case .add: "plus"
+    case .addInline: "plus.circle"
+    case .defineRegion: "plus.viewfinder"
+    case .edit: "pencil"
+    case .delete: "trash"
+    case .remove: "minus.circle.fill"
+    case .skip: "xmark.circle"
+    case .revert: "arrow.uturn.backward"
+    case .checkmark: "checkmark"
+    case .disclosure: "chevron.right"
+    case .filterActive: "line.3.horizontal.decrease.circle.fill"
+    case .manage: "slider.horizontal.3"
+    case .sidebar: "sidebar.left"
+    case .calendar: "calendar"
+    case .schedule: "calendar.badge.plus"
+    case .unschedule: "calendar.badge.minus"
+    case .toBeScheduled: "calendar.badge.clock"
+    case .map: "map"
+    case .location: "mappin.circle.fill"
+    case .trips: "suitcase"
+    case .ideas: "lightbulb"
+    case .shortlist: "star"
+    case .interest: "heart.fill"
+    case .tag: "tag"
+    case .travelParty: "person.2"
+    case .emptyPool: "tray"
+    }
+  }
+
+  /// The raw glyph (icon-only buttons, decorative images).
+  var image: Image { Image(systemName: systemName) }
+
+  /// A titled label — the common `Label("…", systemImage:)` shape.
+  func label(_ title: LocalizedStringKey) -> Label<Text, Image> {
+    Label(title, systemImage: systemName)
+  }
+}
+```
+
+Sweep when applying: replace the literals in these files —
+`AppContainer`, `AppScreen`, `IdeaFormView`, `IdeasScreen`, `IdentityView`,
+`InterestView`, `PoolMapView`, `RegionManagerView`, `StopMenu`, `TagManagerView`,
+`TripCanvasMapView`, `TripDetailContent`, `TripFormView`, `TripIdeasView`,
+`TripItineraryView`, `TripPlanningSheets`, `TripsScreen` — using
+`Icon.x.label("…")`, `Icon.x.image`, or `Button("…", systemImage: Icon.x.systemName)`.
+NB: don't name it so it collides with SwiftUI's `Label<Title, Icon>` generic —
+keep the convenience on the enum (above), don't add a `Label where Icon == Image`
+extension. Optional follow-on: if/when the app gets a unit-test target (or this
+moves to a package module), add a test asserting `UIImage(systemName:) != nil`
+for every case to catch future typos at test time.
+
 ## Filter reminder above the list (from Jon, 2026-06-12) — DONE
 
 Show active filter settings in small text above the filtered list. Implemented

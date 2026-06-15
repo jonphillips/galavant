@@ -39,3 +39,28 @@ problem, not our text-input code — there's nothing to fix in the app.
   type via the Mac keyboard / paste; or test on a real device.
 - **Action:** re-verify on a device and on later simulator runtimes; expected to
   resolve without code changes.
+
+## MapKit trips a Metal API Validation assert on the iOS 27 simulator (M3d)
+
+*Observed 2026-06-14 (M3d map canvas), iOS 27.0 simulator (24A5355p), Xcode 27 beta.*
+
+Running from Xcode, the map canvas aborts the app on first draw / first interaction with:
+
+```
+_MTLDebugValidateRenderPassDescriptorAndTrackAttachments:370: failed assertion `RenderPass Descriptor Validation
+MTLRenderPassAttachmentDescriptor MTLStoreActionMultisampleResolve store action at attachment 0 requires resolve texture'
+```
+
+The offending render pass is **MapKit's own internal renderer** — we don't configure
+any Metal/MSAA passes — so this is a MapKit + iOS-27-simulator-beta regression caught
+by the **Metal API Validation** debug layer. It only fires when Xcode injects the
+validator (Run); launching via `simctl` directly never reproduced it. Release builds
+never enable validation, and real hardware renders maps fine.
+
+- **Workaround (in place):** Metal API Validation disabled for the Run scheme via
+  `project.yml` (`schemes.Galavant.run.enableGPUValidationMode: false` →
+  `enableGPUValidationMode = "1"` in the generated `.xcscheme`, which is Xcode's
+  *disable* value). Run `xcodegen generate` after pulling; if Xcode is open, it
+  reloads the scheme (or reopen the project) so the change takes effect.
+- **Action:** re-verify on each new beta and on a real device; remove the scheme
+  override once MapKit/simulator stop tripping the validator.

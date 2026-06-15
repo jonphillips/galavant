@@ -115,6 +115,31 @@
         }
       }
 
+      // A worked itinerary on the Tokyo trip so the map canvas has stops to draw:
+      // real-ish located POIs over two days, each day a multi-stop sequence
+      // (numbered, day-coloured pins + a per-day polyline). The other trips stay
+      // empty to show the pre-itinerary canvas state.
+      let tokyoStops: [(String, IdeaKind, Double, Double, Schedule)] = [
+        ("Sensō-ji", .sight, 35.7148, 139.7967, .daypart(1, .morning)),
+        ("Tokyo Skytree", .sight, 35.7101, 139.8107, .daypart(1, .lunch)),
+        ("Ueno Park", .park, 35.7156, 139.7745, .daypart(1, .afternoon)),
+        ("Meiji Jingū", .sight, 35.6764, 139.6993, .daypart(2, .morning)),
+        ("Shibuya Crossing", .sight, 35.6595, 139.7004, .daypart(2, .afternoon)),
+        ("teamLab Planets", .museum, 35.6256, 139.7831, .timed(2, start: "19:00", end: "21:00")),
+      ]
+      for (name, kind, lat, lon, schedule) in tokyoStops {
+        let ideaID = UUID()
+        try Idea.insert {
+          Idea.Draft(
+            id: ideaID, name: name, kind: kind, regionName: "Tokyo",
+            latitude: lat, longitude: lon, travelPartyID: partyID
+          )
+        }
+        .execute(db)
+        _ = try TripIdea.pull(ideaID: ideaID, into: tokyo.id, in: db)
+        try TripIdea.schedule(schedule, ideaID: ideaID, tripID: tokyo.id, in: db)
+      }
+
       return jon.id
     }
   }
