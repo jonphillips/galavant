@@ -10,6 +10,7 @@
 		08AB246AC84A27EE2FC5F8A7 /* TripRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DAC9E1A5ABDBDA4BAAC80BB /* TripRow.swift */; };
 		0BB238241FF15660518799F8 /* GalavantSchema in Frameworks */ = {isa = PBXBuildFile; productRef = 9CF31E175F7DCB4D59EAF394 /* GalavantSchema */; };
 		0D52F2373EEF284921180A85 /* IdeaRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EF8BE4704C36D1A6FFB14D6 /* IdeaRow.swift */; };
+		DD8B2796789043C1886231BC /* IdeaDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF7310052DD04CABB213F836 /* IdeaDetailView.swift */; };
 		163235D89FEB136F5C5F73ED /* PoolIdentityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00154E6FD53486C6ECD8CBD9 /* PoolIdentityUITests.swift */; };
 		17B078D23DE21D8057EEAD7B /* TagManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D62672E298B917B0707B6F4 /* TagManagerView.swift */; };
 		1837DF07507FDA3791A5EF8E /* LocationSearchModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A4CEB693F2E177C2E2F109F /* LocationSearchModel.swift */; };
@@ -100,6 +101,7 @@
 		1D62672E298B917B0707B6F4 /* TagManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagManagerView.swift; sourceTree = "<group>"; };
 		1DAC9E1A5ABDBDA4BAAC80BB /* TripRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripRow.swift; sourceTree = "<group>"; };
 		1EF8BE4704C36D1A6FFB14D6 /* IdeaRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaRow.swift; sourceTree = "<group>"; };
+		BF7310052DD04CABB213F836 /* IdeaDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaDetailView.swift; sourceTree = "<group>"; };
 		292BC932AEA1B53EB11DA125 /* InterestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterestView.swift; sourceTree = "<group>"; };
 		2A4CEB693F2E177C2E2F109F /* LocationSearchModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationSearchModel.swift; sourceTree = "<group>"; };
 		2CD37357C07AFC3DAE3CDAE7 /* DemoFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoFixtures.swift; sourceTree = "<group>"; };
@@ -281,6 +283,7 @@
 			isa = PBXGroup;
 			children = (
 				409050F2DDFD762C631818CF /* IdeaCoordinate.swift */,
+				BF7310052DD04CABB213F836 /* IdeaDetailView.swift */,
 				99EE3153CDA64E66C39149A9 /* IdeaFormModel.swift */,
 				9C956244AC0CCEFCA45A4128 /* IdeaFormView.swift */,
 				1EF8BE4704C36D1A6FFB14D6 /* IdeaRow.swift */,
@@ -441,6 +444,7 @@
 				90C301112D6C03ED59D12E2C /* IdeaFormModel.swift in Sources */,
 				E0CB76C004B10C1F20EC249A /* IdeaFormView.swift in Sources */,
 				0D52F2373EEF284921180A85 /* IdeaRow.swift in Sources */,
+				DD8B2796789043C1886231BC /* IdeaDetailView.swift in Sources */,
 				7B999C65BDCCA5657877F9CD /* IdeasListModel.swift in Sources */,
 				3DF889FDCBE7A7C979E41F13 /* IdeasScreen.swift in Sources */,
 				474250E4E109ADF7680100C1 /* IdentityView.swift in Sources */,

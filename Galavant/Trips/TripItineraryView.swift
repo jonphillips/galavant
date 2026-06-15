@@ -90,11 +90,19 @@ struct TripItineraryView: View {
     .background(.background)
   }
 
-  /// A stop row: the idea, its `StopMenu`, tap-to-select (the shared canvas
-  /// selection), and a tint when it's the selected stop.
+  /// A stop row: the idea, an info button to its detail, its `StopMenu`,
+  /// tap-to-select (the shared canvas selection), and a tint when it's selected.
+  /// Row-tap stays selection here (the map↔list link); the info button is its own
+  /// hit target, so it opens detail without also selecting.
   private func stopRow(_ resolved: TripPlanningModel.Resolved) -> some View {
     PlanningRow(idea: resolved.idea) {
-      StopMenu(model: model, idea: resolved.idea, schedule: resolved.entry.schedule)
+      HStack(spacing: 14) {
+        Button { model.showDetail(resolved.idea) } label: {
+          Icon.info.image.foregroundStyle(.secondary)
+        }
+        .buttonStyle(.borderless)
+        StopMenu(model: model, idea: resolved.idea, schedule: resolved.entry.schedule)
+      }
     }
     .listRowBackground(
       model.canvasSelectedStopID == resolved.id ? Color.accentColor.opacity(0.12) : nil

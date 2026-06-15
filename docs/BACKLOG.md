@@ -126,20 +126,21 @@ Both are the same gesture: drop target → day number → `TripIdea.schedule(_.o
 reordering is moot (stops auto-sort by time), so this is purely "drop onto
 another day / the bucket." Fast-follow; the menus cover the function until then.
 
-## Tappable idea detail (sheet) on the planning screens (from Jon, 2026-06-14)
+## Grow the Itinerary stop detail into a richer screen (from Jon, 2026-06-14)
 
-Ideas on the Trip Ideas list and the Itinerary should be **tappable to see their
-info** (name, kind, region, notes, link, tags, his/hers interest — sparse for
-now, grows as the Idea model fills out). Recommendation: a shared read-only
-**IdeaDetailView presented as a sheet** on *both* screens to start — consistent,
-cheap, keeps your place in the list, and works while the data is thin. Jon
-reserves the right to make the **Itinerary** one a full-screen push instead;
-agreed lean is **sheet on both now, promote the Itinerary one to a push later**
-when a stop grows richer per-stop context (map of the stop, MKDirections/travel
-time, opening hours, booking) — i.e. revisit right after the map integration,
-since that's what makes a full stop screen earn its space. The row tap and the
-trailing control (star/calendar/menu) must not fight — tap-row = detail, the
-trailing button stays its own hit target (already `.borderless`).
+The shared read-only `IdeaDetailView` ships as an **in-panel drill-down** (M3d
+follow-up): `TripDetailContent` swaps in the detail as an opaque overlay keyed on
+`detailIdeaID` (with its own back header) *within the panel itself* (the iPhone
+bottom sheet / the iPad right column) rather than presenting a sheet over the map —
+the map stays visible the whole time. (Not a nested `NavigationStack`: one inside
+the iPad `NavigationSplitView` detail stack made the trip push pop straight back.)
+The
+Trip Ideas list pushes on row tap; the Itinerary keeps row-tap = stop selection
+and pushes from a trailing info-circle button (its own hit target, beside the
+`StopMenu`). Deferred follow-up: grow the **Itinerary** stop detail with richer
+per-stop context (map of the stop, MKDirections/travel time, opening hours,
+booking) — at which point it may want to break out of the panel into a
+full-screen presentation. Revisit once that content exists.
 
 ## Itinerary completion model: assume-done + a "now" marker (from Jon, 2026-06-13)
 

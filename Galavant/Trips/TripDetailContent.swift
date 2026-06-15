@@ -15,8 +15,49 @@ struct TripDetailContent: View {
   let model: TripPlanningModel
 
   var body: some View {
+    // The read-only detail drills down *within this panel* (the iPhone bottom
+    // sheet / the iPad right column) so it never covers the map. It's an opaque
+    // overlay swap keyed on `detailIdeaID`, deliberately *not* a nested
+    // `NavigationStack`: nesting one inside the iPad `NavigationSplitView`'s detail
+    // stack made the trip push pop straight back. This works identically on both
+    // platforms and leaves the list chrome untouched.
+    ZStack {
+      listPanel
+      if let id = model.detailIdeaID, let idea = model.ideaForDetail(id) {
+        detailPanel(idea)
+          .transition(.move(edge: .trailing))
+          .zIndex(1)
+      }
+    }
+    .animation(.snappy, value: model.detailIdeaID)
+  }
+
+  /// The drilled-in detail with its own back header (chevron labelled with the
+  /// list it came from), opaque so it reads as a push over the list.
+  private func detailPanel(_ idea: Idea) -> some View {
+    VStack(spacing: 0) {
+      HStack {
+        Button { model.detailIdeaID = nil } label: {
+          Label(model.sheetTab.label, systemImage: "chevron.backward")
+        }
+        Spacer()
+      }
+      .overlay { Text(idea.name).font(.headline).lineLimit(1) }
+      .padding(.horizontal)
+      .padding(.vertical, 10)
+      .background(.bar)
+      IdeaDetailView(
+        idea: idea,
+        tagNames: model.tagNames(for: idea),
+        interests: model.interests(for: idea)
+      )
+    }
+    .background(.background)
+  }
+
+  private var listPanel: some View {
     @Bindable var model = model
-    Group {
+    return Group {
       switch model.sheetTab {
       case .itinerary:
         TripItineraryView(model: model, focusedDay: model.canvasSelectedDay)

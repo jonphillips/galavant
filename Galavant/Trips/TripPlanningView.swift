@@ -59,6 +59,12 @@ struct TripPlanningView: View {
         // On iPhone, nudge the sheet up from its peek so the timeline shows.
         if !usesColumn, sheetDetent == Self.peek { sheetDetent = .medium }
       }
+      .onChange(of: model.detailIdeaID) { _, id in
+        // Drilling into a stop's detail pushes within the sheet — raise it off the
+        // peek so the pushed panel has room to read (iPhone only).
+        guard id != nil, !usesColumn, sheetDetent == Self.peek else { return }
+        sheetDetent = .medium
+      }
       // Modal sheets, hoisted to the host so they stack above either layout.
       .sheet(item: $model.destination.edit, id: \.id) { draft in
         TripFormView(draft: draft)

@@ -21,6 +21,7 @@ enum Icon {
   case disclosure     // row chevron
   case filterActive   // filter control, engaged
   case manage         // manage / adjust (regions, tags)
+  case info           // open a read-only detail
   case sidebar
 
   // Scheduling
@@ -56,6 +57,7 @@ enum Icon {
     case .disclosure: "chevron.right"
     case .filterActive: "line.3.horizontal.decrease.circle.fill"
     case .manage: "slider.horizontal.3"
+    case .info: "info.circle"
     case .sidebar: "sidebar.left"
     case .calendar: "calendar"
     case .schedule: "calendar.badge.plus"

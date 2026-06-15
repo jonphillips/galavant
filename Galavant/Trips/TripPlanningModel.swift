@@ -19,9 +19,16 @@ final class TripPlanningModel {
   @ObservationIgnored @FetchAll(MapRegion.order(by: \.name)) var regions
   @ObservationIgnored @FetchAll(Tag.order(by: \.name)) var tags
   @ObservationIgnored @FetchAll(IdeaTag.all) var ideaTags
+  @ObservationIgnored @FetchAll(Planner.all) var planners
+  @ObservationIgnored @FetchAll(IdeaInterest.all) var interestRows
 
   let tripID: Trip.ID
   var destination: Destination?
+
+  /// The idea drilled into on the in-panel detail push (nil = the list root). A
+  /// push within the panel, not a sheet, so it never covers the map; driven by ID
+  /// so it resolves live and stays out of `Hashable`.
+  var detailIdeaID: Idea.ID?
 
   // Canvas state (M3d): the map is the trip's home. `canvasSelectedDay` is the
   // day lens (nil = the whole trip, all days color-coded); `canvasSelectedStopID`
@@ -276,6 +283,39 @@ final class TripPlanningModel {
   /// Present the filterable pool sheet for adding ideas to the shortlist.
   func addIdeasButtonTapped() {
     destination = .addIdeas
+  }
+
+  /// Drill into a pulled idea's read-only detail (Trip Ideas row tap / Itinerary
+  /// info button) — an in-panel push, not a sheet.
+  func showDetail(_ idea: Idea) {
+    detailIdeaID = idea.id
+  }
+
+  /// Resolve the pushed detail's idea, or nil if it was deleted while open
+  /// (ADR-0007 read-time reconciliation) — the destination pops itself then.
+  func ideaForDetail(_ id: Idea.ID) -> Idea? { ideaByID[id] }
+
+  /// The names of an idea's tags, alphabetized — for the detail sheet.
+  func tagNames(for idea: Idea) -> [String] {
+    let ids = ideaTagIDs[idea.id] ?? []
+    return tags
+      .filter { ids.contains($0.id) }
+      .map(\.name)
+      .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+  }
+
+  /// Each planner's rated interest in an idea (skipping unrated rows), ordered by
+  /// name — the his/hers display on the detail sheet.
+  func interests(for idea: Idea) -> [(planner: Planner, level: Interest)] {
+    interestRows
+      .filter { $0.ideaID == idea.id && $0.level != nil }
+      .compactMap { row in
+        guard let planner = planners.first(where: { $0.id == row.plannerID }),
+          let level = row.level
+        else { return nil }
+        return (planner, level)
+      }
+      .sorted { $0.planner.displayName < $1.planner.displayName }
   }
 
   /// Pull an idea onto the trip as a "considering" maybe (the default + action).

@@ -30,6 +30,8 @@ struct TripIdeasView: View {
                 model.setStatus(.considering, for: resolved.idea)
               }
             }
+            .contentShape(Rectangle())
+            .onTapGesture { model.showDetail(resolved.idea) }
             .swipeActions(edge: .leading) {
               Button {
                 model.sendToBeScheduled(resolved.idea)
@@ -55,6 +57,8 @@ struct TripIdeasView: View {
             // A scheduled stop can't be removed here — swipe to Unschedule first
             // (it drops back to the Shortlist, where Remove is available again).
             PlanningRow(idea: resolved.idea) { scheduledBadge(resolved.entry.schedule) }
+              .contentShape(Rectangle())
+              .onTapGesture { model.showDetail(resolved.idea) }
               .swipeActions(edge: .trailing) {
                 Button {
                   model.unschedule(resolved.idea)
@@ -75,6 +79,8 @@ struct TripIdeasView: View {
                 model.setStatus(.shortlisted, for: resolved.idea)
               }
             }
+            .contentShape(Rectangle())
+            .onTapGesture { model.showDetail(resolved.idea) }
             .swipeActions(edge: .trailing) {
               Button(role: .destructive) {
                 model.remove(resolved.idea)
