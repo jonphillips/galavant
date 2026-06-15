@@ -9,6 +9,10 @@ import SwiftUI
 /// the same `canvasSelectedStopID`. Mirrors `PoolMapView`'s camera idioms.
 struct TripCanvasMapView: View {
   let model: TripPlanningModel
+  /// The southern fraction of the map the iPhone bottom sheet covers (0 on iPad,
+  /// where the detail is a side column) — so `revealStop` keeps a selected pin
+  /// out from under the sheet. See `MapFraming.reveal(bottomInset:)`.
+  var bottomInsetFraction: Double = 0
 
   @State private var cameraPosition: MapCameraPosition = .automatic
   @State private var visibleRegion: MKCoordinateRegion?
@@ -34,6 +38,10 @@ struct TripCanvasMapView: View {
     }
     .onChange(of: model.canvasSelectedDay, initial: true) { _, _ in frameSelection() }
     .onChange(of: model.canvasSelectedStopID) { _, id in revealStop(id) }
+    // Re-reveal when the sheet grows/shrinks over the map: a pin that the rising
+    // sheet would swallow pans back into the clear (and `reveal` no-ops when the
+    // pin is already above the sheet, so shrinking it never jerks the map).
+    .onChange(of: bottomInsetFraction) { _, _ in revealStop(model.canvasSelectedStopID) }
     .overlay {
       if !model.hasLocatedStops {
         ContentUnavailableView {
@@ -113,8 +121,9 @@ struct TripCanvasMapView: View {
     guard
       let panned = MapFraming.reveal(
         target: (latitude: coordinate.latitude, longitude: coordinate.longitude),
-        in: box)
-    else { return }  // already on screen — leave the map where it is
+        in: box,
+        bottomInset: bottomInsetFraction)
+    else { return }  // already in the clear — leave the map where it is
     cameraPosition = .region(
       MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: panned.latitude, longitude: panned.longitude),

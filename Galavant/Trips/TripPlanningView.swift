@@ -20,6 +20,13 @@ struct TripPlanningView: View {
   @State private var model: TripPlanningModel
   @State private var showDetailSheet = false
   @State private var sheetDetent: PresentationDetent = .medium
+  /// Measured heights of the full-bleed map and the bottom sheet over it — their
+  /// ratio is the southern slice of the map the sheet hides, fed to the canvas so
+  /// a revealed pin lands above the sheet (iPhone only). Measured, not derived
+  /// from the detent, because the system detents (`.medium`/`.large`) are only
+  /// approximable as points (docs/BACKLOG.md).
+  @State private var mapHeight: CGFloat = 0
+  @State private var sheetHeight: CGFloat = 0
 
   /// The resting peek height — leaves most of the map (and the day chips) visible.
   private static let peek: PresentationDetent = .height(120)
@@ -32,6 +39,14 @@ struct TripPlanningView: View {
 
   /// iPad/Mac get the side column; iPhone (and a narrow iPad split) get the sheet.
   private var usesColumn: Bool { horizontalSizeClass == .regular }
+
+  /// The fraction of the map the sheet covers, for the canvas's reveal inset:
+  /// zero on the column layout (map unobscured), else the measured ratio, capped
+  /// so the unobscured band never collapses (`.large` ≈ full-screen sheet).
+  private var bottomInsetFraction: Double {
+    guard !usesColumn, mapHeight > 0 else { return 0 }
+    return min(Double(sheetHeight / mapHeight), 0.6)
+  }
 
   var body: some View {
     @Bindable var model = model
@@ -112,8 +127,10 @@ struct TripPlanningView: View {
   private var sheetLayout: some View {
     canvas
       .ignoresSafeArea(.container, edges: .bottom)
+      .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { mapHeight = $0 }
       .sheet(isPresented: $showDetailSheet) {
         TripDetailContent(model: model)
+          .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { sheetHeight = $0 }
           .presentationDetents([Self.peek, .medium, .large], selection: $sheetDetent)
           .presentationBackgroundInteraction(.enabled(upThrough: .medium))
           .presentationContentInteraction(.scrolls)
@@ -124,7 +141,7 @@ struct TripPlanningView: View {
 
   /// The map plus its day-chip lens — the left/full-bleed surface in both layouts.
   private var canvas: some View {
-    TripCanvasMapView(model: model)
+    TripCanvasMapView(model: model, bottomInsetFraction: bottomInsetFraction)
       .safeAreaInset(edge: .top, spacing: 0) { DayChipBar(model: model) }
   }
 }

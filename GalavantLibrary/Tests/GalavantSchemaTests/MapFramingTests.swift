@@ -93,4 +93,29 @@ import Testing
     #expect(abs(panned.latitude - 9.80) <= 0.05)
     #expect(abs(panned.longitude - 20.20) <= 0.05)
   }
+
+  // MARK: - reveal with a bottom inset (iPhone sheet)
+
+  @Test func revealWithoutInsetLeavesALowTargetPut() {
+    // 9.97 is geometrically on screen (9.95…10.05): no sheet, no move.
+    #expect(MapFraming.reveal(target: (latitude: 9.97, longitude: 20), in: box) == nil)
+  }
+
+  @Test func revealLiftsATargetOutFromUnderTheSheet() throws {
+    // Same low target, but the sheet covers the bottom 40% (below lat 9.99): it's
+    // behind the sheet, so the map must pan north to bring it into the clear.
+    let panned = try #require(
+      MapFraming.reveal(target: (latitude: 9.97, longitude: 20), in: box, bottomInset: 0.4))
+    #expect(panned.latitude < 10)  // panned south → content rises off the sheet
+    // It now sits `margin`·span above the usable (sheet-lifted) bottom edge.
+    let usableBottom = panned.latitude - 0.05 + 0.1 * 0.4
+    #expect(abs(9.97 - (usableBottom + 0.1 * MapFraming.revealMargin)) < 1e-9)
+  }
+
+  @Test func revealWithInsetStillIgnoresATargetAboveTheSheet() {
+    // A target up in the unobscured top half is unaffected by the bottom inset.
+    #expect(
+      MapFraming.reveal(target: (latitude: 10.02, longitude: 20), in: box, bottomInset: 0.4)
+        == nil)
+  }
 }

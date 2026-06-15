@@ -77,21 +77,31 @@ public enum MapFraming {
   /// map. Each axis moves *independently and only if off-screen*: an axis already
   /// in view stays put (truly minimal); an off-screen axis pans the least amount
   /// to land `margin`·span inside the edge it entered from (so it isn't clipped).
+  ///
+  /// `bottomInset` (0…1) is the southern fraction of the box obscured by a bottom
+  /// sheet (iPhone): a stop that's *geometrically* on screen but down in that band
+  /// is *visually* hidden behind the sheet, so the usable bottom edge sits that
+  /// much further north and such a stop is panned up into the clear. With the
+  /// default 0 (iPad's unobscured map) the behaviour is the strict minimum pan.
   public static func reveal(
     target: (latitude: Double, longitude: Double),
     in box: Box,
-    margin: Double = revealMargin
+    margin: Double = revealMargin,
+    bottomInset: Double = 0
   ) -> (latitude: Double, longitude: Double)? {
     let halfLat = box.latitudeDelta / 2
     let halfLon = box.longitudeDelta / 2
     let insetLat = box.latitudeDelta * margin
     let insetLon = box.longitudeDelta * margin
+    // The sheet hides the southern `bottomInset` slice, lifting the usable bottom
+    // edge north by that much; the top edge (and longitude) are unobscured.
+    let obscuredLat = box.latitudeDelta * bottomInset
     var centerLat = box.centerLatitude
     var centerLon = box.centerLongitude
     if target.latitude > box.centerLatitude + halfLat {
       centerLat = target.latitude - halfLat + insetLat
-    } else if target.latitude < box.centerLatitude - halfLat {
-      centerLat = target.latitude + halfLat - insetLat
+    } else if target.latitude < box.centerLatitude - halfLat + obscuredLat {
+      centerLat = target.latitude + halfLat - obscuredLat - insetLat
     }
     if target.longitude > box.centerLongitude + halfLon {
       centerLon = target.longitude - halfLon + insetLon
