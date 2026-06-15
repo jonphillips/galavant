@@ -29,6 +29,9 @@ public enum MapFraming {
   /// The span applied to a single point (which has no extent of its own) — a
   /// neighbourhood-scale zoom so a lone pin isn't framed at world scale.
   public static let singlePointDelta = 0.02
+  /// Breathing room kept between a just-revealed point and the edge it panned in
+  /// from, as a fraction of the visible span — so it isn't flush (and clipped).
+  public static let revealMargin = 0.15
   /// Multiplier on the raw extent so pins don't sit flush against the map edges.
   public static let padding = 1.3
   /// Floor on a multi-point span so two near-identical points don't frame so
@@ -66,5 +69,38 @@ public enum MapFraming {
       latitudeDelta: Swift.max((maxLat - minLat) * padding, minimumDelta),
       longitudeDelta: Swift.max((maxLon - minLon) * padding, minimumDelta)
     )
+  }
+
+  /// The minimal camera shift to bring `target` inside the visible `box`, keeping
+  /// the current span (zoom). Returns the new center, or `nil` when `target` is
+  /// already on screen — so tapping a stop that's already visible never yanks the
+  /// map. Each axis moves *independently and only if off-screen*: an axis already
+  /// in view stays put (truly minimal); an off-screen axis pans the least amount
+  /// to land `margin`·span inside the edge it entered from (so it isn't clipped).
+  public static func reveal(
+    target: (latitude: Double, longitude: Double),
+    in box: Box,
+    margin: Double = revealMargin
+  ) -> (latitude: Double, longitude: Double)? {
+    let halfLat = box.latitudeDelta / 2
+    let halfLon = box.longitudeDelta / 2
+    let insetLat = box.latitudeDelta * margin
+    let insetLon = box.longitudeDelta * margin
+    var centerLat = box.centerLatitude
+    var centerLon = box.centerLongitude
+    if target.latitude > box.centerLatitude + halfLat {
+      centerLat = target.latitude - halfLat + insetLat
+    } else if target.latitude < box.centerLatitude - halfLat {
+      centerLat = target.latitude + halfLat - insetLat
+    }
+    if target.longitude > box.centerLongitude + halfLon {
+      centerLon = target.longitude - halfLon + insetLon
+    } else if target.longitude < box.centerLongitude - halfLon {
+      centerLon = target.longitude + halfLon - insetLon
+    }
+    if centerLat == box.centerLatitude, centerLon == box.centerLongitude {
+      return nil
+    }
+    return (latitude: centerLat, longitude: centerLon)
   }
 }

@@ -54,4 +54,43 @@ import Testing
     #expect(box.latitudeDelta == MapFraming.minimumDelta)
     #expect(box.longitudeDelta == MapFraming.minimumDelta)
   }
+
+  // MARK: - reveal (minimal pan)
+
+  /// A 0.1×0.1 box centred at (10, 20): visible lat 9.95…10.05, lon 19.95…20.05.
+  private var box: MapFraming.Box {
+    MapFraming.Box(centerLatitude: 10, centerLongitude: 20, latitudeDelta: 0.1, longitudeDelta: 0.1)
+  }
+
+  @Test func revealNoMoveWhenTargetAlreadyVisible() {
+    #expect(MapFraming.reveal(target: (latitude: 10.02, longitude: 19.98), in: box) == nil)
+  }
+
+  @Test func revealLeavesTheOnScreenAxisUntouched() throws {
+    // Off-screen north, but the longitude is already in view — only latitude moves.
+    let panned = try #require(
+      MapFraming.reveal(target: (latitude: 10.20, longitude: 20.01), in: box))
+    #expect(panned.longitude == 20)  // unchanged
+    #expect(panned.latitude > 10)    // panned north
+  }
+
+  @Test func revealMovesTheMinimumToLandInsideTheMargin() throws {
+    // 0.05 north of the top edge; new center puts the target margin·span below the
+    // new top edge: center = target - half + inset = 10.10 - 0.05 + 0.015.
+    let panned = try #require(
+      MapFraming.reveal(target: (latitude: 10.10, longitude: 20), in: box))
+    #expect(abs(panned.latitude - (10.10 - 0.05 + 0.1 * MapFraming.revealMargin)) < 1e-9)
+    // The target now sits inside the shifted box.
+    #expect(abs(panned.latitude - 10.10) <= 0.05)
+  }
+
+  @Test func revealPansBothAxesWhenOffScreenDiagonally() throws {
+    let panned = try #require(
+      MapFraming.reveal(target: (latitude: 9.80, longitude: 20.20), in: box))
+    #expect(panned.latitude < 10)   // panned south
+    #expect(panned.longitude > 20)  // panned east
+    // Both axes now contain the target within the kept span.
+    #expect(abs(panned.latitude - 9.80) <= 0.05)
+    #expect(abs(panned.longitude - 20.20) <= 0.05)
+  }
 }

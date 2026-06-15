@@ -86,20 +86,39 @@ struct TripCanvasMapView: View {
     }
   }
 
-  /// Pan to a stop selected from the timeline — but only when it isn't already in
-  /// view, so tapping a pin that's already on screen doesn't yank the map. Keeps
-  /// the user's current zoom.
+  /// Bring a timeline-selected stop on screen with the *minimum* pan — keep the
+  /// current zoom, move only the axes that are off-screen, and don't move at all
+  /// when it's already visible (so tapping pin after pin doesn't jerk the map
+  /// around). Re-centring is deliberately avoided.
   private func revealStop(_ id: TripIdea.ID?) {
     guard
       let id,
       let resolved = model.canvasDays.flatMap(\.stops).first(where: { $0.id == id }),
       let coordinate = resolved.coordinate
     else { return }
-    if let region = visibleRegion, region.contains(coordinate) { return }
-    let span = visibleRegion?.span
-      ?? MKCoordinateSpan(latitudeDelta: MapFraming.singlePointDelta,
-                          longitudeDelta: MapFraming.singlePointDelta)
-    cameraPosition = .region(MKCoordinateRegion(center: coordinate, span: span))
+    guard let region = visibleRegion else {
+      // No settled camera yet (rare at tap time): frame on the stop to seed one.
+      cameraPosition = .region(
+        MKCoordinateRegion(
+          center: coordinate,
+          span: MKCoordinateSpan(latitudeDelta: MapFraming.singlePointDelta,
+                                 longitudeDelta: MapFraming.singlePointDelta)))
+      return
+    }
+    let box = MapFraming.Box(
+      centerLatitude: region.center.latitude,
+      centerLongitude: region.center.longitude,
+      latitudeDelta: region.span.latitudeDelta,
+      longitudeDelta: region.span.longitudeDelta)
+    guard
+      let panned = MapFraming.reveal(
+        target: (latitude: coordinate.latitude, longitude: coordinate.longitude),
+        in: box)
+    else { return }  // already on screen — leave the map where it is
+    cameraPosition = .region(
+      MKCoordinateRegion(
+        center: CLLocationCoordinate2D(latitude: panned.latitude, longitude: panned.longitude),
+        span: region.span))
   }
 
   /// A region covering every map region the trip is scoped to (the corners of
@@ -149,13 +168,5 @@ extension MapFraming.Box {
       center: CLLocationCoordinate2D(latitude: centerLatitude, longitude: centerLongitude),
       span: MKCoordinateSpan(latitudeDelta: latitudeDelta, longitudeDelta: longitudeDelta)
     )
-  }
-}
-
-extension MKCoordinateRegion {
-  /// Whether a coordinate falls within this region's span (no antimeridian wrap).
-  fileprivate func contains(_ coordinate: CLLocationCoordinate2D) -> Bool {
-    abs(coordinate.latitude - center.latitude) <= span.latitudeDelta / 2
-      && abs(coordinate.longitude - center.longitude) <= span.longitudeDelta / 2
   }
 }
