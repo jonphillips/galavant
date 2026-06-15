@@ -295,6 +295,17 @@ final class TripPlanningModel {
   /// (ADR-0007 read-time reconciliation) — the destination pops itself then.
   func ideaForDetail(_ id: Idea.ID) -> Idea? { ideaByID[id] }
 
+  /// This idea's place on the itinerary, *if* it's a scheduled stop on the trip —
+  /// drives the detail's "On the Itinerary" section (nil for a plain pool idea, so
+  /// the Trip Ideas drill-down stays placement-free).
+  func stopContext(for idea: Idea) -> StopDetailContext? {
+    guard let entry = entries.first(where: { $0.ideaID == idea.id && $0.status == .scheduled })
+    else { return nil }
+    let schedule = entry.schedule
+    let label = schedule.dayNumber.map { dayLabel($0, trip: trip) } ?? "To Be Scheduled"
+    return StopDetailContext(dayLabel: label, schedule: schedule)
+  }
+
   /// The names of an idea's tags, alphabetized — for the detail sheet.
   func tagNames(for idea: Idea) -> [String] {
     let ids = ideaTagIDs[idea.id] ?? []

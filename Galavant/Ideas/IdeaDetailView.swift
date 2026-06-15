@@ -1,18 +1,30 @@
 import GalavantSchema
+import MapKit
 import SwiftUI
 
-/// A read-only look at an idea — its kind, region, link, his/hers interest, tags,
+/// The placement of an idea on the trip's itinerary — populated only when the
+/// detail is drilled into from the **Itinerary** (a scheduled stop), nil for a
+/// plain pool idea. Drives the "On the Itinerary" section.
+struct StopDetailContext {
+  /// "Day 2 · Wed, Jun 17" (dated) / "Day 2" (undated) / "To Be Scheduled".
+  let dayLabel: String
+  let schedule: Schedule
+}
+
+/// A read-only look at an idea — its location on a map, its place on the
+/// itinerary (for a scheduled stop), kind, region, link, his/hers interest, tags,
 /// and notes. Drilled into *within the planning panel* (the Trip Ideas list by row
 /// tap, the Itinerary by the row's info button) so it never covers the map; the
 /// host (`TripDetailContent`) supplies the back header + title around this content.
-/// The host also resolves the tag names and interests; this view is pure
-/// presentation. Sparse now, it grows as the Idea model fills out. (The Itinerary
-/// one may become a full-screen push later when a stop earns richer per-stop
-/// context — see docs/BACKLOG.md.)
+/// The host also resolves the tag names, interests, and stop context; this view is
+/// pure presentation. (The Itinerary one may become a full-screen push later when
+/// a stop earns yet-richer context — travel time, hours, booking; docs/BACKLOG.md.)
 struct IdeaDetailView: View {
   let idea: Idea
   let tagNames: [String]
   let interests: [(planner: Planner, level: Interest)]
+  /// Set when this is a scheduled itinerary stop (vs. a plain pool idea).
+  var stopContext: StopDetailContext? = nil
 
   /// The link as a URL, if it parses — drives the tappable Link row.
   private var link: URL? {
@@ -20,9 +32,40 @@ struct IdeaDetailView: View {
     return URL(string: idea.url)
   }
 
+  /// An Apple Maps handoff URL for the stop's coordinate (named), or nil when the
+  /// idea has no location. A URL (not `MKMapItem.openInMaps`) so it reads as a
+  /// tappable row and dodges MapKit's beta API churn (CLAUDE.md).
+  private var mapsURL: URL? {
+    guard let coordinate = idea.coordinate,
+      var components = URLComponents(string: "https://maps.apple.com/")
+    else { return nil }
+    components.queryItems = [
+      URLQueryItem(name: "ll", value: "\(coordinate.latitude),\(coordinate.longitude)"),
+      URLQueryItem(name: "q", value: idea.name.isEmpty ? "Pinned location" : idea.name),
+    ]
+    return components.url
+  }
+
   var body: some View {
     List {
+      if let coordinate = idea.coordinate {
+        Section {
+          StopMap(coordinate: coordinate, name: idea.name)
+            .frame(height: 170)
+            .listRowInsets(EdgeInsets())
+          if let mapsURL {
+            Link(destination: mapsURL) {
+              Label("Open in Maps", systemImage: Icon.map.systemName)
+            }
+          }
+        }
+      }
+
       Section { header }
+
+      if let stopContext {
+        Section("On the Itinerary") { placement(stopContext) }
+      }
 
       if let link {
         Section {
@@ -84,5 +127,34 @@ struct IdeaDetailView: View {
       }
     }
     .padding(.vertical, 4)
+  }
+
+  /// Where the stop sits on the itinerary: its day + time, or the dayless bucket.
+  @ViewBuilder private func placement(_ context: StopDetailContext) -> some View {
+    if context.schedule.dayNumber == nil {
+      Label("To Be Scheduled", systemImage: Icon.toBeScheduled.systemName)
+    } else {
+      LabeledContent("Day", value: context.dayLabel)
+      LabeledContent("Time", value: context.schedule.display)
+    }
+  }
+}
+
+/// A static thumbnail map centred on a stop's pin — non-interactive so it reads as
+/// a header image and never steals the surrounding list's scroll.
+private struct StopMap: View {
+  let coordinate: CLLocationCoordinate2D
+  let name: String
+
+  var body: some View {
+    Map(
+      initialPosition: .region(
+        MKCoordinateRegion(
+          center: coordinate,
+          span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)))
+    ) {
+      Marker(name.isEmpty ? "Stop" : name, coordinate: coordinate)
+    }
+    .allowsHitTesting(false)
   }
 }

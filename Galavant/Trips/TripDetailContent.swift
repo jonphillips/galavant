@@ -49,7 +49,8 @@ struct TripDetailContent: View {
       IdeaDetailView(
         idea: idea,
         tagNames: model.tagNames(for: idea),
-        interests: model.interests(for: idea)
+        interests: model.interests(for: idea),
+        stopContext: model.stopContext(for: idea)
       )
     }
     .background(.background)
