@@ -115,17 +115,25 @@ where it runs, what context/tools it gets (read the SQLite pool? call the
 schedule ops?), cost, and the two-person-household privacy posture. Park here as
 a direction; revisit after the core loop (M3/M4) is solid.
 
-## Drag itinerary stops between days / out of the bucket (from Jon, 2026-06-13/14) — DONE
+## Drag itinerary stops between days / out of the bucket (from Jon, 2026-06-13/14) — BLOCKED (Xcode 27 beta 1)
 
-Implemented 2026-06-15 (M3d follow-up). Built on the iOS 27 reorder-container API:
-each section's `ForEach` is `.reorderable(collectionID:)` (`.bucket` / `.day(n)`)
-under one `.reorderContainer(for:in:)`; a drop routes by `destination.collectionID`
-to `moveStop(toDay:)` / `moveStopToBeScheduled` (we ignore the within-day position
-— stops auto-sort by time). The whole section is the drop zone, including an empty
-day (its reorderable ForEach declares the collection even with no rows). Cross-
-section only, in the full All-lens itinerary; the StopMenu stays as the precise
-path. (First cut used `.dropDestination` on the section *headers* — those don't
-register as drop targets in a `List`, hence the reorder-container rewrite.)
+Attempted and **backed out** 2026-06-15 (M3d follow-up): **List drag-and-drop is
+broken on Xcode 27 beta 1** — every drop times out (`Gesture: System gesture gate
+timed out`), the lift works but the drop never lands. Tried three different `List`
+drop surfaces, all failed on device: (1) `.dropDestination` on the **section
+headers** (don't register as drop targets — a real `List` limitation, not just
+beta); (2) the iOS 27 **reorder container** (`.reorderable(collectionID:)` +
+`.reorderContainer(for:in:)`, the Apple-sanctioned path) — flaky on this beta,
+matching the **Someday reorder** known-issue; (3) `.dropDestination` on the
+**rows** + empty-day placeholder (the standard, usually-reliable surface) — also
+times out. Three surfaces failing on one beta points at the beta's DnD subsystem,
+not our code. Reverted to keep the tree clean; the `StopMenu`'s Move-to-Day /
+To-Be-Scheduled fully covers the function meanwhile. See docs/KNOWN-ISSUES.md.
+
+**Revisit on a later beta.** If row/reorder DnD still fails, the durable fix is to
+render the full itinerary as a `ScrollView`/`LazyVStack` (no `UICollectionView`
+interception) rather than `List` — a bigger change, deferred until it's worth it.
+The model ops are trivial to re-add (`schedule.onDay(n)` / `scheduleUnplaced`).
 Original note below.
 
 M3c places/reorders stops via a "Move to Day"/"Set Day" menu + the Add-Stop

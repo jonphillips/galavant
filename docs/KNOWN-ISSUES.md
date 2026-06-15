@@ -25,6 +25,31 @@ trip *quickly* sometimes loses the new order.
 - **Code:** `Galavant/Trips/TripsScreen.swift` (`.reorderContainer(for: Trip.self)`),
   `GalavantSchema/TripOperations.swift` (`Trip.reorderSomeday`).
 
+## List drag-and-drop never lands a drop (Xcode 27 beta 1)
+
+*Observed 2026-06-15 (M3d follow-up), iOS 27 simulator + device, Xcode 27 beta 1.*
+
+Dragging a row in a `List` lifts it, but the **drop never completes** — the
+console logs `Gesture: System gesture gate timed out` and nothing happens. Tried
+for "drag an itinerary stop between days": three different drop surfaces, all
+failed:
+
+1. `.dropDestination` on the **section headers** — headers don't register as drop
+   targets in a `List` (a standing limitation, independent of the beta).
+2. The iOS 27 **reorder container** (`.reorderable(collectionID:)` +
+   `.reorderContainer(for:in:)`) — the sanctioned cross-section path; flaky here,
+   consistent with the **Someday reorder** issue above.
+3. `.dropDestination` on the **rows** + an empty-day placeholder (the standard,
+   usually-reliable surface) — also times out.
+
+- **Read:** three surfaces failing on one beta ⇒ the beta's drag-and-drop /
+  gesture subsystem, not our code.
+- **Decision (Jon, 2026-06-15):** back the feature out (the `StopMenu`'s
+  Move-to-Day / To-Be-Scheduled covers it); re-check on a later beta.
+- **Fallback if it persists:** render the itinerary as a `ScrollView`/`LazyVStack`
+  (no `UICollectionView` interception) instead of `List`; row `.draggable` /
+  `.dropDestination` work reliably there. Tracked in docs/BACKLOG.md.
+
 ## Keyboard text entry flaky in the iOS 27 simulator (environment, not our code)
 
 *Observed 2026-06-13, iOS 27 simulator, Xcode 27 beta 1.*
