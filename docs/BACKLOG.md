@@ -142,6 +142,21 @@ per-stop context (map of the stop, MKDirections/travel time, opening hours,
 booking) — at which point it may want to break out of the panel into a
 full-screen presentation. Revisit once that content exists.
 
+## Reveal a selected stop above the iPhone sheet (from Jon, 2026-06-15)
+
+Selecting a stop pans its pin on screen with the **minimum** move, keeping the
+current zoom and not re-centring (`MapFraming.reveal` + `TripCanvasMapView`
+`revealStop`, shipped). It pans against the **full** map region, which is exact on
+iPad (the detail is a side column, map unobscured) but imperfect on iPhone: the
+bottom sheet covers the lower map, so a stop revealed near the bottom edge can land
+*behind* the sheet — geometrically on screen, visually hidden. Fix: treat the
+sheet-covered height as a **bottom inset** on the reveal box (pan the pin into the
+unobscured area above the sheet). Needs the sheet's current height plumbed from
+`TripPlanningView` (it owns `sheetDetent`) into the map; system detents
+(`.medium`/`.large`) are only approximable, so a measured/inset approach is better
+than mapping detents to points. Costs a bit more than the strict minimum pan, by
+design (keep the pin out from under the sheet).
+
 ## Itinerary completion model: assume-done + a "now" marker (from Jon, 2026-06-13)
 
 Jon removed per-stop **Mark Done** from M3c — "no one wants to mark Done on an
