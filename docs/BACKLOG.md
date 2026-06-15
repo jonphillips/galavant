@@ -115,7 +115,14 @@ where it runs, what context/tools it gets (read the SQLite pool? call the
 schedule ops?), cost, and the two-person-household privacy posture. Park here as
 a direction; revisit after the core loop (M3/M4) is solid.
 
-## Drag itinerary stops between days / out of the bucket (from Jon, 2026-06-13/14)
+## Drag itinerary stops between days / out of the bucket (from Jon, 2026-06-13/14) — DONE
+
+Implemented 2026-06-15 (M3d follow-up). Stop rows are `.draggable` (typed
+`StopTransfer` over an exported UTType); day section headers and the
+"To Be Scheduled" header are `.dropDestination`s that highlight while targeted
+and call `moveStop(toDay:)` / `moveStopToBeScheduled`. Cross-section only (within
+a day auto-sorts by time), in the full All-lens itinerary. The StopMenu stays as
+the precise path. Original note below.
 
 M3c places/reorders stops via a "Move to Day"/"Set Day" menu + the Add-Stop
 sheet. Jon wants stops **draggable across day sections** directly — *and* (added
@@ -126,7 +133,15 @@ Both are the same gesture: drop target → day number → `TripIdea.schedule(_.o
 reordering is moot (stops auto-sort by time), so this is purely "drop onto
 another day / the bucket." Fast-follow; the menus cover the function until then.
 
-## Grow the Itinerary stop detail into a richer screen (from Jon, 2026-06-14)
+## Grow the Itinerary stop detail into a richer screen (from Jon, 2026-06-14) — PARTLY DONE
+
+First growth landed 2026-06-15 (M3d follow-up): the detail now opens with a static
+thumbnail **map** of the stop's pin, an **Open in Maps** handoff (maps.apple.com
+URL), and an **On the Itinerary** section (day + time, or the bucket) via
+`stopContext` (nil for a plain pool idea). **Still deferred** (the reasons to
+break out of the panel into full-screen): **MKDirections travel time** from the
+previous stop, **opening hours**, and **booking** — revisit once that data exists
+on the model. Original note below.
 
 The shared read-only `IdeaDetailView` ships as an **in-panel drill-down** (M3d
 follow-up): `TripDetailContent` swaps in the detail as an opaque overlay keyed on
@@ -142,7 +157,13 @@ per-stop context (map of the stop, MKDirections/travel time, opening hours,
 booking) — at which point it may want to break out of the panel into a
 full-screen presentation. Revisit once that content exists.
 
-## Reveal a selected stop above the iPhone sheet (from Jon, 2026-06-15)
+## Reveal a selected stop above the iPhone sheet (from Jon, 2026-06-15) — DONE
+
+Implemented 2026-06-15 (M3d follow-up). `MapFraming.reveal` gained a `bottomInset`
+(the southern fraction the sheet covers); the canvas feeds it a *measured*
+sheet-height ÷ map-height ratio (via `onGeometryChange`, capped at 0.6) and
+re-reveals when it changes, so a pin the rising sheet would swallow pans up into
+the clear. iPad (inset 0) is unchanged. 3 new MapFraming tests. Original note below.
 
 Selecting a stop pans its pin on screen with the **minimum** move, keeping the
 current zoom and not re-centring (`MapFraming.reveal` + `TripCanvasMapView`
