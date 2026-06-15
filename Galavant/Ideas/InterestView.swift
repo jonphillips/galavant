@@ -10,7 +10,7 @@ struct InterestView: View {
     if interest.heartCount > 0 {
       HStack(spacing: 1) {
         ForEach(0..<interest.heartCount, id: \.self) { _ in
-          Image(systemName: "heart.fill")
+          Icon.interest.image
             .foregroundStyle(.red)
         }
       }
@@ -36,7 +36,7 @@ struct InterestMenu<MenuLabel: View>: View {
           onSelect(interest)
         } label: {
           if current == interest {
-            Label(interest.label, systemImage: "checkmark")
+            Label(interest.label, systemImage: Icon.checkmark.systemName)
           } else {
             Text(interest.label)
           }

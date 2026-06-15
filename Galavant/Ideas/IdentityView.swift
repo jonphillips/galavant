@@ -30,7 +30,7 @@ struct IdentityView: View {
                 HStack {
                   Text(planner.displayName).foregroundStyle(.primary)
                   Spacer()
-                  Image(systemName: "chevron.right").foregroundStyle(.tertiary)
+                  Icon.disclosure.image.foregroundStyle(.tertiary)
                 }
               }
             }

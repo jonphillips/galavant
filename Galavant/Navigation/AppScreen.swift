@@ -11,8 +11,8 @@ enum AppScreen: Codable, Hashable, Identifiable, CaseIterable {
   @ViewBuilder
   var label: some View {
     switch self {
-    case .ideas: Label("Ideas", systemImage: "lightbulb")
-    case .trips: Label("Trips", systemImage: "suitcase")
+    case .ideas: Icon.ideas.label("Ideas")
+    case .trips: Icon.trips.label("Trips")
     }
   }
 

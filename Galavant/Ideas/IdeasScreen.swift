@@ -51,7 +51,7 @@ struct IdeasScreen: View {
           Button {
             namingRegion = true
           } label: {
-            Label("Define Region", systemImage: "plus.viewfinder")
+            Icon.defineRegion.label("Define Region")
           }
           .disabled(visibleRegion == nil)
         }
@@ -60,14 +60,14 @@ struct IdeasScreen: View {
         Button {
           Task { await model.shareTravelPartyButtonTapped() }
         } label: {
-          Label("Share Travel Party", systemImage: "person.2")
+          Icon.travelParty.label("Share Travel Party")
         }
       }
       ToolbarItem {
         Button {
           model.addIdeaButtonTapped()
         } label: {
-          Label("Add Idea", systemImage: "plus")
+          Icon.add.label("Add Idea")
         }
       }
     }
@@ -105,7 +105,7 @@ struct IdeasScreen: View {
   @ViewBuilder
   private func checked(_ title: String, on: Bool) -> some View {
     if on {
-      Label(title, systemImage: "checkmark")
+      Label(title, systemImage: Icon.checkmark.systemName)
     } else {
       Text(title)
     }
@@ -128,7 +128,7 @@ struct IdeasScreen: View {
         }
         if !model.regions.isEmpty {
           Divider()
-          Button("Manage Regions…", systemImage: "slider.horizontal.3") {
+          Button("Manage Regions…", systemImage: Icon.manage.systemName) {
             managingRegions = true
           }
         }
@@ -152,7 +152,7 @@ struct IdeasScreen: View {
         }
         if !model.tags.isEmpty {
           Divider()
-          Button("Manage Tags…", systemImage: "slider.horizontal.3") {
+          Button("Manage Tags…", systemImage: Icon.manage.systemName) {
             managingTags = true
           }
         }
@@ -165,7 +165,7 @@ struct IdeasScreen: View {
       Label(
         "Filter",
         systemImage: model.isFiltering
-          ? "line.3.horizontal.decrease.circle.fill"
+          ? Icon.filterActive.systemName
           : "line.3.horizontal.decrease.circle"
       )
     }
@@ -173,7 +173,7 @@ struct IdeasScreen: View {
 
   private var filterSummaryBar: some View {
     HStack(spacing: 6) {
-      Image(systemName: "line.3.horizontal.decrease.circle.fill")
+      Icon.filterActive.image
         .foregroundStyle(.tint)
       Text("Showing \(model.filteredIdeas.count) of \(model.ideas.count) · \(model.filterSummary)")
         .font(.footnote)
@@ -210,7 +210,7 @@ struct IdeasScreen: View {
       if model.ideas.isEmpty {
         ContentUnavailableView(
           "No ideas yet",
-          systemImage: "lightbulb",
+          systemImage: Icon.ideas.systemName,
           description: Text("Tap + to capture your first travel idea.")
         )
       }

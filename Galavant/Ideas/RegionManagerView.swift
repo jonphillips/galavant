@@ -20,7 +20,7 @@ struct RegionManagerView: View {
             HStack {
               Text(region.name).foregroundStyle(.primary)
               Spacer()
-              Image(systemName: "pencil").foregroundStyle(.secondary)
+              Icon.edit.image.foregroundStyle(.secondary)
             }
           }
         }
@@ -30,7 +30,7 @@ struct RegionManagerView: View {
         if model.regions.isEmpty {
           ContentUnavailableView(
             "No regions",
-            systemImage: "map",
+            systemImage: Icon.map.systemName,
             description: Text("Define a region from the map view's Define Region button.")
           )
         }

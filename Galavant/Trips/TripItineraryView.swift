@@ -80,7 +80,7 @@ struct TripItineraryView: View {
     // Shown in place of the list (not overlaid on it) so the empty message sits
     // on its own opaque background instead of floating over day rows.
     ContentUnavailableView {
-      Label("Nothing scheduled", systemImage: "calendar")
+      Icon.calendar.label("Nothing scheduled")
     } description: {
       Text("Pull ideas onto the shortlist, then tap + to schedule them onto days.")
     } actions: {

@@ -24,7 +24,7 @@ struct TripsScreen: View {
     .overlay {
       if model.trips.isEmpty {
         ContentUnavailableView {
-          Label("No trips yet", systemImage: "suitcase")
+          Icon.trips.label("No trips yet")
         } description: {
           Text("Tap + to start a trip — a vague someday, a targeted season, or dated dates.")
         }
@@ -36,7 +36,7 @@ struct TripsScreen: View {
         Button {
           model.addTripButtonTapped()
         } label: {
-          Label("Add Trip", systemImage: "plus")
+          Icon.add.label("Add Trip")
         }
       }
     }

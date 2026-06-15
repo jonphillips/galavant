@@ -30,7 +30,7 @@ struct AddIdeasSheet: View {
       .overlay {
         if model.filteredPool.isEmpty {
           ContentUnavailableView {
-            Label("No ideas to pull", systemImage: "lightbulb")
+            Icon.ideas.label("No ideas to pull")
           } description: {
             Text(model.isFiltering ? "No pool ideas match the filter." : "Capture ideas first on the Ideas screen.")
           }
@@ -96,7 +96,7 @@ struct AddIdeasSheet: View {
       Label(
         "Filter",
         systemImage: model.isFiltering
-          ? "line.3.horizontal.decrease.circle.fill"
+          ? Icon.filterActive.systemName
           : "line.3.horizontal.decrease.circle"
       )
     }
@@ -105,7 +105,7 @@ struct AddIdeasSheet: View {
   @ViewBuilder
   private func checked(_ title: String, on: Bool) -> some View {
     if on {
-      Label(title, systemImage: "checkmark")
+      Label(title, systemImage: Icon.checkmark.systemName)
     } else {
       Text(title)
     }
@@ -127,7 +127,7 @@ struct ScheduleStopSheet: View {
       Group {
         if model.shortlistOnly.isEmpty {
           ContentUnavailableView {
-            Label("Nothing to schedule", systemImage: "star")
+            Icon.shortlist.label("Nothing to schedule")
           } description: {
             Text("Shortlist an idea first, then add it to a day here.")
           }
@@ -145,7 +145,7 @@ struct ScheduleStopSheet: View {
                     Text(resolved.idea.name).foregroundStyle(.primary)
                     Spacer()
                     if selectedIdeaID == resolved.idea.id {
-                      Image(systemName: "checkmark").foregroundStyle(.tint)
+                      Icon.checkmark.image.foregroundStyle(.tint)
                     }
                   }
                 }

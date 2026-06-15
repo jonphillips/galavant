@@ -54,9 +54,9 @@ struct TripDetailContent: View {
   @ViewBuilder private var addButton: some View {
     switch model.sheetTab {
     case .ideas:
-      Button { model.addIdeasButtonTapped() } label: { Label("Add Ideas", systemImage: "plus") }
+      Button { model.addIdeasButtonTapped() } label: { Icon.add.label("Add Ideas") }
     case .itinerary:
-      Button { model.addStopButtonTapped() } label: { Label("Add Stop", systemImage: "plus") }
+      Button { model.addStopButtonTapped() } label: { Icon.add.label("Add Stop") }
     }
   }
 }

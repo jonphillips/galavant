@@ -23,7 +23,7 @@ struct StopMenu: View {
             } label: {
               let title = dayLabel(n, trip: model.trip)
               if placed, n == day {
-                Label(title, systemImage: "checkmark")
+                Label(title, systemImage: Icon.checkmark.systemName)
               } else {
                 Text(title)
               }
@@ -37,7 +37,7 @@ struct StopMenu: View {
             model.setSchedule(.day(day), for: idea)
           } label: {
             if schedule.dayPart == nil {
-              Label("Anytime", systemImage: "checkmark")
+              Icon.checkmark.label("Anytime")
             } else {
               Text("Anytime")
             }
@@ -47,27 +47,27 @@ struct StopMenu: View {
               model.setSchedule(.daypart(day, part), for: idea)
             } label: {
               if schedule.dayPart == part {
-                Label(part.label, systemImage: "checkmark")
+                Label(part.label, systemImage: Icon.checkmark.systemName)
               } else {
                 Label(part.label, systemImage: part.systemImage)
               }
             }
           }
         }
-        Button("To Be Scheduled", systemImage: "calendar.badge.clock") {
+        Button("To Be Scheduled", systemImage: Icon.toBeScheduled.systemName) {
           model.sendToBeScheduled(idea)
         }
       }
       Divider()
-      Button("Mark Skipped", systemImage: "xmark.circle") { model.markSkipped(idea) }
-      Button("Move to Shortlist", systemImage: "arrow.uturn.backward") {
+      Button("Mark Skipped", systemImage: Icon.skip.systemName) { model.markSkipped(idea) }
+      Button("Move to Shortlist", systemImage: Icon.revert.systemName) {
         model.unschedule(idea)
       }
     } label: {
       if placed {
         Text(schedule.display).font(.subheadline).foregroundStyle(.secondary)
       } else {
-        Label("Set day", systemImage: "calendar.badge.plus").font(.subheadline)
+        Icon.schedule.label("Set day").font(.subheadline)
       }
     }
   }

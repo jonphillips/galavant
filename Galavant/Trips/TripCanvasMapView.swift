@@ -37,7 +37,7 @@ struct TripCanvasMapView: View {
     .overlay {
       if !model.hasLocatedStops {
         ContentUnavailableView {
-          Label("Nothing on the map yet", systemImage: "map")
+          Icon.map.label("Nothing on the map yet")
         } description: {
           Text("Schedule stops that have a location to plot them here.")
         }

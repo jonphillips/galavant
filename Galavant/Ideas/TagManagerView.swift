@@ -18,10 +18,10 @@ struct TagManagerView: View {
             newName = tag.name
           } label: {
             HStack {
-              Image(systemName: "tag").foregroundStyle(.secondary)
+              Icon.tag.image.foregroundStyle(.secondary)
               Text(tag.name).foregroundStyle(.primary)
               Spacer()
-              Image(systemName: "pencil").foregroundStyle(.secondary)
+              Icon.edit.image.foregroundStyle(.secondary)
             }
           }
         }
@@ -31,7 +31,7 @@ struct TagManagerView: View {
         if model.tags.isEmpty {
           ContentUnavailableView(
             "No tags",
-            systemImage: "tag",
+            systemImage: Icon.tag.systemName,
             description: Text("Add tags to an idea to build your vocabulary.")
           )
         }

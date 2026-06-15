@@ -206,7 +206,16 @@ Boundary discipline to enforce while building:
 No code action yet — this is intent to honor when M2 images and M4 capture get
 built, so the eventual extraction is a rename-and-move rather than surgery.
 
-## Icon enum — central SF Symbol vocabulary (from Jon, 2026-06-14)
+## Icon enum — central SF Symbol vocabulary (from Jon, 2026-06-14) — DONE
+
+Implemented 2026-06-14 (`Galavant/Design/Icon.swift`, own commit). Swept the
+chrome literals across the 17 listed files to `Icon.x.label(…)` / `.image` /
+`.systemName`. Deliberately left as-is: domain-enum `systemImage` properties
+(`IdeaKind`, `DayPart`, `IdeasScreen.Mode`), interpolated generic helpers
+(`AddIdeasSheet.addToggle`, the off-state filter glyph), and fill/outline toggle
+pairs where the lit glyph has no role case (`star`/`star.fill`,
+`calendar.badge.checkmark`, `heart`/`heart.fill`). Original draft retained below
+for reference.
 
 Adopt a single semantic icon enum (V2 had one; reviewed 2026-06-14). Today the
 app has ~65 `Image(systemName:)`/`systemImage:` call sites across 26 distinct

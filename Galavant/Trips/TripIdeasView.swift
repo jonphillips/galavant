@@ -34,7 +34,7 @@ struct TripIdeasView: View {
               Button {
                 model.sendToBeScheduled(resolved.idea)
               } label: {
-                Label("Schedule", systemImage: "calendar.badge.plus")
+                Icon.schedule.label("Schedule")
               }
               .tint(.blue)
             }
@@ -42,7 +42,7 @@ struct TripIdeasView: View {
               Button(role: .destructive) {
                 model.remove(resolved.idea)
               } label: {
-                Label("Remove", systemImage: "trash")
+                Icon.delete.label("Remove")
               }
             }
           }
@@ -59,7 +59,7 @@ struct TripIdeasView: View {
                 Button {
                   model.unschedule(resolved.idea)
                 } label: {
-                  Label("Unschedule", systemImage: "calendar.badge.minus")
+                  Icon.unschedule.label("Unschedule")
                 }
                 .tint(.orange)
               }
@@ -79,7 +79,7 @@ struct TripIdeasView: View {
               Button(role: .destructive) {
                 model.remove(resolved.idea)
               } label: {
-                Label("Remove", systemImage: "trash")
+                Icon.delete.label("Remove")
               }
             }
           }
@@ -94,7 +94,7 @@ struct TripIdeasView: View {
     .overlay {
       if model.hasNoPlanningItems {
         ContentUnavailableView {
-          Label("No ideas yet", systemImage: "tray")
+          Icon.emptyPool.label("No ideas yet")
         } description: {
           Text("Tap + to pull ideas from the pool onto this trip.")
         } actions: {

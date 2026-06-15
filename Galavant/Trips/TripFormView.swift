@@ -97,7 +97,7 @@ struct TripRegionPicker: View {
     List {
       if model.sortedRegions.isEmpty {
         ContentUnavailableView {
-          Label("No regions yet", systemImage: "map")
+          Icon.map.label("No regions yet")
         } description: {
           Text("Define regions on the Ideas map first, then attach them here.")
         }
@@ -110,7 +110,7 @@ struct TripRegionPicker: View {
               Text(region.name).foregroundStyle(.primary)
               Spacer()
               if model.selectedRegionIDs.contains(region.id) {
-                Image(systemName: "checkmark").foregroundStyle(.tint)
+                Icon.checkmark.image.foregroundStyle(.tint)
               }
             }
           }

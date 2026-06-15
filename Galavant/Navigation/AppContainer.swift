@@ -30,7 +30,7 @@ struct AppContainer: View {
           } else {
             ContentUnavailableView(
               "Pick a section",
-              systemImage: "sidebar.left"
+              systemImage: Icon.sidebar.systemName
             )
           }
         }

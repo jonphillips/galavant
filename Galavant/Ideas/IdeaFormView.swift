@@ -27,7 +27,7 @@ struct IdeaFormView: View {
         Section("Location") {
           if model.hasLocation {
             HStack {
-              Image(systemName: "mappin.circle.fill").foregroundStyle(.red)
+              Icon.location.image.foregroundStyle(.red)
               VStack(alignment: .leading) {
                 Text(model.draft.name.isEmpty ? "Pinned location" : model.draft.name)
                 if let regionName = model.draft.regionName, !regionName.isEmpty {
@@ -64,13 +64,13 @@ struct IdeaFormView: View {
         Section("Tags") {
           ForEach(model.tagNames, id: \.self) { name in
             HStack {
-              Image(systemName: "tag").foregroundStyle(.secondary)
+              Icon.tag.image.foregroundStyle(.secondary)
               Text(name)
               Spacer()
               Button(role: .destructive) {
                 model.removeTagName(name)
               } label: {
-                Image(systemName: "minus.circle.fill").foregroundStyle(.red)
+                Icon.remove.image.foregroundStyle(.red)
               }
               .buttonStyle(.borderless)
             }
@@ -83,12 +83,12 @@ struct IdeaFormView: View {
           if tagFieldFocused || !model.trimmedNewTag.isEmpty {
             ForEach(model.trimmedNewTag.isEmpty ? model.unusedSuggestions : model.matchingSuggestions, id: \.self) { name in
               Button { model.addTagName(name) } label: {
-                Label(name, systemImage: "tag")
+                Label(name, systemImage: Icon.tag.systemName)
               }
             }
             if !model.trimmedNewTag.isEmpty, !model.typedMatchesExisting {
               Button { model.addTagName(model.trimmedNewTag) } label: {
-                Label("Add “\(model.trimmedNewTag)”", systemImage: "plus.circle")
+                Icon.addInline.label("Add “\(model.trimmedNewTag)”")
               }
             }
           }

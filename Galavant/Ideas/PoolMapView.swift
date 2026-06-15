@@ -39,7 +39,7 @@ struct PoolMapView: View {
       if mappableIdeas.isEmpty {
         ContentUnavailableView(
           "No pinned ideas",
-          systemImage: "map",
+          systemImage: Icon.map.systemName,
           description: Text("Add a location to an idea to see it on the map.")
         )
       }
