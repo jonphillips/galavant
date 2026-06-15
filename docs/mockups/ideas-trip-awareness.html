@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Ideas list trip-awareness (capsules + cell badges)</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.47.0/iconfont/tabler-icons.min.css">
+<style>
+:root{
+  --color-background-primary:#ffffff;
+  --color-background-secondary:#f4f3ee;
+  --color-background-tertiary:#faf9f5;
+  --color-text-primary:#1a1a18;
+  --color-text-secondary:#5f5e5a;
+  --color-text-tertiary:#8b8a83;
+  --color-border-tertiary:rgba(0,0,0,0.12);
+  --color-border-secondary:rgba(0,0,0,0.22);
+  --border-radius-md:8px;
+  --border-radius-lg:12px;
+  --font-sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --color-background-primary:#26251f;
+    --color-background-secondary:#1d1c17;
+    --color-background-tertiary:#161510;
+    --color-text-primary:#f2f0e8;
+    --color-text-secondary:#b4b2a9;
+    --color-text-tertiary:#888780;
+    --color-border-tertiary:rgba(255,255,255,0.14);
+    --color-border-secondary:rgba(255,255,255,0.26);
+  }
+}
+body{margin:0;background:var(--color-background-tertiary);color:var(--color-text-primary);font-family:var(--font-sans);padding:28px 20px;}
+.frame{max-width:720px;margin:0 auto;}
+.note{max-width:720px;margin:0 auto 16px;font-size:13px;color:var(--color-text-tertiary);line-height:1.6;}
+</style>
+</head>
+<body>
+<p class="note">Mockup from the 2026-06-15 design session. The Ideas pool with a row of active-trip
+capsules (launchpad: tap to scope the pool to a trip's lens) and derived trip-association badges on
+each cell. Free ideas show no badge. See <code>docs/BACKLOG.md</code> →
+"Ideas list trip-awareness".</p>
+<div class="frame">
+<div class="ip-wrap">
+  <div class="ip-caps">
+    <span class="cap on">All</span>
+    <span class="cap"><span class="dot" style="background:#378ADD"></span>Copenhagen 2027</span>
+    <span class="cap"><span class="dot" style="background:#EF9F27"></span>Paris Q2</span>
+    <span class="cap"><span class="dot" style="background:#888780"></span>Japan</span>
+  </div>
+  <div class="ip-bar">
+    <span><i class="ti ti-list" aria-hidden="true"></i> List &middot; <i class="ti ti-map" aria-hidden="true"></i> Map</span>
+    <span style="margin-left:auto"><i class="ti ti-filter" aria-hidden="true"></i> All places</span>
+  </div>
+  <div class="ip-card">
+    <div class="ip-row">
+      <span class="ip-ic"><i class="ti ti-tools-kitchen-2" aria-hidden="true"></i></span>
+      <div><div class="ip-nm">Reffen</div><div class="ip-sub">Copenhagen</div></div>
+      <div class="ip-tags"><span class="badge sched"><i class="ti ti-calendar" aria-hidden="true"></i> Copenhagen 2027 &middot; Day 3</span></div>
+    </div>
+    <div class="ip-row">
+      <span class="ip-ic"><i class="ti ti-building-pavilion" aria-hidden="true"></i></span>
+      <div><div class="ip-nm">Chichū Art Museum</div><div class="ip-sub">Naoshima &middot; Japan</div></div>
+      <div class="ip-tags"><span class="match">match</span><span class="badge someday"><i class="ti ti-bookmark" aria-hidden="true"></i> Japan &middot; someday</span></div>
+    </div>
+    <div class="ip-row">
+      <span class="ip-ic"><i class="ti ti-building-bank" aria-hidden="true"></i></span>
+      <div><div class="ip-nm">Monticello</div><div class="ip-sub">Charlottesville &middot; Virginia</div></div>
+      <div class="ip-tags"><span class="badge visited"><i class="ti ti-check" aria-hidden="true"></i> Visited 2024</span></div>
+    </div>
+    <div class="ip-row">
+      <span class="ip-ic"><i class="ti ti-shopping-bag" aria-hidden="true"></i></span>
+      <div><div class="ip-nm">Mercat de Sant Antoni</div><div class="ip-sub">Barcelona</div></div>
+      <div class="ip-tags"><span class="match">match</span></div>
+    </div>
+    <div class="ip-row">
+      <span class="ip-ic"><i class="ti ti-umbrella" aria-hidden="true"></i></span>
+      <div><div class="ip-nm">Cala Nans walk</div><div class="ip-sub">Cadaqués &middot; Spain</div></div>
+      <div class="ip-tags"></div>
+    </div>
+  </div>
+</div>
+</div>
+<style>
+.ip-wrap{background:var(--color-background-secondary);border-radius:var(--border-radius-lg);padding:14px}
+.ip-caps{display:flex;gap:8px;margin:0 2px 12px;flex-wrap:wrap}
+.cap{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:6px 12px;border-radius:999px;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);color:var(--color-text-secondary)}
+.cap.on{background:var(--color-text-primary);color:var(--color-background-primary);border-color:var(--color-text-primary)}
+.dot{width:8px;height:8px;border-radius:50%}
+.ip-bar{display:flex;align-items:center;gap:10px;margin:0 4px 10px;font-size:13px;color:var(--color-text-tertiary)}
+.ip-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden}
+.ip-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:0.5px solid var(--color-border-tertiary)}
+.ip-row:last-child{border-bottom:none}
+.ip-ic{font-size:20px;color:var(--color-text-secondary);width:22px;text-align:center}
+.ip-nm{font-size:15px;color:var(--color-text-primary)}
+.ip-sub{font-size:13px;color:var(--color-text-tertiary)}
+.ip-tags{margin-left:auto;display:flex;align-items:center;gap:6px}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:3px 9px;border-radius:999px;border:0.5px solid var(--color-border-tertiary);color:var(--color-text-tertiary)}
+.badge.sched{background:#E6F1FB;border-color:#85B7EB;color:#0C447C}
+.badge.someday{color:var(--color-text-tertiary)}
+.badge.visited{background:#F1EFE8;border-color:#D3D1C7;color:#5F5E5A}
+.match{font-size:12px;padding:3px 9px;border-radius:999px;background:#FBEAF0;border:0.5px solid #ED93B1;color:#72243E}
+</style>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Itinerary cleanup (one time vocabulary, no redundant city)</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.47.0/iconfont/tabler-icons.min.css">
+<style>
+:root{
+  --color-background-primary:#ffffff;
+  --color-background-secondary:#f4f3ee;
+  --color-background-tertiary:#faf9f5;
+  --color-text-primary:#1a1a18;
+  --color-text-secondary:#5f5e5a;
+  --color-text-tertiary:#8b8a83;
+  --color-border-tertiary:rgba(0,0,0,0.12);
+  --color-border-secondary:rgba(0,0,0,0.22);
+  --border-radius-md:8px;
+  --border-radius-lg:12px;
+  --font-sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --font-mono:ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --color-background-primary:#26251f;
+    --color-background-secondary:#1d1c17;
+    --color-background-tertiary:#161510;
+    --color-text-primary:#f2f0e8;
+    --color-text-secondary:#b4b2a9;
+    --color-text-tertiary:#888780;
+    --color-border-tertiary:rgba(255,255,255,0.14);
+    --color-border-secondary:rgba(255,255,255,0.26);
+  }
+}
+body{margin:0;background:var(--color-background-tertiary);color:var(--color-text-primary);font-family:var(--font-sans);padding:28px 20px;}
+.frame{max-width:720px;margin:0 auto;}
+.note{max-width:720px;margin:0 auto 16px;font-size:13px;color:var(--color-text-tertiary);line-height:1.6;}
+</style>
+</head>
+<body>
+<p class="note">Mockup from the 2026-06-15 design session. One time vocabulary — dayparts by default,
+an exact clock time in mono only when the stop is pinned. The redundant "Tokyo" subtitle is replaced
+by neighbourhood/category, and day headers carry the area. Empty days collapse to one line. (Stop
+drill-down detail is intentionally out of scope — owned by a parallel session.) See
+<code>docs/BACKLOG.md</code> → "Itinerary panel cleanup".</p>
+<div class="frame">
+<div class="it-wrap">
+  <div class="it-day"><span class="it-dot" style="background:#E24B4A"></span><span class="it-dh">Day 1 &middot; Asakusa &amp; Ueno</span></div>
+  <div class="it-card">
+    <div class="it-row"><span class="it-ic"><i class="ti ti-binoculars" aria-hidden="true"></i></span><div><div class="it-nm">Sensō-ji</div><div class="it-sub">Temple &middot; Asakusa</div></div><span class="it-time">Morning</span></div>
+    <div class="it-row"><span class="it-ic"><i class="ti ti-binoculars" aria-hidden="true"></i></span><div><div class="it-nm">Tokyo Skytree</div><div class="it-sub">Viewpoint &middot; Sumida</div></div><span class="it-time">Midday</span></div>
+    <div class="it-row"><span class="it-ic"><i class="ti ti-tree" aria-hidden="true"></i></span><div><div class="it-nm">Ueno Park</div><div class="it-sub">Park &middot; Ueno</div></div><span class="it-time">Afternoon</span></div>
+  </div>
+
+  <div class="it-day"><span class="it-dot" style="background:#378ADD"></span><span class="it-dh">Day 2 &middot; Shibuya &amp; the bay</span></div>
+  <div class="it-card">
+    <div class="it-row"><span class="it-ic"><i class="ti ti-binoculars" aria-hidden="true"></i></span><div><div class="it-nm">Shibuya Crossing</div><div class="it-sub">Sight &middot; Shibuya</div></div><span class="it-time">Afternoon</span></div>
+    <div class="it-row"><span class="it-ic"><i class="ti ti-building-pavilion" aria-hidden="true"></i></span><div><div class="it-nm">teamLab Planets</div><div class="it-sub">Exhibit &middot; Toyosu</div></div><span class="it-time exact">19:00</span></div>
+  </div>
+
+  <div class="it-day"><span class="it-dot" style="background:#888780"></span><span class="it-dh">Day 4</span></div>
+  <div class="it-card"><div class="it-empty"><i class="ti ti-plus" aria-hidden="true"></i> Add a stop</div></div>
+</div>
+</div>
+<style>
+.it-wrap{background:var(--color-background-secondary);border-radius:var(--border-radius-lg);padding:14px}
+.it-day{display:flex;align-items:baseline;gap:8px;margin:14px 6px 8px}
+.it-day:first-child{margin-top:2px}
+.it-dot{width:9px;height:9px;border-radius:50%}
+.it-dh{font-size:13px;font-weight:500;color:var(--color-text-secondary)}
+.it-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden}
+.it-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:0.5px solid var(--color-border-tertiary)}
+.it-row:last-child{border-bottom:none}
+.it-ic{font-size:20px;color:var(--color-text-secondary);width:22px;text-align:center}
+.it-nm{font-size:15px;color:var(--color-text-primary)}
+.it-sub{font-size:13px;color:var(--color-text-tertiary)}
+.it-time{margin-left:auto;font-size:13px;color:var(--color-text-secondary)}
+.it-time.exact{font-family:var(--font-mono);color:var(--color-text-primary)}
+.it-empty{display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:13px;color:var(--color-text-tertiary)}
+</style>
+</body>
+</html>

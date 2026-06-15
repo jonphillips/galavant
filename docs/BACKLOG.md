@@ -369,3 +369,70 @@ for every case to catch future typos at test time.
 
 Show active filter settings in small text above the filtered list. Implemented
 2026-06-12 (filter summary bar via `safeAreaInset`).
+
+## Itinerary panel cleanup: one time vocabulary + drop redundant city (from Jon, 2026-06-15)
+
+*Leads the design-review batch below; explored with mockups in the 2026-06-15
+design session.* The trip itinerary list currently mixes time vocabularies in one
+column — meal/daypart anchors (`Morning` / `Lunch` / `Afternoon` / `Anytime`)
+sitting next to exact clock ranges (`19:00–21:00`) — which reads as three systems.
+Settle on **one spine**: the existing `DayPart` dayparts (Morning / Midday /
+Afternoon / Evening) as the default, with an **exact clock time shown only when the
+stop is `.timed`**, rendered in **mono** so a pinned time reads as a hard constraint
+vs. a soft bucket. Drop `Anytime` as a visible label (it's just "no daypart set").
+
+Separately: every stop row repeats the trip's city ("Tokyo") underneath — pure noise
+inside a single-destination trip. **Strip the city subtitle in single-destination
+contexts** (itinerary list AND the trip Ideas tab) and put **neighborhood / category**
+there instead (signal, not the city we already know). Rule of thumb: show the city
+only where it disambiguates (the global pool), hide it where context supplies it
+(inside a trip). **Not in scope:** stop drill-down detail content — being revised in
+a parallel session, leave it alone. Refs: `Schedule` facade / `DayPart`
+(trip-time-model.md), `TripItineraryView`, `TripIdeasView`. **Mockup:**
+`docs/mockups/itinerary-cleanup.html`.
+
+## Ideas list trip-awareness: active-trip capsules + cell trip-badges (from Jon, 2026-06-15)
+
+*Wants to land soon after the itinerary cleanup.* Two related additions that make the
+eternal pool aware of the 2–3 trips actually in play.
+
+**(a) Active-trip capsules.** A row of pills at the top of the Ideas screen = the
+in-play trips (Dated + Targeted, plus the most-recently-touched Someday). Tapping a
+capsule scopes the pool to **that trip's lens** — the region-scoped pool primed to
+pull/rate *for that trip* (PRODUCT.md:17 — pulling happens in the trip's lens; two
+Virginia trips are two capsules over one region, so "pull onto which?" is never
+ambiguous). Intent: the Ideas screen becomes **dual-purpose** — a launchpad (jump
+into an active trip) on top, the firehose below; don't let it drift into "just another
+filter bar." Derive the capsule set from the **trip certainty lifecycle**
+(recovered-requirements §1: someday→targeted→dated), *not* raw filter MRU (which
+lingers stale).
+
+**(b) Cell trip-badges.** Each idea cell shows a **derived** badge of its trip
+association — *scheduled* / *on an upcoming trip* / *held in a someday* / *visited* —
+projected from the `TripIdea` join records. **No schema change**: there is no
+`idea.tripID` (ADR-0007 / PRODUCT.md:56); association is a query over joins. **Free
+ideas show no badge** (keep the junk drawer clean). An idea can be on several trips,
+so the badge shows the **most-actionable** status: scheduled > upcoming > someday >
+visited. Pays off most inside a capsule (trip-scoped) view — the "still free to pull
+vs. already committed" signal, same data the not-yet-visited filter uses. Refs:
+`TripIdea` join lifecycle, `IdeasScreen` / `PoolMapView`, ADR-0004 (map+filter is the
+guide). **Mockup:** `docs/mockups/ideas-trip-awareness.html`.
+
+## His/hers rating rendering redesign + "match" signal (from Jon, 2026-06-15)
+
+*Presentation-only — model is already settled, do NOT touch the scale.* The flames
+rating is implemented (per-planner `IdeaInterest`, ADR-0007; 5-level scale Must Do /
+Want to Do / Could Do / Do Not Do / Decide Later, recovered-requirements §2) but
+renders **illegibly** as repeated hearts ("Jon ❤❤❤ Sam ❤") — you can't tell intensity
+from count, and "Decide Later" / not-yet-rated isn't visually distinct from "unrated."
+Fix the rendering: show each person's level as a **single legible indicator**, and make
+**"Decide Later" distinct from "not yet rated"** (pending). **Keep the 5 levels** — the
+scale is load-bearing for shortlist default-ordering and the start-day solver's
+weighting (recovered-requirements §2; trip-time-model.md §3 "Must Do loud, Could Do
+whisper"); collapsing to yes/no would re-open ADR-0007 and gut the solver.
+
+Additive: surface **"match"** — both planners rated it highly (threshold, e.g. both
+≥ Want to Do) — as a derived badge + a sort/filter ("show matches"), turning the pool
+into a worklist (matches float up, passed sinks). Match is a **projection of the
+flames**, not a separate vote — keeps ADR-0007 intact. Refs: `InterestView`,
+`IdeaInterest`, ADR-0007.
