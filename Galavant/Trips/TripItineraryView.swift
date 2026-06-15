@@ -52,12 +52,19 @@ struct TripItineraryView: View {
     }
   }
 
-  /// The whole trip: the dayless bucket, then every day.
+  /// The whole trip: the dayless bucket, then every day. Drag a stop onto another
+  /// day's header to move it there, or onto "To Be Scheduled" to unplace it (the
+  /// `StopMenu` covers the same moves by tap). Within-day order is the schedule's
+  /// to decide (stops auto-sort by time), so this is purely cross-section.
   private var fullItinerary: some View {
     List {
       if !model.toBeScheduledStops.isEmpty {
-        Section("To Be Scheduled") {
+        Section {
           ForEach(model.toBeScheduledStops) { resolved in stopRow(resolved) }
+        } header: {
+          StopDropHeader(title: "To Be Scheduled") { stop in
+            model.moveStopToBeScheduled(stop.stopID)
+          }
         }
       }
       ForEach(model.itinerary) { day in
@@ -70,7 +77,9 @@ struct TripItineraryView: View {
             ForEach(day.stops) { resolved in stopRow(resolved) }
           }
         } header: {
-          Text(dayLabel(day.number, trip: model.trip))
+          StopDropHeader(title: dayLabel(day.number, trip: model.trip)) { stop in
+            model.moveStop(stop.stopID, toDay: day.number)
+          }
         }
       }
     }
@@ -109,6 +118,31 @@ struct TripItineraryView: View {
     )
     .contentShape(Rectangle())
     .onTapGesture { model.selectStop(resolved.id) }
+    // Drag this stop onto another day's header (or the bucket) to move it.
+    .draggable(StopTransfer(stopID: resolved.id))
     .id(resolved.id)
+  }
+}
+
+/// A day / bucket section header that accepts a dragged stop: dropping one here
+/// moves it onto that day (or back to "To Be Scheduled"). Highlights while a stop
+/// hovers so the drop target reads. Lives at file scope for its own `@State`.
+private struct StopDropHeader: View {
+  let title: String
+  let onDrop: (StopTransfer) -> Void
+  @State private var targeted = false
+
+  var body: some View {
+    Text(title)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .contentShape(Rectangle())
+      .dropDestination(for: StopTransfer.self) { stops, _ in
+        guard let stop = stops.first else { return false }
+        onDrop(stop)
+        return true
+      } isTargeted: { targeted = $0 }
+      .background(
+        targeted ? Color.accentColor.opacity(0.15) : .clear,
+        in: RoundedRectangle(cornerRadius: 6))
   }
 }

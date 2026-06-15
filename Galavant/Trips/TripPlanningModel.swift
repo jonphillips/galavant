@@ -422,6 +422,26 @@ final class TripPlanningModel {
     }
   }
 
+  /// Drop a stop (by its trip-idea row) onto `day` — the drag-between-days gesture
+  /// on the itinerary. Keeps its time-of-day granularity (`schedule.onDay`).
+  func moveStop(_ stopID: TripIdea.ID, toDay day: Int) {
+    guard let resolved = resolvedStop(stopID) else { return }
+    setSchedule(resolved.entry.schedule.onDay(day), for: resolved.idea)
+  }
+
+  /// Drop a stop back into the dayless "To Be Scheduled" bucket — the drag
+  /// counterpart to the `StopMenu`'s "To Be Scheduled".
+  func moveStopToBeScheduled(_ stopID: TripIdea.ID) {
+    guard let resolved = resolvedStop(stopID) else { return }
+    sendToBeScheduled(resolved.idea)
+  }
+
+  /// Resolve a dragged stop back to its entry + idea (nil if the row vanished
+  /// mid-drag, e.g. a sync delete — the drop is then a no-op).
+  private func resolvedStop(_ id: TripIdea.ID) -> Resolved? {
+    entries.first { $0.id == id }.flatMap(resolve)
+  }
+
   /// Set a stop's day-relative placement (move it between days, add/clear a
   /// daypart or time). Marks it `scheduled`.
   func setSchedule(_ schedule: Schedule, for idea: Idea) {
