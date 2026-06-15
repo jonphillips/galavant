@@ -117,12 +117,16 @@ a direction; revisit after the core loop (M3/M4) is solid.
 
 ## Drag itinerary stops between days / out of the bucket (from Jon, 2026-06-13/14) — DONE
 
-Implemented 2026-06-15 (M3d follow-up). Stop rows are `.draggable` (typed
-`StopTransfer` over an exported UTType); day section headers and the
-"To Be Scheduled" header are `.dropDestination`s that highlight while targeted
-and call `moveStop(toDay:)` / `moveStopToBeScheduled`. Cross-section only (within
-a day auto-sorts by time), in the full All-lens itinerary. The StopMenu stays as
-the precise path. Original note below.
+Implemented 2026-06-15 (M3d follow-up). Built on the iOS 27 reorder-container API:
+each section's `ForEach` is `.reorderable(collectionID:)` (`.bucket` / `.day(n)`)
+under one `.reorderContainer(for:in:)`; a drop routes by `destination.collectionID`
+to `moveStop(toDay:)` / `moveStopToBeScheduled` (we ignore the within-day position
+— stops auto-sort by time). The whole section is the drop zone, including an empty
+day (its reorderable ForEach declares the collection even with no rows). Cross-
+section only, in the full All-lens itinerary; the StopMenu stays as the precise
+path. (First cut used `.dropDestination` on the section *headers* — those don't
+register as drop targets in a `List`, hence the reorder-container rewrite.)
+Original note below.
 
 M3c places/reorders stops via a "Move to Day"/"Set Day" menu + the Add-Stop
 sheet. Jon wants stops **draggable across day sections** directly — *and* (added

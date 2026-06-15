@@ -34,7 +34,6 @@
 		7B999C65BDCCA5657877F9CD /* IdeasListModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E146770B6C9957BA19FC94EC /* IdeasListModel.swift */; };
 		7C7C4BB8F9D526D37F31BD66 /* TripPlanningView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08F3A8C38B6B2977E3D8153F /* TripPlanningView.swift */; };
 		82FB0503EEB4041AC202479B /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = 45E72731DDF6FA076EAEC92F /* Dependencies */; };
-		8C90C4497DBD42AE791624C7 /* StopTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE44AFA412EA78C8DABE8E98 /* StopTransfer.swift */; };
 		8E9C72B6E2A50CCF9129E6E1 /* RegionManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0587DE2E1AA61B9BD3D0073 /* RegionManagerView.swift */; };
 		90C301112D6C03ED59D12E2C /* IdeaFormModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99EE3153CDA64E66C39149A9 /* IdeaFormModel.swift */; };
 		9515962CEF69E6D64F9B0322 /* DemoFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CD37357C07AFC3DAE3CDAE7 /* DemoFixtures.swift */; };
@@ -142,7 +141,6 @@
 		EA2BBF3B289FD7D02957833B /* AppContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainer.swift; sourceTree = "<group>"; };
 		ED4DA130D3A7069430825C31 /* TripCanvasMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripCanvasMapView.swift; sourceTree = "<group>"; };
 		EDA439EDEF5339154F3D8C08 /* PrefersTabNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrefersTabNavigation.swift; sourceTree = "<group>"; };
-		EE44AFA412EA78C8DABE8E98 /* StopTransfer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StopTransfer.swift; sourceTree = "<group>"; };
 		EF388F1C56D173F7C5F3079C /* Icon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Icon.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -215,7 +213,6 @@
 				97954EEA93EDDCB81E746016 /* PlanningRow.swift */,
 				91589ABCCE6CEFC2EC1F72F4 /* ReorderDifference+Apply.swift */,
 				B15DFF6883F3077AA8D6C591 /* StopMenu.swift */,
-				EE44AFA412EA78C8DABE8E98 /* StopTransfer.swift */,
 				ED4DA130D3A7069430825C31 /* TripCanvasMapView.swift */,
 				07A4BE5288975EEF3DA91B16 /* TripDetailContent.swift */,
 				A20DAF6B7A5F203899F4C780 /* TripFormModel.swift */,
@@ -459,7 +456,6 @@
 				8E9C72B6E2A50CCF9129E6E1 /* RegionManagerView.swift in Sources */,
 				D1D88C6469FB21204DA80CA3 /* ReorderDifference+Apply.swift in Sources */,
 				41630279DF880FB556B178CF /* StopMenu.swift in Sources */,
-				8C90C4497DBD42AE791624C7 /* StopTransfer.swift in Sources */,
 				17B078D23DE21D8057EEAD7B /* TagManagerView.swift in Sources */,
 				F03422C3671BFFD56B78737A /* TripCanvasMapView.swift in Sources */,
 				A9D8F7500DA570A20F8DE8B1 /* TripDetailContent.swift in Sources */,

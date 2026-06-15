@@ -52,36 +52,39 @@ struct TripItineraryView: View {
     }
   }
 
-  /// The whole trip: the dayless bucket, then every day. Drag a stop onto another
-  /// day's header to move it there, or onto "To Be Scheduled" to unplace it (the
-  /// `StopMenu` covers the same moves by tap). Within-day order is the schedule's
-  /// to decide (stops auto-sort by time), so this is purely cross-section.
+  /// The whole trip: the dayless bucket, then every day. Drag a stop into another
+  /// day's section to move it there, or into "To Be Scheduled" to unplace it (the
+  /// `StopMenu` covers the same moves by tap). Built on the iOS 27 reorder-container
+  /// API (`reorderable(collectionID:)` per section + `reorderContainer(for:in:)`):
+  /// the whole section is the drop zone and SwiftUI routes the move by the
+  /// destination section's id. Within-day order is the schedule's to decide (stops
+  /// auto-sort by time), so we use only `destination.collectionID`, not its
+  /// position — this is purely cross-section.
   private var fullItinerary: some View {
     List {
       if !model.toBeScheduledStops.isEmpty {
-        Section {
+        Section("To Be Scheduled") {
           ForEach(model.toBeScheduledStops) { resolved in stopRow(resolved) }
-        } header: {
-          StopDropHeader(title: "To Be Scheduled") { stop in
-            model.moveStopToBeScheduled(stop.stopID)
-          }
+            .reorderable(collectionID: ItinerarySection.bucket)
         }
       }
       ForEach(model.itinerary) { day in
-        Section {
+        Section(dayLabel(day.number, trip: model.trip)) {
+          // The reorderable ForEach declares the section's collection even when
+          // empty, so a stop can be dropped onto a day that has none yet.
+          ForEach(day.stops) { resolved in stopRow(resolved) }
+            .reorderable(collectionID: ItinerarySection.day(day.number))
           if day.stops.isEmpty {
-            Text("No stops yet")
+            Text("No stops yet — drag one here")
               .font(.subheadline)
               .foregroundStyle(.tertiary)
-          } else {
-            ForEach(day.stops) { resolved in stopRow(resolved) }
-          }
-        } header: {
-          StopDropHeader(title: dayLabel(day.number, trip: model.trip)) { stop in
-            model.moveStop(stop.stopID, toDay: day.number)
           }
         }
       }
+    }
+    .reorderContainer(for: TripPlanningModel.Resolved.self, in: ItinerarySection.self) {
+      difference in
+      model.moveStops(difference.sources, to: difference.destination.collectionID)
     }
   }
 
@@ -118,31 +121,14 @@ struct TripItineraryView: View {
     )
     .contentShape(Rectangle())
     .onTapGesture { model.selectStop(resolved.id) }
-    // Drag this stop onto another day's header (or the bucket) to move it.
-    .draggable(StopTransfer(stopID: resolved.id))
     .id(resolved.id)
   }
 }
 
-/// A day / bucket section header that accepts a dragged stop: dropping one here
-/// moves it onto that day (or back to "To Be Scheduled"). Highlights while a stop
-/// hovers so the drop target reads. Lives at file scope for its own `@State`.
-private struct StopDropHeader: View {
-  let title: String
-  let onDrop: (StopTransfer) -> Void
-  @State private var targeted = false
-
-  var body: some View {
-    Text(title)
-      .frame(maxWidth: .infinity, alignment: .leading)
-      .contentShape(Rectangle())
-      .dropDestination(for: StopTransfer.self) { stops, _ in
-        guard let stop = stops.first else { return false }
-        onDrop(stop)
-        return true
-      } isTargeted: { targeted = $0 }
-      .background(
-        targeted ? Color.accentColor.opacity(0.15) : .clear,
-        in: RoundedRectangle(cornerRadius: 6))
-  }
+/// Which itinerary section a reorder collection belongs to — the dayless bucket
+/// or a numbered day. Used as the reorder container's `collectionID` so a dropped
+/// stop routes to the right `moveStop`/`moveStopToBeScheduled`.
+enum ItinerarySection: Hashable {
+  case bucket
+  case day(Int)
 }
