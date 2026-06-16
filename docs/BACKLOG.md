@@ -3,6 +3,72 @@
 Not milestone-scoped (see ROADMAP.md for those). Running list of refinements
 noted in passing, with enough context to act on cold.
 
+## Codex alignment-review follow-ups (2026-06-16)
+
+Deferred items from `docs/reviews/codex-alignment-review-2026-06-16.md`. The
+review's two acted-on items landed already: the filtered swipe-delete bug fix
+(`IdeasListModel.deleteIdeas` now takes the displayed array) and the CLAUDE.md
+iOS-26→27 correction. The rest, in rough priority order:
+
+- **Regression test for filtered swipe-delete.** The fix is structural (the view
+  hands `deleteIdeas` the exact `filteredIdeas` it rendered), but there's no
+  automated guard against a future re-wiring. Blocked on test infrastructure:
+  the app target has **no unit-test bundle** (only `GalavantSchemaTests` in the
+  package + `GalavantUITests`), and a destructive UI test can't be made
+  deterministic because there's **no DB-reset launch arg** (the app-group DB
+  persists across launches; `--reset-identity` only clears `currentPlannerID`).
+  A real regression test wants one of: an app unit-test target exercising
+  `IdeasListModel`, or a `--reset-database` arg + a seeded UI test that filters
+  to one region (e.g. New York) and verifies the swiped row — not the
+  global-alphabetical-first idea — is the one deleted.
+
+- **Complete ADR-0008 sync-dedup hardening.** The picker/bind UI shipped, but the
+  ADR's other half is not implemented and code comments imply otherwise. (1)
+  `IdeaInterest`/`IdeaTag`/`TripRegion` need a schema-level **dedup-on-read**
+  helper that deterministically collapses logical duplicates (lowest-UUID-wins),
+  with all read models calling it instead of rebuilding "first wins" dicts
+  locally (`IdeasListModel.swift:145`, `TripPlanningModel.swift:226`); add
+  seeded-duplicate tests. (2) `TravelParty.ensureDefault` + `Planner.create`
+  should implement the ADR's **prefer-shared/non-empty party, clean the empty
+  stray** rule rather than "first party by UUID." Slated for the M2 tail per the
+  ADR. Adjacent to the existing "Planner identity feels fly-by-night" item.
+
+- **Schedule doc-drift sweep.** Code dropped V2's `Schedule.exact` for the
+  day-relative model, but several docs still describe the V2 vocabulary as
+  current: `docs/PRODUCT.md:23`, `docs/STYLE.md:51`,
+  `docs/decisions/0004-pull-based-trip-membership.md:27`, `docs/ROADMAP.md:86`.
+  Update to V3 vocabulary (`unscheduled / day / daypart / timed`, calendar dates
+  derived from `Trip.startDate` + day number).
+
+- **UUID dependency-control for *new* schema ops.** Operations call `UUID()`
+  directly (`TripOperations`, `PoolOperations`, `Tag`, `TripRegion`, `IdeaTag`).
+  Don't churn working code, but new vertical slices should accept IDs as args
+  (model supplies a dependency-controlled `@Dependency(\.uuid)`) rather than
+  spreading direct `UUID()`.
+
+- **Standardize derived bindings.** A few `Binding(get:set:)` sites
+  (`TripPlanningSheets.swift:91`, `TripPlanningView.swift:87/95`,
+  `RegionManagerView.swift:45`, `TagManagerView.swift:46`). Prefer reusable
+  binding helpers on the value type / `SwiftUINavigation` case bindings, so
+  agents copy a local pattern. Consistency, not code reduction.
+
+- **Swallow `CancellationError` on one-shot model reads.** `IdeaFormModel`/
+  `TripFormModel` `.task` flows do one-shot reads wrapped in
+  `withErrorReporting`; view dismissal can surface a harmless `CancellationError`
+  as an issue. Either make them observed projections or catch cancellation
+  explicitly around the read.
+
+- **Document `-skipMacroValidation` for headless verification.** First Xcode CLI
+  build stops on macro re-approval; `xcodebuild … -skipMacroValidation build`
+  succeeds. Worth a line in CLAUDE.md's toolchain/verification notes (does not
+  replace human Xcode macro approval).
+
+- **jon-platform shared-doc refinements (not galavant-local).** The review's last
+  section proposes folding five rules into `~/code/jon-platform` (displayed-
+  collection delete/reorder rule; split-view nested-NavigationStack clarification;
+  UUID-generation nuance; one-shot-read cancellation note; macro-validation CLI
+  note). These belong in the house knowledge base, not here — apply there.
+
 ## Capture form should be search-first and auto-populated (from Jon, 2026-06-12)
 
 The New Idea form currently leads with Name, then a Location section midway

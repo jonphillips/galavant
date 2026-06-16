@@ -279,7 +279,7 @@ struct IdeasScreen: View {
           onSetInterest: { model.setMyInterest($0, for: idea) }
         )
       }
-      .onDelete { model.deleteIdeas(at: $0) }
+      .onDelete { model.deleteIdeas(model.filteredIdeas, at: $0) }
     }
     .safeAreaInset(edge: .top, spacing: 0) {
       if model.isFiltering {
