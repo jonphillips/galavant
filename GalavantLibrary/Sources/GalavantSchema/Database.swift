@@ -258,6 +258,20 @@ extension DependencyValues {
       )
       .execute(db)
     }
+    migrator.registerMigration("Add address and phone to ideas") { db in
+      try #sql(
+        """
+        ALTER TABLE "ideas" ADD COLUMN "address" TEXT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        ALTER TABLE "ideas" ADD COLUMN "phone" TEXT
+        """
+      )
+      .execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if context == .live, startSyncEngine {

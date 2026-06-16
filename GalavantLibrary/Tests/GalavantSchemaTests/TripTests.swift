@@ -147,7 +147,7 @@ struct TripTests {
       let targeted = try Trip.create(
         name: "Spain", certainty: .targeted(year: 2027, quarter: .q2), in: db
       )
-      var draft = Trip.Draft(targeted)
+      let draft = Trip.Draft(targeted)
       try Trip.update(draft, certainty: .someday(rank: 0), in: db)
       return try Trip.find(targeted.id).fetchOne(db)!.somedayRank
     }

@@ -384,8 +384,8 @@ final class IdeasListModel {
     destination = .form(Idea.Draft(idea))
   }
 
-  func deleteIdeas(at offsets: IndexSet) {
-    let ids = offsets.map { ideas[$0].id }
+  func deleteIdeas(_ displayed: [Idea], at offsets: IndexSet) {
+    let ids = offsets.map { displayed[$0].id }
     withErrorReporting {
       try database.write { db in
         try Idea.where { $0.id.in(ids) }.delete().execute(db)

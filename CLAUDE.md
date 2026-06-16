@@ -50,9 +50,9 @@ See `docs/MINING.md` for the per-milestone port/adapt/skip inventory.
   libs like SQLiteData/StructuredQueries until Point-Free patches).
 - iOS 27 simulator runtime is installed (iPhone 17 family). Old iOS 17
   runtimes also present — ignore them.
-- **Deployment target: iOS 26** until a new API earns the bump (candidate:
-  SwiftUI reorderable containers for M3's shortlist ranking). Wife's devices
-  stay on stable OS.
+- **Deployment target: iOS 27** — bumped in M3a for SwiftUI's native
+  `reorderable()` (the someday-backlog drag-to-reorder). Don't bump further
+  without an API that earns it; wife's devices stay on stable OS.
 - Xcode 27 ships Apple-authored agent skills (`swiftui-specialist`,
   `swiftui-whats-new-27`, …). Export via
   `xcrun mcpbridge run-agent skills export --output-dir ~/.claude/skills` —

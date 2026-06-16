@@ -8,6 +8,8 @@ public struct Idea: Identifiable, Equatable, Sendable {
   public var notes = ""
   public var kind: IdeaKind?
   public var regionName: String?
+  public var address: String?
+  public var phone: String?
   public var latitude: Double?
   public var longitude: Double?
   public var url = ""
@@ -20,6 +22,8 @@ public struct Idea: Identifiable, Equatable, Sendable {
     notes: String = "",
     kind: IdeaKind? = nil,
     regionName: String? = nil,
+    address: String? = nil,
+    phone: String? = nil,
     latitude: Double? = nil,
     longitude: Double? = nil,
     url: String = "",
@@ -31,6 +35,8 @@ public struct Idea: Identifiable, Equatable, Sendable {
     self.notes = notes
     self.kind = kind
     self.regionName = regionName
+    self.address = address
+    self.phone = phone
     self.latitude = latitude
     self.longitude = longitude
     self.url = url

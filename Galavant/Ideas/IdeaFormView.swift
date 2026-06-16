@@ -1,10 +1,11 @@
+import GalavantPlaces
 import GalavantSchema
 import MapKit
 import SwiftUI
 
 struct IdeaFormView: View {
   @State private var model: IdeaFormModel
-  @State private var search = LocationSearchModel()
+  @State private var search = PlaceSearchModel()
   @Environment(\.dismiss) private var dismiss
   @FocusState private var tagFieldFocused: Bool
 
@@ -16,47 +17,40 @@ struct IdeaFormView: View {
     @Bindable var model = model
     NavigationStack {
       Form {
-        TextField("Name", text: $model.draft.name)
-        Picker("Kind", selection: $model.draft.kind) {
-          Text("Unspecified").tag(IdeaKind?.none)
-          ForEach(IdeaKind.allCases, id: \.self) { kind in
-            Label(kind.label, systemImage: kind.systemImage).tag(IdeaKind?.some(kind))
-          }
-        }
-
-        Section("Location") {
+        Section {
           if model.hasLocation {
-            HStack {
-              Icon.location.image.foregroundStyle(.red)
-              VStack(alignment: .leading) {
-                Text(model.draft.name.isEmpty ? "Pinned location" : model.draft.name)
-                if let regionName = model.draft.regionName, !regionName.isEmpty {
-                  Text(regionName).font(.caption).foregroundStyle(.secondary)
-                }
-              }
-              Spacer()
-              Button("Clear", role: .destructive) { model.clearLocation() }
-                .buttonStyle(.borderless)
-            }
+            placeCard
           } else {
             TextField("Search a place", text: $search.query)
               .textInputAutocapitalization(.words)
-            ForEach(search.results, id: \.self) { completion in
+            ForEach(search.results) { result in
               Button {
-                Task {
-                  if let place = await search.resolve(completion) {
-                    model.setLocation(place)
-                    search.query = ""
-                  }
-                }
+                model.setLocation(result)
+                search.query = ""
               } label: {
                 VStack(alignment: .leading) {
-                  Text(completion.title).foregroundStyle(.primary)
-                  if !completion.subtitle.isEmpty {
-                    Text(completion.subtitle).font(.caption).foregroundStyle(.secondary)
+                  Text(result.name).foregroundStyle(.primary)
+                  if !result.subtitle.isEmpty {
+                    Text(result.subtitle).font(.caption).foregroundStyle(.secondary)
                   }
                 }
               }
+            }
+          }
+        } header: {
+          Text("Place")
+        } footer: {
+          if !model.hasLocation {
+            Text("Search to auto-fill name, kind, and details — or just type a name below.")
+          }
+        }
+
+        Section {
+          TextField("Name", text: $model.draft.name)
+          Picker("Kind", selection: $model.draft.kind) {
+            Text("Unspecified").tag(IdeaKind?.none)
+            ForEach(IdeaKind.allCases, id: \.self) { kind in
+              Label(kind.label, systemImage: kind.systemImage).tag(IdeaKind?.some(kind))
             }
           }
         }
@@ -118,6 +112,29 @@ struct IdeaFormView: View {
         }
       }
       .task { await model.task() }
+    }
+  }
+
+  /// The confirmed place: a compact summary of what search resolved (address,
+  /// phone) so the fields below read as confirm-and-tweak. Name/kind live in
+  /// their own editable section; this is the location's at-a-glance identity.
+  private var placeCard: some View {
+    HStack(alignment: .top) {
+      Icon.location.image.foregroundStyle(.red)
+      VStack(alignment: .leading, spacing: 2) {
+        Text(model.draft.name.isEmpty ? "Pinned location" : model.draft.name)
+        if let address = model.draft.address, !address.isEmpty {
+          Text(address).font(.caption).foregroundStyle(.secondary)
+        } else if let regionName = model.draft.regionName, !regionName.isEmpty {
+          Text(regionName).font(.caption).foregroundStyle(.secondary)
+        }
+        if let phone = model.draft.phone, !phone.isEmpty {
+          Text(phone).font(.caption).foregroundStyle(.secondary)
+        }
+      }
+      Spacer()
+      Button("Clear", role: .destructive) { model.clearLocation() }
+        .buttonStyle(.borderless)
     }
   }
 }

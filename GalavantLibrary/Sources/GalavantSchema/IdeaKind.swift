@@ -59,4 +59,49 @@ public enum IdeaKind: String, QueryBindable, CaseIterable, Sendable {
     case .transit: "tram"
     }
   }
+
+  /// Map a MapKit `MKPointOfInterestCategory.rawValue` to a kind, so search-first
+  /// capture can pre-fill the kind from what MapKit knows about a place. Keyed on
+  /// the raw string (e.g. `"MKPOICategoryRestaurant"`) so this stays pure — the
+  /// schema package never imports MapKit and the table is fully testable without
+  /// it. Unknown/unmapped categories (including new OS-version additions) return
+  /// `nil` → the form falls back to Unspecified. Only well-established categories
+  /// are mapped; ambiguous ones are deliberately left to the user.
+  public init?(pointOfInterestCategoryRawValue rawValue: String) {
+    switch rawValue {
+    case "MKPOICategoryRestaurant", "MKPOICategoryBakery", "MKPOICategoryCafe":
+      self = .food
+    case "MKPOICategoryBrewery", "MKPOICategoryWinery", "MKPOICategoryDistillery":
+      self = .drink
+    case "MKPOICategoryNightlife":
+      self = .nightlife
+    case "MKPOICategoryHotel", "MKPOICategoryCampground":
+      self = .stay
+    case "MKPOICategoryMuseum":
+      self = .museum
+    case "MKPOICategoryMovieTheater", "MKPOICategoryTheater":
+      self = .theater
+    case "MKPOICategoryBeach":
+      self = .beach
+    case "MKPOICategoryPark", "MKPOICategoryNationalPark":
+      self = .park
+    case "MKPOICategoryHiking", "MKPOICategoryNationalMonument":
+      self = .outdoorTrail
+    case "MKPOICategoryFoodMarket":
+      self = .market
+    case "MKPOICategoryStore":
+      self = .shop
+    case "MKPOICategoryPublicTransport", "MKPOICategoryAirport":
+      self = .transit
+    case "MKPOICategoryAmusementPark", "MKPOICategoryAquarium", "MKPOICategoryZoo",
+      "MKPOICategoryStadium", "MKPOICategoryFitnessCenter", "MKPOICategoryMarina",
+      "MKPOICategoryBowling", "MKPOICategoryGoKart", "MKPOICategorySkatePark":
+      self = .activity
+    case "MKPOICategoryLandmark", "MKPOICategoryCastle", "MKPOICategoryFortress",
+      "MKPOICategoryPlanetarium", "MKPOICategoryReligiousSite":
+      self = .sight
+    default:
+      return nil
+    }
+  }
 }

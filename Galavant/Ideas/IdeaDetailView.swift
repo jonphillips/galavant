@@ -119,14 +119,36 @@ struct IdeaDetailView: View {
         if let kind = idea.kind {
           Text(kind.label).foregroundStyle(.secondary)
         }
-        if let regionName = idea.regionName, !regionName.isEmpty {
+        if let address = idea.address, !address.isEmpty {
+          Label(address, systemImage: Icon.location.systemName)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+        } else if let regionName = idea.regionName, !regionName.isEmpty {
           Label(regionName, systemImage: Icon.location.systemName)
             .font(.subheadline)
             .foregroundStyle(.secondary)
         }
+        if let phone = idea.phone, !phone.isEmpty {
+          if let telURL = telURL {
+            Link(destination: telURL) {
+              Label(phone, systemImage: "phone").font(.subheadline)
+            }
+          } else {
+            Label(phone, systemImage: "phone")
+              .font(.subheadline)
+              .foregroundStyle(.secondary)
+          }
+        }
       }
     }
     .padding(.vertical, 4)
+  }
+
+  /// A `tel:` URL for the stored phone number (digits/`+` only), or nil.
+  private var telURL: URL? {
+    guard let phone = idea.phone else { return nil }
+    let digits = phone.filter { $0.isNumber || $0 == "+" }
+    return digits.isEmpty ? nil : URL(string: "tel:\(digits)")
   }
 
   /// Where the stop sits on the itinerary: its day + time, or the dayless bucket.

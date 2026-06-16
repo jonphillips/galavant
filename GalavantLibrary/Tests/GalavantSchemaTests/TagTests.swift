@@ -39,6 +39,36 @@ struct TagTests {
     #expect(tagIDs == [michelinID])
   }
 
+  @Test func saveUpsertsIdeaAndReconcilesTags() async throws {
+    // First save: new idea (nil draft id) with two tags.
+    let id = try await database.write { db in
+      try Idea.save(
+        Idea.Draft(name: "Noma"), tagNames: ["Michelin", "kid-friendly"], in: db
+      )
+    }
+    let afterFirst = try await database.read { db in
+      try (
+        idea: Idea.find(id).fetchOne(db),
+        count: Idea.all.fetchCount(db),
+        tags: tagNames(forIdea: id, in: db)
+      )
+    }
+    #expect(afterFirst.idea?.travelPartyID != nil)  // party resolved
+    #expect(afterFirst.tags == ["Michelin", "kid-friendly"])
+
+    // Second save: same id, swapped tag set — drop Michelin, keep kid-friendly, add outdoor.
+    try await database.write { db in
+      try Idea.save(
+        Idea.Draft(id: id, name: "Noma"), tagNames: ["kid-friendly", "outdoor"], in: db
+      )
+    }
+    let afterSecond = try await database.read { db in
+      try (count: Idea.all.fetchCount(db), tags: tagNames(forIdea: id, in: db))
+    }
+    #expect(afterSecond.count == 1)  // upsert, not a duplicate row
+    #expect(afterSecond.tags == ["kid-friendly", "outdoor"])  // reconciled exactly
+  }
+
   @Test func tagFilterRequiresAllSelectedTags() {
     let noma = idea("Noma")
     let cafe = idea("Cafe")
@@ -67,4 +97,10 @@ struct TagTests {
   }
 
   private func idea(_ name: String) -> Idea { Idea(id: UUID(), name: name) }
+
+  private func tagNames(forIdea id: Idea.ID, in db: Database) throws -> [String] {
+    try IdeaTag.where { $0.ideaID.eq(id) }.fetchAll(db)
+      .compactMap { try Tag.find($0.tagID).fetchOne(db)?.name }
+      .sorted()
+  }
 }

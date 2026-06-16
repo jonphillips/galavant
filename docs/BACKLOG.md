@@ -3,7 +3,93 @@
 Not milestone-scoped (see ROADMAP.md for those). Running list of refinements
 noted in passing, with enough context to act on cold.
 
-## Capture form should be search-first and auto-populated (from Jon, 2026-06-12)
+## Codex alignment-review follow-ups (2026-06-16)
+
+Deferred items from `docs/reviews/codex-alignment-review-2026-06-16.md`. The
+review's two acted-on items landed already: the filtered swipe-delete bug fix
+(`IdeasListModel.deleteIdeas` now takes the displayed array) and the CLAUDE.md
+iOS-26→27 correction. The rest, in rough priority order:
+
+- **Regression test for filtered swipe-delete.** The fix is structural (the view
+  hands `deleteIdeas` the exact `filteredIdeas` it rendered), but there's no
+  automated guard against a future re-wiring. Blocked on test infrastructure:
+  the app target has **no unit-test bundle** (only `GalavantSchemaTests` in the
+  package + `GalavantUITests`), and a destructive UI test can't be made
+  deterministic because there's **no DB-reset launch arg** (the app-group DB
+  persists across launches; `--reset-identity` only clears `currentPlannerID`).
+  A real regression test wants one of: an app unit-test target exercising
+  `IdeasListModel`, or a `--reset-database` arg + a seeded UI test that filters
+  to one region (e.g. New York) and verifies the swiped row — not the
+  global-alphabetical-first idea — is the one deleted.
+
+- **Complete ADR-0008 sync-dedup hardening.** The picker/bind UI shipped, but the
+  ADR's other half is not implemented and code comments imply otherwise. (1)
+  `IdeaInterest`/`IdeaTag`/`TripRegion` need a schema-level **dedup-on-read**
+  helper that deterministically collapses logical duplicates (lowest-UUID-wins),
+  with all read models calling it instead of rebuilding "first wins" dicts
+  locally (`IdeasListModel.swift:145`, `TripPlanningModel.swift:226`); add
+  seeded-duplicate tests. (2) `TravelParty.ensureDefault` + `Planner.create`
+  should implement the ADR's **prefer-shared/non-empty party, clean the empty
+  stray** rule rather than "first party by UUID." Slated for the M2 tail per the
+  ADR. Adjacent to the existing "Planner identity feels fly-by-night" item.
+
+- **Schedule doc-drift sweep.** Code dropped V2's `Schedule.exact` for the
+  day-relative model, but several docs still describe the V2 vocabulary as
+  current: `docs/PRODUCT.md:23`, `docs/STYLE.md:51`,
+  `docs/decisions/0004-pull-based-trip-membership.md:27`, `docs/ROADMAP.md:86`.
+  Update to V3 vocabulary (`unscheduled / day / daypart / timed`, calendar dates
+  derived from `Trip.startDate` + day number).
+
+- **UUID dependency-control for *new* schema ops.** Operations call `UUID()`
+  directly (`TripOperations`, `PoolOperations`, `Tag`, `TripRegion`, `IdeaTag`).
+  Don't churn working code, but new vertical slices should accept IDs as args
+  (model supplies a dependency-controlled `@Dependency(\.uuid)`) rather than
+  spreading direct `UUID()`.
+
+- **Standardize derived bindings.** A few `Binding(get:set:)` sites
+  (`TripPlanningSheets.swift:91`, `TripPlanningView.swift:87/95`,
+  `RegionManagerView.swift:45`, `TagManagerView.swift:46`). Prefer reusable
+  binding helpers on the value type / `SwiftUINavigation` case bindings, so
+  agents copy a local pattern. Consistency, not code reduction.
+
+- **Swallow `CancellationError` on one-shot model reads.** `IdeaFormModel`/
+  `TripFormModel` `.task` flows do one-shot reads wrapped in
+  `withErrorReporting`; view dismissal can surface a harmless `CancellationError`
+  as an issue. Either make them observed projections or catch cancellation
+  explicitly around the read.
+
+- **Document `-skipMacroValidation` for headless verification.** First Xcode CLI
+  build stops on macro re-approval; `xcodebuild … -skipMacroValidation build`
+  succeeds. Worth a line in CLAUDE.md's toolchain/verification notes (does not
+  replace human Xcode macro approval).
+
+- **jon-platform shared-doc refinements (not galavant-local).** The review's last
+  section proposes folding five rules into `~/code/jon-platform` (displayed-
+  collection delete/reorder rule; split-view nested-NavigationStack clarification;
+  UUID-generation nuance; one-shot-read cancellation note; macro-validation CLI
+  note). These belong in the house knowledge base, not here — apply there.
+
+## Capture form should be search-first and auto-populated (from Jon, 2026-06-12) — DONE
+
+Implemented 2026-06-16. The New Idea form now **leads with the place search**
+(`Section("Place")` at the top); picking a result drives the rest. New schema-side
+pure mapping `IdeaKind(pointOfInterestCategoryRawValue:)` (keyed on MapKit's stable
+`MKPOICategory*` raw strings so the schema package stays MapKit-free and fully
+tested — `IdeaKindTests`; unknown/future categories fall back to nil → Unspecified).
+A new SPM module **`GalavantPlaces`** holds the search boundary: a `Place` value
+type (the hit + kind/url/phone/address), an injectable `PlaceSearchClient`
+(`@Dependency(\.placeSearch)`, MapKit isolated behind it), and the view-facing
+`PlaceSearchModel` (query/results/debounce). `IdeaFormModel.setLocation(_:)` fills
+name/kind/link **only when still empty** (confirm-and-tweak), refreshing
+address/phone/region as facts about the place. New `address`/`phone` columns on
+`Idea` (additive migration); the detail view surfaces address + a tappable `tel:`
+phone row. Uses the iOS 26 `MKMapItem.location`/`address`/`addressRepresentations`
+API (`placemark` deprecated) — no `Contacts`/`CNPostalAddressFormatter` needed.
+`PlaceSearchModelTests` overrides the client with a fixture (no MapKit/network) —
+the first feature-model test, establishing the package-home pattern for
+dependency-backed models (the app target has no test bundle). **Deferred:** the
+*neighborhood* subtitle (we store full address, not parsed sublocality — still
+gated here). Original note below.
 
 The New Idea form currently leads with Name, then a Location section midway
 down. It should **invert**: location search at the *top*, driving the form. You
@@ -21,7 +107,19 @@ This is the on-device cousin of the V1 server enrichment (scraping-enrichment.md
 — MKMapItem is itself a rich enrichment source we're underusing. Pull forward
 into M2 capture polish or fold into M4.
 
-## Location search robustness (from Jon, 2026-06-12)
+## Location search robustness (from Jon, 2026-06-12) — DONE
+
+Fixed 2026-06-16. Root cause: `MKLocalSearchCompleter` biases to the device's
+location (Cupertino in the sim) and handles combined "<name> <city>" fragments
+poorly, so Copenhagen's Noma never surfaced. Switched `PlaceSearchClient` to
+`MKLocalSearch` with a **natural-language query** over a **world-wide region**
+(`MKCoordinateRegion(MKMapRect.world)`) — what Maps uses; "Noma Copenhagen" now
+resolves. Debounced (300 ms) with in-flight cancellation since `MKLocalSearch` is
+throttled, and the last results stay put on throttle/cancel rather than flashing
+empty. Bonus: each hit carries its full `MKMapItem`, so picking is synchronous (no
+second resolve round-trip). **Note:** a bare 1–2 word name with no city is still
+inherently ambiguous worldwide — results sharpen as the user adds the city.
+Original note below.
 
 "Noma Copenhagen" returned no results, while "Tivoli Gardens" worked.
 Hypothesis: a combined `"<name> <city>"` query underperforms in
