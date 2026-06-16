@@ -29,6 +29,7 @@ enum Icon {
   case schedule       // place a stop on a day
   case unschedule     // pull a stop off its day
   case toBeScheduled  // committed but dayless
+  case timeOfDay      // set/no time-of-day on a placed stop
   case someday        // held in a someday trip / backlog
 
   // Places
@@ -65,6 +66,7 @@ enum Icon {
     case .schedule: "calendar.badge.plus"
     case .unschedule: "calendar.badge.minus"
     case .toBeScheduled: "calendar.badge.clock"
+    case .timeOfDay: "clock"
     case .someday: "bookmark"
     case .map: "map"
     case .location: "mappin.circle.fill"

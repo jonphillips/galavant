@@ -97,7 +97,7 @@ struct TripItineraryView: View {
   /// Row-tap stays selection here (the map↔list link); the info button is its own
   /// hit target, so it opens detail without also selecting.
   private func stopRow(_ resolved: ResolvedStop) -> some View {
-    PlanningRow(idea: resolved.idea) {
+    PlanningRow(idea: resolved.idea, subtitle: .category) {
       HStack(spacing: 14) {
         Button { model.showDetail(resolved.idea) } label: {
           Icon.info.image.foregroundStyle(.secondary)
