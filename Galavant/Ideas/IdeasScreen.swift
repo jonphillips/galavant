@@ -226,6 +226,16 @@ struct IdeasScreen: View {
         }
       }
       Toggle("Show visited", isOn: $model.includeVisited)
+      Toggle("Matches only", isOn: $model.showMatchesOnly)
+      Menu("Sort") {
+        ForEach(IdeasListModel.IdeaSort.allCases, id: \.self) { sort in
+          Button {
+            model.sortMode = sort
+          } label: {
+            checked(sort.label, on: model.sortMode == sort)
+          }
+        }
+      }
       if model.isFiltering {
         Button("Clear filters", role: .destructive) { model.clearFilters() }
       }
@@ -261,7 +271,8 @@ struct IdeasScreen: View {
       ForEach(model.filteredIdeas) { idea in
         IdeaRow(
           idea: idea,
-          interests: model.interests(for: idea),
+          interests: model.ratingRow(for: idea),
+          isMatch: model.isMatch(idea),
           myInterest: model.myInterest(for: idea),
           tripAccessory: tripAccessory(for: idea),
           onTap: { model.ideaTapped(idea) },

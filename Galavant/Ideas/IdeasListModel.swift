@@ -31,6 +31,20 @@ final class IdeasListModel {
   var selectedKinds: Set<IdeaKind> = []
   var selectedTagIDs: Set<Tag.ID> = []
   var includeVisited = true
+  /// Worklist controls over the his/hers "match" projection (BACKLOG "match
+  /// signal"): hide all but matches, and float matches to the top.
+  var showMatchesOnly = false
+  var sortMode: IdeaSort = .alphabetical
+
+  enum IdeaSort: String, CaseIterable {
+    case alphabetical, matchesFirst
+    var label: String {
+      switch self {
+      case .alphabetical: "A–Z"
+      case .matchesFirst: "Matches first"
+      }
+    }
+  }
 
   /// The active-trip capsule (nil = "All", the eternal pool). When set, the pool
   /// is scoped to that trip's regions and rows become a pull/rate surface for it
@@ -100,7 +114,7 @@ final class IdeasListModel {
   }
 
   var filteredIdeas: [Idea] {
-    poolFiltered(
+    let pooled = poolFiltered(
       ideas,
       regions: scopeRegions,
       kinds: selectedKinds,
@@ -108,7 +122,41 @@ final class IdeasListModel {
       tagIDs: selectedTagIDs,
       ideaTagIDs: ideaTagIDs
     )
+    let standings = standingByIdea
+    let matched = showMatchesOnly ? pooled.filter { standings[$0.id] == .match } : pooled
+    switch sortMode {
+    case .alphabetical:
+      return matched  // `ideas` is already fetched name-ordered
+    case .matchesFirst:
+      return matched.sorted {
+        ((standings[$0.id] ?? .neutral).sortKey, $0.name.lowercased())
+          < ((standings[$1.id] ?? .neutral).sortKey, $1.name.lowercased())
+      }
+    }
   }
+
+  // MARK: - His/hers ratings + match projection
+
+  /// Every travel-party planner with their level for an idea (nil = pending),
+  /// name-ordered — but only when *someone* has rated, so a fully-unrated idea
+  /// shows no his/hers row (keeps the firehose quiet while still distinguishing
+  /// Decide Later from pending).
+  func ratingRow(for idea: Idea) -> [(planner: Planner, level: Interest?)] {
+    let byPlanner = Dictionary(
+      interests.filter { $0.ideaID == idea.id }.map { ($0.plannerID, $0.level) },
+      uniquingKeysWith: { first, _ in first }
+    )
+    let sorted = planners.sorted { $0.displayName < $1.displayName }
+    guard sorted.contains(where: { (byPlanner[$0.id] ?? nil) != nil }) else { return [] }
+    return sorted.map { (planner: $0, level: byPlanner[$0.id] ?? nil) }
+  }
+
+  private var standingByIdea: [Idea.ID: MatchStanding] {
+    Dictionary(grouping: interests.filter { $0.level != nil }, by: \.ideaID)
+      .mapValues { Interest.standing($0.map(\.level)) }
+  }
+
+  func isMatch(_ idea: Idea) -> Bool { standingByIdea[idea.id] == .match }
 
   // MARK: - Trip-association badges (cell signal)
 
@@ -137,7 +185,8 @@ final class IdeasListModel {
   }
 
   var isFiltering: Bool {
-    selectedRegionID != nil || !selectedKinds.isEmpty || !selectedTagIDs.isEmpty || !includeVisited
+    selectedRegionID != nil || !selectedKinds.isEmpty || !selectedTagIDs.isEmpty
+      || !includeVisited || showMatchesOnly
   }
 
   /// Human-readable summary of the active filters, for the reminder bar.
@@ -152,6 +201,7 @@ final class IdeasListModel {
       parts.append(names.joined(separator: ", "))
     }
     if !includeVisited { parts.append("hiding visited") }
+    if showMatchesOnly { parts.append("matches only") }
     return parts.joined(separator: " · ")
   }
 
@@ -176,6 +226,7 @@ final class IdeasListModel {
     selectedKinds = []
     selectedTagIDs = []
     includeVisited = true
+    showMatchesOnly = false
   }
 
   func deleteRegions(at offsets: IndexSet) {
@@ -268,19 +319,6 @@ final class IdeasListModel {
       $currentPlannerIDString.withLock { $0 = planner.id.uuidString }
     }
     destination = nil
-  }
-
-  func interests(for idea: Idea) -> [(planner: Planner, level: Interest)] {
-    interests
-      .filter { $0.ideaID == idea.id && $0.level != nil }
-      .compactMap { ideaInterest in
-        guard
-          let planner = planners.first(where: { $0.id == ideaInterest.plannerID }),
-          let level = ideaInterest.level
-        else { return nil }
-        return (planner, level)
-      }
-      .sorted { $0.planner.displayName < $1.planner.displayName }
   }
 
   func myInterest(for idea: Idea) -> Interest? {

@@ -446,7 +446,20 @@ vs. already committed" signal, same data the not-yet-visited filter uses. Refs:
 `TripIdea` join lifecycle, `IdeasScreen` / `PoolMapView`, ADR-0004 (map+filter is the
 guide). **Mockup:** `docs/mockups/ideas-trip-awareness.html`.
 
-## His/hers rating rendering redesign + "match" signal (from Jon, 2026-06-15)
+## His/hers rating rendering redesign + "match" signal (from Jon, 2026-06-15) — DONE
+
+Implemented 2026-06-15 on branch `m3e-ideas-trip-awareness`. The repeated-hearts
+render is gone: `InterestView` now draws each planner's level as a **4-segment
+filled bar** (Must Do 4 red / Want to Do 3 orange / Could Do 1 yellow), a red
+minus for Do Not Do, a "?" for Decide Later, and an empty outline for *pending*
+— so Decide Later reads distinct from not-yet-rated. The his/hers row appears
+only once **someone** has rated (every party planner then shows, the unrated one
+pending), keeping fully-unrated ideas quiet. **Match** (`Interest.standing` /
+`isMatch`: ≥2 planners ≥ Want to Do; `passed` = ≥2 Do Not Do) surfaces as a
+warm-pink `MatchPill` plus a "Matches only" filter and a "Matches first" sort
+(both in the filter menu) that floats matches up and sinks mutual passes — the
+worklist. The 5-level scale and rawValues are untouched (ADR-0007 intact). New
+pure core in `Interest.swift` with `InterestMatchTests`. Original note below.
 
 *Presentation-only — model is already settled, do NOT touch the scale.* The flames
 rating is implemented (per-planner `IdeaInterest`, ADR-0007; 5-level scale Must Do /

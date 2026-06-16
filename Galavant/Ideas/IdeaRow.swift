@@ -12,7 +12,10 @@ struct IdeaRow: View {
   }
 
   let idea: Idea
-  let interests: [(planner: Planner, level: Interest)]
+  /// Every travel-party planner with their level (nil = pending), or empty when
+  /// nobody has rated yet. Shown as the his/hers bars.
+  let interests: [(planner: Planner, level: Interest?)]
+  let isMatch: Bool
   let myInterest: Interest?
   let tripAccessory: TripAccessory
   let onTap: () -> Void
@@ -40,13 +43,14 @@ struct IdeaRow: View {
         if !interests.isEmpty {
           HStack(spacing: 10) {
             ForEach(interests, id: \.planner.id) { entry in
-              HStack(spacing: 3) {
+              HStack(spacing: 4) {
                 Text(entry.planner.displayName)
                   .font(.caption2)
                   .foregroundStyle(.secondary)
                 InterestView(interest: entry.level)
               }
             }
+            if isMatch { MatchPill() }
           }
         }
       }
