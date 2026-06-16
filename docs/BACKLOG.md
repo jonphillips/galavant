@@ -69,7 +69,27 @@ iOS-26→27 correction. The rest, in rough priority order:
   UUID-generation nuance; one-shot-read cancellation note; macro-validation CLI
   note). These belong in the house knowledge base, not here — apply there.
 
-## Capture form should be search-first and auto-populated (from Jon, 2026-06-12)
+## Capture form should be search-first and auto-populated (from Jon, 2026-06-12) — DONE
+
+Implemented 2026-06-16. The New Idea form now **leads with the place search**
+(`Section("Place")` at the top); picking a result drives the rest. New schema-side
+pure mapping `IdeaKind(pointOfInterestCategoryRawValue:)` (keyed on MapKit's stable
+`MKPOICategory*` raw strings so the schema package stays MapKit-free and fully
+tested — `IdeaKindTests`; unknown/future categories fall back to nil → Unspecified).
+A new SPM module **`GalavantPlaces`** holds the search boundary: a `Place` value
+type (the hit + kind/url/phone/address), an injectable `PlaceSearchClient`
+(`@Dependency(\.placeSearch)`, MapKit isolated behind it), and the view-facing
+`PlaceSearchModel` (query/results/debounce). `IdeaFormModel.setLocation(_:)` fills
+name/kind/link **only when still empty** (confirm-and-tweak), refreshing
+address/phone/region as facts about the place. New `address`/`phone` columns on
+`Idea` (additive migration); the detail view surfaces address + a tappable `tel:`
+phone row. Uses the iOS 26 `MKMapItem.location`/`address`/`addressRepresentations`
+API (`placemark` deprecated) — no `Contacts`/`CNPostalAddressFormatter` needed.
+`PlaceSearchModelTests` overrides the client with a fixture (no MapKit/network) —
+the first feature-model test, establishing the package-home pattern for
+dependency-backed models (the app target has no test bundle). **Deferred:** the
+*neighborhood* subtitle (we store full address, not parsed sublocality — still
+gated here). Original note below.
 
 The New Idea form currently leads with Name, then a Location section midway
 down. It should **invert**: location search at the *top*, driving the form. You
@@ -87,7 +107,19 @@ This is the on-device cousin of the V1 server enrichment (scraping-enrichment.md
 — MKMapItem is itself a rich enrichment source we're underusing. Pull forward
 into M2 capture polish or fold into M4.
 
-## Location search robustness (from Jon, 2026-06-12)
+## Location search robustness (from Jon, 2026-06-12) — DONE
+
+Fixed 2026-06-16. Root cause: `MKLocalSearchCompleter` biases to the device's
+location (Cupertino in the sim) and handles combined "<name> <city>" fragments
+poorly, so Copenhagen's Noma never surfaced. Switched `PlaceSearchClient` to
+`MKLocalSearch` with a **natural-language query** over a **world-wide region**
+(`MKCoordinateRegion(MKMapRect.world)`) — what Maps uses; "Noma Copenhagen" now
+resolves. Debounced (300 ms) with in-flight cancellation since `MKLocalSearch` is
+throttled, and the last results stay put on throttle/cancel rather than flashing
+empty. Bonus: each hit carries its full `MKMapItem`, so picking is synchronous (no
+second resolve round-trip). **Note:** a bare 1–2 word name with no city is still
+inherently ambiguous worldwide — results sharpen as the user adds the city.
+Original note below.
 
 "Noma Copenhagen" returned no results, while "Tivoli Gardens" worked.
 Hypothesis: a combined `"<name> <city>"` query underperforms in

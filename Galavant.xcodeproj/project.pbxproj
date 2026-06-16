@@ -9,10 +9,10 @@
 /* Begin PBXBuildFile section */
 		08AB246AC84A27EE2FC5F8A7 /* TripRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DAC9E1A5ABDBDA4BAAC80BB /* TripRow.swift */; };
 		0BB238241FF15660518799F8 /* GalavantSchema in Frameworks */ = {isa = PBXBuildFile; productRef = 9CF31E175F7DCB4D59EAF394 /* GalavantSchema */; };
+		AABBCCDD0000000000000002 /* GalavantPlaces in Frameworks */ = {isa = PBXBuildFile; productRef = AABBCCDD0000000000000001 /* GalavantPlaces */; };
 		0D52F2373EEF284921180A85 /* IdeaRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EF8BE4704C36D1A6FFB14D6 /* IdeaRow.swift */; };
 		163235D89FEB136F5C5F73ED /* PoolIdentityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00154E6FD53486C6ECD8CBD9 /* PoolIdentityUITests.swift */; };
 		17B078D23DE21D8057EEAD7B /* TagManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D62672E298B917B0707B6F4 /* TagManagerView.swift */; };
-		1837DF07507FDA3791A5EF8E /* LocationSearchModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A4CEB693F2E177C2E2F109F /* LocationSearchModel.swift */; };
 		1AF90BB39A9A3751AA9A22E2 /* Icon.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF388F1C56D173F7C5F3079C /* Icon.swift */; };
 		CE17000000000000000001AA /* CertaintyStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE17000000000000000002BB /* CertaintyStyle.swift */; };
 		CE17000000000000000003CC /* TripBadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE17000000000000000004DD /* TripBadgeView.swift */; };
@@ -105,7 +105,6 @@
 		1DAC9E1A5ABDBDA4BAAC80BB /* TripRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripRow.swift; sourceTree = "<group>"; };
 		1EF8BE4704C36D1A6FFB14D6 /* IdeaRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaRow.swift; sourceTree = "<group>"; };
 		292BC932AEA1B53EB11DA125 /* InterestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterestView.swift; sourceTree = "<group>"; };
-		2A4CEB693F2E177C2E2F109F /* LocationSearchModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationSearchModel.swift; sourceTree = "<group>"; };
 		2CD37357C07AFC3DAE3CDAE7 /* DemoFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoFixtures.swift; sourceTree = "<group>"; };
 		3F02C470667EF6E9AC8AC761 /* IdeaDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaDetailView.swift; sourceTree = "<group>"; };
 		409050F2DDFD762C631818CF /* IdeaCoordinate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaCoordinate.swift; sourceTree = "<group>"; };
@@ -156,6 +155,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				0BB238241FF15660518799F8 /* GalavantSchema in Frameworks */,
+				AABBCCDD0000000000000002 /* GalavantPlaces in Frameworks */,
 				F236D648886F9BA4EF2CCCCB /* SQLiteData in Frameworks */,
 				626DB4453DDF7BA57BE9AF1C /* SwiftUINavigation in Frameworks */,
 				82FB0503EEB4041AC202479B /* Dependencies in Frameworks */,
@@ -258,7 +258,6 @@
 		7AD5EA12573C2B149DC68261 /* Location */ = {
 			isa = PBXGroup;
 			children = (
-				2A4CEB693F2E177C2E2F109F /* LocationSearchModel.swift */,
 			);
 			path = Location;
 			sourceTree = "<group>";
@@ -338,6 +337,7 @@
 			name = Galavant;
 			packageProductDependencies = (
 				9CF31E175F7DCB4D59EAF394 /* GalavantSchema */,
+				AABBCCDD0000000000000001 /* GalavantPlaces */,
 				A641D3ABA375BA009278F435 /* SQLiteData */,
 				A0C2774E35241633FE89B7A7 /* SwiftUINavigation */,
 				45E72731DDF6FA076EAEC92F /* Dependencies */,
@@ -472,7 +472,6 @@
 				3DF889FDCBE7A7C979E41F13 /* IdeasScreen.swift in Sources */,
 				474250E4E109ADF7680100C1 /* IdentityView.swift in Sources */,
 				4344BF96EA3F3DB017E4CCDF /* InterestView.swift in Sources */,
-				1837DF07507FDA3791A5EF8E /* LocationSearchModel.swift in Sources */,
 				A3E2170E96CDF9C7D76B89E6 /* PlanningRow.swift in Sources */,
 				9C3779832B3D8728517D947A /* PoolMapView.swift in Sources */,
 				25A7842AF8875EEF8BFA2887 /* PrefersTabNavigation.swift in Sources */,
@@ -862,6 +861,10 @@
 		9CF31E175F7DCB4D59EAF394 /* GalavantSchema */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = GalavantSchema;
+		};
+		AABBCCDD0000000000000001 /* GalavantPlaces */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = GalavantPlaces;
 		};
 		A0C2774E35241633FE89B7A7 /* SwiftUINavigation */ = {
 			isa = XCSwiftPackageProductDependency;

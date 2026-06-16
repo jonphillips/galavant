@@ -1,5 +1,6 @@
 import Dependencies
 import Foundation
+import GalavantPlaces
 import GalavantSchema
 import SQLiteData
 
@@ -57,18 +58,27 @@ final class IdeaFormModel {
     tagNames.removeAll { $0 == name }
   }
 
-  func setLocation(_ place: ResolvedPlace) {
+  /// Search-first fill: location drives the form, but never clobbers what the
+  /// user already typed. Name/kind/link fill only when still empty (confirm-and-
+  /// tweak); address/phone/region are facts about the place, so they refresh.
+  func setLocation(_ place: Place) {
     if draft.name.trimmingCharacters(in: .whitespaces).isEmpty {
       draft.name = place.name
     }
+    if draft.kind == nil { draft.kind = place.kind }
+    if draft.url.isEmpty, let url = place.url { draft.url = url }
     draft.latitude = place.latitude
     draft.longitude = place.longitude
     draft.regionName = place.regionName
+    draft.address = place.address
+    draft.phone = place.phone
   }
 
   func clearLocation() {
     draft.latitude = nil
     draft.longitude = nil
+    draft.address = nil
+    draft.phone = nil
   }
 
   func saveButtonTapped() {
@@ -76,32 +86,7 @@ final class IdeaFormModel {
     let draft = draft
     withErrorReporting {
       try database.write { db in
-        let ideaID = draft.id ?? UUID()
-        // Draft.id is a `let`, so rebuild with a guaranteed id + party.
-        let saving = Idea.Draft(
-          id: ideaID,
-          name: draft.name,
-          notes: draft.notes,
-          kind: draft.kind,
-          regionName: draft.regionName,
-          latitude: draft.latitude,
-          longitude: draft.longitude,
-          url: draft.url,
-          visited: draft.visited,
-          travelPartyID: try TravelParty.ensureDefault(in: db).id
-        )
-        try Idea.upsert { saving }.execute(db)
-
-        let desired = try Set(tagNames.map { try Tag.findOrCreate(named: $0, in: db).id })
-        let existing = try Set(
-          IdeaTag.where { $0.ideaID.eq(ideaID) }.fetchAll(db).map(\.tagID)
-        )
-        for tagID in desired.subtracting(existing) {
-          try IdeaTag.add(tagID: tagID, to: ideaID, in: db)
-        }
-        for tagID in existing.subtracting(desired) {
-          try IdeaTag.remove(tagID: tagID, from: ideaID, in: db)
-        }
+        try Idea.save(draft, tagNames: tagNames, in: db)
       }
     }
   }

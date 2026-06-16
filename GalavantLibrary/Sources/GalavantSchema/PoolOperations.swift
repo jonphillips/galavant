@@ -1,6 +1,39 @@
 import Foundation
 import SQLiteData
 
+extension Idea {
+  /// Save the capture form's draft: default its id and travel party, upsert it,
+  /// and reconcile its tags to exactly `tagNames` (reuse-or-create each by name,
+  /// then add/remove only the join deltas). Returns the idea's id. The single
+  /// save path for the New/Edit Idea form — the model just calls this.
+  @discardableResult
+  public static func save(
+    _ draft: Idea.Draft,
+    tagNames: [String],
+    in db: Database
+  ) throws -> Idea.ID {
+    var saving = draft
+    saving.travelPartyID = try TravelParty.ensureDefault(in: db).id
+    // Upsert handles new-or-existing; RETURNING hands back the id (DB-generated
+    // for a new row), so we never reconstruct the draft to inject one.
+    guard let ideaID = try Idea.upsert { saving }.returning(\.id).fetchOne(db) else {
+      throw PoolError.ideaSaveFailed
+    }
+
+    let desired = try Set(tagNames.map { try Tag.findOrCreate(named: $0, in: db).id })
+    let existing = try Set(
+      IdeaTag.where { $0.ideaID.eq(ideaID) }.fetchAll(db).map(\.tagID)
+    )
+    for tagID in desired.subtracting(existing) {
+      try IdeaTag.add(tagID: tagID, to: ideaID, in: db)
+    }
+    for tagID in existing.subtracting(desired) {
+      try IdeaTag.remove(tagID: tagID, from: ideaID, in: db)
+    }
+    return ideaID
+  }
+}
+
 extension Planner {
   /// Create a planner attached to the default travel party and return it.
   public static func create(displayName: String, in db: Database) throws -> Planner {
@@ -48,4 +81,5 @@ extension IdeaInterest {
 
 public enum PoolError: Error {
   case plannerCreationFailed
+  case ideaSaveFailed
 }
