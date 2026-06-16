@@ -66,6 +66,28 @@ struct TripTests {
     #expect(sections.dated.map(\.name) == ["Departs early", "Departs late"])
   }
 
+  @Test func activeCapsulesKeepInPlayTripsPlusTopSomeday() {
+    let early = Date(timeIntervalSince1970: 1_700_000_000)
+    let late = Date(timeIntervalSince1970: 1_800_000_000)
+    let trips = [
+      trip("Top backlog", .someday(rank: 0)),
+      trip("Lower backlog", .someday(rank: 1)),
+      trip("Targeted", .targeted(year: 2027, quarter: .q2)),
+      trip("Departs late", .dated(start: late)),
+      trip("Departs early", .dated(start: early)),
+    ]
+    // Dated (by date) → targeted → exactly one someday (the top of the backlog).
+    #expect(
+      Trip.activeCapsules(trips).map(\.name)
+        == ["Departs early", "Departs late", "Targeted", "Top backlog"]
+    )
+  }
+
+  @Test func activeCapsulesWithoutSomedayOmitsThatSlot() {
+    let trips = [trip("Targeted", .targeted(year: 2027, quarter: nil))]
+    #expect(Trip.activeCapsules(trips).map(\.name) == ["Targeted"])
+  }
+
   // MARK: - Persistence
 
   @Test func createAppendsSomedayToBottomOfBacklog() async throws {

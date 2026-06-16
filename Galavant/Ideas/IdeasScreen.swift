@@ -20,7 +20,10 @@ struct IdeasScreen: View {
   }
 
   var body: some View {
-    Group {
+    VStack(spacing: 0) {
+      if !model.capsules.isEmpty {
+        capsuleBar
+      }
       switch mode {
       case .list:
         ideasList
@@ -102,6 +105,19 @@ struct IdeasScreen: View {
     }
   }
 
+  /// The eternal pool shows each idea's derived trip badge; an active-trip
+  /// capsule turns the row into a pull/shortlist surface for that trip.
+  private func tripAccessory(for idea: Idea) -> IdeaRow.TripAccessory {
+    if model.activeTripID == nil {
+      return .badge(model.tripBadge(for: idea))
+    }
+    return .pull(
+      status: model.activeTripStatus(for: idea),
+      onConsidering: { model.tapConsideringOnActiveTrip(idea) },
+      onShortlist: { model.tapShortlistOnActiveTrip(idea) }
+    )
+  }
+
   @ViewBuilder
   private func checked(_ title: String, on: Bool) -> some View {
     if on {
@@ -111,25 +127,77 @@ struct IdeasScreen: View {
     }
   }
 
-  private var filterMenu: some View {
-    Menu {
-      Menu("Region") {
-        Button {
-          model.selectedRegionID = nil
-        } label: {
-          checked("All regions", on: model.selectedRegionID == nil)
+  /// The active-trip launchpad: "All" (the eternal pool) plus a pill per in-play
+  /// trip. Tapping a trip scopes the pool to its lens and turns rows into a
+  /// pull/rate surface for it.
+  private var capsuleBar: some View {
+    ScrollView(.horizontal, showsIndicators: false) {
+      HStack(spacing: 8) {
+        capsule(label: "All", tint: nil, selected: model.activeTripID == nil) {
+          model.selectCapsule(nil)
         }
-        ForEach(model.sortedRegions) { region in
-          Button {
-            model.selectedRegionID = region.id
-          } label: {
-            checked(region.name, on: model.selectedRegionID == region.id)
+        ForEach(model.capsules) { trip in
+          capsule(
+            label: trip.name.isEmpty ? "Untitled Trip" : trip.name,
+            tint: trip.certaintyStage.tint,
+            selected: model.activeTripID == trip.id
+          ) {
+            model.selectCapsule(trip.id)
           }
         }
-        if !model.regions.isEmpty {
-          Divider()
-          Button("Manage Regions…", systemImage: Icon.manage.systemName) {
-            managingRegions = true
+      }
+      .padding(.horizontal)
+      .padding(.vertical, 8)
+    }
+  }
+
+  private func capsule(
+    label: String,
+    tint: Color?,
+    selected: Bool,
+    action: @escaping () -> Void
+  ) -> some View {
+    Button(action: action) {
+      HStack(spacing: 6) {
+        if let tint {
+          Circle().fill(tint).frame(width: 8, height: 8)
+        }
+        Text(label).lineLimit(1)
+      }
+      .font(.subheadline)
+      .padding(.horizontal, 12)
+      .padding(.vertical, 6)
+      .background(
+        Capsule().fill(selected ? AnyShapeStyle(.tint) : AnyShapeStyle(.thinMaterial))
+      )
+      .foregroundStyle(selected ? Color.white : Color.primary)
+    }
+    .buttonStyle(.plain)
+  }
+
+  private var filterMenu: some View {
+    Menu {
+      // A trip capsule supplies the geography; the manual region picker only
+      // applies to the eternal "All" pool.
+      if model.activeTripID == nil {
+        Menu("Region") {
+          Button {
+            model.selectedRegionID = nil
+          } label: {
+            checked("All regions", on: model.selectedRegionID == nil)
+          }
+          ForEach(model.sortedRegions) { region in
+            Button {
+              model.selectedRegionID = region.id
+            } label: {
+              checked(region.name, on: model.selectedRegionID == region.id)
+            }
+          }
+          if !model.regions.isEmpty {
+            Divider()
+            Button("Manage Regions…", systemImage: Icon.manage.systemName) {
+              managingRegions = true
+            }
           }
         }
       }
@@ -158,6 +226,16 @@ struct IdeasScreen: View {
         }
       }
       Toggle("Show visited", isOn: $model.includeVisited)
+      Toggle("Matches only", isOn: $model.showMatchesOnly)
+      Menu("Sort") {
+        ForEach(IdeasListModel.IdeaSort.allCases, id: \.self) { sort in
+          Button {
+            model.sortMode = sort
+          } label: {
+            checked(sort.label, on: model.sortMode == sort)
+          }
+        }
+      }
       if model.isFiltering {
         Button("Clear filters", role: .destructive) { model.clearFilters() }
       }
@@ -193,8 +271,10 @@ struct IdeasScreen: View {
       ForEach(model.filteredIdeas) { idea in
         IdeaRow(
           idea: idea,
-          interests: model.interests(for: idea),
+          interests: model.ratingRow(for: idea),
+          isMatch: model.isMatch(idea),
           myInterest: model.myInterest(for: idea),
+          tripAccessory: tripAccessory(for: idea),
           onTap: { model.ideaTapped(idea) },
           onSetInterest: { model.setMyInterest($0, for: idea) }
         )

@@ -82,6 +82,19 @@ extension Trip {
       .sorted { ($0.startDate ?? .distantFuture) < ($1.startDate ?? .distantFuture) }
     return TripSections(someday: someday, targeted: targeted, dated: dated)
   }
+
+  /// The in-play trips for the Ideas-screen capsules (the "launchpad"): every
+  /// `dated` and `targeted` trip, plus the single top-of-backlog `someday` —
+  /// derived from the certainty lifecycle, never filter MRU (which lingers
+  /// stale). Ordered dated → targeted → someday, matching the sections.
+  ///
+  /// `Trip` carries no touch timestamp, so "most-recently-touched someday" is
+  /// approximated by the top of the someday backlog (lowest `somedayRank`); when
+  /// touch tracking exists this can sharpen without changing callers.
+  public static func activeCapsules(_ trips: [Trip]) -> [Trip] {
+    let sections = sectioned(trips)
+    return sections.dated + sections.targeted + Array(sections.someday.prefix(1))
+  }
 }
 
 extension Trip {

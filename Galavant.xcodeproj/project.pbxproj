@@ -14,6 +14,9 @@
 		17B078D23DE21D8057EEAD7B /* TagManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D62672E298B917B0707B6F4 /* TagManagerView.swift */; };
 		1837DF07507FDA3791A5EF8E /* LocationSearchModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A4CEB693F2E177C2E2F109F /* LocationSearchModel.swift */; };
 		1AF90BB39A9A3751AA9A22E2 /* Icon.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF388F1C56D173F7C5F3079C /* Icon.swift */; };
+		CE17000000000000000001AA /* CertaintyStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE17000000000000000002BB /* CertaintyStyle.swift */; };
+		CE17000000000000000003CC /* TripBadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE17000000000000000004DD /* TripBadgeView.swift */; };
+		CE17000000000000000005EE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CE17000000000000000006FF /* Assets.xcassets */; };
 		1C3D2E2D9EEF8BC709447AE6 /* PoolMapUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17EBCBAEA0AF8C840A0DA921 /* PoolMapUITests.swift */; };
 		25A7842AF8875EEF8BFA2887 /* PrefersTabNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDA439EDEF5339154F3D8C08 /* PrefersTabNavigation.swift */; };
 		35E279FA22C85810158AF02C /* DayPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95C568B98EA55277C2DDA065 /* DayPalette.swift */; };
@@ -142,6 +145,9 @@
 		ED4DA130D3A7069430825C31 /* TripCanvasMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripCanvasMapView.swift; sourceTree = "<group>"; };
 		EDA439EDEF5339154F3D8C08 /* PrefersTabNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrefersTabNavigation.swift; sourceTree = "<group>"; };
 		EF388F1C56D173F7C5F3079C /* Icon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Icon.swift; sourceTree = "<group>"; };
+		CE17000000000000000002BB /* CertaintyStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CertaintyStyle.swift; sourceTree = "<group>"; };
+		CE17000000000000000004DD /* TripBadgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripBadgeView.swift; sourceTree = "<group>"; };
+		CE17000000000000000006FF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -159,6 +165,17 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXResourcesBuildPhase section */
+		CE170000000000000000077A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CE17000000000000000005EE /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXGroup section */
 		03D3B4DD92E3024BD94B2AD0 /* GalavantUITests */ = {
@@ -232,6 +249,7 @@
 		64DB71B050831FD651A208C0 /* Design */ = {
 			isa = PBXGroup;
 			children = (
+				CE17000000000000000002BB /* CertaintyStyle.swift */,
 				EF388F1C56D173F7C5F3079C /* Icon.swift */,
 			);
 			path = Design;
@@ -266,6 +284,7 @@
 		BDAA34A104A70523CB975F25 /* Galavant */ = {
 			isa = PBXGroup;
 			children = (
+				CE17000000000000000006FF /* Assets.xcassets */,
 				2CD37357C07AFC3DAE3CDAE7 /* DemoFixtures.swift */,
 				CC16D0C39AA361A09737B45F /* Galavant.entitlements */,
 				43AABFB8B03E2303AECAF355 /* GalavantApp.swift */,
@@ -288,6 +307,7 @@
 				9C956244AC0CCEFCA45A4128 /* IdeaFormView.swift */,
 				1EF8BE4704C36D1A6FFB14D6 /* IdeaRow.swift */,
 				E146770B6C9957BA19FC94EC /* IdeasListModel.swift */,
+				CE17000000000000000004DD /* TripBadgeView.swift */,
 				E13450922E6B719B55DC57BC /* IdeasScreen.swift */,
 				E049286F9F226AF86DA12541 /* IdentityView.swift */,
 				292BC932AEA1B53EB11DA125 /* InterestView.swift */,
@@ -307,6 +327,7 @@
 			buildPhases = (
 				F8E30F23C156A9EC20413957 /* Sources */,
 				23269B85E5C3F8F33B45F7CC /* Frameworks */,
+				CE170000000000000000077A /* Resources */,
 				4B35866B68AEE8CE816377C9 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
@@ -440,6 +461,8 @@
 				9515962CEF69E6D64F9B0322 /* DemoFixtures.swift in Sources */,
 				DA333E1DC58A089ED9E9C3E1 /* GalavantApp.swift in Sources */,
 				1AF90BB39A9A3751AA9A22E2 /* Icon.swift in Sources */,
+				CE17000000000000000001AA /* CertaintyStyle.swift in Sources */,
+				CE17000000000000000003CC /* TripBadgeView.swift in Sources */,
 				5FC0A092CF36738BE434FB6D /* IdeaCoordinate.swift in Sources */,
 				CFF79112580C0EBC8D933DE2 /* IdeaDetailView.swift in Sources */,
 				90C301112D6C03ED59D12E2C /* IdeaFormModel.swift in Sources */,

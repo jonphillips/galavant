@@ -69,6 +69,7 @@
       let lonOffsets = [0.3, -0.2, 0.1]
       var k = 0
       var t = 0
+      var ratingDemo = 0
       for (regionName, lat, lon) in regions {
         for i in 0..<3 {
           let kind = kinds[k % kinds.count]
@@ -90,9 +91,25 @@
             try IdeaTag.add(tagID: tagIDs[tagNames[t % tagNames.count]]!, to: ideaID, in: db)
             t += 1
           }
+          // Cycle the first idea per region through a spread of his/hers states
+          // so the rating bars + match signal have every case to show: a match
+          // (both high), a mismatch, a Decide-Later-vs-pending pair, and a
+          // mutual pass. (The i>0 ideas stay unrated — no his/hers row.)
           if i == 0 {
-            try IdeaInterest.set(level: .mustDo, ideaID: ideaID, plannerID: jon.id, in: db)
-            try IdeaInterest.set(level: .couldDo, ideaID: ideaID, plannerID: sam.id, in: db)
+            switch ratingDemo % 4 {
+            case 0:  // match — both want it
+              try IdeaInterest.set(level: .mustDo, ideaID: ideaID, plannerID: jon.id, in: db)
+              try IdeaInterest.set(level: .wantToDo, ideaID: ideaID, plannerID: sam.id, in: db)
+            case 1:  // one high, one lukewarm — not a match
+              try IdeaInterest.set(level: .mustDo, ideaID: ideaID, plannerID: jon.id, in: db)
+              try IdeaInterest.set(level: .couldDo, ideaID: ideaID, plannerID: sam.id, in: db)
+            case 2:  // Jon deferred, Sam not yet rated (Decide Later vs pending)
+              try IdeaInterest.set(level: .decideLater, ideaID: ideaID, plannerID: jon.id, in: db)
+            default:  // mutually passed
+              try IdeaInterest.set(level: .doNotDo, ideaID: ideaID, plannerID: jon.id, in: db)
+              try IdeaInterest.set(level: .doNotDo, ideaID: ideaID, plannerID: sam.id, in: db)
+            }
+            ratingDemo += 1
           }
         }
       }
@@ -138,6 +155,30 @@
         .execute(db)
         _ = try TripIdea.pull(ideaID: ideaID, into: tokyo.id, in: db)
         try TripIdea.schedule(schedule, ideaID: ideaID, tripID: tokyo.id, in: db)
+      }
+
+      // A spread of trip associations across the pool so the Ideas-list
+      // trip-badges show every derived state: upcoming (pulled onto an in-play
+      // trip), someday (pulled onto a backlog trip), and visited. The pool ideas
+      // are named "<Region> <Kind> <n>", distinct from the named Tokyo stops.
+      func firstPoolIdea(in region: String) throws -> Idea.ID? {
+        try Idea.where { $0.regionName.eq(region) }
+          .order(by: \.name).fetchAll(db)
+          .first { $0.name.hasPrefix(region) }?.id
+      }
+      if let id = try firstPoolIdea(in: "Copenhagen") {  // dated trip → upcoming
+        _ = try TripIdea.pull(ideaID: id, into: copenhagen.id, in: db)
+      }
+      if let id = try firstPoolIdea(in: "Paris") {  // targeted trip → upcoming
+        _ = try TripIdea.pull(ideaID: id, into: paris.id, in: db)
+        try TripIdea.setStatus(.shortlisted, ideaID: id, tripID: paris.id, in: db)
+      }
+      if let id = try firstPoolIdea(in: "Tokyo") {  // backlog trip → someday
+        _ = try TripIdea.pull(ideaID: id, into: tokyo.id, in: db)
+        try TripIdea.setStatus(.shortlisted, ideaID: id, tripID: tokyo.id, in: db)
+      }
+      if let id = try firstPoolIdea(in: "Virginia") {  // no live association → visited
+        try Idea.find(id).update { $0.visited = true }.execute(db)
       }
 
       return jon.id

@@ -5,6 +5,12 @@ Core loop: shared idea pool → pull onto trip shortlist → schedule into itine
 
 ## Read first
 
+- `~/code/jon-platform` — Jon's **cross-app house knowledge base** (general style,
+  architecture, persistence/sync laws, toolchain, agent workflow). Read its
+  `AGENTS.md` / `docs/` before proposing architecture or style. Galavant docs below
+  hold only the **travel domain**; general decisions live in jon-platform. When you
+  learn a *general* preference, update jon-platform; keep galavant-specific
+  preferences here (triage rule in jon-platform's `docs/agent-workflow.md`).
 - `docs/PRODUCT.md` — what we're building and the explicit out-of-scope list
 - `docs/decisions/` — settled architecture choices. **Check these before proposing
   architecture changes; don't re-litigate them.**

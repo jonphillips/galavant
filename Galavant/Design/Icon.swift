@@ -29,6 +29,7 @@ enum Icon {
   case schedule       // place a stop on a day
   case unschedule     // pull a stop off its day
   case toBeScheduled  // committed but dayless
+  case someday        // held in a someday trip / backlog
 
   // Places
   case map
@@ -38,6 +39,7 @@ enum Icon {
   case trips
   case ideas
   case shortlist
+  case consider       // weighing an idea for a trip (the "maybe")
   case interest
   case tag
   case travelParty
@@ -63,11 +65,13 @@ enum Icon {
     case .schedule: "calendar.badge.plus"
     case .unschedule: "calendar.badge.minus"
     case .toBeScheduled: "calendar.badge.clock"
+    case .someday: "bookmark"
     case .map: "map"
     case .location: "mappin.circle.fill"
     case .trips: "suitcase"
     case .ideas: "lightbulb"
     case .shortlist: "star"
+    case .consider: "questionmark.bubble"
     case .interest: "heart.fill"
     case .tag: "tag"
     case .travelParty: "person.2"
