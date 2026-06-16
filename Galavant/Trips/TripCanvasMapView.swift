@@ -19,11 +19,11 @@ struct TripCanvasMapView: View {
 
   /// The days the map draws: just the selected day, or all when the lens is
   /// "All" (`canvasSelectedDay == nil`).
-  private var visibleDays: [TripPlanningModel.ResolvedDay] {
+  private var visibleDays: [ResolvedDay] {
     if let day = model.canvasSelectedDay {
-      return model.canvasDays.filter { $0.number == day }
+      return model.plan.itinerary.filter { $0.number == day }
     }
-    return model.canvasDays
+    return model.plan.itinerary
   }
 
   var body: some View {
@@ -43,7 +43,7 @@ struct TripCanvasMapView: View {
     // pin is already above the sheet, so shrinking it never jerks the map).
     .onChange(of: bottomInsetFraction) { _, _ in revealStop(model.canvasSelectedStopID) }
     .overlay {
-      if !model.hasLocatedStops {
+      if !model.plan.hasLocatedStops {
         ContentUnavailableView {
           Icon.map.label("Nothing on the map yet")
         } description: {
@@ -57,8 +57,8 @@ struct TripCanvasMapView: View {
   /// One day's polyline + numbered pins, in itinerary order, all in the day's
   /// colour.
   @MapContentBuilder
-  private func dayContent(_ day: TripPlanningModel.ResolvedDay) -> some MapContent {
-    let stops = model.locatedStops(forDay: day.number)
+  private func dayContent(_ day: ResolvedDay) -> some MapContent {
+    let stops = model.plan.locatedStops(forDay: day.number)
     let color = DayPalette.color(forDay: day.number)
     let route = stops.compactMap(\.coordinate)
     if route.count >= 2 {
@@ -84,7 +84,7 @@ struct TripCanvasMapView: View {
   /// Frame the camera to the current lens: the selected day's located stops, the
   /// whole trip when "All", falling back to the trip's regions, then automatic.
   private func frameSelection() {
-    let coords = model.framingCoordinates(forDay: model.canvasSelectedDay)
+    let coords = model.plan.framingCoordinates(forDay: model.canvasSelectedDay)
     if let box = MapFraming.box(for: coords) {
       cameraPosition = .region(box.region)
     } else if let region = tripRegionFrame {
@@ -101,7 +101,7 @@ struct TripCanvasMapView: View {
   private func revealStop(_ id: TripIdea.ID?) {
     guard
       let id,
-      let resolved = model.canvasDays.flatMap(\.stops).first(where: { $0.id == id }),
+      let resolved = model.plan.itinerary.flatMap(\.stops).first(where: { $0.id == id }),
       let coordinate = resolved.coordinate
     else { return }
     guard let region = visibleRegion else {
@@ -165,7 +165,7 @@ private struct NumberedPin: View {
   }
 }
 
-extension TripPlanningModel.Resolved {
+extension ResolvedStop {
   /// The stop's map coordinate, when its idea has one (the canonical adapter).
   fileprivate var coordinate: CLLocationCoordinate2D? { idea.coordinate }
 }

@@ -27,7 +27,7 @@ struct TripItineraryView: View {
   @ViewBuilder private var content: some View {
     if let day = focusedDay {
       focusedDayList(day)
-    } else if model.hasScheduledStops {
+    } else if model.plan.hasScheduledStops {
       fullItinerary
     } else {
       emptyState
@@ -36,7 +36,7 @@ struct TripItineraryView: View {
 
   /// One day's stops, for the canvas's day lens.
   private func focusedDayList(_ day: Int) -> some View {
-    let stops = model.canvasDays.first { $0.number == day }?.stops ?? []
+    let stops = model.plan.itinerary.first { $0.number == day }?.stops ?? []
     return List {
       Section {
         if stops.isEmpty {
@@ -57,12 +57,12 @@ struct TripItineraryView: View {
   /// `StopMenu`'s Move-to-Day / To-Be-Scheduled covers it. See docs/KNOWN-ISSUES.md.)
   private var fullItinerary: some View {
     List {
-      if !model.toBeScheduledStops.isEmpty {
+      if !model.plan.toBeScheduled.isEmpty {
         Section("To Be Scheduled") {
-          ForEach(model.toBeScheduledStops) { resolved in stopRow(resolved) }
+          ForEach(model.plan.toBeScheduled) { resolved in stopRow(resolved) }
         }
       }
-      ForEach(model.itinerary) { day in
+      ForEach(model.plan.itinerary) { day in
         Section {
           if day.stops.isEmpty {
             Text("No stops yet")
@@ -96,8 +96,8 @@ struct TripItineraryView: View {
   /// tap-to-select (the shared canvas selection), and a tint when it's selected.
   /// Row-tap stays selection here (the map↔list link); the info button is its own
   /// hit target, so it opens detail without also selecting.
-  private func stopRow(_ resolved: TripPlanningModel.Resolved) -> some View {
-    PlanningRow(idea: resolved.idea) {
+  private func stopRow(_ resolved: ResolvedStop) -> some View {
+    PlanningRow(idea: resolved.idea, subtitle: .category) {
       HStack(spacing: 14) {
         Button { model.showDetail(resolved.idea) } label: {
           Icon.info.image.foregroundStyle(.secondary)

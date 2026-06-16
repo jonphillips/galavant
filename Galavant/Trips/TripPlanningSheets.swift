@@ -125,7 +125,7 @@ struct ScheduleStopSheet: View {
   var body: some View {
     NavigationStack {
       Group {
-        if model.shortlistOnly.isEmpty {
+        if model.plan.shortlist.isEmpty {
           ContentUnavailableView {
             Icon.shortlist.label("Nothing to schedule")
           } description: {
@@ -134,7 +134,7 @@ struct ScheduleStopSheet: View {
         } else {
           Form {
             Section("Idea") {
-              ForEach(model.shortlistOnly) { resolved in
+              ForEach(model.plan.shortlist) { resolved in
                 Button {
                   selectedIdeaID = resolved.idea.id
                 } label: {
@@ -184,7 +184,7 @@ struct ScheduleStopSheet: View {
 
   private func add() {
     guard let id = selectedIdeaID,
-      let resolved = model.shortlistOnly.first(where: { $0.idea.id == id })
+      let resolved = model.plan.shortlist.first(where: { $0.idea.id == id })
     else { return }
     if day == 0 {
       model.sendToBeScheduled(resolved.idea)

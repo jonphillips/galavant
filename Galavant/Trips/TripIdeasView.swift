@@ -21,10 +21,10 @@ struct TripIdeasView: View {
           .foregroundStyle(.secondary)
         }
       }
-      if !model.shortlistOnly.isEmpty {
+      if !model.plan.shortlist.isEmpty {
         Section("Shortlist") {
-          ForEach(model.shortlistOnly) { resolved in
-            PlanningRow(idea: resolved.idea) {
+          ForEach(model.plan.shortlist) { resolved in
+            PlanningRow(idea: resolved.idea, subtitle: .category) {
               // Lit star = shortlisted; tap demotes it back to Considering.
               starButton(filled: true) {
                 model.setStatus(.considering, for: resolved.idea)
@@ -51,12 +51,12 @@ struct TripIdeasView: View {
           .reorderable()
         }
       }
-      if !model.scheduledStops.isEmpty {
+      if !model.plan.scheduled.isEmpty {
         Section("Scheduled") {
-          ForEach(model.scheduledStops) { resolved in
+          ForEach(model.plan.scheduled) { resolved in
             // A scheduled stop can't be removed here — swipe to Unschedule first
             // (it drops back to the Shortlist, where Remove is available again).
-            PlanningRow(idea: resolved.idea) { scheduledBadge(resolved.entry.schedule) }
+            PlanningRow(idea: resolved.idea, subtitle: .category) { scheduledBadge(resolved.entry.schedule) }
               .contentShape(Rectangle())
               .onTapGesture { model.showDetail(resolved.idea) }
               .swipeActions(edge: .trailing) {
@@ -70,10 +70,10 @@ struct TripIdeasView: View {
           }
         }
       }
-      if !model.considering.isEmpty {
+      if !model.plan.considering.isEmpty {
         Section("Considering") {
-          ForEach(model.considering) { resolved in
-            PlanningRow(idea: resolved.idea) {
+          ForEach(model.plan.considering) { resolved in
+            PlanningRow(idea: resolved.idea, subtitle: .category) {
               // Empty star = considering; tap promotes it to the Shortlist.
               starButton(filled: false) {
                 model.setStatus(.shortlisted, for: resolved.idea)
@@ -92,13 +92,13 @@ struct TripIdeasView: View {
         }
       }
     }
-    .reorderContainer(for: TripPlanningModel.Resolved.self) { difference in
-      var entries = model.shortlistOnly
+    .reorderContainer(for: ResolvedStop.self) { difference in
+      var entries = model.plan.shortlist
       difference.apply(to: &entries)
       model.reorderShortlist(entries.map(\.id))
     }
     .overlay {
-      if model.hasNoPlanningItems {
+      if model.plan.isEmpty {
         ContentUnavailableView {
           Icon.emptyPool.label("No ideas yet")
         } description: {

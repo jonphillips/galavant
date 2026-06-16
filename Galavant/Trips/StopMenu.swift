@@ -64,11 +64,25 @@ struct StopMenu: View {
         model.unschedule(idea)
       }
     } label: {
-      if placed {
-        Text(schedule.display).font(.subheadline).foregroundStyle(.secondary)
-      } else {
-        Icon.schedule.label("Set day").font(.subheadline)
-      }
+      timeLabel
+    }
+  }
+
+  /// The stop's time, in one vocabulary: an exact clock range reads as a hard
+  /// constraint (mono, primary); a daypart is a soft bucket (secondary); a stop
+  /// placed on a day with no time-of-day shows a faint clock affordance to set
+  /// one (the bare-`.day` "Anytime" word is dropped — it was just noise). An
+  /// unplaced stop offers "Set day".
+  @ViewBuilder private var timeLabel: some View {
+    switch schedule {
+    case .timed:
+      Text(schedule.display).font(.subheadline.monospaced()).foregroundStyle(.primary)
+    case let .daypart(_, part):
+      Text(part.label).font(.subheadline).foregroundStyle(.secondary)
+    case .day:
+      Icon.timeOfDay.image.font(.subheadline).foregroundStyle(.tertiary)
+    case .unscheduled:
+      Icon.schedule.label("Set day").font(.subheadline)
     }
   }
 }

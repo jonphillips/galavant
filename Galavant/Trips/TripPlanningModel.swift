@@ -78,109 +78,15 @@ final class TripPlanningModel {
     Dictionary(ideas.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
   }
 
-  /// Shortlisted-but-not-yet-scheduled entries in rank order (orphans whose idea
-  /// was deleted from the pool are dropped — ADR-0007 read-time reconciliation).
-  /// The Ideas page's Shortlist section *and* the Itinerary's Add-Stop sheet draw
-  /// from this same set.
-  var shortlistOnly: [Resolved] {
-    entries
-      .filter { $0.status == .shortlisted }
-      .sorted { $0.shortlistRank < $1.shortlistRank }
-      .compactMap(resolve)
-  }
-
-  /// Scheduled stops, ordered as they sit on the itinerary (day, then time of
-  /// day) — the Ideas page's Scheduled section.
-  var scheduledStops: [Resolved] {
-    entries
-      .filter { $0.status == .scheduled }
-      .sorted {
-        ($0.dayNumber ?? 0, $0.schedule.intraDaySort, $0.shortlistRank)
-          < ($1.dayNumber ?? 0, $1.schedule.intraDaySort, $1.shortlistRank)
-      }
-      .compactMap(resolve)
-  }
-
-  var considering: [Resolved] {
-    TripIdea.considering(entries).compactMap(resolve)
-  }
-
-  /// Nothing pulled onto the trip at all — drives the Ideas page empty state.
-  var hasNoPlanningItems: Bool {
-    shortlistOnly.isEmpty && scheduledStops.isEmpty && considering.isEmpty
-  }
-
-  private func resolve(_ entry: TripIdea) -> Resolved? {
-    ideaByID[entry.ideaID].map { Resolved(entry: entry, idea: $0) }
-  }
-
-  /// A pulled entry joined to its idea, for the planning rows.
-  struct Resolved: Identifiable {
-    var entry: TripIdea
-    var idea: Idea
-    var id: TripIdea.ID { entry.id }
-  }
-
-  // MARK: - Itinerary mode (scheduled stops laid out by day)
-
-  /// The trip's days 1…N, each with its resolved scheduled stops in order
-  /// (orphans dropped, ADR-0007).
-  var itinerary: [ResolvedDay] {
-    let length = trip?.lengthInDays ?? 1
-    return TripIdea.itinerary(entries, lengthInDays: length).map { day in
-      ResolvedDay(number: day.number, stops: day.stops.compactMap(resolve))
-    }
-  }
-
-  /// True once at least one stop is scheduled — drives the empty state.
-  var hasScheduledStops: Bool { entries.contains { $0.status == .scheduled } }
-
-  /// Scheduled stops not yet placed on a day — the "To Be Scheduled" bucket at
-  /// the top of the Itinerary (orphans dropped).
-  var toBeScheduledStops: [Resolved] {
-    TripIdea.toBeScheduled(entries).compactMap(resolve)
-  }
-
-  /// One itinerary day with its resolved stops, for the day sections.
-  struct ResolvedDay: Identifiable {
-    var number: Int
-    var stops: [Resolved]
-    var id: Int { number }
+  /// This trip's resolved planning read-model — the joins, projections, and
+  /// canvas geometry live in the tested functional core (`TripPlan`), not here.
+  /// Views read `model.plan.shortlist`, `model.plan.itinerary`, etc.; the model
+  /// keeps only UI state and the db-write actions.
+  var plan: TripPlan {
+    TripPlan(entries: entries, ideasByID: ideaByID, lengthInDays: trip?.lengthInDays ?? 1)
   }
 
   // MARK: - Canvas mode (the map is the trip's home, M3d)
-
-  /// The trip's days with their resolved scheduled stops — the canvas reads this
-  /// to lay out numbered pins and per-day polylines. (Alias of `itinerary`, named
-  /// for the surface that consumes it.)
-  var canvasDays: [ResolvedDay] { itinerary }
-
-  /// True when at least one scheduled stop carries coordinates to plot.
-  var hasLocatedStops: Bool {
-    itinerary.contains { day in
-      day.stops.contains { $0.idea.latitude != nil && $0.idea.longitude != nil }
-    }
-  }
-
-  /// Coordinates of the located scheduled stops to frame the camera on: one day's
-  /// when `day` is set, the whole trip's when nil. Ordered as they sit on the
-  /// itinerary; feeds the pure `MapFraming.box`.
-  func framingCoordinates(forDay day: Int?) -> [(latitude: Double, longitude: Double)] {
-    let days = day.map { d in itinerary.filter { $0.number == d } } ?? itinerary
-    return days.flatMap(\.stops).compactMap { resolved in
-      guard let lat = resolved.idea.latitude, let lon = resolved.idea.longitude
-      else { return nil }
-      return (latitude: lat, longitude: lon)
-    }
-  }
-
-  /// A day's located stops in itinerary order — the route the pins and the
-  /// polyline follow. Unlocated stops are dropped here (they still list in the
-  /// timeline). The view assigns the 1-based sequence number by position.
-  func locatedStops(forDay day: Int) -> [Resolved] {
-    (itinerary.first { $0.number == day }?.stops ?? [])
-      .filter { $0.idea.latitude != nil && $0.idea.longitude != nil }
-  }
 
   /// The map regions this trip is scoped to — the camera's fallback frame when no
   /// stops have coordinates yet.
@@ -191,7 +97,7 @@ final class TripPlanningModel {
   func pickInitialSheetTabIfNeeded() {
     guard !didPickInitialTab else { return }
     didPickInitialTab = true
-    sheetTab = hasScheduledStops ? .itinerary : .ideas
+    sheetTab = plan.hasScheduledStops ? .itinerary : .ideas
   }
 
   /// Focus a stop from the map or the timeline — the single shared selection both

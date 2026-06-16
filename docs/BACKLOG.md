@@ -382,7 +382,23 @@ for every case to catch future typos at test time.
 Show active filter settings in small text above the filtered list. Implemented
 2026-06-12 (filter summary bar via `safeAreaInset`).
 
-## Itinerary panel cleanup: one time vocabulary + drop redundant city (from Jon, 2026-06-15)
+## Itinerary panel cleanup: one time vocabulary + drop redundant city (from Jon, 2026-06-15) — DONE
+
+Implemented 2026-06-16 on branch `m3e-ideas-trip-awareness`. **(a) One time
+vocabulary** — the itinerary stop's time (the `StopMenu` trailing label, the only
+place the vocabularies mixed; the Ideas tab shows just a calendar icon and the
+stop detail keeps the verbose `Schedule.display`) now renders by one rule: a
+`.timed` stop shows its clock range in **mono + primary** (a hard constraint), a
+`.daypart` shows the daypart in secondary (a soft bucket), and a bare-`.day` stop
+drops the "Anytime" word for a faint **clock glyph** (`Icon.timeOfDay`) that still
+opens the time menu. **(b) Drop the redundant city** — `PlanningRow` gained a
+`Subtitle` mode; the Itinerary and Trip Ideas tab pass `.category` (the idea's
+kind, e.g. "Museum"), while the Add-Ideas sheet keeps `.region` (the wider pool,
+where the city disambiguates). Presentation-only, no schema/test change.
+**Deferred (the mockup's unmet half — no data yet):** the subtitle's *neighborhood*
+part (we store only locality/city as `regionName` — gated on the search-first
+capture work that captures `placemark` sublocality) and the day headers' *area*
+label (gated on per-day region stops, deferred in M3). Original note below.
 
 *Leads the design-review batch below; explored with mockups in the 2026-06-15
 design session.* The trip itinerary list currently mixes time vocabularies in one
