@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The drift gate (zero Xcode needed): size thresholds catch growing models,
+  # the view_persistence custom rule catches logic leaking into views.
+  # Pinned to the local SwiftLint version for reproducibility.
+  lint:
+    runs-on: ubuntu-latest
+    container: ghcr.io/realm/swiftlint:0.63.3
+    steps:
+      - uses: actions/checkout@v4
+      - run: swiftlint lint --strict
+
+  # The package holds all the tests (the app target has no test bundle). Needs the
+  # macOS 26 SDK — the package's deployment floor — but NOT Xcode 27 beta (that's
+  # only for the app). If the macos-26 image/label isn't available yet on hosted
+  # runners, switch this to a self-hosted runner or pin once GA.
+  test:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift test --package-path GalavantLibrary
