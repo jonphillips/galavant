@@ -140,6 +140,30 @@
         try TripIdea.schedule(schedule, ideaID: ideaID, tripID: tokyo.id, in: db)
       }
 
+      // A spread of trip associations across the pool so the Ideas-list
+      // trip-badges show every derived state: upcoming (pulled onto an in-play
+      // trip), someday (pulled onto a backlog trip), and visited. The pool ideas
+      // are named "<Region> <Kind> <n>", distinct from the named Tokyo stops.
+      func firstPoolIdea(in region: String) throws -> Idea.ID? {
+        try Idea.where { $0.regionName.eq(region) }
+          .order(by: \.name).fetchAll(db)
+          .first { $0.name.hasPrefix(region) }?.id
+      }
+      if let id = try firstPoolIdea(in: "Copenhagen") {  // dated trip → upcoming
+        _ = try TripIdea.pull(ideaID: id, into: copenhagen.id, in: db)
+      }
+      if let id = try firstPoolIdea(in: "Paris") {  // targeted trip → upcoming
+        _ = try TripIdea.pull(ideaID: id, into: paris.id, in: db)
+        try TripIdea.setStatus(.shortlisted, ideaID: id, tripID: paris.id, in: db)
+      }
+      if let id = try firstPoolIdea(in: "Tokyo") {  // backlog trip → someday
+        _ = try TripIdea.pull(ideaID: id, into: tokyo.id, in: db)
+        try TripIdea.setStatus(.shortlisted, ideaID: id, tripID: tokyo.id, in: db)
+      }
+      if let id = try firstPoolIdea(in: "Virginia") {  // no live association → visited
+        try Idea.find(id).update { $0.visited = true }.execute(db)
+      }
+
       return jon.id
     }
   }

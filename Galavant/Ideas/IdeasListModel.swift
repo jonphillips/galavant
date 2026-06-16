@@ -19,6 +19,9 @@ final class IdeasListModel {
   @ObservationIgnored @FetchAll(MapRegion.order(by: \.name)) var regions
   @ObservationIgnored @FetchAll(Tag.order(by: \.name)) var tags
   @ObservationIgnored @FetchAll(IdeaTag.all) var ideaTags
+  @ObservationIgnored @FetchAll(Trip.all) var trips
+  @ObservationIgnored @FetchAll(TripIdea.all) var tripIdeas
+  @ObservationIgnored @FetchAll(TripRegion.all) var tripRegions
   @ObservationIgnored @Shared(.appStorage("currentPlannerID")) var currentPlannerIDString = ""
   var destination: Destination?
   var sharedRecord: SharedRecord?
@@ -28,6 +31,11 @@ final class IdeasListModel {
   var selectedKinds: Set<IdeaKind> = []
   var selectedTagIDs: Set<Tag.ID> = []
   var includeVisited = true
+
+  /// The active-trip capsule (nil = "All", the eternal pool). When set, the pool
+  /// is scoped to that trip's regions and rows become a pull/rate surface for it
+  /// — the Ideas screen's launchpad half (BACKLOG "Ideas list trip-awareness").
+  var activeTripID: Trip.ID?
 
   var ideaTagIDs: [Idea.ID: Set<Tag.ID>] {
     Dictionary(grouping: ideaTags, by: \.ideaID).mapValues { Set($0.map(\.tagID)) }
@@ -65,15 +73,67 @@ final class IdeasListModel {
     return regions.first { $0.id == id }
   }
 
+  // MARK: - Active-trip capsules (launchpad)
+
+  /// The in-play trips to show as capsules, lifecycle-derived (not filter MRU).
+  var capsules: [Trip] { Trip.activeCapsules(trips) }
+
+  var activeTrip: Trip? {
+    guard let id = activeTripID else { return nil }
+    return trips.first { $0.id == id }
+  }
+
+  /// The regions scoping the pool: the active trip's saved lens when a capsule is
+  /// selected, otherwise the manual region filter. A trip defines its own
+  /// geography, so its capsule replaces the single-region menu.
+  private var scopeRegions: [MapRegion] {
+    if let trip = activeTrip {
+      let ids = Set(tripRegions.filter { $0.tripID == trip.id }.map(\.regionID))
+      return regions.filter { ids.contains($0.id) }
+    }
+    return selectedRegion.map { [$0] } ?? []
+  }
+
+  /// Select an active-trip capsule, or `nil` for "All" (the eternal pool).
+  func selectCapsule(_ tripID: Trip.ID?) {
+    activeTripID = tripID
+  }
+
   var filteredIdeas: [Idea] {
     poolFiltered(
       ideas,
-      regions: selectedRegion.map { [$0] } ?? [],
+      regions: scopeRegions,
       kinds: selectedKinds,
       includeVisited: includeVisited,
       tagIDs: selectedTagIDs,
       ideaTagIDs: ideaTagIDs
     )
+  }
+
+  // MARK: - Trip-association badges (cell signal)
+
+  private var tripsByID: [Trip.ID: Trip] {
+    Dictionary(trips.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+  }
+  private var entriesByIdea: [Idea.ID: [TripIdea]] {
+    Dictionary(grouping: tripIdeas, by: \.ideaID)
+  }
+
+  /// The "All"-view badge for an idea: its most-actionable trip association
+  /// (scheduled > upcoming > someday > visited), or nil for a free idea.
+  func tripBadge(for idea: Idea) -> IdeaTripBadge? {
+    IdeaTripBadge.badge(
+      forIdea: idea,
+      entries: entriesByIdea[idea.id] ?? [],
+      tripsByID: tripsByID
+    )
+  }
+
+  /// This idea's status on the active trip — drives the pull toggles when a
+  /// capsule is selected. Nil when no capsule is active or it isn't pulled.
+  func activeTripStatus(for idea: Idea) -> TripIdeaStatus? {
+    guard let tripID = activeTripID else { return nil }
+    return tripIdeas.first { $0.tripID == tripID && $0.ideaID == idea.id }?.status
   }
 
   var isFiltering: Bool {
@@ -233,6 +293,47 @@ final class IdeasListModel {
     withErrorReporting {
       try database.write { db in
         try IdeaInterest.set(level: level, ideaID: idea.id, plannerID: me.id, in: db)
+      }
+    }
+  }
+
+  // MARK: - Pull onto the active trip
+
+  /// Toggle an idea's "considering" state on the active trip (the launchpad's
+  /// thought-bubble): pull it if it's off the trip, demote a shortlisted one, or
+  /// remove an already-considering one. Mirrors `TripPlanningModel.tapConsidering`
+  /// over the same tested `TripIdea` ops; a no-op when no capsule is active.
+  func tapConsideringOnActiveTrip(_ idea: Idea) {
+    guard let tripID = activeTripID else { return }
+    let ideaID = idea.id
+    withErrorReporting {
+      try database.write { db in
+        switch activeTripStatus(for: idea) {
+        case nil: try TripIdea.pull(ideaID: ideaID, into: tripID, in: db)
+        case .considering: try TripIdea.remove(ideaID: ideaID, from: tripID, in: db)
+        case .shortlisted: try TripIdea.setStatus(.considering, ideaID: ideaID, tripID: tripID, in: db)
+        case .scheduled, .done, .skipped: break  // manage scheduled stops from the trip
+        }
+      }
+    }
+  }
+
+  /// Toggle an idea's shortlist state on the active trip (the launchpad's star):
+  /// pull straight to the shortlist, promote a considering one, or remove an
+  /// already-shortlisted one. Mirrors `TripPlanningModel.tapShortlist`.
+  func tapShortlistOnActiveTrip(_ idea: Idea) {
+    guard let tripID = activeTripID else { return }
+    let ideaID = idea.id
+    withErrorReporting {
+      try database.write { db in
+        switch activeTripStatus(for: idea) {
+        case nil:
+          try TripIdea.pull(ideaID: ideaID, into: tripID, in: db)
+          try TripIdea.setStatus(.shortlisted, ideaID: ideaID, tripID: tripID, in: db)
+        case .considering: try TripIdea.setStatus(.shortlisted, ideaID: ideaID, tripID: tripID, in: db)
+        case .shortlisted: try TripIdea.remove(ideaID: ideaID, from: tripID, in: db)
+        case .scheduled, .done, .skipped: break
+        }
       }
     }
   }

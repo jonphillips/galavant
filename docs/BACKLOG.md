@@ -403,7 +403,23 @@ a parallel session, leave it alone. Refs: `Schedule` facade / `DayPart`
 (trip-time-model.md), `TripItineraryView`, `TripIdeasView`. **Mockup:**
 `docs/mockups/itinerary-cleanup.html`.
 
-## Ideas list trip-awareness: active-trip capsules + cell trip-badges (from Jon, 2026-06-15)
+## Ideas list trip-awareness: active-trip capsules + cell trip-badges (from Jon, 2026-06-15) — DONE
+
+Implemented 2026-06-15 on branch `m3e-ideas-trip-awareness`. **(a)** A capsule row
+tops the Ideas screen — "All" plus the lifecycle-derived in-play trips
+(`Trip.activeCapsules`: every dated + targeted, plus the top-of-backlog someday;
+the someday slot approximates "most-recently-touched" by backlog rank since `Trip`
+has no touch timestamp). Tapping a trip scopes the pool to that trip's `TripRegion`
+lens (reusing `poolFiltered`) and turns each row into a pull/shortlist surface for
+*that* trip (the considering/star toggles, mirroring the Add-Ideas sheet, over the
+tested `TripIdea` ops); the filter menu's Region submenu hides while a trip is
+active. **(b)** In the "All" pool each cell shows a derived `IdeaTripBadge` —
+most-actionable across joins (scheduled > upcoming > someday > visited), free ideas
+blank; certainty-stage tint (dated blue / targeted orange / someday gray) shared by
+the capsule dot. New pure cores `IdeaTripBadge` + `Trip.activeCapsules` with tests.
+**Deferred:** the mockup's "match" pill belongs to the next item (his/hers rating +
+match), not built here; "Visited" badge drops the year (no visited-date on `Idea`).
+Original note below.
 
 *Wants to land soon after the itinerary cleanup.* Two related additions that make the
 eternal pool aware of the 2–3 trips actually in play.
