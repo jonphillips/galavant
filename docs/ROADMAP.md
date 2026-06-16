@@ -90,6 +90,21 @@ first. Update this file when reality diverges — it's a living doc, not a contr
 - ✅ Done when: the Copenhagen scenario works end to end
 
 ## M4 — Capture from anywhere
+- ✅ M4a (2026-06-16): **the pure parser engine** — new isolated SPM target
+  `GalavantCapture` (SwiftSoup + Foundation only; **no** SwiftUI/CloudKit, never
+  sees `Idea`/`Trip` — the portfolio-extraction seam, BACKLOG/ADR-0009). `HTML →
+  ParsedPage` (a domain-free value type: title/summary/phone/email/`websiteURL`/
+  coordinate/address/images/socials/`schemaTypes`/`openingHours`/`capturedAt`).
+  Layers run least→most structured into one **value vote** (V1's
+  `consolidate_scored_attrs`): **JSON-LD first** (scraping-enrichment.md precedent),
+  then OpenGraph/Twitter meta (incl. the underused `place:location:*` +
+  `business:contact_data:*`), then HTML microdata; ties break to earliest-seen so
+  authoritative passes win. Images/socials/hours accumulate ordered-unique; image
+  hygiene filter + relative-URL resolution ported from V1. `websiteURL` (vs
+  `sourceURL`) is surfaced as the **two-hop** trigger (orchestration deferred to
+  M4b/c; `URLSession` second-hop fetch is feasible on-device — no sandbox block,
+  only ATS). Pure/best-effort (never throws); `capturedAt` injected. 9 fixture
+  tests (no network/UI). Engine is package-only — not linked into the app yet.
 - Share extension: URL in → scraped page (SwiftSoup, port V1) → idea form → saved to shared DB
 - Enrichment pipeline per `docs/scraping-enrichment.md` (port of the V1 server's
   metatag/OpenGraph/schema.org layering, value voting, and MKLocalSearch matching; add JSON-LD and openingHours capture)
