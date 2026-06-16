@@ -342,8 +342,8 @@ Boundary discipline to enforce while building:
   enrichment pipeline (docs/scraping-enrichment.md).
 - **Image tools = split processing from storage.** Resize/compress/thumbnail are
   pure functions over `Data`/images — maximally portable, the clean extraction
-  candidate. *Storage* ("dedicated table, CloudKit-synced, no S3" — ROADMAP M2 +
-  ADR-0001) is stack-specific; it travels only if the other app also uses
+  candidate. *Storage* ("dedicated table, CloudKit-synced, no S3" — ADR-0009)
+  is stack-specific; it travels only if the other app also uses
   SQLiteData+CloudKit. Keep processing free of any persistence import.
 - **Naming (ADR-0006):** a portfolio library needs a *neutral* name — no app
   domain in it. V2's `GalavantLibrary` was within-app and Galavant-named; that
