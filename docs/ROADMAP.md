@@ -24,11 +24,10 @@ first. Update this file when reality diverges — it's a living doc, not a contr
 - ⏳ Second-device identity hardening (ADR-0008): bind-or-create planner picker, stray-party cleanup, IdeaInterest dedup-on-read
 - Full Idea model: kinds, visited state, tags, URLs, images, opening days/hours and reservable-from (manual entry)
   - **Image storage strategy** (cross-cutting; inherited by M4 scraped images + M5
-    Unsplash headers): CloudKit-native, **no S3/server** (ADR-0001 — S3 = the
-    UploadManager that stalled V1/V2; reopening it needs a new ADR). Watch the
-    ~1 MB `CKRecord` field cap: resize/compress on import (~1600px, ≈300 KB) and
-    store in a dedicated image table so Idea/Trip rows stay light. Full-res later
-    via `CKAsset` (verify current SQLiteData BLOB→asset support first; it moves fast).
+    Unsplash headers) — now settled in **ADR-0009**: CloudKit-native (no S3),
+    pure processing split from stack-specific storage, a dedicated image table,
+    resize-on-import display tier (~1600px/≈300 KB inline BLOB) with `CKAsset`
+    full-res deferred. See the ADR before building.
 - Planner identity (ADR-0007): Planner table, device-local currentPlannerID, first-run name capture
 - **Per-planner flames ratings + notes** via single-FK Rating record (Must Do…Decide Later, his-and-hers; ADR-0007)
 - MapRegions (port V2's working implementation) + region/tag/category/distance filtering
