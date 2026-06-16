@@ -1,0 +1,45 @@
+# Focused drift gate — NOT a style overhaul. Only the rules that catch
+# architectural drift (growing models, logic leaking into views), so the signal
+# stays high and PRs aren't buried in bikeshedding. Rationale + the human/agent
+# division of labor live in jon-platform docs/ios/drift-control.md.
+only_rules:
+  - file_length
+  - type_body_length
+  - function_body_length
+  - view_persistence
+
+included:
+  - Galavant
+  - GalavantLibrary/Sources
+
+excluded:
+  - GalavantLibrary/.build
+  # Infrastructure that's legitimately long and sequential — not a drift surface:
+  - Galavant/DemoFixtures.swift                              # seed data
+  - GalavantLibrary/Sources/GalavantSchema/Database.swift    # migrations accrete forever
+
+# Thresholds sit just above today's largest files: the baseline is green, and a
+# file/type that grows past today's worst trips the warning — that's the drift
+# signal ("you're now the fattest model; look at it").
+file_length:
+  warning: 450
+  error: 650
+  ignore_comment_only_lines: true
+
+type_body_length:
+  warning: 350
+  error: 500
+
+function_body_length:
+  warning: 60
+  error: 120
+
+# The "logic in the view" smell STYLE §2 names: a View doing its own persistence.
+# Models legitimately call database.write/read; views must not.
+custom_rules:
+  view_persistence:
+    name: "Persistence in a View"
+    regex: 'database\.(write|read)'
+    included: ".*View\\.swift"
+    message: "Views shouldn't touch the database — move it to a model or a tested core function (STYLE §2)."
+    severity: warning
