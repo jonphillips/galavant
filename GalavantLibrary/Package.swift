@@ -34,6 +34,7 @@ let package = Package(
       dependencies: [
         "GalavantSchema",
         "GalavantCapture",
+        .product(name: "SQLiteData", package: "sqlite-data"),
         .product(name: "Dependencies", package: "swift-dependencies"),
       ]
     ),
