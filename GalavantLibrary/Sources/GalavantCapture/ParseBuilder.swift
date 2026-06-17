@@ -68,7 +68,9 @@ struct ParseBuilder {
 
     return ParsedPage(
       sourceURL: sourceURL,
-      title: votes.winner(.title),
+      title: resolvedTitle(),
+      titleIsStructured: (votes.winnerPriority(.title) ?? AttributeVotes.chromePriority)
+        > AttributeVotes.chromePriority,
       summary: votes.winner(.summary),
       phone: votes.winner(.phone),
       email: votes.winner(.email),
@@ -81,6 +83,26 @@ struct ParseBuilder {
       openingHours: openingHours,
       capturedAt: capturedAt
     )
+  }
+
+  /// The winning title, with a marketing tagline trimmed when the title came from
+  /// page chrome (og:/twitter:/`<title>`): "Forestis Dolomites | Boutique Wellness
+  /// Hotel in Brixen" → "Forestis Dolomites". A structured (JSON-LD/microdata)
+  /// `name` is trusted verbatim — only the noisy chrome layer gets cleaned.
+  private func resolvedTitle() -> String? {
+    guard let title = votes.winner(.title) else { return nil }
+    guard votes.winnerPriority(.title) == AttributeVotes.chromePriority else { return title }
+    return Self.trimmingTagline(title)
+  }
+
+  /// Drop a `| site/tagline` suffix. The pipe is the one separator that reliably
+  /// means "primary | secondary" (page/brand first); dashes and colons are used
+  /// both ways ("Home — Alouette" puts the brand last), so those are left to the
+  /// structured-name priority instead.
+  private static func trimmingTagline(_ title: String) -> String {
+    guard let pipe = title.firstIndex(of: "|") else { return title }
+    let head = title[..<pipe].trimmingCharacters(in: .whitespacesAndNewlines)
+    return head.isEmpty ? title : head
   }
 
   // MARK: Helpers

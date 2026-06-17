@@ -3,6 +3,39 @@
 Not milestone-scoped (see ROADMAP.md for those). Running list of refinements
 noted in passing, with enough context to act on cold.
 
+## On-device Apple Intelligence for capture enrichment (2026-06-17) — next up
+
+Use the on-device **Foundation Models** framework (Apple Intelligence; iOS 26+, we
+deploy 27) to clean and supplement what the `GalavantCapture` parser extracts —
+**replacing** the heuristics M4c added, not stacking on them. Surfaced while
+capturing real pages (restaurantalouette.dk, forestis.it): structured-source
+priority + pipe-tagline clipping + "confident Apple Maps name overrides a chrome
+title" get us far, but they're brittle separator/side rules.
+
+Where it earns its place:
+- **Clean place name** from a messy chrome title in one general step — handles both
+  "Forestis Dolomites | … Hotel in Brixen" → "Forestis" and "Home — Alouette" →
+  "Alouette" without guessing which side of the separator the brand is on.
+- **Mine city/locality from free-text description** — the real fix for the "Koan"
+  miss (Copenhagen only appears in prose), feeding a far better Apple Maps query
+  than a bare name worldwide search.
+- **Classify `IdeaKind`** when schema.org `@type` is generic (`LocalBusiness`), and
+  **summarize** the page into clean notes.
+
+How to fit it without breaking house style:
+- **Guided generation** (`@Generable` structs, `LanguageModelSession`) for typed
+  extraction — slots into the value-voting as a high-confidence source, or a
+  fallback when JSON-LD/microdata are absent.
+- Wrap in an **injectable client** (like `PlaceMatcher`/`PlaceSearchClient`) so the
+  deterministic parser stays the fallback and it's testable.
+- **Gate on `SystemLanguageModel.availability`** — degrade to today's parser when
+  Apple Intelligence is off/unsupported.
+- Caveats: runs in the share extension (watch the ~120 MB budget — model is a
+  system resource but sessions cost), few-second latency (fine behind the
+  "Reading page…" spinner), non-deterministic (hence injectable for tests). New API
+  past Claude's training cutoff — check current Foundation Models docs and the
+  Xcode `swiftui-*` skills before implementing.
+
 ## Codex alignment-review follow-ups (2026-06-16)
 
 Deferred items from `docs/reviews/codex-alignment-review-2026-06-16.md`. The

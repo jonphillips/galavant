@@ -6,6 +6,7 @@ import SwiftUI
 import SwiftUINavigation
 
 struct IdeasScreen: View {
+  @Environment(\.scenePhase) private var scenePhase
   @State private var model = IdeasListModel()
   @State private var mode: Mode = .list
   @State private var visibleRegion: MKCoordinateRegion?
@@ -87,6 +88,19 @@ struct IdeasScreen: View {
       Text("Save the current map area as a region you can filter by.")
     }
     .task { await model.task() }
+    .task {
+      // A share-extension capture commits in another process; pick it up live.
+      for await _ in DatabaseChange.notifications {
+        await model.reloadAfterExternalWrite()
+      }
+    }
+    .onChange(of: scenePhase) { _, phase in
+      // And whenever we return to the foreground (the common path: app was
+      // backgrounded while the share sheet was up).
+      if phase == .active {
+        Task { await model.reloadAfterExternalWrite() }
+      }
+    }
     .sheet(item: $model.destination.form, id: \.id) { draft in
       IdeaFormView(draft: draft)
     }

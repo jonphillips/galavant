@@ -26,6 +26,7 @@ public final class CaptureModel {
 
   @ObservationIgnored @Dependency(\.defaultDatabase) private var database
   @ObservationIgnored @Dependency(\.placeMatcher) private var placeMatcher
+  @ObservationIgnored @Dependency(\.recentTripStore) private var recentTripStore
   @ObservationIgnored @Dependency(\.uuid) private var uuid
 
   private let html: String
@@ -34,6 +35,13 @@ public final class CaptureModel {
   public private(set) var phase: Phase = .preparing
   /// The editable idea the confirm sheet binds to (name/kind/notes/url/…).
   public var draft = Idea.Draft()
+  /// The active trips the capture can be pulled onto, the most-recently-used one
+  /// first (and pre-selected); the rest in lifecycle/chronological order. Empty
+  /// when there are no active trips — the sheet then offers the pool only.
+  public private(set) var trips: [Trip] = []
+  /// The trip to pull this idea onto, or nil for "None" (pool only). Bound by the
+  /// confirm sheet's trip picker.
+  public var selectedTripID: Trip.ID?
   /// Carry-over signals the `Idea` schema doesn't hold yet (images, hours, the
   /// second-hop `websiteURL`) — kept for the deferred app-side enrichment.
   public private(set) var captured: CapturedPlace?
@@ -53,13 +61,72 @@ public final class CaptureModel {
       draft.latitude = match.coordinate.latitude
       draft.longitude = match.coordinate.longitude
       // Confirm-and-tweak: only fill what the page left blank (like search-first).
-      if draft.name.isEmpty, let name = match.name { draft.name = name }
+      // Apple Maps is a rich enrichment source, so take its name/address/region/
+      // kind/phone/link too — but never clobber what the page already supplied.
+      // Name is special: a *structured* page name is trusted, but a chrome-derived
+      // title (a clipped marketing string) is only a guess, so a confident Apple
+      // Maps name — one that overlaps ours, so it's the same place — wins over it.
+      if let matchName = match.name, !matchName.isEmpty {
+        if draft.name.isEmpty {
+          draft.name = matchName
+        } else if !page.titleIsStructured,
+          PlaceMatching.significantCommonWordCount(matchName, draft.name) > 0
+        {
+          draft.name = matchName
+        }
+      }
       if draft.address == nil, let address = match.address { draft.address = address }
+      if draft.regionName == nil, let regionName = match.regionName { draft.regionName = regionName }
+      if draft.kind == nil, let kind = match.kind { draft.kind = kind }
+      if draft.phone == nil, let phone = match.phone { draft.phone = phone }
+      if draft.url.isEmpty, let url = match.url { draft.url = url }
     }
 
     self.captured = captured
     self.draft = draft
+    await self.loadTrips()
     self.phase = .ready
+  }
+
+  /// Load the active trips for the picker: the most-recently-used trip first and
+  /// pre-selected, then the rest in the app's lifecycle order (dated → targeted →
+  /// top someday, dated chronologically). Defaults to "None" when there's no recent
+  /// trip among the active ones.
+  private func loadTrips() async {
+    let allTrips = (try? await database.read { db in try Trip.all.fetchAll(db) }) ?? []
+    var ordered = Trip.activeCapsules(allTrips)
+    if let recentID = recentTripStore.read(),
+      let index = ordered.firstIndex(where: { $0.id == recentID })
+    {
+      ordered.insert(ordered.remove(at: index), at: 0)
+      selectedTripID = recentID
+    }
+    trips = ordered
+  }
+
+  /// Apply a location the user picked in the confirm sheet's search — the escape
+  /// hatch when the automatic match is wrong (or absent, as with koancph.dk). The
+  /// chosen place is authoritative for the coordinate/address/region; name, kind,
+  /// and link stay confirm-and-tweak (only filled when the page left them blank,
+  /// so a deliberate edit isn't clobbered).
+  public func useLocation(_ place: Place) {
+    draft.latitude = place.latitude
+    draft.longitude = place.longitude
+    draft.address = place.address
+    draft.regionName = place.regionName
+    if draft.name.isEmpty { draft.name = place.name }
+    if draft.kind == nil { draft.kind = place.kind }
+    if draft.phone == nil { draft.phone = place.phone }
+    if draft.url.isEmpty, let url = place.url { draft.url = url }
+  }
+
+  /// Drop the resolved location, leaving it for the user to re-search or fill in
+  /// the app later.
+  public func clearLocation() {
+    draft.latitude = nil
+    draft.longitude = nil
+    draft.address = nil
+    draft.regionName = nil
   }
 
   /// Save the (possibly edited) draft into the shared pool under the default
@@ -78,6 +145,7 @@ public final class CaptureModel {
     let latitude = draft.latitude
     let longitude = draft.longitude
     let url = draft.url
+    let tripID = selectedTripID
     do {
       try await database.write { db in
         let party = try TravelParty.ensureDefault(in: db)
@@ -97,7 +165,14 @@ public final class CaptureModel {
           )
         }
         .execute(db)
+        // Pull onto the chosen trip (idempotent) so the capture lands as a
+        // "considering" entry, not just in the eternal pool.
+        if let tripID, let id {
+          try TripIdea.pull(ideaID: id, into: tripID, in: db)
+        }
       }
+      // Remember the trip so the next capture defaults to the same one.
+      if let tripID { recentTripStore.record(tripID) }
       phase = .saved
     } catch {
       phase = .failed(error.localizedDescription)

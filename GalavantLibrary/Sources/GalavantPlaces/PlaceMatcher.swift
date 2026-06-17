@@ -1,20 +1,38 @@
 import Dependencies
 import Foundation
 import GalavantCapture
+import GalavantSchema
 import MapKit
 
-/// The resolved location for a captured page: a coordinate, plus the canonical
-/// name/address when it came from an Apple Maps hit (a scraped-coordinate match
-/// carries neither — the page's own values stand).
+/// The resolved location for a captured page: a coordinate, plus everything else
+/// the Apple Maps hit knew (name, address, region, kind, phone, link) so the draft
+/// can be enriched with it. A scraped-coordinate or geocoded-address match carries
+/// only the coordinate — the page's own values stand for the rest.
 public struct LocationMatch: Equatable, Sendable {
   public var coordinate: ParsedCoordinate
   public var name: String?
   public var address: String?
+  public var regionName: String?
+  public var kind: IdeaKind?
+  public var phone: String?
+  public var url: String?
 
-  public init(coordinate: ParsedCoordinate, name: String? = nil, address: String? = nil) {
+  public init(
+    coordinate: ParsedCoordinate,
+    name: String? = nil,
+    address: String? = nil,
+    regionName: String? = nil,
+    kind: IdeaKind? = nil,
+    phone: String? = nil,
+    url: String? = nil
+  ) {
     self.coordinate = coordinate
     self.name = name
     self.address = address
+    self.regionName = regionName
+    self.kind = kind
+    self.phone = phone
+    self.url = url
   }
 }
 
@@ -25,15 +43,24 @@ public struct LocationMatch: Equatable, Sendable {
 /// when it clears a confidence threshold. MapKit/CoreLocation live **only** behind
 /// the two closures, so the orchestration is testable with fixtures.
 public struct PlaceMatcher: Sendable {
-  var geocode: @Sendable (_ address: String) async -> ParsedCoordinate?
+  var geocode: @Sendable (_ address: String) async -> Place?
   var search: @Sendable (_ query: String) async -> [Place]
+  /// Region-biased POI lookup around an already-resolved coordinate — the
+  /// enrichment ("supplementer") boundary. Returns Apple Maps records near the
+  /// point so we can merge the canonical kind/phone/link onto a match the page
+  /// under-described. Defaults to none (no enrichment) for tests/previews.
+  var lookupNear: @Sendable (_ query: String, _ coordinate: ParsedCoordinate) async -> [Place]
 
   public init(
-    geocode: @escaping @Sendable (_ address: String) async -> ParsedCoordinate?,
-    search: @escaping @Sendable (_ query: String) async -> [Place]
+    geocode: @escaping @Sendable (_ address: String) async -> Place?,
+    search: @escaping @Sendable (_ query: String) async -> [Place],
+    lookupNear: @escaping @Sendable (_ query: String, _ coordinate: ParsedCoordinate) async -> [Place] = {
+      _, _ in []
+    }
   ) {
     self.geocode = geocode
     self.search = search
+    self.lookupNear = lookupNear
   }
 
   /// Resolve `page` to a location, or `nil` if no signal pans out (the caller
@@ -41,6 +68,12 @@ public struct PlaceMatcher: Sendable {
   /// `minimumScore` is the word-overlap floor a text-search hit must clear to be
   /// trusted for an unattended capture.
   public func match(_ page: ParsedPage, minimumScore: Int = 1) async -> LocationMatch? {
+    guard let base = await resolve(page, minimumScore: minimumScore) else { return nil }
+    return await enriched(base, for: page)
+  }
+
+  /// Walk the signal ladder to a first location, or nil if nothing pans out.
+  private func resolve(_ page: ParsedPage, minimumScore: Int) async -> LocationMatch? {
     var searched: [String: [Place]] = [:]
 
     for step in PlaceMatching.ladder(for: page) {
@@ -50,8 +83,10 @@ public struct PlaceMatcher: Sendable {
         return LocationMatch(coordinate: ParsedCoordinate(latitude: latitude, longitude: longitude))
 
       case let .geocodeAddress(address):
-        if let coordinate = await geocode(address) {
-          return LocationMatch(coordinate: coordinate)
+        // Keep the whole geocoded map item, not just its coordinate — an address
+        // that resolves to a known business carries its name/kind/phone/link.
+        if let place = await geocode(address) {
+          return LocationMatch(place: place)
         }
 
       case let .biasedTextSearch(query), let .worldwideTextSearch(query):
@@ -64,19 +99,38 @@ public struct PlaceMatcher: Sendable {
           results = await search(query)
           searched[query] = results
         }
-        if let match = bestMatch(in: results, for: page, minimumScore: minimumScore) {
-          return match
+        if let best = bestPlace(in: results, for: page, minimumScore: minimumScore) {
+          return LocationMatch(place: best)
         }
       }
     }
     return nil
   }
 
-  private func bestMatch(
-    in results: [Place],
-    for page: ParsedPage,
-    minimumScore: Int
-  ) -> LocationMatch? {
+  /// Supplement a resolved location with the canonical Apple Maps record near it —
+  /// filling only the fields the page (and the resolving step) left blank, gated on
+  /// a name match so a wrong nearby POI can't hijack the record. Skipped when the
+  /// match already carries the enrichable fields, or the page has no name to search.
+  private func enriched(_ match: LocationMatch, for page: ParsedPage) async -> LocationMatch {
+    guard match.kind == nil || match.phone == nil || match.url == nil,
+      let name = page.title, !name.isEmpty
+    else { return match }
+    let candidates = await lookupNear(name, match.coordinate)
+    guard let poi = bestPlace(in: candidates, for: page) else { return match }
+    var match = match
+    if match.name == nil { match.name = poi.name }
+    if match.address == nil { match.address = poi.address }
+    if match.regionName == nil { match.regionName = poi.regionName }
+    if match.kind == nil { match.kind = poi.kind }
+    if match.phone == nil { match.phone = poi.phone }
+    if match.url == nil { match.url = poi.url }
+    return match
+  }
+
+  /// The highest name+street-overlap candidate clearing `minimumScore`. The scoring
+  /// gate zeroes matches without name overlap, so the default floor of 1 means
+  /// "the names actually agree."
+  private func bestPlace(in results: [Place], for page: ParsedPage, minimumScore: Int = 1) -> Place? {
     let scrapedName = page.title ?? ""
     let scrapedStreet = page.address.oneLine
     let scored = results.map { place in
@@ -93,10 +147,21 @@ public struct PlaceMatcher: Sendable {
     guard let best = scored.max(by: { $0.1 < $1.1 }), best.1 >= minimumScore else {
       return nil
     }
-    return LocationMatch(
-      coordinate: ParsedCoordinate(latitude: best.0.latitude, longitude: best.0.longitude),
-      name: best.0.name,
-      address: best.0.address
+    return best.0
+  }
+}
+
+extension LocationMatch {
+  /// Build a match from an Apple Maps `Place`, carrying its full detail.
+  init(place: Place) {
+    self.init(
+      coordinate: ParsedCoordinate(latitude: place.latitude, longitude: place.longitude),
+      name: place.name,
+      address: place.address,
+      regionName: place.regionName,
+      kind: place.kind,
+      phone: place.phone,
+      url: place.url
     )
   }
 }
@@ -106,15 +171,32 @@ extension PlaceMatcher: DependencyKey {
     geocode: { address in
       // iOS 26 forward-geocoding (CLGeocoder is deprecated): MKGeocodingRequest
       // exposes `mapItems` as an async getter (NS_SWIFT_ASYNC_NAME, per the SDK
-      // header). World region — capture isn't tied to a map viewport.
+      // header). Keep the whole map item — when the address resolves to a business
+      // it carries the POI's name/kind/phone/link, not just a coordinate.
       guard let request = MKGeocodingRequest(addressString: address) else { return nil }
       let mapItems = try? await request.mapItems
-      guard let coordinate = mapItems?.first?.location.coordinate else { return nil }
-      return ParsedCoordinate(latitude: coordinate.latitude, longitude: coordinate.longitude)
+      guard let item = mapItems?.first else { return nil }
+      return Place(mapItem: item)
     },
     search: { query in
       // Reuse the tuned worldwide natural-language search from PlaceSearchClient.
       (try? await PlaceSearchClient.liveValue.search(query)) ?? []
+    },
+    lookupNear: { query, coordinate in
+      // The enrichment pass: a tight, region-biased POI search around the point we
+      // already resolved. Because it's anchored to a known location it can't wander
+      // to a same-named place in another country (the worldwide search's failure
+      // mode); it just fetches Apple Maps' canonical record to fill blanks.
+      let request = MKLocalSearch.Request()
+      request.naturalLanguageQuery = query
+      request.resultTypes = [.pointOfInterest]
+      request.region = MKCoordinateRegion(
+        center: CLLocationCoordinate2D(latitude: coordinate.latitude, longitude: coordinate.longitude),
+        latitudinalMeters: 2_000,
+        longitudinalMeters: 2_000
+      )
+      let response = try? await MKLocalSearch(request: request).start()
+      return response?.mapItems.prefix(10).map(Place.init(mapItem:)) ?? []
     }
   )
 

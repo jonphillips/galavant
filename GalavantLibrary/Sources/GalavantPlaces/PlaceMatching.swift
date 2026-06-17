@@ -61,14 +61,23 @@ public enum PlaceMatching {
   /// name *and* the street — agreement on both is a strong match. The executor
   /// sorts candidates by this and compares the top score to a confidence
   /// threshold before accepting (else it widens the search).
+  ///
+  /// The **name must overlap**: a hit that only shares street words (or a stray
+  /// house number) is not the place. This is what kept koancph.dk's name-only
+  /// "Koan 23" from auto-accepting "23 Koa Ln, Statesville, NC" — the bare numeric
+  /// "23" was the only token in common, and numbers/short tokens don't count
+  /// (see `significantCommonWordCount`), so the name overlap is zero and the score
+  /// collapses to 0. With no region prior in pool-first capture, the gate stays
+  /// conservative: better to leave the location empty than to plant a junk pin.
   public static func score(
     candidateName: String,
     candidateStreet: String,
     scrapedName: String,
     scrapedStreet: String
   ) -> Int {
-    commonWordCount(candidateName, scrapedName)
-      + commonWordCount(candidateStreet, scrapedStreet)
+    let nameOverlap = significantCommonWordCount(candidateName, scrapedName)
+    guard nameOverlap > 0 else { return 0 }
+    return nameOverlap + significantCommonWordCount(candidateStreet, scrapedStreet)
   }
 
   /// Count of whitespace-delimited words appearing in both strings (case- and
@@ -76,6 +85,21 @@ public enum PlaceMatching {
   public static func commonWordCount(_ lhs: String, _ rhs: String) -> Int {
     let rightWords = Set(words(in: rhs))
     return words(in: lhs).filter(rightWords.contains).count
+  }
+
+  /// `commonWordCount` over *significant* tokens only — pure-numeric and ≤2-char
+  /// words are dropped before counting, so a shared house number or a stray
+  /// initial can't manufacture a match. Used for the honest-confidence scoring
+  /// gate; the raw `commonWordCount` stays available for callers that want every
+  /// token.
+  static func significantCommonWordCount(_ lhs: String, _ rhs: String) -> Int {
+    let rightWords = Set(words(in: rhs).filter(isSignificant))
+    return words(in: lhs).filter(isSignificant).filter(rightWords.contains).count
+  }
+
+  /// A token worth scoring on: longer than two characters and not purely numeric.
+  static func isSignificant(_ word: String) -> Bool {
+    word.count > 2 && !word.allSatisfy(\.isNumber)
   }
 
   // MARK: Tokenizing

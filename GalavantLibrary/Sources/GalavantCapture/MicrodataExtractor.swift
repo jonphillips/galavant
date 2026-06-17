@@ -24,7 +24,7 @@ enum MicrodataExtractor {
         ?? SchemaOrg.addressProperties[property]
         ?? SchemaOrg.geoProperties[property]
       {
-        builder.votes.add(attribute, value)
+        builder.votes.add(attribute, value, priority: AttributeVotes.microdataPriority)
       } else if property == "image" {
         builder.addImage(value)
       } else if property == "sameAs" {

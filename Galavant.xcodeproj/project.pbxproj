@@ -48,6 +48,7 @@
 		9C3779832B3D8728517D947A /* PoolMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1791F203077D8B7907351B9F /* PoolMapView.swift */; };
 		A2E63468073408305AED0762 /* SyncSeedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A1B810182571FD874E4261 /* SyncSeedTests.swift */; };
 		A3E2170E96CDF9C7D76B89E6 /* PlanningRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97954EEA93EDDCB81E746016 /* PlanningRow.swift */; };
+		A4448DAE88F06B031A6DBC1C /* LocationSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8801598C4F33B73A51ADB464 /* LocationSearchView.swift */; };
 		A4CB29CDDE7511750823B841 /* TripPlanningSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74F16970DCFE2E14E475DB66 /* TripPlanningSheets.swift */; };
 		A784199C3F004D6FA2D80B05 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 080E46AACA8A4087FB22F116 /* Assets.xcassets */; };
 		A9D8F7500DA570A20F8DE8B1 /* TripDetailContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07A4BE5288975EEF3DA91B16 /* TripDetailContent.swift */; };
@@ -127,6 +128,7 @@
 		803A41898CEB755AAE0E4A68 /* TripFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripFormView.swift; sourceTree = "<group>"; };
 		8238F43F540641D1FD4267BA /* TripPlanningModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripPlanningModel.swift; sourceTree = "<group>"; };
 		82AECABDADDBF8957A5816F8 /* AppScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppScreen.swift; sourceTree = "<group>"; };
+		8801598C4F33B73A51ADB464 /* LocationSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationSearchView.swift; sourceTree = "<group>"; };
 		8885060D462E6E53320A2831 /* ShareSeedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSeedTests.swift; sourceTree = "<group>"; };
 		895F90CCD6B6EE453DBD785D /* PoolFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoolFlowUITests.swift; sourceTree = "<group>"; };
 		91589ABCCE6CEFC2EC1F72F4 /* ReorderDifference+Apply.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ReorderDifference+Apply.swift"; sourceTree = "<group>"; };
@@ -219,6 +221,7 @@
 				D180C34C8C9F3983F7CF9CFB /* ExtensionPreProcessing.js */,
 				D3BFE6AAFB0EDC36E3BB7755 /* GalavantShare.entitlements */,
 				92EB0541350B5FCB540931D3 /* Info.plist */,
+				8801598C4F33B73A51ADB464 /* LocationSearchView.swift */,
 				C5AD27A1248EEA1D9B580277 /* ShareViewController.swift */,
 			);
 			path = GalavantShare;
@@ -530,6 +533,7 @@
 			files = (
 				AC8B63575425320FB0944F98 /* CaptureConfirmView.swift in Sources */,
 				565E450BE96483372954E175 /* CaptureExtraction.swift in Sources */,
+				A4448DAE88F06B031A6DBC1C /* LocationSearchView.swift in Sources */,
 				F009B3192D02321202419379 /* ShareViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

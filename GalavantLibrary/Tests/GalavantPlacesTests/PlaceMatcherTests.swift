@@ -27,12 +27,73 @@ import Testing
   @Test("No coordinates: geocode the address before falling to search")
   func geocodeBeforeSearch() async {
     let matcher = PlaceMatcher(
-      geocode: { _ in ParsedCoordinate(latitude: 10, longitude: 20) },
+      geocode: { _ in self.place("X", 10, 20) },
       search: { _ in Issue.record("search should not run once geocode succeeds"); return [] }
     )
     let page = ParsedPage(title: "X", address: ParsedAddress(street: "A St", locality: "Town"))
     let match = await matcher.match(page)
     #expect(match?.coordinate == ParsedCoordinate(latitude: 10, longitude: 20))
+  }
+
+  @Test("Geocoding keeps the map item's detail, not just its coordinate (Tier A)")
+  func geocodeCarriesDetail() async {
+    let matcher = PlaceMatcher(
+      geocode: { _ in
+        Place(
+          id: UUID(), name: "Alouette", latitude: 55.685, longitude: 12.583,
+          regionName: "Copenhagen", kind: .food, url: "https://restaurantalouette.dk",
+          phone: "+4531676606", address: "8 Kronprinsessegade, Copenhagen"
+        )
+      },
+      search: { _ in Issue.record("geocode succeeded; no search"); return [] }
+    )
+    let page = ParsedPage(
+      title: "Alouette", address: ParsedAddress(street: "8 Kronprinsessegade, Copenhagen")
+    )
+    let match = await matcher.match(page)
+    #expect(match?.kind == .food)
+    #expect(match?.phone == "+4531676606")
+    #expect(match?.url == "https://restaurantalouette.dk")
+  }
+
+  @Test("A coordinate-only match is supplemented by a nearby Apple Maps POI (Tier B)")
+  func enrichmentSupplementsCoordinateMatch() async {
+    let matcher = PlaceMatcher(
+      geocode: { _ in Issue.record("no address to geocode"); return nil },
+      search: { _ in Issue.record("coordinates win; no search"); return [] },
+      lookupNear: { _, _ in
+        [
+          Place(
+            id: UUID(), name: "Noma", latitude: 55.6839, longitude: 12.6109,
+            regionName: "Copenhagen", kind: .food, url: "https://noma.dk",
+            phone: "+45 32 96 32 97"
+          )
+        ]
+      }
+    )
+    // Page gave coordinates but no POI detail — enrichment fills it in.
+    let page = ParsedPage(
+      title: "Noma", coordinate: ParsedCoordinate(latitude: 55.6839, longitude: 12.6109)
+    )
+    let match = await matcher.match(page)
+    #expect(match?.coordinate == ParsedCoordinate(latitude: 55.6839, longitude: 12.6109))
+    #expect(match?.kind == .food)
+    #expect(match?.phone == "+45 32 96 32 97")
+    #expect(match?.regionName == "Copenhagen")
+  }
+
+  @Test("Enrichment ignores a nearby POI whose name doesn't match")
+  func enrichmentNameGated() async {
+    let matcher = PlaceMatcher(
+      geocode: { _ in nil },
+      search: { _ in [] },
+      lookupNear: { _, _ in [self.place("Starbucks", 55.68, 12.61)] }
+    )
+    let page = ParsedPage(
+      title: "Noma", coordinate: ParsedCoordinate(latitude: 55.6839, longitude: 12.6109)
+    )
+    let match = await matcher.match(page)
+    #expect(match?.kind == nil)  // Starbucks ≠ Noma → no hijack
   }
 
   @Test("Text search picks the best-scoring hit, not just the first")
@@ -52,6 +113,27 @@ import Testing
     #expect(match?.coordinate == ParsedCoordinate(latitude: 55.6839, longitude: 12.6109))
   }
 
+  @Test("A search match carries the hit's full detail, not just the coordinate")
+  func matchCarriesEnrichment() async {
+    let matcher = PlaceMatcher(
+      geocode: { _ in nil },
+      search: { _ in
+        [
+          Place(
+            id: UUID(), name: "Alouette", latitude: 55.685, longitude: 12.583,
+            regionName: "Copenhagen", kind: .food, url: "https://restaurantalouette.dk",
+            phone: "+4531676606", address: "8 Kronprinsessegade, Copenhagen"
+          )
+        ]
+      }
+    )
+    let match = await matcher.match(ParsedPage(title: "Alouette"))
+    #expect(match?.regionName == "Copenhagen")
+    #expect(match?.kind == .food)
+    #expect(match?.phone == "+4531676606")
+    #expect(match?.url == "https://restaurantalouette.dk")
+  }
+
   @Test("A best hit below the confidence floor is rejected")
   func belowThresholdRejected() async {
     let matcher = PlaceMatcher(
@@ -66,5 +148,21 @@ import Testing
   func noSignal() async {
     let matcher = PlaceMatcher(geocode: { _ in nil }, search: { _ in [] })
     #expect(await matcher.match(ParsedPage()) == nil)
+  }
+
+  @Test("Name-only page rejects a junk worldwide hit (koancph.dk regression)")
+  func koanRegression() async {
+    // The real failure: koancph.dk gave only og:title "Koan 23" (no JSON-LD,
+    // address, geo, or locality), the worldwide search was device-biased to the
+    // US, and the matcher auto-accepted "23 Koa Ln, Statesville, NC" because the
+    // numeric "23" cleared minimumScore: 1. The honest-confidence gate now scores
+    // that hit 0, so the location is left empty for the user to fill in.
+    let matcher = PlaceMatcher(
+      geocode: { _ in nil },
+      search: { _ in
+        [self.place("23 Koa Ln", 35.78, -80.88, address: "23 Koa Ln, Statesville, NC")]
+      }
+    )
+    #expect(await matcher.match(ParsedPage(title: "Koan 23")) == nil)
   }
 }

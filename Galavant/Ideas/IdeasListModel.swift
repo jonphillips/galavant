@@ -13,6 +13,7 @@ import Sharing
 final class IdeasListModel {
   @ObservationIgnored @Dependency(\.defaultDatabase) var database
   @ObservationIgnored @Dependency(\.defaultSyncEngine) var syncEngine
+  @ObservationIgnored @Dependency(\.recentTripStore) var recentTripStore
   @ObservationIgnored @FetchAll(Idea.order(by: \.name)) var ideas
   @ObservationIgnored @FetchAll(Planner.all) var planners
   @ObservationIgnored @FetchAll(IdeaInterest.all) var interests
@@ -109,8 +110,11 @@ final class IdeasListModel {
   }
 
   /// Select an active-trip capsule, or `nil` for "All" (the eternal pool).
+  /// Selecting an actual trip records it as the recent trip so a share-extension
+  /// capture defaults onto it; selecting "All" doesn't erase that memory.
   func selectCapsule(_ tripID: Trip.ID?) {
     activeTripID = tripID
+    if let tripID { recentTripStore.record(tripID) }
   }
 
   var filteredIdeas: [Idea] {
@@ -298,6 +302,16 @@ final class IdeasListModel {
   func task() async {
     if currentPlanner == nil {
       destination = .identity
+    }
+  }
+
+  /// Re-read the pool after a write from another process (the share extension),
+  /// which `@FetchAll`'s in-process observation can't see. Driven by
+  /// `DatabaseChange` notifications and foreground transitions (IdeasScreen). The
+  /// capture only inserts an `Idea`, so reloading the pool suffices.
+  func reloadAfterExternalWrite() async {
+    await withErrorReporting {
+      try await $ideas.load()
     }
   }
 

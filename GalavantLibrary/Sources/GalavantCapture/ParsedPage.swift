@@ -10,6 +10,11 @@ public struct ParsedPage: Equatable, Sendable {
   /// The page we parsed (the shared/origin URL).
   public var sourceURL: URL?
   public var title: String?
+  /// Whether `title` came from structured data (a JSON-LD/microdata `name`) rather
+  /// than page chrome (og:/twitter:/`<title>`). A chrome title is a lower-confidence
+  /// guess — often a marketing string we had to clip — so the capture flow lets a
+  /// confident Apple Maps name override it, while a structured name is trusted as-is.
+  public var titleIsStructured = false
   public var summary: String?
   public var phone: String?
   public var email: String?
@@ -37,6 +42,7 @@ public struct ParsedPage: Equatable, Sendable {
   public init(
     sourceURL: URL? = nil,
     title: String? = nil,
+    titleIsStructured: Bool = false,
     summary: String? = nil,
     phone: String? = nil,
     email: String? = nil,
@@ -51,6 +57,7 @@ public struct ParsedPage: Equatable, Sendable {
   ) {
     self.sourceURL = sourceURL
     self.title = title
+    self.titleIsStructured = titleIsStructured
     self.summary = summary
     self.phone = phone
     self.email = email

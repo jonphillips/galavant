@@ -67,6 +67,162 @@ import Testing
     }
   }
 
+  @Test("prepare enriches blank fields from the Apple Maps match (kind/phone/region/link)")
+  func prepareEnrichesFromMatch() async {
+    await withDependencies {
+      try? $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.placeMatcher = PlaceMatcher(
+        geocode: { _ in nil },
+        search: { _ in
+          [
+            Place(
+              id: UUID(), name: "Noma", latitude: 55.6839, longitude: 12.6109,
+              regionName: "Copenhagen", kind: .food, url: "https://noma.dk",
+              phone: "+45 32 96 32 97", address: "Refshalevej 96, Copenhagen"
+            )
+          ]
+        }
+      )
+    } operation: {
+      // og:title only — no kind/phone/region/link on the page, so the match fills them.
+      let model = CaptureModel(html: Self.nameOnlyHTML, sourceURL: nil)
+      await model.prepare()
+      // The page name is chrome (og:title), so the confident, overlapping Apple Maps
+      // name wins over it (see prepareKeepsStructuredNameOverMatch for the inverse).
+      #expect(model.draft.name == "Noma")
+      #expect(model.draft.kind == .food)
+      #expect(model.draft.phone == "+45 32 96 32 97")
+      #expect(model.draft.regionName == "Copenhagen")
+      #expect(model.draft.url == "https://noma.dk")
+      #expect(model.draft.address == "Refshalevej 96, Copenhagen")
+    }
+  }
+
+  @Test("A chrome-derived title yields to a confident, overlapping Apple Maps name")
+  func prepareLetsMatchNameOverrideChromeTitle() async {
+    let chromeHTML = """
+      <html><head>
+      <meta property="og:title" content="Forestis Dolomites | Boutique Wellness Hotel in Brixen">
+      </head><body></body></html>
+      """
+    await withDependencies {
+      try? $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.placeMatcher = PlaceMatcher(
+        geocode: { _ in nil },
+        search: { _ in [Place(id: UUID(), name: "Forestis", latitude: 46.7, longitude: 11.65)] }
+      )
+    } operation: {
+      let model = CaptureModel(html: chromeHTML, sourceURL: nil)
+      await model.prepare()
+      // Clipped chrome title was "Forestis Dolomites"; Apple Maps' canonical "Forestis"
+      // overlaps it, so the cleaner name wins.
+      #expect(model.draft.name == "Forestis")
+    }
+  }
+
+  @Test("A structured page name is kept even when the match name differs")
+  func prepareKeepsStructuredNameOverMatch() async {
+    let structuredHTML = """
+      <html><head><script type="application/ld+json">{
+        "@context": "http://schema.org", "@type": "Restaurant", "name": "Noma"
+      }</script></head><body></body></html>
+      """
+    await withDependencies {
+      try? $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.placeMatcher = PlaceMatcher(
+        geocode: { _ in nil },
+        search: { _ in [Place(id: UUID(), name: "Noma Bar", latitude: 55.68, longitude: 12.61)] }
+      )
+    } operation: {
+      let model = CaptureModel(html: structuredHTML, sourceURL: nil)
+      await model.prepare()
+      #expect(model.draft.name == "Noma")  // structured name is trusted; not clobbered
+    }
+  }
+
+  @Test("useLocation applies a picked place but keeps the page's own name/kind")
+  func useLocationPreservesEditedFields() async {
+    await withDependencies {
+      try? $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.placeMatcher = PlaceMatcher(geocode: { _ in nil }, search: { _ in [] })
+    } operation: {
+      // koancph.dk shape: a real name from the page, no location resolved.
+      let model = CaptureModel(html: Self.nameOnlyHTML, sourceURL: nil)
+      await model.prepare()
+      #expect(model.draft.latitude == nil)
+
+      model.useLocation(
+        Place(
+          id: UUID(), name: "Restaurant Koan", latitude: 55.6839, longitude: 12.6109,
+          regionName: "Copenhagen", kind: .food, phone: "+4531676606",
+          address: "Refshalevej 96, Copenhagen"
+        )
+      )
+      #expect(model.draft.latitude == 55.6839)
+      #expect(model.draft.longitude == 12.6109)
+      #expect(model.draft.address == "Refshalevej 96, Copenhagen")
+      #expect(model.draft.regionName == "Copenhagen")
+      #expect(model.draft.phone == "+4531676606")
+      // Page already supplied the name, so the picked place doesn't clobber it.
+      #expect(model.draft.name == "Noma Restaurant")
+
+      model.clearLocation()
+      #expect(model.draft.latitude == nil)
+      #expect(model.draft.address == nil)
+    }
+  }
+
+  @Test("Trip picker lists the recent trip first and selected; save pulls onto it")
+  func tripSelectorAndPull() async throws {
+    let recentID = UUID()
+    let otherID = UUID()
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.placeMatcher = .testValue
+      $0.recentTripStore = RecentTripStore(read: { recentID }, record: { _ in })
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      try await database.write { db in
+        let party = try TravelParty.ensureDefault(in: db)
+        // Two dated trips; chronological order is Italy (earlier) then Japan (later).
+        try Trip.insert {
+          Trip.Draft(
+            id: otherID, name: "Italy", certaintyStage: .dated,
+            startDate: Date(timeIntervalSince1970: 1_000_000), travelPartyID: party.id
+          )
+        }
+        .execute(db)
+        try Trip.insert {
+          Trip.Draft(
+            id: recentID, name: "Japan", certaintyStage: .dated,
+            startDate: Date(timeIntervalSince1970: 2_000_000), travelPartyID: party.id
+          )
+        }
+        .execute(db)
+      }
+
+      let model = CaptureModel(html: Self.restaurantHTML, sourceURL: nil)
+      await model.prepare()
+      // Japan is the recent trip, so it floats to the top and is pre-selected even
+      // though Italy is chronologically first.
+      #expect(model.trips.map(\.id) == [recentID, otherID])
+      #expect(model.selectedTripID == recentID)
+
+      await model.save()
+      #expect(model.phase == .saved)
+      let entries = try await database.read { db in try TripIdea.all.fetchAll(db) }
+      #expect(entries.count == 1)
+      #expect(entries.first?.tripID == recentID)
+      #expect(entries.first?.ideaID == model.draft.id)
+      #expect(entries.first?.status == .considering)
+    }
+  }
+
   @Test("save inserts the idea under the default travel party")
   func saveInsertsUnderDefaultParty() async throws {
     try await withDependencies {
