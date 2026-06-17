@@ -104,4 +104,58 @@ public enum IdeaKind: String, QueryBindable, CaseIterable, Sendable {
       return nil
     }
   }
+
+  /// Map a schema.org `@type` token (e.g. `"Restaurant"`, `"Hotel"`) to a kind,
+  /// so web-capture can pre-fill the kind from a scraped page's structured data —
+  /// the on-device cousin of the MapKit mapping above. Keyed on the bare type
+  /// token (the capture engine already strips any `http://schema.org/` prefix), so
+  /// this stays MapKit-free and fully testable. Unknown/generic types
+  /// (`Thing`, `Organization`, `Place`, `LocalBusiness`) return `nil` — too vague
+  /// to commit to a kind, left to the user. A page lists several types
+  /// (`["Restaurant", "LocalBusiness"]`); callers try them most-specific first.
+  public init?(schemaOrgType type: String) {
+    switch type {
+    case "Restaurant", "FoodEstablishment", "CafeOrCoffeeShop", "Bakery", "IceCreamShop":
+      self = .food
+    case "BarOrPub", "Winery", "Brewery", "NightClub":
+      self = .drink
+    case "Hotel", "LodgingBusiness", "BedAndBreakfast", "Resort", "Motel", "Hostel",
+      "Campground":
+      self = .stay
+    case "Museum", "ArtGallery":
+      self = .museum
+    case "MovieTheater", "PerformingArtsTheater", "TheaterGroup":
+      self = .theater
+    case "Beach":
+      self = .beach
+    case "Park", "NationalPark":
+      self = .park
+    case "TouristAttraction", "LandmarksOrHistoricalBuildings", "Landmark", "PlaceOfWorship",
+      "Church", "BuddhistTemple", "HinduTemple", "Mosque", "Synagogue", "Castle":
+      self = .sight
+    case "Zoo", "AmusementPark", "Aquarium", "StadiumOrArena", "BowlingAlley",
+      "ExerciseGym", "SportsActivityLocation":
+      self = .activity
+    case "ShoppingCenter", "Store", "DepartmentStore", "ClothingStore":
+      self = .shop
+    case "GroceryStore", "FarmersMarket", "Market":
+      self = .market
+    case "TouristInformationCenter", "TravelAgency":
+      self = .tour
+    case "TrainStation", "BusStation", "Airport", "SubwayStation":
+      self = .transit
+    default:
+      return nil
+    }
+  }
+
+  /// The most-specific kind a scraped page's `@type` list maps to. Types arrive
+  /// most-specific first (schema.org convention / the engine's ordering), so the
+  /// first that maps wins; an all-generic list yields `nil` → Unspecified.
+  public init?(schemaOrgTypes types: [String]) {
+    guard let matched = types.lazy.compactMap({ IdeaKind(schemaOrgType: $0) }).first else {
+      return nil
+    }
+    self = matched
+  }
 }

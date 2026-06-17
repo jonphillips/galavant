@@ -105,6 +105,21 @@ first. Update this file when reality diverges — it's a living doc, not a contr
   M4b/c; `URLSession` second-hop fetch is feasible on-device — no sandbox block,
   only ATS). Pure/best-effort (never throws); `capturedAt` injected. 9 fixture
   tests (no network/UI). Engine is package-only — not linked into the app yet.
+- ✅ M4b (2026-06-16): **the domain bridge + Apple Maps matching policy** (pure,
+  no network — execution wires in M4c). (1) `IdeaKind(schemaOrgType:)` +
+  `(schemaOrgTypes:)` — schema.org `@type` → kind, the on-device cousin of the POI
+  mapping; generic types (`Thing`/`Organization`/`LocalBusiness`/`Place`) stay nil,
+  most-specific wins. (2) `CapturedPlace.from(_:id:travelPartyID:)` in
+  `GalavantPlaces` — maps `ParsedPage` → an `Idea.Draft` (confirm-and-tweak, like
+  search-first capture) **and carries the signals the `Idea` schema doesn't yet
+  hold** (images, socials, opening hours, the two-hop `websiteURL`) so M4c/M4d
+  don't re-parse; `id` passed in for `@Dependency(\.uuid)` control. (3)
+  `PlaceMatching` — ports V1's `PlaceSearchStrategy` as pure string functions:
+  the **signal ladder** (`coordinates → geocodeAddress → biasedTextSearch →
+  worldwideTextSearch`, bias is a hint + auto-widen on low score) and
+  common-substring **scoring** (name + street overlap). `GalavantPlaces` now
+  depends on `GalavantCapture`. 22 new tests across the two test targets; full
+  package suite green. Still package-only — not linked into the app.
 - Share extension: URL in → scraped page (SwiftSoup, port V1) → idea form → saved to shared DB
 - Enrichment pipeline per `docs/scraping-enrichment.md` (port of the V1 server's
   metatag/OpenGraph/schema.org layering, value voting, and MKLocalSearch matching; add JSON-LD and openingHours capture)

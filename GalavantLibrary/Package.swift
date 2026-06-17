@@ -33,6 +33,7 @@ let package = Package(
       name: "GalavantPlaces",
       dependencies: [
         "GalavantSchema",
+        "GalavantCapture",
         .product(name: "Dependencies", package: "swift-dependencies"),
       ]
     ),
@@ -40,6 +41,8 @@ let package = Package(
       name: "GalavantPlacesTests",
       dependencies: [
         "GalavantPlaces",
+        "GalavantSchema",
+        "GalavantCapture",
         .product(name: "DependenciesTestSupport", package: "swift-dependencies"),
       ]
     ),
