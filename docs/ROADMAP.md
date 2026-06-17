@@ -120,6 +120,24 @@ first. Update this file when reality diverges — it's a living doc, not a contr
   common-substring **scoring** (name + street overlap). `GalavantPlaces` now
   depends on `GalavantCapture`. 22 new tests across the two test targets; full
   package suite green. Still package-only — not linked into the app.
+- ✅ M4c (2026-06-16): **the share extension — the first runnable capture slice.**
+  Share a web page → a confirm-and-tweak sheet → it's in the pool. (a) The
+  *testable* core in `GalavantPlaces`: `PlaceMatcher` executes the M4b ladder
+  against injected geocode/search (iOS 26 `MKGeocodingRequest`; `CLGeocoder`
+  deprecated) with auto-widen; `CaptureModel` (`@Observable`) does
+  parse→match→editable draft→save under the default party, tested with an
+  in-memory DB + fixture matcher. (b) The extension shell (`GalavantShare`,
+  hand-verified — not unit-testable): `ExtensionPreProcessing.js` hands over
+  Safari's **rendered DOM** (WebPage activation + JS preprocessing; WebURL +
+  `URLSession` Safari-UA fetch as fallback); `ShareViewController` bootstraps the
+  app-group DB **local-only** (`startSyncEngine: false` — the app owns sync) and
+  hosts `CaptureConfirmView` (a focused form, not the app-target `IdeaFormView`).
+  **Single-hop by Jon's call** — the place's `websiteURL` is saved for the app's
+  deferred second-hop enrichment (M4d). Fixed a latent `project.yml` drift en
+  route: the app used `GalavantPlaces` but never declared it (committed `.pbxproj`
+  carried the link; `xcodegen generate` would drop it) — now declared. App +
+  extension build clean. **Verify on device/sim:** share a restaurant page from
+  Safari → confirm → it lands in the pool.
 - Share extension: URL in → scraped page (SwiftSoup, port V1) → idea form → saved to shared DB
 - Enrichment pipeline per `docs/scraping-enrichment.md` (port of the V1 server's
   metatag/OpenGraph/schema.org layering, value voting, and MKLocalSearch matching; add JSON-LD and openingHours capture)
