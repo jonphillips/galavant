@@ -81,4 +81,30 @@ import Testing
     #expect(PlaceMatching.commonWordCount("Noma Restaurant", "noma bakery") == 1)
     #expect(PlaceMatching.commonWordCount("totally", "different") == 0)
   }
+
+  @Test("Name must overlap: a street-only coincidence scores 0")
+  func nameMustOverlap() {
+    // The koancph.dk regression: name-only "Koan 23" vs an Apple Maps hit on
+    // "23 Koa Ln, Statesville, NC". The bare numeric "23" is the only common
+    // token, and numbers don't count — so the name never overlaps and the score
+    // collapses to 0 rather than auto-accepting the junk pin.
+    let score = PlaceMatching.score(
+      candidateName: "23 Koa Ln",
+      candidateStreet: "23 Koa Ln, Statesville, NC",
+      scrapedName: "Koan 23",
+      scrapedStreet: ""
+    )
+    #expect(score == 0)
+  }
+
+  @Test("Numeric and ≤2-char tokens don't count toward overlap")
+  func insignificantTokensDropped() {
+    // Only "main" is a significant shared token; "1", "st", "23" are dropped.
+    #expect(PlaceMatching.significantCommonWordCount("1 Main St", "23 Main St") == 1)
+    #expect(PlaceMatching.significantCommonWordCount("23", "23 Koa Ln") == 0)
+    #expect(PlaceMatching.isSignificant("23") == false)
+    #expect(PlaceMatching.isSignificant("st") == false)
+    #expect(PlaceMatching.isSignificant("2024") == false)
+    #expect(PlaceMatching.isSignificant("koan") == true)
+  }
 }

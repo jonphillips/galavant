@@ -55,7 +55,7 @@ enum JSONLDExtractor {
     }
     for (property, attribute) in SchemaOrg.scalarProperties {
       if let value = node[property] {
-        builder.votes.add(attribute, firstString(value))
+        builder.votes.add(attribute, firstString(value), priority: AttributeVotes.jsonLDPriority)
       }
     }
     for image in imageStrings(node["image"]) {
@@ -70,19 +70,40 @@ enum JSONLDExtractor {
   }
 
   private static func mineAddress(_ value: Any?, into builder: inout ParseBuilder) {
-    guard let dict = value as? [String: Any] else { return }
-    for (property, attribute) in SchemaOrg.addressProperties {
-      if let raw = dict[property] {
-        builder.votes.add(attribute, firstString(raw))
+    switch value {
+    case let dict as [String: Any]:
+      for (property, attribute) in SchemaOrg.addressProperties {
+        if let raw = dict[property] {
+          builder.votes.add(attribute, firstString(raw), priority: AttributeVotes.jsonLDPriority)
+        }
       }
+    case let string as String:
+      // schema.org allows `address` to be plain Text, not only a PostalAddress
+      // object — Squarespace's `LocalBusiness`/`Organization` blocks ship the whole
+      // address as one (often multi-line) string. Keep it intact as a single street
+      // line so the matcher can geocode it; without this the address is dropped and
+      // a bare-name worldwide search lands on the wrong "Alouette".
+      builder.votes.add(.street, singleLineAddress(string), priority: AttributeVotes.jsonLDPriority)
+    default:
+      return
     }
+  }
+
+  /// Collapse a free-text address (newlines, blank `, ,` segments) to one comma-
+  /// separated line a geocoder accepts.
+  private static func singleLineAddress(_ raw: String) -> String {
+    raw
+      .split(whereSeparator: { $0 == "\n" || $0 == "," })
+      .map { $0.trimmingCharacters(in: .whitespaces) }
+      .filter { !$0.isEmpty }
+      .joined(separator: ", ")
   }
 
   private static func mineGeo(_ value: Any?, into builder: inout ParseBuilder) {
     guard let dict = value as? [String: Any] else { return }
     for (property, attribute) in SchemaOrg.geoProperties {
       if let raw = dict[property] {
-        builder.votes.add(attribute, firstString(raw))
+        builder.votes.add(attribute, firstString(raw), priority: AttributeVotes.jsonLDPriority)
       }
     }
   }

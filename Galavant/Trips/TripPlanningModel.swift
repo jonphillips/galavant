@@ -12,6 +12,7 @@ import SQLiteData
 @Observable
 final class TripPlanningModel {
   @ObservationIgnored @Dependency(\.defaultDatabase) var database
+  @ObservationIgnored @Dependency(\.recentTripStore) var recentTripStore
   @ObservationIgnored @FetchAll(Trip.all) var trips
   @ObservationIgnored @FetchAll(Idea.order(by: \.name)) var ideas
   @ObservationIgnored @FetchAll(TripIdea.all) var allTripIdeas
@@ -67,6 +68,9 @@ final class TripPlanningModel {
 
   init(tripID: Trip.ID) {
     self.tripID = tripID
+    // Opening a trip to plan it is the strongest "this is the trip I'm working on"
+    // signal — record it so a share-extension capture defaults onto it.
+    recentTripStore.record(tripID)
   }
 
   // MARK: - Derived state

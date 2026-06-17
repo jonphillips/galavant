@@ -62,8 +62,9 @@ enum MetaExtractor {
       }
     }
 
-    // `<title>` is the weakest title candidate — added last so any og:/schema
-    // title already has at least an equal tally and wins the earliest-seen tie.
+    // `<title>` is the weakest title candidate (chrome priority, like og:/twitter:),
+    // so a structured schema.org `name` outranks it even though the page title is
+    // echoed across og:title/twitter:title/<title>.
     if let title = try? document.title(), !title.isEmpty {
       builder.votes.add(.title, title)
     }

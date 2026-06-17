@@ -41,6 +41,89 @@ import Testing
     #expect(page.websiteURL?.host() != page.sourceURL?.host())
   }
 
+  @Test("JSON-LD address given as a plain string is kept (not only PostalAddress objects)")
+  func jsonLDStringAddress() {
+    // Squarespace's LocalBusiness/Organization blocks ship address as multi-line
+    // Text, not a PostalAddress object (the restaurantalouette.dk case). It must
+    // survive as a geocodable line, else the matcher does a bare-name worldwide
+    // search and lands on the wrong "Alouette".
+    let html = """
+      <html><head>
+      <script type="application/ld+json">{
+        "@context": "http://schema.org",
+        "@type": "LocalBusiness",
+        "name": "Alouette",
+        "telephone": "+4531676606",
+        "address": "8 Kronprinsessegade\\nK\\u00F8benhavn, , 1306\\nDenmark"
+      }</script>
+      </head><body></body></html>
+      """
+    let page = PageParser.parse(html: html, sourceURL: URL(string: "https://restaurantalouette.dk/home"))
+    #expect(page.title == "Alouette")
+    #expect(page.phone == "+4531676606")
+    // Newlines and the empty `, ,` segment are collapsed into one geocodable line.
+    #expect(page.address.street == "8 Kronprinsessegade, København, 1306, Denmark")
+    #expect(!page.address.isEmpty)
+  }
+
+  @Test("JSON-LD name outranks an echoed page-chrome title, even mirrored in microdata")
+  func structuredNameBeatsChromeTitle() {
+    // The real restaurantalouette.dk case: the page title "Home — Alouette" is
+    // echoed across og:title, twitter:title, <title> AND a microdata
+    // <meta itemprop="name"> — four votes — while the clean JSON-LD `name`
+    // ("Alouette") has one. JSON-LD must outrank microdata (which here just mirrors
+    // the chrome), which must outrank bare chrome, regardless of tally.
+    let html = """
+      <html><head>
+      <title>Home &mdash; Alouette</title>
+      <meta property="og:title" content="Home — Alouette">
+      <meta name="twitter:title" content="Home — Alouette">
+      <meta itemprop="name" content="Home — Alouette">
+      <script type="application/ld+json">{
+        "@context": "http://schema.org", "@type": "LocalBusiness", "name": "Alouette"
+      }</script>
+      </head><body></body></html>
+      """
+    let page = PageParser.parse(html: html, sourceURL: URL(string: "https://restaurantalouette.dk/home"))
+    #expect(page.title == "Alouette")
+    #expect(page.titleIsStructured)
+  }
+
+  @Test("A page-chrome title's marketing tagline after a pipe is trimmed")
+  func chromeTitleTaglineTrimmed() {
+    // forestis.it/en: the only JSON-LD is a BreadcrumbList ("Homepage"), not a place
+    // node, so the title falls to og:title — which carries a marketing tagline after
+    // a pipe. Trim it; the brand sits before the pipe.
+    let html = """
+      <html><head>
+      <meta property="og:title" content="Forestis Dolomites | Boutique Wellness Hotel in Brixen">
+      <script type="application/ld+json">{
+        "@context": "http://schema.org", "@type": "BreadcrumbList",
+        "itemListElement": [{ "@type": "ListItem", "position": 1,
+          "item": { "@id": "https://www.forestis.it/en", "name": "Homepage" } }]
+      }</script>
+      </head><body></body></html>
+      """
+    let page = PageParser.parse(html: html, sourceURL: URL(string: "https://www.forestis.it/en"))
+    #expect(page.title == "Forestis Dolomites")
+    #expect(!page.titleIsStructured)  // chrome-sourced — a confident map match may override it
+    #expect(page.schemaTypes.isEmpty)  // breadcrumb is not a place node
+  }
+
+  @Test("A structured name containing a pipe is left intact (only chrome is trimmed)")
+  func structuredTitleNotTrimmed() {
+    let html = """
+      <html><head>
+      <meta property="og:title" content="Page | Site">
+      <script type="application/ld+json">{
+        "@context": "http://schema.org", "@type": "Restaurant", "name": "Pasta | Vino"
+      }</script>
+      </head><body></body></html>
+      """
+    let page = PageParser.parse(html: html, sourceURL: nil)
+    #expect(page.title == "Pasta | Vino")
+  }
+
   // MARK: OpenGraph + metatags
 
   @Test("OpenGraph mines coordinates, contact block, and out-votes the <title>")

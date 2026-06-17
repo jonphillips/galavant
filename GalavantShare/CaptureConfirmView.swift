@@ -28,7 +28,12 @@ struct CaptureConfirmView: View {
     }
     .task { await model.prepare() }
     .onChange(of: model.phase) { _, phase in
-      if phase == .saved { onClose() }
+      if phase == .saved {
+        // Signal the (possibly running) app to re-read — its @FetchAll observation
+        // can't see this separate process's write.
+        DatabaseChange.post()
+        onClose()
+      }
     }
   }
 
@@ -44,6 +49,17 @@ struct CaptureConfirmView: View {
 
   private var form: some View {
     Form {
+      if !model.trips.isEmpty {
+        Section("Trip") {
+          Picker("Add to trip", selection: $model.selectedTripID) {
+            ForEach(model.trips) { trip in
+              Text(tripLabel(trip)).tag(Trip.ID?.some(trip.id))
+            }
+            Text("None").tag(Trip.ID?.none)
+          }
+        }
+      }
+
       Section("Place") {
         TextField("Name", text: $model.draft.name)
         Picker("Kind", selection: $model.draft.kind) {
@@ -55,13 +71,26 @@ struct CaptureConfirmView: View {
       }
 
       Section("Location") {
-        Text(locationSummary)
-          .foregroundStyle(hasLocation ? .primary : .secondary)
+        NavigationLink {
+          LocationSearchView(model: model)
+        } label: {
+          Text(locationSummary)
+            .foregroundStyle(hasLocation ? .primary : .secondary)
+        }
+        if hasLocation {
+          Button("Clear location", role: .destructive) { model.clearLocation() }
+        }
       }
 
       Section("Notes") {
         TextField("Notes", text: $model.draft.notes, axis: .vertical)
           .lineLimit(1...5)
+      }
+
+      if let phone = model.draft.phone, !phone.isEmpty {
+        Section("Phone") {
+          Text(phone).foregroundStyle(.secondary)
+        }
       }
 
       if !model.draft.url.isEmpty {
@@ -79,6 +108,10 @@ struct CaptureConfirmView: View {
         }
       }
     }
+  }
+
+  private func tripLabel(_ trip: Trip) -> String {
+    trip.name.isEmpty ? "Untitled trip" : trip.name
   }
 
   private var isSavable: Bool {
