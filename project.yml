@@ -51,6 +51,8 @@ targets:
       - target: GalavantShare
       - package: GalavantLibrary
         product: GalavantSchema
+      - package: GalavantLibrary
+        product: GalavantPlaces
       - package: sqlite-data
         product: SQLiteData
       - package: swift-navigation
@@ -71,6 +73,15 @@ targets:
     platform: iOS
     sources:
       - GalavantShare
+    dependencies:
+      - package: GalavantLibrary
+        product: GalavantPlaces
+      - package: GalavantLibrary
+        product: GalavantSchema
+      - package: sqlite-data
+        product: SQLiteData
+      - package: swift-dependencies
+        product: Dependencies
     info:
       path: GalavantShare/Info.plist
       properties:
@@ -80,9 +91,14 @@ targets:
         NSExtension:
           NSExtensionPointIdentifier: com.apple.share-services
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          # JS preprocessing hands over Safari's *rendered* DOM (post-JavaScript),
+          # which beats a raw URLSession fetch for JS-heavy pages. WebURL stays as
+          # the fallback for share sources that supply only a URL.
           NSExtensionAttributes:
             NSExtensionActivationRule:
+              NSExtensionActivationSupportsWebPageWithMaxCount: 1
               NSExtensionActivationSupportsWebURLWithMaxCount: 1
+            NSExtensionJavaScriptPreprocessingFile: ExtensionPreProcessing
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jonphillips.galavant.share

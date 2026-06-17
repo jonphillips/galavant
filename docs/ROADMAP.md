@@ -90,6 +90,54 @@ first. Update this file when reality diverges — it's a living doc, not a contr
 - ✅ Done when: the Copenhagen scenario works end to end
 
 ## M4 — Capture from anywhere
+- ✅ M4a (2026-06-16): **the pure parser engine** — new isolated SPM target
+  `GalavantCapture` (SwiftSoup + Foundation only; **no** SwiftUI/CloudKit, never
+  sees `Idea`/`Trip` — the portfolio-extraction seam, BACKLOG/ADR-0009). `HTML →
+  ParsedPage` (a domain-free value type: title/summary/phone/email/`websiteURL`/
+  coordinate/address/images/socials/`schemaTypes`/`openingHours`/`capturedAt`).
+  Layers run least→most structured into one **value vote** (V1's
+  `consolidate_scored_attrs`): **JSON-LD first** (scraping-enrichment.md precedent),
+  then OpenGraph/Twitter meta (incl. the underused `place:location:*` +
+  `business:contact_data:*`), then HTML microdata; ties break to earliest-seen so
+  authoritative passes win. Images/socials/hours accumulate ordered-unique; image
+  hygiene filter + relative-URL resolution ported from V1. `websiteURL` (vs
+  `sourceURL`) is surfaced as the **two-hop** trigger (orchestration deferred to
+  M4b/c; `URLSession` second-hop fetch is feasible on-device — no sandbox block,
+  only ATS). Pure/best-effort (never throws); `capturedAt` injected. 9 fixture
+  tests (no network/UI). Engine is package-only — not linked into the app yet.
+- ✅ M4b (2026-06-16): **the domain bridge + Apple Maps matching policy** (pure,
+  no network — execution wires in M4c). (1) `IdeaKind(schemaOrgType:)` +
+  `(schemaOrgTypes:)` — schema.org `@type` → kind, the on-device cousin of the POI
+  mapping; generic types (`Thing`/`Organization`/`LocalBusiness`/`Place`) stay nil,
+  most-specific wins. (2) `CapturedPlace.from(_:id:travelPartyID:)` in
+  `GalavantPlaces` — maps `ParsedPage` → an `Idea.Draft` (confirm-and-tweak, like
+  search-first capture) **and carries the signals the `Idea` schema doesn't yet
+  hold** (images, socials, opening hours, the two-hop `websiteURL`) so M4c/M4d
+  don't re-parse; `id` passed in for `@Dependency(\.uuid)` control. (3)
+  `PlaceMatching` — ports V1's `PlaceSearchStrategy` as pure string functions:
+  the **signal ladder** (`coordinates → geocodeAddress → biasedTextSearch →
+  worldwideTextSearch`, bias is a hint + auto-widen on low score) and
+  common-substring **scoring** (name + street overlap). `GalavantPlaces` now
+  depends on `GalavantCapture`. 22 new tests across the two test targets; full
+  package suite green. Still package-only — not linked into the app.
+- ✅ M4c (2026-06-16): **the share extension — the first runnable capture slice.**
+  Share a web page → a confirm-and-tweak sheet → it's in the pool. (a) The
+  *testable* core in `GalavantPlaces`: `PlaceMatcher` executes the M4b ladder
+  against injected geocode/search (iOS 26 `MKGeocodingRequest`; `CLGeocoder`
+  deprecated) with auto-widen; `CaptureModel` (`@Observable`) does
+  parse→match→editable draft→save under the default party, tested with an
+  in-memory DB + fixture matcher. (b) The extension shell (`GalavantShare`,
+  hand-verified — not unit-testable): `ExtensionPreProcessing.js` hands over
+  Safari's **rendered DOM** (WebPage activation + JS preprocessing; WebURL +
+  `URLSession` Safari-UA fetch as fallback); `ShareViewController` bootstraps the
+  app-group DB **local-only** (`startSyncEngine: false` — the app owns sync) and
+  hosts `CaptureConfirmView` (a focused form, not the app-target `IdeaFormView`).
+  **Single-hop by Jon's call** — the place's `websiteURL` is saved for the app's
+  deferred second-hop enrichment (M4d). Fixed a latent `project.yml` drift en
+  route: the app used `GalavantPlaces` but never declared it (committed `.pbxproj`
+  carried the link; `xcodegen generate` would drop it) — now declared. App +
+  extension build clean. **Verify on device/sim:** share a restaurant page from
+  Safari → confirm → it lands in the pool.
 - Share extension: URL in → scraped page (SwiftSoup, port V1) → idea form → saved to shared DB
 - Enrichment pipeline per `docs/scraping-enrichment.md` (port of the V1 server's
   metatag/OpenGraph/schema.org layering, value voting, and MKLocalSearch matching; add JSON-LD and openingHours capture)
