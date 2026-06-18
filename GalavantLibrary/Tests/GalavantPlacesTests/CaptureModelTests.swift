@@ -1,9 +1,12 @@
+import CoreGraphics
 import Dependencies
 import DependenciesTestSupport
 import Foundation
 import GalavantSchema
+import ImageIO
 import SQLiteData
 import Testing
+import UniformTypeIdentifiers
 
 @testable import GalavantPlaces
 
@@ -294,5 +297,86 @@ import Testing
       #expect(parties.count == 1)
       #expect(idea.travelPartyID == parties.first?.id)
     }
+  }
+
+  private static let imageHTML = """
+    <html><head>
+    <meta property="og:title" content="Noma">
+    <meta property="og:image" content="https://noma.dk/hero.jpg">
+    </head><body></body></html>
+    """
+
+  @Test("save fetches and stores the best candidate as the idea's header image")
+  func saveStoresHeaderImage() async throws {
+    let pngBytes = Self.makePNG(width: 1200, height: 800)
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.placeMatcher = .testValue
+      $0.imageFetcher = ImageFetcher { url in
+        url.absoluteString == "https://noma.dk/hero.jpg" ? pngBytes : nil
+      }
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      let model = CaptureModel(html: Self.imageHTML, sourceURL: nil)
+      await model.prepare()
+      #expect(model.captured?.imageURLs.first == URL(string: "https://noma.dk/hero.jpg"))
+      await model.save()
+      #expect(model.phase == .saved)
+
+      let ideaID = try #require(model.draft.id)
+      let images = try await database.read { db in
+        try ImageAsset.images(forIdea: ideaID, in: db)
+      }
+      #expect(images.count == 1)
+      let header = try #require(images.first)
+      #expect(header.isHeader)
+      #expect(header.sourceURL == "https://noma.dk/hero.jpg")
+      #expect(!header.display.isEmpty)
+      #expect(!header.thumbnail.isEmpty)
+    }
+  }
+
+  @Test("A failed image fetch never blocks the save (best-effort)")
+  func saveSucceedsWhenImageFetchFails() async throws {
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.placeMatcher = .testValue
+      $0.imageFetcher = .testValue  // returns nil
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      let model = CaptureModel(html: Self.imageHTML, sourceURL: nil)
+      await model.prepare()
+      await model.save()
+      #expect(model.phase == .saved)
+
+      let ideaID = try #require(model.draft.id)
+      let images = try await database.read { db in
+        try ImageAsset.images(forIdea: ideaID, in: db)
+      }
+      #expect(images.isEmpty)  // no image stored, but the idea saved fine
+      let ideaCount = try await database.read { db in try Idea.all.fetchCount(db) }
+      #expect(ideaCount == 1)
+    }
+  }
+
+  /// A solid-color PNG the image processor can decode — no fixture files in the repo.
+  private static func makePNG(width: Int, height: Int) -> Data {
+    let context = CGContext(
+      data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+      space: CGColorSpaceCreateDeviceRGB(),
+      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+    )!
+    context.setFillColor(red: 0.2, green: 0.5, blue: 0.8, alpha: 1)
+    context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+    let image = context.makeImage()!
+    let buffer = NSMutableData()
+    let destination = CGImageDestinationCreateWithData(
+      buffer as CFMutableData, UTType.png.identifier as CFString, 1, nil
+    )!
+    CGImageDestinationAddImage(destination, image, nil)
+    _ = CGImageDestinationFinalize(destination)
+    return buffer as Data
   }
 }

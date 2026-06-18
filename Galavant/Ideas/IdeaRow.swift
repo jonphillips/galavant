@@ -1,5 +1,6 @@
 import GalavantSchema
 import SwiftUI
+import UIKit
 
 struct IdeaRow: View {
   /// The cell's trailing trip-awareness affordance, before the rating heart.
@@ -12,6 +13,9 @@ struct IdeaRow: View {
   }
 
   let idea: Idea
+  /// The header image's thumbnail bytes, when the idea has one — shown in the
+  /// leading slot in place of the kind glyph (M4f). Nil → the kind icon.
+  var headerThumbnail: Data? = nil
   /// Every travel-party planner with their level (nil = pending), or empty when
   /// nobody has rated yet. Shown as the his/hers bars.
   let interests: [(planner: Planner, level: Interest?)]
@@ -23,9 +27,7 @@ struct IdeaRow: View {
 
   var body: some View {
     HStack(alignment: .top, spacing: 12) {
-      Image(systemName: idea.kind?.systemImage ?? "mappin.and.ellipse")
-        .foregroundStyle(.secondary)
-        .frame(width: 24)
+      leadingImage
         .padding(.top, 2)
       VStack(alignment: .leading, spacing: 4) {
         Button(action: onTap) {
@@ -62,6 +64,23 @@ struct IdeaRow: View {
       }
     }
     .padding(.vertical, 2)
+  }
+
+  /// A small rounded header thumbnail when the idea has an image, else the kind
+  /// glyph — same footprint either way so rows stay aligned.
+  @ViewBuilder
+  private var leadingImage: some View {
+    if let headerThumbnail, let image = UIImage(data: headerThumbnail) {
+      Image(uiImage: image)
+        .resizable()
+        .scaledToFill()
+        .frame(width: 44, height: 44)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    } else {
+      Image(systemName: idea.kind?.systemImage ?? "mappin.and.ellipse")
+        .foregroundStyle(.secondary)
+        .frame(width: 44, height: 44)
+    }
   }
 
   @ViewBuilder

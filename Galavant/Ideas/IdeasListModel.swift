@@ -23,6 +23,12 @@ final class IdeasListModel {
   @ObservationIgnored @FetchAll(Trip.all) var trips
   @ObservationIgnored @FetchAll(TripIdea.all) var tripIdeas
   @ObservationIgnored @FetchAll(TripRegion.all) var tripRegions
+  // Only the header rows' *thumbnail* bytes — the display BLOBs never load into the
+  // list (a row shows a small thumbnail; M4f).
+  @ObservationIgnored @FetchAll(
+    ImageAsset.where { $0.isHeader.eq(true) }
+      .select { HeaderThumb.Columns(ideaID: $0.ideaID, thumbnail: $0.thumbnail) }
+  ) var headerThumbs
   @ObservationIgnored @Shared(.appStorage("currentPlannerID")) var currentPlannerIDString = ""
   var destination: Destination?
   var sharedRecord: SharedRecord?
@@ -76,6 +82,18 @@ final class IdeasListModel {
   enum Destination {
     case form(Idea.Draft)
     case identity
+  }
+
+  /// A header image's thumbnail keyed to its idea — the light projection the list
+  /// observes (no display BLOBs).
+  @Selection struct HeaderThumb {
+    let ideaID: Idea.ID
+    let thumbnail: Data
+  }
+
+  /// Header thumbnail bytes per idea, for the cell's leading image.
+  var headerThumbnailByIdea: [Idea.ID: Data] {
+    Dictionary(headerThumbs.map { ($0.ideaID, $0.thumbnail) }, uniquingKeysWith: { first, _ in first })
   }
 
   var currentPlanner: Planner? {

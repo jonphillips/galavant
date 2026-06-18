@@ -285,6 +285,7 @@ struct IdeasScreen: View {
       ForEach(model.filteredIdeas) { idea in
         IdeaRow(
           idea: idea,
+          headerThumbnail: model.headerThumbnailByIdea[idea.id],
           interests: model.ratingRow(for: idea),
           isMatch: model.isMatch(idea),
           myInterest: model.myInterest(for: idea),
