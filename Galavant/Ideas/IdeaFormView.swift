@@ -51,12 +51,15 @@ struct IdeaFormView: View {
         }
 
         Section {
-          TextField("Name", text: $model.draft.name)
-          Picker("Kind", selection: $model.draft.kind) {
-            Text("Unspecified").tag(IdeaKind?.none)
-            ForEach(IdeaKind.allCases, id: \.self) { kind in
-              Label(kind.label, systemImage: kind.systemImage).tag(IdeaKind?.some(kind))
+          StackedTextField(title: "Name", text: $model.draft.name)
+          StackedFormField(title: "Kind") {
+            Picker("Kind", selection: $model.draft.kind) {
+              Text("Unspecified").tag(IdeaKind?.none)
+              ForEach(IdeaKind.allCases, id: \.self) { kind in
+                Label(kind.label, systemImage: kind.systemImage).tag(IdeaKind?.some(kind))
+              }
             }
+            .labelsHidden()
           }
         }
 
@@ -93,14 +96,15 @@ struct IdeaFormView: View {
           }
         }
 
-        TextField("Link", text: $model.draft.url)
-          .textContentType(.URL)
-          .textInputAutocapitalization(.never)
-          .autocorrectionDisabled()
+        StackedFormField(title: "Link") {
+          TextField("Link", text: $model.draft.url, prompt: Text(verbatim: "https://…"))
+            .textContentType(.URL)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+        }
         Toggle("Visited", isOn: $model.draft.visited)
-        Section("Notes") {
-          TextEditor(text: $model.draft.notes)
-            .frame(minHeight: 120)
+        Section {
+          StackedTextEditor(title: "Notes", text: $model.draft.notes, minHeight: 120)
         }
       }
       .navigationTitle(model.isNew ? "New Idea" : "Edit Idea")
@@ -163,12 +167,14 @@ struct IdeaFormView: View {
     return ZStack(alignment: .topTrailing) {
       Group {
         if let ui {
-          Image(uiImage: ui).resizable().scaledToFill()
+          // Fit, not fill — wordmark/logo candidates shouldn't be cropped to a zoom.
+          Image(uiImage: ui).resizable().scaledToFit()
         } else {
           Color.secondary.opacity(0.2)
         }
       }
       .frame(width: 88, height: 88)
+      .background(Color(.secondarySystemFill))
       .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
       .overlay {
         RoundedRectangle(cornerRadius: 10, style: .continuous)
