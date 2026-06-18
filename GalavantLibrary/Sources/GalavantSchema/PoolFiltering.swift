@@ -5,16 +5,21 @@ import Foundation
 /// falls inside *any* of them, so a multi-region trip unions its areas), an
 /// optional set of kinds, and visited-state. An empty `regions` means no
 /// geographic constraint. Pure so it's the densely-tested core.
+///
+/// `pinnedIDs` bypass the **region** constraint only: ideas already pulled onto the
+/// active trip must always show in its capsule (the trip's working surface), even if
+/// they fall outside the trip's saved regions — they still respect kind/tag/visited.
 public func poolFiltered(
   _ ideas: [Idea],
   regions: [MapRegion] = [],
   kinds: Set<IdeaKind> = [],
   includeVisited: Bool = true,
   tagIDs selectedTagIDs: Set<Tag.ID> = [],
-  ideaTagIDs: [Idea.ID: Set<Tag.ID>] = [:]
+  ideaTagIDs: [Idea.ID: Set<Tag.ID>] = [:],
+  pinnedIDs: Set<Idea.ID> = []
 ) -> [Idea] {
   ideas.filter { idea in
-    if !regions.isEmpty {
+    if !regions.isEmpty, !pinnedIDs.contains(idea.id) {
       // A region filter only surfaces located ideas inside at least one region.
       guard
         let latitude = idea.latitude,

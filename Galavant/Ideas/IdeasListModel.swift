@@ -136,6 +136,13 @@ final class IdeasListModel {
     if let tripID { recentTripStore.record(tripID) }
   }
 
+  /// Ideas already pulled onto the active trip — pinned into its capsule so they
+  /// show even when outside the trip's regions (the capture-onto-trip case Jon hit).
+  private var activeTripIdeaIDs: Set<Idea.ID> {
+    guard let tripID = activeTripID else { return [] }
+    return Set(tripIdeas.filter { $0.tripID == tripID }.map(\.ideaID))
+  }
+
   var filteredIdeas: [Idea] {
     let pooled = poolFiltered(
       ideas,
@@ -143,7 +150,8 @@ final class IdeasListModel {
       kinds: selectedKinds,
       includeVisited: includeVisited,
       tagIDs: selectedTagIDs,
-      ideaTagIDs: ideaTagIDs
+      ideaTagIDs: ideaTagIDs,
+      pinnedIDs: activeTripIdeaIDs
     )
     let standings = standingByIdea
     let matched = showMatchesOnly ? pooled.filter { standings[$0.id] == .match } : pooled
@@ -324,13 +332,15 @@ final class IdeasListModel {
     }
   }
 
-  /// Re-read the pool after a write from another process (the share extension),
-  /// which `@FetchAll`'s in-process observation can't see. Driven by
-  /// `DatabaseChange` notifications and foreground transitions (IdeasScreen). The
-  /// capture only inserts an `Idea`, so reloading the pool suffices.
+  /// Re-read after a write from another process (the share extension), which
+  /// `@FetchAll`'s in-process observation can't see. Driven by `DatabaseChange`
+  /// notifications and foreground transitions (IdeasScreen). A capture inserts an
+  /// `Idea` *and* (when a trip is chosen) a `TripIdea` pull, so reload both — else a
+  /// capture pulled onto the active trip's capsule wouldn't show until later.
   func reloadAfterExternalWrite() async {
     await withErrorReporting {
       try await $ideas.load()
+      try await $tripIdeas.load()
     }
   }
 

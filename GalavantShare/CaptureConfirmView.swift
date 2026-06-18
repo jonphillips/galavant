@@ -1,5 +1,6 @@
 import GalavantPlaces
 import GalavantSchema
+import MapKit
 import SwiftUI
 
 /// The confirm-and-tweak sheet shown when you share a page (Jon's choice: vet
@@ -71,6 +72,21 @@ struct CaptureConfirmView: View {
       }
 
       Section("Location") {
+        if let coordinate = draftCoordinate {
+          // Keyed on the coordinate so picking a new location in search recenters.
+          Map(
+            initialPosition: .region(
+              MKCoordinateRegion(
+                center: coordinate,
+                span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)))
+          ) {
+            Marker(model.draft.name.isEmpty ? "Location" : model.draft.name, coordinate: coordinate)
+          }
+          .frame(height: 160)
+          .allowsHitTesting(false)
+          .listRowInsets(EdgeInsets())
+          .id("\(coordinate.latitude),\(coordinate.longitude)")
+        }
         NavigationLink {
           LocationSearchView(model: model)
         } label: {
@@ -121,6 +137,12 @@ struct CaptureConfirmView: View {
 
   private var hasLocation: Bool {
     model.draft.latitude != nil || model.draft.address != nil
+  }
+
+  /// The resolved coordinate for the map preview, when one is set.
+  private var draftCoordinate: CLLocationCoordinate2D? {
+    guard let lat = model.draft.latitude, let lon = model.draft.longitude else { return nil }
+    return CLLocationCoordinate2D(latitude: lat, longitude: lon)
   }
 
   private var locationSummary: String {

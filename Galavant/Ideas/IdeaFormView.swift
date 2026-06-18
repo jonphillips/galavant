@@ -126,12 +126,13 @@ struct IdeaFormView: View {
   private var photosSection: some View {
     Section {
       if let cover = model.coverImage, let image = UIImage(data: cover) {
+        // Fit (not fill) so the whole image shows — many og:images are wide
+        // wordmarks/logos that a fill crop zooms into unrecognizably.
         Image(uiImage: image)
           .resizable()
-          .scaledToFill()
+          .scaledToFit()
           .frame(maxWidth: .infinity)
-          .frame(height: 180)
-          .clipped()
+          .frame(maxHeight: 220)
           .listRowInsets(EdgeInsets())
       }
       if model.images.count > 1 {
