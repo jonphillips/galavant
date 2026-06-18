@@ -2,6 +2,7 @@ import GalavantPlaces
 import GalavantSchema
 import MapKit
 import SwiftUI
+import UIKit
 
 struct IdeaFormView: View {
   @State private var model: IdeaFormModel
@@ -17,6 +18,10 @@ struct IdeaFormView: View {
     @Bindable var model = model
     NavigationStack {
       Form {
+        if !model.images.isEmpty {
+          photosSection
+        }
+
         Section {
           if model.hasLocation {
             placeCard
@@ -112,6 +117,70 @@ struct IdeaFormView: View {
         }
       }
       .task { await model.task() }
+    }
+  }
+
+  /// The idea's photos: a large cover preview over a tappable thumbnail strip.
+  /// The enrichment's Vision-recommended cover is the default; tapping a thumbnail
+  /// overrides it (M4h).
+  private var photosSection: some View {
+    Section {
+      if let cover = model.coverImage, let image = UIImage(data: cover) {
+        Image(uiImage: image)
+          .resizable()
+          .scaledToFill()
+          .frame(maxWidth: .infinity)
+          .frame(height: 180)
+          .clipped()
+          .listRowInsets(EdgeInsets())
+      }
+      if model.images.count > 1 {
+        ScrollView(.horizontal, showsIndicators: false) {
+          HStack(spacing: 10) {
+            ForEach(model.images) { image in
+              Button { Task { await model.setHeader(image) } } label: {
+                thumbnail(image)
+              }
+              .buttonStyle(.plain)
+            }
+          }
+          .padding(.vertical, 6)
+        }
+      }
+    } header: {
+      Text("Photos")
+    } footer: {
+      if model.images.count > 1 {
+        Text("Tap a photo to make it the cover.")
+      }
+    }
+  }
+
+  /// One gallery thumbnail; the current cover gets a tint ring + checkmark.
+  private func thumbnail(_ image: ImageAsset) -> some View {
+    let ui = UIImage(data: image.thumbnail)
+    return ZStack(alignment: .topTrailing) {
+      Group {
+        if let ui {
+          Image(uiImage: ui).resizable().scaledToFill()
+        } else {
+          Color.secondary.opacity(0.2)
+        }
+      }
+      .frame(width: 88, height: 88)
+      .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+      .overlay {
+        RoundedRectangle(cornerRadius: 10, style: .continuous)
+          .strokeBorder(image.isHeader ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear), lineWidth: 3)
+      }
+      if image.isHeader {
+        Image(systemName: Icon.checkmark.systemName)
+          .font(.caption.weight(.bold))
+          .foregroundStyle(.white)
+          .padding(4)
+          .background(.tint, in: Circle())
+          .padding(4)
+      }
     }
   }
 

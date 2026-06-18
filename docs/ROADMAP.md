@@ -164,11 +164,50 @@ first. Update this file when reality diverges — it's a living doc, not a contr
     copy, e.g. Forestis); falls back to the page's own summary when the model is
     silent/unavailable. Instructions/`@Guide` forbid taglines, questions, and calls
     to action.
+- ✅ M4e (2026-06-17): **image foundation** (ADR-0009), package-only. New pure
+  `GalavantImaging` target — `ImageProcessing.process(Data)` → display
+  (~1600 px / ≈300 KB, quality step-down) + thumbnail, ImageIO/CoreGraphics only
+  (no UI/CloudKit/persistence — the portfolio-extraction candidate); never
+  upscales, bakes in EXIF orientation. `ImageAsset` table in `GalavantSchema`:
+  single real FK to `Idea` (ON DELETE CASCADE, ADR-0007), inline display/thumbnail
+  BLOBs, `sourceURL`, `sortRank`, `isHeader`; idempotent `store()` on
+  `(ideaID, sourceURL)`, exclusive `setHeader`, header-first `images(forIdea:)`.
+  Migration + SyncEngine registration. 9 tests. Idea-scoped for M4 (M5 trip
+  headers need their own table — single-FK rule).
+- ✅ M4f (2026-06-17): **capture stores a header image** — closes the gate's "with
+  image" half. Hybrid placement: the share extension fetches + shrinks just the
+  single best candidate (`imageURLs.first`; one image stays inside the ~120 MB
+  budget) and stores it as the idea's header, in the same write; the full ranked
+  gallery is the app's job. New injectable `ImageFetcher` (Safari-UA, 12 MB cap,
+  best-effort — a missing image never blocks the save). Pool cells show a header
+  thumbnail (a light `@Selection` of header thumbnails only — no display BLOBs in
+  the list), falling back to the kind glyph. 2 tests.
+- ✅ M4g (2026-06-17): **two-hop enrichment + Vision-ranked images** (app-side).
+  Once an idea is in the pool, the app re-fetches its own website (the preserved
+  `url` — richer than the often-aggregator shared page), re-parses, backfills blank
+  facts via Apple Intelligence (notes/region/phone/address/kind), and downloads +
+  Vision-ranks its images. New injectable `PageFetcher` + `ImageRecommender` (wraps
+  Vision `CalculateImageAestheticsScoresRequest` — `overallScore` + `isUtility`
+  demotes logos/screenshots; `testValue` flat-scores so the parser order is the
+  fallback). `PlaceEnricher` orchestrates fetch→parse→backfill→fetch+score+process
+  up to 6 images→store idempotently, top-ranked becomes the header. Gated on a new
+  synced `Idea.enrichedAt` (runs once; a second device skips). Trigger is
+  state-derived: `enrichPendingIdeas()` sweeps un-enriched ideas with a URL,
+  bounded, on appear / DatabaseChange / foreground; in-process writes flow back via
+  `@FetchAll` so headers/notes update live. 4 tests.
+- ✅ M4h (2026-06-17): **the image gallery / cover picker** (Jon's V1 "show all
+  images, let me pick"). The idea form gains a Photos section — a large cover
+  preview over a tappable thumbnail strip; the enrichment's Vision-recommended
+  cover is the default, tapping a thumbnail overrides it (safe — enrichment won't
+  re-run). `IdeaFormModel` loads the idea's `ImageAsset`s and writes `setHeader`.
 - Share extension: URL in → scraped page (SwiftSoup, port V1) → idea form → saved to shared DB
 - Enrichment pipeline per `docs/scraping-enrichment.md` (port of the V1 server's
   metatag/OpenGraph/schema.org layering, value voting, and MKLocalSearch matching; add JSON-LD and openingHours capture)
-- In-app browser capture flow (port V2's WebSearch)
-- ✅ Done when: share a restaurant page from Safari, it's in the pool with image and location, and it syncs
+- ⏳ In-app browser capture flow (port V2's WebSearch) — deferred; the share
+  extension covers the daily capture flow.
+- ✅ Done when: share a restaurant page from Safari, it's in the pool with image and
+  location, and it syncs. *(Local storage + display done & tested; CloudKit BLOB
+  sync still to be verified on two real devices — ADR-0009 §4.)*
 
 ## M5 — Polish & distribution
 - iPad/Mac split-view layouts properly done

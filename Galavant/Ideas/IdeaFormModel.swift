@@ -15,6 +15,10 @@ final class IdeaFormModel {
   var draft: Idea.Draft
   var tagNames: [String] = []
   var newTag = ""
+  /// The idea's stored images, header first (M4g/M4h). The user can re-pick the
+  /// cover from here; the header the enrichment chose (Vision-recommended) is the
+  /// default. Empty for a new idea or one without images.
+  var images: [ImageAsset] = []
 
   init(draft: Idea.Draft) {
     self.draft = draft
@@ -42,7 +46,33 @@ final class IdeaFormModel {
     }
   }
 
-  func task() async { await loadTags() }
+  func task() async {
+    await loadTags()
+    await loadImages()
+  }
+
+  /// The chosen cover image's display bytes, when the idea has one — for a header
+  /// preview at the top of the form.
+  var coverImage: Data? { images.first(where: \.isHeader)?.display ?? images.first?.display }
+
+  private func loadImages() async {
+    guard let id = draft.id else { return }
+    await withErrorReporting {
+      images = try await database.read { db in try ImageAsset.images(forIdea: id, in: db) }
+    }
+  }
+
+  /// Re-pick the cover image (overrides the enrichment's Vision choice). Reloads so
+  /// the header floats to the front and the preview updates.
+  func setHeader(_ image: ImageAsset) async {
+    guard let id = draft.id else { return }
+    await withErrorReporting {
+      try await database.write { db in
+        try ImageAsset.setHeader(image.id, ideaID: id, in: db)
+      }
+    }
+    await loadImages()
+  }
 
   func addTagName(_ name: String) {
     let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
