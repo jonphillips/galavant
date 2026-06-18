@@ -272,6 +272,14 @@ extension DependencyValues {
       )
       .execute(db)
     }
+    migrator.registerMigration("Add enrichedAt to ideas") { db in
+      try #sql(
+        """
+        ALTER TABLE "ideas" ADD COLUMN "enrichedAt" TEXT
+        """
+      )
+      .execute(db)
+    }
     migrator.registerMigration("Create imageAssets table") { db in
       try #sql(
         """

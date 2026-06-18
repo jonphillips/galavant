@@ -1,0 +1,50 @@
+import Dependencies
+import Foundation
+
+/// A Safari-like User-Agent — many travel sites serve a fuller, more parseable page
+/// to a browser than to a bare client. Shared by the page and image fetchers.
+enum CaptureUserAgent {
+  static let safari =
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 27_0 like Mac OS X) AppleWebKit/605.1.15 "
+    + "(KHTML, like Gecko) Version/27.0 Mobile/15E148 Safari/604.1"
+}
+
+/// Fetches a page's HTML for the app-side **second enrichment hop** (M4g): the
+/// place's own website, re-parsed for better images + facts than the originally
+/// shared page (often an aggregator) gave. Injectable so `PlaceEnricher` is testable
+/// with a fixture page and no network.
+public struct PageFetcher: Sendable {
+  var fetch: @Sendable (_ url: URL) async -> String?
+
+  public init(fetch: @escaping @Sendable (_ url: URL) async -> String?) {
+    self.fetch = fetch
+  }
+
+  /// The page HTML, or nil on any failure (best-effort — a failed hop just leaves
+  /// the idea as captured).
+  public func callAsFunction(_ url: URL) async -> String? {
+    await fetch(url)
+  }
+}
+
+extension PageFetcher: DependencyKey {
+  public static let liveValue = PageFetcher { url in
+    var request = URLRequest(url: url)
+    request.setValue(CaptureUserAgent.safari, forHTTPHeaderField: "User-Agent")
+    guard
+      let (data, response) = try? await URLSession.shared.data(for: request),
+      (response as? HTTPURLResponse).map({ (200..<300).contains($0.statusCode) }) ?? true
+    else { return nil }
+    return String(data: data, encoding: .utf8)
+  }
+
+  /// No network in tests/previews.
+  public static let testValue = PageFetcher { _ in nil }
+}
+
+extension DependencyValues {
+  public var pageFetcher: PageFetcher {
+    get { self[PageFetcher.self] }
+    set { self[PageFetcher.self] = newValue }
+  }
+}

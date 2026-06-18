@@ -2,6 +2,7 @@ import CasePaths
 import CloudKit
 import Dependencies
 import Foundation
+import GalavantPlaces
 import GalavantSchema
 import MapKit
 import os
@@ -330,6 +331,21 @@ final class IdeasListModel {
   func reloadAfterExternalWrite() async {
     await withErrorReporting {
       try await $ideas.load()
+    }
+  }
+
+  /// Take the app-side second enrichment hop (M4g) for ideas that have a website
+  /// but haven't been enriched yet (captured single-hop by the share extension).
+  /// Bounded per call so a big backlog doesn't fetch + Vision-rank everything at
+  /// once; idempotent (each idea is gated on `enrichedAt`), so re-running is safe.
+  /// The in-process writes flow back through `@FetchAll`, so headers/notes update
+  /// live. Best-effort — failures leave ideas retryable.
+  func enrichPendingIdeas(limit: Int = 5) async {
+    let pending = ideas.filter { !$0.url.isEmpty && $0.enrichedAt == nil }.prefix(limit)
+    guard !pending.isEmpty else { return }
+    let enricher = PlaceEnricher()
+    for idea in pending {
+      await enricher.enrichIfNeeded(ideaID: idea.id)
     }
   }
 
