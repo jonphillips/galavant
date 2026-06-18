@@ -89,16 +89,25 @@ struct IdeasScreen: View {
     }
     .task { await model.task() }
     .task {
-      // A share-extension capture commits in another process; pick it up live.
+      // Take the deferred second enrichment hop for freshly captured ideas (M4g).
+      await model.enrichPendingIdeas()
+    }
+    .task {
+      // A share-extension capture commits in another process; pick it up live, then
+      // enrich the new arrival.
       for await _ in DatabaseChange.notifications {
         await model.reloadAfterExternalWrite()
+        await model.enrichPendingIdeas()
       }
     }
     .onChange(of: scenePhase) { _, phase in
       // And whenever we return to the foreground (the common path: app was
       // backgrounded while the share sheet was up).
       if phase == .active {
-        Task { await model.reloadAfterExternalWrite() }
+        Task {
+          await model.reloadAfterExternalWrite()
+          await model.enrichPendingIdeas()
+        }
       }
     }
     .sheet(item: $model.destination.form, id: \.id) { draft in
@@ -285,6 +294,7 @@ struct IdeasScreen: View {
       ForEach(model.filteredIdeas) { idea in
         IdeaRow(
           idea: idea,
+          headerThumbnail: model.headerThumbnailByIdea[idea.id],
           interests: model.ratingRow(for: idea),
           isMatch: model.isMatch(idea),
           myInterest: model.myInterest(for: idea),

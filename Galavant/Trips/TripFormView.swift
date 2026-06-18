@@ -13,15 +13,18 @@ struct TripFormView: View {
     @Bindable var model = model
     NavigationStack {
       Form {
-        TextField("Name", text: $model.draft.name)
+        StackedTextField(title: "Name", text: $model.draft.name)
 
         Section("Certainty") {
-          Picker("Stage", selection: $model.stage) {
-            ForEach(CertaintyStage.allCases, id: \.self) { stage in
-              Text(stage.label).tag(stage)
+          StackedFormField(title: "Stage") {
+            Picker("Stage", selection: $model.stage) {
+              ForEach(CertaintyStage.allCases, id: \.self) { stage in
+                Text(stage.label).tag(stage)
+              }
             }
+            .pickerStyle(.segmented)
+            .labelsHidden()
           }
-          .pickerStyle(.segmented)
 
           switch model.stage {
           case .someday:
@@ -65,9 +68,8 @@ struct TripFormView: View {
           Text("The Add list pre-selects these when you plan the trip.")
         }
 
-        Section("Notes") {
-          TextEditor(text: $model.draft.notes)
-            .frame(minHeight: 120)
+        Section {
+          StackedTextEditor(title: "Notes", text: $model.draft.notes, minHeight: 120)
         }
       }
       .task { await model.task() }

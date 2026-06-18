@@ -62,7 +62,9 @@ extension CapturedPlace {
     let draft = Idea.Draft(
       id: id,
       name: page.title ?? "",
-      notes: page.summary ?? "",
+      // De-market the fallback summary (no-op once the model's clean summary is in;
+      // matters when Apple Intelligence is unavailable and this is raw og:description).
+      notes: TextCleaning.demarketed(page.summary) ?? "",
       kind: IdeaKind(schemaOrgTypes: page.schemaTypes),
       regionName: page.address.locality ?? page.address.region,
       address: address.isEmpty ? nil : address,

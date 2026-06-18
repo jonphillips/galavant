@@ -55,6 +55,7 @@
 		AC8B63575425320FB0944F98 /* CaptureConfirmView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1695AB3D2AB3EA477F82CC7F /* CaptureConfirmView.swift */; };
 		B18CAB3F9D57980B501FEE56 /* ExtensionPreProcessing.js in Resources */ = {isa = PBXBuildFile; fileRef = D180C34C8C9F3983F7CF9CFB /* ExtensionPreProcessing.js */; };
 		BA6DC33C006D131C9DDA042C /* DayChipBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAA9983C3B6D9D9B731F96F9 /* DayChipBar.swift */; };
+		BC89E64DDA8A0975A83107D5 /* StackedForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 371FEFD498525E0EA4709909 /* StackedForm.swift */; };
 		C4D03D83083C9022183ABEF2 /* TripPlanningModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8238F43F540641D1FD4267BA /* TripPlanningModel.swift */; };
 		C6651664BD80959BDC624431 /* IdeaPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B1DF18254B63AD4237897B /* IdeaPersistenceTests.swift */; };
 		CFF79112580C0EBC8D933DE2 /* IdeaDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F02C470667EF6E9AC8AC761 /* IdeaDetailView.swift */; };
@@ -116,6 +117,7 @@
 		1EF8BE4704C36D1A6FFB14D6 /* IdeaRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaRow.swift; sourceTree = "<group>"; };
 		292BC932AEA1B53EB11DA125 /* InterestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterestView.swift; sourceTree = "<group>"; };
 		2CD37357C07AFC3DAE3CDAE7 /* DemoFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoFixtures.swift; sourceTree = "<group>"; };
+		371FEFD498525E0EA4709909 /* StackedForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StackedForm.swift; sourceTree = "<group>"; };
 		3DD1C2B139D03095F082D99E /* CertaintyStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CertaintyStyle.swift; sourceTree = "<group>"; };
 		3F02C470667EF6E9AC8AC761 /* IdeaDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaDetailView.swift; sourceTree = "<group>"; };
 		409050F2DDFD762C631818CF /* IdeaCoordinate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaCoordinate.swift; sourceTree = "<group>"; };
@@ -267,6 +269,7 @@
 			children = (
 				3DD1C2B139D03095F082D99E /* CertaintyStyle.swift */,
 				EF388F1C56D173F7C5F3079C /* Icon.swift */,
+				371FEFD498525E0EA4709909 /* StackedForm.swift */,
 			);
 			path = Design;
 			sourceTree = "<group>";
@@ -509,6 +512,7 @@
 				25A7842AF8875EEF8BFA2887 /* PrefersTabNavigation.swift in Sources */,
 				8E9C72B6E2A50CCF9129E6E1 /* RegionManagerView.swift in Sources */,
 				D1D88C6469FB21204DA80CA3 /* ReorderDifference+Apply.swift in Sources */,
+				BC89E64DDA8A0975A83107D5 /* StackedForm.swift in Sources */,
 				41630279DF880FB556B178CF /* StopMenu.swift in Sources */,
 				17B078D23DE21D8057EEAD7B /* TagManagerView.swift in Sources */,
 				D992DF9897F424912B7ED10C /* TripBadgeView.swift in Sources */,

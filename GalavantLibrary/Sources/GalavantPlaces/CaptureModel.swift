@@ -1,6 +1,7 @@
 import Dependencies
 import Foundation
 import GalavantCapture
+import GalavantImaging
 import GalavantSchema
 import SQLiteData
 
@@ -27,6 +28,7 @@ public final class CaptureModel {
   @ObservationIgnored @Dependency(\.defaultDatabase) private var database
   @ObservationIgnored @Dependency(\.placeMatcher) private var placeMatcher
   @ObservationIgnored @Dependency(\.placeIntelligence) private var placeIntelligence
+  @ObservationIgnored @Dependency(\.imageFetcher) private var imageFetcher
   @ObservationIgnored @Dependency(\.recentTripStore) private var recentTripStore
   @ObservationIgnored @Dependency(\.uuid) private var uuid
 
@@ -139,10 +141,38 @@ public final class CaptureModel {
     draft.regionName = nil
   }
 
+  /// The processed header image to store with this capture, or nil when there's no
+  /// candidate or the fetch/decode failed. Pulls only the best candidate
+  /// (`imageURLs.first` — the parser's structured-source-first ordering) and shrinks
+  /// it to the display + thumbnail tiers (ADR-0009).
+  private struct PreparedImage {
+    var display: Data
+    var thumbnail: Data
+    var sourceURL: String
+    var id: UUID
+  }
+
+  private func prepareHeaderImage() async -> PreparedImage? {
+    guard let url = captured?.imageURLs.first else { return nil }
+    guard let data = await imageFetcher(url) else { return nil }
+    guard let processed = ImageProcessing.process(data) else { return nil }
+    return PreparedImage(
+      display: processed.display,
+      thumbnail: processed.thumbnail,
+      sourceURL: url.absoluteString,
+      id: uuid()
+    )
+  }
+
   /// Save the (possibly edited) draft into the shared pool under the default
   /// travel party, so it rides the travel-party CloudKit share (ADR-0003).
   public func save() async {
     phase = .saving
+    // Hybrid capture (M4f): fetch + shrink just the single best candidate here in
+    // the extension (one image stays well inside the ~120 MB budget) so the idea
+    // lands with a header image; the full ranked gallery is the app's job (M4g).
+    // Best-effort — a missing/undecodable image never blocks the save.
+    let headerImage = await prepareHeaderImage()
     // Capture only Sendable scalars into the DB write — `Idea.Draft` itself isn't
     // Sendable (the @Table-generated type), so rebuild it inside the closure.
     let id = draft.id
@@ -156,6 +186,10 @@ public final class CaptureModel {
     let longitude = draft.longitude
     let url = draft.url
     let tripID = selectedTripID
+    let imageDisplay = headerImage?.display
+    let imageThumbnail = headerImage?.thumbnail
+    let imageSourceURL = headerImage?.sourceURL
+    let imageID = headerImage?.id
     do {
       try await database.write { db in
         let party = try TravelParty.ensureDefault(in: db)
@@ -179,6 +213,18 @@ public final class CaptureModel {
         // "considering" entry, not just in the eternal pool.
         if let tripID, let id {
           try TripIdea.pull(ideaID: id, into: tripID, in: db)
+        }
+        // Store the header image alongside the idea, in the same transaction.
+        if let id, let imageDisplay, let imageThumbnail, let imageID {
+          try ImageAsset.store(
+            ideaID: id,
+            display: imageDisplay,
+            thumbnail: imageThumbnail,
+            sourceURL: imageSourceURL,
+            asHeader: true,
+            id: imageID,
+            in: db
+          )
         }
       }
       // Remember the trip so the next capture defaults to the same one.

@@ -2,6 +2,7 @@ import GalavantPlaces
 import GalavantSchema
 import MapKit
 import SwiftUI
+import UIKit
 
 struct IdeaFormView: View {
   @State private var model: IdeaFormModel
@@ -17,6 +18,10 @@ struct IdeaFormView: View {
     @Bindable var model = model
     NavigationStack {
       Form {
+        if !model.images.isEmpty {
+          photosSection
+        }
+
         Section {
           if model.hasLocation {
             placeCard
@@ -46,12 +51,15 @@ struct IdeaFormView: View {
         }
 
         Section {
-          TextField("Name", text: $model.draft.name)
-          Picker("Kind", selection: $model.draft.kind) {
-            Text("Unspecified").tag(IdeaKind?.none)
-            ForEach(IdeaKind.allCases, id: \.self) { kind in
-              Label(kind.label, systemImage: kind.systemImage).tag(IdeaKind?.some(kind))
+          StackedTextField(title: "Name", text: $model.draft.name)
+          StackedFormField(title: "Kind") {
+            Picker("Kind", selection: $model.draft.kind) {
+              Text("Unspecified").tag(IdeaKind?.none)
+              ForEach(IdeaKind.allCases, id: \.self) { kind in
+                Label(kind.label, systemImage: kind.systemImage).tag(IdeaKind?.some(kind))
+              }
             }
+            .labelsHidden()
           }
         }
 
@@ -88,14 +96,15 @@ struct IdeaFormView: View {
           }
         }
 
-        TextField("Link", text: $model.draft.url)
-          .textContentType(.URL)
-          .textInputAutocapitalization(.never)
-          .autocorrectionDisabled()
+        StackedFormField(title: "Link") {
+          TextField("Link", text: $model.draft.url, prompt: Text(verbatim: "https://…"))
+            .textContentType(.URL)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+        }
         Toggle("Visited", isOn: $model.draft.visited)
-        Section("Notes") {
-          TextEditor(text: $model.draft.notes)
-            .frame(minHeight: 120)
+        Section {
+          StackedTextEditor(title: "Notes", text: $model.draft.notes, minHeight: 120)
         }
       }
       .navigationTitle(model.isNew ? "New Idea" : "Edit Idea")
@@ -112,6 +121,73 @@ struct IdeaFormView: View {
         }
       }
       .task { await model.task() }
+    }
+  }
+
+  /// The idea's photos: a large cover preview over a tappable thumbnail strip.
+  /// The enrichment's Vision-recommended cover is the default; tapping a thumbnail
+  /// overrides it (M4h).
+  private var photosSection: some View {
+    Section {
+      if let cover = model.coverImage, let image = UIImage(data: cover) {
+        // Fit (not fill) so the whole image shows — many og:images are wide
+        // wordmarks/logos that a fill crop zooms into unrecognizably.
+        Image(uiImage: image)
+          .resizable()
+          .scaledToFit()
+          .frame(maxWidth: .infinity)
+          .frame(maxHeight: 220)
+          .listRowInsets(EdgeInsets())
+      }
+      if model.images.count > 1 {
+        ScrollView(.horizontal, showsIndicators: false) {
+          HStack(spacing: 10) {
+            ForEach(model.images) { image in
+              Button { Task { await model.setHeader(image) } } label: {
+                thumbnail(image)
+              }
+              .buttonStyle(.plain)
+            }
+          }
+          .padding(.vertical, 6)
+        }
+      }
+    } header: {
+      Text("Photos")
+    } footer: {
+      if model.images.count > 1 {
+        Text("Tap a photo to make it the cover.")
+      }
+    }
+  }
+
+  /// One gallery thumbnail; the current cover gets a tint ring + checkmark.
+  private func thumbnail(_ image: ImageAsset) -> some View {
+    let ui = UIImage(data: image.thumbnail)
+    return ZStack(alignment: .topTrailing) {
+      Group {
+        if let ui {
+          // Fit, not fill — wordmark/logo candidates shouldn't be cropped to a zoom.
+          Image(uiImage: ui).resizable().scaledToFit()
+        } else {
+          Color.secondary.opacity(0.2)
+        }
+      }
+      .frame(width: 88, height: 88)
+      .background(Color(.secondarySystemFill))
+      .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+      .overlay {
+        RoundedRectangle(cornerRadius: 10, style: .continuous)
+          .strokeBorder(image.isHeader ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear), lineWidth: 3)
+      }
+      if image.isHeader {
+        Image(systemName: Icon.checkmark.systemName)
+          .font(.caption.weight(.bold))
+          .foregroundStyle(.white)
+          .padding(4)
+          .background(.tint, in: Circle())
+          .padding(4)
+      }
     }
   }
 

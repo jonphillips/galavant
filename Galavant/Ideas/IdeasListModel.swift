@@ -2,6 +2,7 @@ import CasePaths
 import CloudKit
 import Dependencies
 import Foundation
+import GalavantPlaces
 import GalavantSchema
 import MapKit
 import os
@@ -23,6 +24,12 @@ final class IdeasListModel {
   @ObservationIgnored @FetchAll(Trip.all) var trips
   @ObservationIgnored @FetchAll(TripIdea.all) var tripIdeas
   @ObservationIgnored @FetchAll(TripRegion.all) var tripRegions
+  // Only the header rows' *thumbnail* bytes — the display BLOBs never load into the
+  // list (a row shows a small thumbnail; M4f).
+  @ObservationIgnored @FetchAll(
+    ImageAsset.where { $0.isHeader.eq(true) }
+      .select { HeaderThumb.Columns(ideaID: $0.ideaID, thumbnail: $0.thumbnail) }
+  ) var headerThumbs
   @ObservationIgnored @Shared(.appStorage("currentPlannerID")) var currentPlannerIDString = ""
   var destination: Destination?
   var sharedRecord: SharedRecord?
@@ -78,6 +85,18 @@ final class IdeasListModel {
     case identity
   }
 
+  /// A header image's thumbnail keyed to its idea — the light projection the list
+  /// observes (no display BLOBs).
+  @Selection struct HeaderThumb {
+    let ideaID: Idea.ID
+    let thumbnail: Data
+  }
+
+  /// Header thumbnail bytes per idea, for the cell's leading image.
+  var headerThumbnailByIdea: [Idea.ID: Data] {
+    Dictionary(headerThumbs.map { ($0.ideaID, $0.thumbnail) }, uniquingKeysWith: { first, _ in first })
+  }
+
   var currentPlanner: Planner? {
     guard let id = UUID(uuidString: currentPlannerIDString) else { return nil }
     return planners.first { $0.id == id }
@@ -117,6 +136,13 @@ final class IdeasListModel {
     if let tripID { recentTripStore.record(tripID) }
   }
 
+  /// Ideas already pulled onto the active trip — pinned into its capsule so they
+  /// show even when outside the trip's regions (the capture-onto-trip case Jon hit).
+  private var activeTripIdeaIDs: Set<Idea.ID> {
+    guard let tripID = activeTripID else { return [] }
+    return Set(tripIdeas.filter { $0.tripID == tripID }.map(\.ideaID))
+  }
+
   var filteredIdeas: [Idea] {
     let pooled = poolFiltered(
       ideas,
@@ -124,7 +150,8 @@ final class IdeasListModel {
       kinds: selectedKinds,
       includeVisited: includeVisited,
       tagIDs: selectedTagIDs,
-      ideaTagIDs: ideaTagIDs
+      ideaTagIDs: ideaTagIDs,
+      pinnedIDs: activeTripIdeaIDs
     )
     let standings = standingByIdea
     let matched = showMatchesOnly ? pooled.filter { standings[$0.id] == .match } : pooled
@@ -305,13 +332,30 @@ final class IdeasListModel {
     }
   }
 
-  /// Re-read the pool after a write from another process (the share extension),
-  /// which `@FetchAll`'s in-process observation can't see. Driven by
-  /// `DatabaseChange` notifications and foreground transitions (IdeasScreen). The
-  /// capture only inserts an `Idea`, so reloading the pool suffices.
+  /// Re-read after a write from another process (the share extension), which
+  /// `@FetchAll`'s in-process observation can't see. Driven by `DatabaseChange`
+  /// notifications and foreground transitions (IdeasScreen). A capture inserts an
+  /// `Idea` *and* (when a trip is chosen) a `TripIdea` pull, so reload both — else a
+  /// capture pulled onto the active trip's capsule wouldn't show until later.
   func reloadAfterExternalWrite() async {
     await withErrorReporting {
       try await $ideas.load()
+      try await $tripIdeas.load()
+    }
+  }
+
+  /// Take the app-side second enrichment hop (M4g) for ideas that have a website
+  /// but haven't been enriched yet (captured single-hop by the share extension).
+  /// Bounded per call so a big backlog doesn't fetch + Vision-rank everything at
+  /// once; idempotent (each idea is gated on `enrichedAt`), so re-running is safe.
+  /// The in-process writes flow back through `@FetchAll`, so headers/notes update
+  /// live. Best-effort — failures leave ideas retryable.
+  func enrichPendingIdeas(limit: Int = 5) async {
+    let pending = ideas.filter { !$0.url.isEmpty && $0.enrichedAt == nil }.prefix(limit)
+    guard !pending.isEmpty else { return }
+    let enricher = PlaceEnricher()
+    for idea in pending {
+      await enricher.enrichIfNeeded(ideaID: idea.id)
     }
   }
 

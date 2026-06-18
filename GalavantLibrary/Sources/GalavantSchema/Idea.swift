@@ -14,6 +14,10 @@ public struct Idea: Identifiable, Equatable, Sendable {
   public var longitude: Double?
   public var url = ""
   public var visited = false
+  /// When the app last took the second enrichment hop for this idea (re-fetched its
+  /// website for images + facts; M4g). `nil` = not yet enriched — the trigger for a
+  /// one-time enrichment pass. Synced so a second device doesn't redo the work.
+  public var enrichedAt: Date?
   public var travelPartyID: TravelParty.ID?
 
   public init(
@@ -28,6 +32,7 @@ public struct Idea: Identifiable, Equatable, Sendable {
     longitude: Double? = nil,
     url: String = "",
     visited: Bool = false,
+    enrichedAt: Date? = nil,
     travelPartyID: TravelParty.ID? = nil
   ) {
     self.id = id
@@ -41,6 +46,7 @@ public struct Idea: Identifiable, Equatable, Sendable {
     self.longitude = longitude
     self.url = url
     self.visited = visited
+    self.enrichedAt = enrichedAt
     self.travelPartyID = travelPartyID
   }
 }

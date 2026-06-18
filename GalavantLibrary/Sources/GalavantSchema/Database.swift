@@ -272,6 +272,36 @@ extension DependencyValues {
       )
       .execute(db)
     }
+    migrator.registerMigration("Add enrichedAt to ideas") { db in
+      try #sql(
+        """
+        ALTER TABLE "ideas" ADD COLUMN "enrichedAt" TEXT
+        """
+      )
+      .execute(db)
+    }
+    migrator.registerMigration("Create imageAssets table") { db in
+      try #sql(
+        """
+        CREATE TABLE "imageAssets" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "ideaID" TEXT NOT NULL REFERENCES "ideas"("id") ON DELETE CASCADE,
+          "display" BLOB NOT NULL,
+          "thumbnail" BLOB NOT NULL,
+          "sourceURL" TEXT,
+          "sortRank" INTEGER NOT NULL DEFAULT 0,
+          "isHeader" INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT 0
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_imageAssets_on_ideaID" ON "imageAssets"("ideaID")
+        """
+      )
+      .execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if context == .live, startSyncEngine {
@@ -283,7 +313,7 @@ extension DependencyValues {
           for: database,
           tables: TravelParty.self, Idea.self, Planner.self, IdeaInterest.self,
           MapRegion.self, Tag.self, IdeaTag.self, Trip.self, TripIdea.self,
-          TripRegion.self
+          TripRegion.self, ImageAsset.self
         )
       } catch {
         reportIssue("CloudKit sync unavailable; running local-only: \(error)")

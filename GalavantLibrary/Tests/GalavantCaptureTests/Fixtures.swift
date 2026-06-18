@@ -83,6 +83,26 @@ enum Fixtures {
     </head><body></body></html>
     """
 
+  /// A JS-driven page: the `og:image` is a plain hero, but the real gallery photos
+  /// live in lazy-load attributes, srcset/`<picture>`, CSS backgrounds (inline,
+  /// `<style>`, and `data-bg`), and a `<noscript>` fallback. A sprite/icon must
+  /// still be filtered.
+  static let richBodyImages = """
+    <html><head>
+    <meta property="og:image" content="https://place.com/og.jpg">
+    <style>.hero { background-image: url(https://place.com/style-block.jpg); }</style>
+    </head>
+    <body>
+      <div style="background-image: url('https://place.com/inline-bg.jpg')"></div>
+      <img data-src="https://place.com/lazy.jpg">
+      <img srcset="https://place.com/small.jpg 480w, https://place.com/large.jpg 1200w">
+      <picture><source srcset="https://place.com/picture.webp"></picture>
+      <div data-bg="https://place.com/data-bg.jpg"></div>
+      <img data-src="https://place.com/icon-sprite.png">
+      <noscript><img src="https://place.com/noscript.jpg"></noscript>
+    </body></html>
+    """
+
   static let brokenJSONLDWithOG = """
     <html><head>
     <script type="application/ld+json">{ this is not valid json ]</script>

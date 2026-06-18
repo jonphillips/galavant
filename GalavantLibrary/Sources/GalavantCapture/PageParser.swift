@@ -31,14 +31,11 @@ public enum PageParser {
     MetaExtractor.extract(from: document, into: &builder)
     MicrodataExtractor.extract(from: document, into: &builder)
 
-    // Last resort only (scraping-enrichment.md): if no structured image surfaced,
-    // sweep body images through the same hygiene filter rather than leaving the
-    // capture pictureless.
-    if builder.images.isEmpty {
-      for img in (try? document.select("img[src]").array()) ?? [] {
-        builder.addImage(try? img.absUrl("src"))
-      }
-    }
+    // Harvest body images too — lazy-load `<img>`, srcset/`<picture>`, CSS
+    // background images, and `<noscript>` fallbacks — appended after the structured
+    // ones (so og:image stays the first/default), enlarging the candidate set the
+    // Vision recommender ranks (M4g). Hygiene filtering keeps logos/sprites out.
+    BodyImageExtractor.extract(from: document, into: &builder)
 
     var page = builder.build(capturedAt: capturedAt)
     // A plain-text excerpt for the on-device summarizer (done last: it strips

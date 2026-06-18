@@ -59,6 +59,28 @@ struct RegionFilterTests {
     #expect(poolFiltered(all).count == 2)
   }
 
+  @Test func pinnedIdeasBypassRegionButNotOtherFilters() {
+    let inside = idea(name: "Tivoli", lat: 55.67, lon: 12.57)
+    // Pulled onto the trip but outside its region (e.g. captured straight onto it).
+    let pulledOutside = idea(name: "Alouette", kind: .food, lat: 40.78, lon: -73.96)
+    let unpulledOutside = idea(name: "Central Park", lat: 40.78, lon: -73.96)
+    // The pinned idea shows despite being outside the region; the un-pinned one doesn't.
+    let result = poolFiltered(
+      [inside, pulledOutside, unpulledOutside],
+      regions: [copenhagen],
+      pinnedIDs: [pulledOutside.id]
+    )
+    #expect(Set(result.map(\.name)) == ["Tivoli", "Alouette"])
+    // Pinned still respects other filters: a kind filter excluding it wins.
+    let kindFiltered = poolFiltered(
+      [inside, pulledOutside],
+      regions: [copenhagen],
+      kinds: [.museum],
+      pinnedIDs: [pulledOutside.id]
+    )
+    #expect(kindFiltered.isEmpty)  // Tivoli has no kind; Alouette is food, not museum
+  }
+
   private func idea(
     name: String,
     kind: IdeaKind? = nil,
