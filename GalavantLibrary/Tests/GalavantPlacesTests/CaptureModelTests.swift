@@ -223,6 +223,53 @@ import Testing
     }
   }
 
+  @Test("Apple Intelligence mines a city that rescues the Apple Maps match")
+  func intelligenceMinedCityResolvesMatch() async {
+    // koancph.dk shape: a bare name, no city, no coordinate — today's parser can't
+    // locate it. The model mines "Copenhagen" from the page, which both fills the
+    // region and turns the worldwide name-only search into a findable query.
+    let koanHTML = """
+      <html><head><meta property="og:title" content="Koan"></head><body></body></html>
+      """
+    await withDependencies {
+      try? $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.placeIntelligence = PlaceIntelligence { _ in
+        PlaceRefinement(locality: "Copenhagen", kind: .food)
+      }
+      // The map finds Koan only once the query carries the mined city.
+      $0.placeMatcher = PlaceMatcher(
+        geocode: { _ in nil },
+        search: { query in
+          query.lowercased().contains("copenhagen")
+            ? [Place(id: UUID(), name: "Koan", latitude: 55.6867, longitude: 12.5700)]
+            : []
+        }
+      )
+    } operation: {
+      let model = CaptureModel(html: koanHTML, sourceURL: nil)
+      await model.prepare()
+      #expect(model.draft.latitude == 55.6867)  // resolved thanks to the mined city
+      #expect(model.draft.regionName == "Copenhagen")  // mined locality → region
+      #expect(model.draft.kind == .food)  // classified by the model
+    }
+  }
+
+  @Test("the model's kind does not override a kind from structured data")
+  func intelligenceKindDoesNotOverrideStructured() async {
+    await withDependencies {
+      try? $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.placeMatcher = .testValue
+      $0.placeIntelligence = PlaceIntelligence { _ in PlaceRefinement(kind: .drink) }
+    } operation: {
+      // restaurantHTML carries schema.org Restaurant → .food; the model's guess loses.
+      let model = CaptureModel(html: Self.restaurantHTML, sourceURL: nil)
+      await model.prepare()
+      #expect(model.draft.kind == .food)
+    }
+  }
+
   @Test("save inserts the idea under the default travel party")
   func saveInsertsUnderDefaultParty() async throws {
     try await withDependencies {

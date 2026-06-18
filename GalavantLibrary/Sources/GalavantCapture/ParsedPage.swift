@@ -38,6 +38,11 @@ public struct ParsedPage: Equatable, Sendable {
   public var openingHours: [String]
   /// When this page was parsed — opening hours and other facts are dated.
   public var capturedAt: Date
+  /// A cleaned, truncated plain-text excerpt of the page's main content (nav/footer/
+  /// script stripped). Not a voted fact — raw material so an on-device summarizer can
+  /// describe the place even when the page carries no structured description, or only
+  /// a marketing one worth rewriting. `nil` when the page had no meaningful text.
+  public var textExcerpt: String?
 
   public init(
     sourceURL: URL? = nil,
@@ -53,7 +58,8 @@ public struct ParsedPage: Equatable, Sendable {
     socialURLs: [URL] = [],
     schemaTypes: [String] = [],
     openingHours: [String] = [],
-    capturedAt: Date = Date()
+    capturedAt: Date = Date(),
+    textExcerpt: String? = nil
   ) {
     self.sourceURL = sourceURL
     self.title = title
@@ -69,6 +75,7 @@ public struct ParsedPage: Equatable, Sendable {
     self.schemaTypes = schemaTypes
     self.openingHours = openingHours
     self.capturedAt = capturedAt
+    self.textExcerpt = textExcerpt
   }
 
   /// True when nothing useful was found — the caller can fall back to manual entry

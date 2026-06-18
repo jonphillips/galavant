@@ -30,6 +30,25 @@ import Testing
     #expect(!page.isEmpty)
   }
 
+  @Test("a text excerpt is extracted, stripped of boilerplate and bounded")
+  func textExcerptStripsBoilerplate() {
+    let html = """
+      <html><head><title>Alouette</title></head><body>
+      <nav>Home Menu Reservations Contact</nav>
+      <main><p>Alouette is a rooftop restaurant in Chicago serving French cuisine.</p></main>
+      <footer>Copyright 2026</footer>
+      <script>console.log("tracking")</script>
+      </body></html>
+      """
+    let excerpt = PageParser.parse(html: html).textExcerpt
+    let unwrapped = try! #require(excerpt)
+    #expect(unwrapped.contains("rooftop restaurant in Chicago"))
+    // Boilerplate (nav/footer/script) is dropped.
+    #expect(!unwrapped.contains("Reservations"))
+    #expect(!unwrapped.contains("Copyright"))
+    #expect(!unwrapped.contains("tracking"))
+  }
+
   @Test("websiteURL surfaces the business's own site, distinct from the shared page")
   func twoHopSignal() {
     let page = PageParser.parse(

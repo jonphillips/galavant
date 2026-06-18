@@ -26,6 +26,7 @@ public final class CaptureModel {
 
   @ObservationIgnored @Dependency(\.defaultDatabase) private var database
   @ObservationIgnored @Dependency(\.placeMatcher) private var placeMatcher
+  @ObservationIgnored @Dependency(\.placeIntelligence) private var placeIntelligence
   @ObservationIgnored @Dependency(\.recentTripStore) private var recentTripStore
   @ObservationIgnored @Dependency(\.uuid) private var uuid
 
@@ -53,9 +54,18 @@ public final class CaptureModel {
 
   /// Parse the page and refine its location. Idempotent-ish — call once on appear.
   public func prepare() async {
-    let page = PageParser.parse(html: html, sourceURL: sourceURL)
+    var page = PageParser.parse(html: html, sourceURL: sourceURL)
+    // On-device Apple Intelligence refines the parse before matching — a cleaned
+    // name and a mined city feed both the draft and the Apple Maps query (so a
+    // name-only page like koancph.dk can resolve). Confirm-and-tweak: it only
+    // fills blanks / cleans chrome titles, and is a no-op when unavailable.
+    let refinement = await placeIntelligence(page)
+    if let refinement { page = page.applying(refinement) }
     let captured = CapturedPlace.from(page, id: uuid())
     var draft = captured.draft
+    // Kind is domain (not on the domain-free ParsedPage): apply the model's
+    // classification only when the structured `schema.org` type left it blank.
+    if draft.kind == nil, let kind = refinement?.kind { draft.kind = kind }
 
     if let match = await placeMatcher.match(page) {
       draft.latitude = match.coordinate.latitude

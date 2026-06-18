@@ -40,6 +40,35 @@ public enum PageParser {
       }
     }
 
-    return builder.build(capturedAt: capturedAt)
+    var page = builder.build(capturedAt: capturedAt)
+    // A plain-text excerpt for the on-device summarizer (done last: it strips
+    // boilerplate from the document, after the extractors and image sweep have run).
+    page.textExcerpt = textExcerpt(from: document)
+    return page
+  }
+
+  /// The maximum excerpt length handed to the summarizer — enough to describe the
+  /// place, bounded to keep the share extension's model latency/memory in check.
+  private static let maxExcerptLength = 1500
+
+  /// Cleaned, truncated visible text of the page's main content. Strips obvious
+  /// boilerplate (script/style/nav/header/footer/aside), collapses whitespace, and
+  /// truncates on a word boundary. Best-effort — `nil` when nothing meaningful.
+  private static func textExcerpt(from document: Document) -> String? {
+    for selector in ["script", "style", "noscript", "nav", "header", "footer", "aside"] {
+      _ = try? document.select(selector).remove()
+    }
+    guard let raw = try? document.body()?.text(), !raw.isEmpty else { return nil }
+    let collapsed = raw.components(separatedBy: .whitespacesAndNewlines)
+      .filter { !$0.isEmpty }
+      .joined(separator: " ")
+    guard !collapsed.isEmpty else { return nil }
+    guard collapsed.count > maxExcerptLength else { return collapsed }
+    let clipped = collapsed.prefix(maxExcerptLength)
+    // Back up to the last space so we don't cut a word in half.
+    if let lastSpace = clipped.lastIndex(of: " ") {
+      return String(clipped[..<lastSpace])
+    }
+    return String(clipped)
   }
 }

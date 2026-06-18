@@ -138,6 +138,32 @@ first. Update this file when reality diverges — it's a living doc, not a contr
   carried the link; `xcodegen generate` would drop it) — now declared. App +
   extension build clean. **Verify on device/sim:** share a restaurant page from
   Safari → confirm → it lands in the pool.
+- ✅ M4d (2026-06-17): **on-device Apple Intelligence enrichment** — `PlaceIntelligence`,
+  an injectable `FoundationModels` client in `GalavantPlaces` (the cousin of
+  `PlaceMatcher`), refines the parse in `CaptureModel.prepare()` **before** the
+  Apple Maps match. One guided-generation call (`@Generable` + `@Guide(.anyOf(…))`
+  for the kind) returns a `PlaceRefinement` (clean name / mined city+region / clean
+  notes / classified kind); a **pure** `ParsedPage.applying(_:)` merges it
+  confirm-and-tweak (cleans a *chrome* title only; fills locality/region/summary
+  only when blank), and kind fills the draft only when structured data left it
+  blank. A mined city feeds the match query, so a name-only page (koancph.dk's
+  "Koan") resolves — the deferred M4d fix. **Availability-gated**
+  (`SystemLanguageModel.default.availability`) → silent fallback to the
+  deterministic parser when Apple Intelligence is off/unsupported; `testValue` is a
+  no-op so the parser path stays the tested default. FoundationModels lives only
+  behind the client closure; the merge + orchestration are unit-tested with a
+  fixture (incl. the Koan→Copenhagen end-to-end proof). 9 new tests; full package
+  suite + app/extension build green. **Verify on an eligible device** (Apple
+  Intelligence isn't on the simulator): share koancph.dk → confirm shows clean
+  "Koan", Copenhagen, a sensible kind, and a resolved location.
+  - **Notes follow-up**: `PageParser` now also extracts a cleaned, bounded
+    body-text excerpt (boilerplate stripped) onto `ParsedPage`, fed to the model so
+    it can write notes even when the page has no `og:description` (Alouette). Notes
+    are treated as a *generated* field — the model's neutral, de-marketed
+    description **supersedes** the raw page description (which is usually marketing
+    copy, e.g. Forestis); falls back to the page's own summary when the model is
+    silent/unavailable. Instructions/`@Guide` forbid taglines, questions, and calls
+    to action.
 - Share extension: URL in → scraped page (SwiftSoup, port V1) → idea form → saved to shared DB
 - Enrichment pipeline per `docs/scraping-enrichment.md` (port of the V1 server's
   metatag/OpenGraph/schema.org layering, value voting, and MKLocalSearch matching; add JSON-LD and openingHours capture)
