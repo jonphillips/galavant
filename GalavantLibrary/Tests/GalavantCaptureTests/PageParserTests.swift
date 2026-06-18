@@ -194,6 +194,28 @@ import Testing
     #expect(page.imageURLs == [URL(string: "https://example.com/photos/main.jpg")!])
   }
 
+  @Test("Lazy-load, srcset, CSS background, and noscript images are all harvested")
+  func bodyImageExtraction() {
+    let page = PageParser.parse(html: Fixtures.richBodyImages)
+    let urls = Set(page.imageURLs.map(\.absoluteString))
+    #expect(
+      urls == [
+        "https://place.com/og.jpg",  // structured (og:image)
+        "https://place.com/style-block.jpg",  // <style> background-image
+        "https://place.com/inline-bg.jpg",  // inline style background-image
+        "https://place.com/lazy.jpg",  // <img data-src>
+        "https://place.com/small.jpg",  // <img srcset> first candidate
+        "https://place.com/picture.webp",  // <picture><source srcset>
+        "https://place.com/data-bg.jpg",  // data-bg attribute
+        "https://place.com/noscript.jpg",  // <noscript> fallback
+      ]
+    )
+    // Structured og:image stays first — the single-hop extension cover (M4f).
+    #expect(page.imageURLs.first?.absoluteString == "https://place.com/og.jpg")
+    // Sprite/icon junk is still filtered out in the body too.
+    #expect(!urls.contains("https://place.com/icon-sprite.png"))
+  }
+
   // MARK: Fallbacks
 
   @Test("A barren page yields an empty ParsedPage the caller can fall back from")

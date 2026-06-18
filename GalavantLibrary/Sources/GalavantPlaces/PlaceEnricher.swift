@@ -53,7 +53,7 @@ public final class PlaceEnricher {
     // Backfill only fields the capture left blank (confirm-and-tweak — never clobber
     // a fact the user or the original capture already established). Pre-resolved to
     // final values so the update is straight assignment (a no-op where already set).
-    let notes = idea.notes.isEmpty ? (page.summary ?? idea.notes) : idea.notes
+    let notes = idea.notes.isEmpty ? (TextCleaning.demarketed(page.summary) ?? idea.notes) : idea.notes
     let regionName = idea.regionName ?? page.address.locality ?? page.address.region
     let phone = idea.phone ?? page.phone
     let pageAddress = page.address.oneLine

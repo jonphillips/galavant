@@ -71,10 +71,13 @@ struct IdeaRow: View {
   @ViewBuilder
   private var leadingImage: some View {
     if let headerThumbnail, let image = UIImage(data: headerThumbnail) {
+      // Fit, not fill — wordmark/logo covers shouldn't be cropped to an unreadable
+      // zoom; a faint backing keeps the cell tidy when the image is letterboxed.
       Image(uiImage: image)
         .resizable()
-        .scaledToFill()
+        .scaledToFit()
         .frame(width: 44, height: 44)
+        .background(Color(.secondarySystemFill))
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     } else {
       Image(systemName: idea.kind?.systemImage ?? "mappin.and.ellipse")
