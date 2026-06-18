@@ -8,6 +8,7 @@ let package = Package(
     .library(name: "GalavantSchema", targets: ["GalavantSchema"]),
     .library(name: "GalavantPlaces", targets: ["GalavantPlaces"]),
     .library(name: "GalavantCapture", targets: ["GalavantCapture"]),
+    .library(name: "GalavantImaging", targets: ["GalavantImaging"]),
   ],
   dependencies: [
     .package(url: "https://github.com/pointfreeco/sqlite-data", from: "1.0.0"),
@@ -59,6 +60,17 @@ let package = Package(
     .testTarget(
       name: "GalavantCaptureTests",
       dependencies: ["GalavantCapture"]
+    ),
+    // Pure image processing: bytes → resized/compressed display + thumbnail.
+    // ImageIO/CoreGraphics only — no SwiftUI, no CloudKit, no persistence
+    // (ADR-0009 §2). The clean portfolio-extraction candidate; storage stays in
+    // GalavantSchema. Tested with synthesized bytes (no fixture files).
+    .target(
+      name: "GalavantImaging"
+    ),
+    .testTarget(
+      name: "GalavantImagingTests",
+      dependencies: ["GalavantImaging"]
     ),
   ]
 )
