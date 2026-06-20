@@ -160,8 +160,12 @@ public struct TripPlan: Equatable, Sendable {
   /// The interleaved stop + connector rows for one day's timeline. A connector
   /// is inserted between consecutive stops when both are located; unlocated
   /// stops appear in the list but break the connector chain on each side.
+  /// `effectiveModes` supplies the resolved mode per leg (auto-detect or user
+  /// override); `travelTimes[leg][mode]` is the cached ETA for that mode.
   public func itineraryItems(
-    forDay day: Int, travelTimes: [LegKey: TravelTime]
+    forDay day: Int,
+    travelTimes: [LegKey: [TransportMode: TravelTime]],
+    effectiveModes: [LegKey: TransportMode]
   ) -> [ItineraryItem] {
     guard let resolvedDay = itinerary.first(where: { $0.number == day }) else { return [] }
     let stops = resolvedDay.stops
@@ -176,9 +180,18 @@ public struct TripPlan: Equatable, Sendable {
         let toLat = next.idea.latitude, let toLon = next.idea.longitude
       else { continue }
       let key = LegKey(fromLat: fromLat, fromLon: fromLon, toLat: toLat, toLon: toLon)
+      let mode = effectiveModes[key] ?? .walking
+      let tt = travelTimes[key]?[mode]
       items.append(.connector(TravelConnector(
-        fromStopID: stop.id, toStopID: next.id, travelTime: travelTimes[key])))
+        fromStopID: stop.id, toStopID: next.id, leg: key, mode: mode, travelTime: tt)))
     }
     return items
+  }
+
+  /// Resolve the idea for an itinerary stop by its `TripIdea` ID — used by the
+  /// view to get coordinates for the Open in Maps handoff on a connector row.
+  public func idea(forStopID id: TripIdea.ID) -> Idea? {
+    guard let entry = entries.first(where: { $0.id == id }) else { return nil }
+    return ideasByID[entry.ideaID]
   }
 }

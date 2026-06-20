@@ -1,5 +1,27 @@
 import Foundation
 
+/// The transport mode for a travel-time leg. Named cases map to MKDirections
+/// transport types in the app layer (no MapKit import here).
+public enum TransportMode: String, CaseIterable, Hashable, Sendable {
+  case walking, transit, driving
+
+  public var label: String {
+    switch self {
+    case .walking: "Walking"
+    case .transit: "Transit"
+    case .driving: "Driving"
+    }
+  }
+
+  public var systemImageName: String {
+    switch self {
+    case .walking: "figure.walk"
+    case .transit: "tram.fill"
+    case .driving: "car.fill"
+    }
+  }
+}
+
 /// The result of an MKDirections ETA request between two itinerary stops.
 public struct TravelTime: Equatable, Sendable {
   public var seconds: TimeInterval
@@ -10,13 +32,14 @@ public struct TravelTime: Equatable, Sendable {
     self.meters = meters
   }
 
-  public var formatted: String {
+  public func formatted(mode: TransportMode) -> String {
     let minutes = Int(seconds / 60)
-    if minutes < 1 { return "< 1 min walk" }
-    if minutes < 60 { return "\(minutes) min walk" }
+    let unit = mode == .walking ? "walk" : mode == .transit ? "transit" : "drive"
+    if minutes < 1 { return "< 1 min \(unit)" }
+    if minutes < 60 { return "\(minutes) min \(unit)" }
     let h = minutes / 60
     let m = minutes % 60
-    return m == 0 ? "\(h) hr walk" : "\(h) hr \(m) min walk"
+    return m == 0 ? "\(h) hr \(unit)" : "\(h) hr \(m) min \(unit)"
   }
 }
 
@@ -37,17 +60,24 @@ public struct LegKey: Hashable, Sendable {
 }
 
 /// An interstitial travel-time row between two consecutive itinerary stops.
-/// `travelTime` is nil while the ETA is still loading or the leg has no result.
+/// `travelTime` is nil while the ETA is loading or unavailable.
 public struct TravelConnector: Identifiable, Equatable, Sendable {
   public var fromStopID: TripIdea.ID
   public var toStopID: TripIdea.ID
+  public var leg: LegKey
+  public var mode: TransportMode
   public var travelTime: TravelTime?
 
   public var id: String { "\(fromStopID)-\(toStopID)" }
 
-  public init(fromStopID: TripIdea.ID, toStopID: TripIdea.ID, travelTime: TravelTime?) {
+  public init(
+    fromStopID: TripIdea.ID, toStopID: TripIdea.ID,
+    leg: LegKey, mode: TransportMode, travelTime: TravelTime?
+  ) {
     self.fromStopID = fromStopID
     self.toStopID = toStopID
+    self.leg = leg
+    self.mode = mode
     self.travelTime = travelTime
   }
 }

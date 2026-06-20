@@ -157,14 +157,17 @@ import Testing
     let tt = TravelTime(seconds: 480, meters: 600)
     let leg1 = LegKey(fromLat: 1, fromLon: 1, toLat: 2, toLon: 2)
     let leg2 = LegKey(fromLat: 2, fromLon: 2, toLat: 3, toLon: 3)
-    let items = p.itineraryItems(forDay: 1, travelTimes: [leg1: tt])
+    let modes: [LegKey: TransportMode] = [leg1: .walking, leg2: .walking]
+    let items = p.itineraryItems(
+      forDay: 1,
+      travelTimes: [leg1: [.walking: tt]],
+      effectiveModes: modes)
     // stop A, connector(loaded), stop B, connector(loading), stop C
     #expect(items.count == 5)
     if case .connector(let c1) = items[1] { #expect(c1.travelTime == tt) }
     else { Issue.record("expected connector at [1]") }
     if case .connector(let c2) = items[3] { #expect(c2.travelTime == nil) }  // leg2 not loaded
     else { Issue.record("expected connector at [3]") }
-    _ = leg2  // referenced in the expectation above implicitly via cache miss
   }
 
   @Test func connectorAbsentForUnlocatedNeighbour() {
@@ -177,7 +180,7 @@ import Testing
     let p = plan(entries, ideas: [
       idea(a, lat: 1, lon: 1), idea(b, lat: nil, lon: nil), idea(c, lat: 3, lon: 3),
     ])
-    let items = p.itineraryItems(forDay: 1, travelTimes: [:])
+    let items = p.itineraryItems(forDay: 1, travelTimes: [:], effectiveModes: [:])
     // 3 stops, no connectors (b lacks coords on both sides)
     #expect(items.count == 3)
     #expect(items.allSatisfy { if case .stop = $0 { true } else { false } })

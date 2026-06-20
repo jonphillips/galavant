@@ -38,11 +38,15 @@ final class TripPlanningModel {
   var canvasSelectedDay: Int?
   var canvasSelectedStopID: TripIdea.ID?
 
-  // ETA cache (docs/trip-canvas.md): walking travel times between consecutive
-  // located stops. Populated on appear and when the itinerary changes.
-  var travelTimes: [LegKey: TravelTime] = [:]
+  // ETA cache (docs/trip-canvas.md): travel times keyed by leg + mode.
+  // Walking is always fetched first; legs ≥ autoSwitchThreshold auto-switch to
+  // transit. Users can override per-leg; driving is always in the menu.
+  var travelTimes: [LegKey: [TransportMode: TravelTime]] = [:]
+  var modeOverrides: [LegKey: TransportMode] = [:]
   private var isFetchingETAs = false
   private var pendingETAFetch = false
+
+  static let autoSwitchThreshold: TimeInterval = 20 * 60  // 20 minutes
   // The two surfaces the bottom sheet hosts (the segment moved into the sheet).
   var sheetTab: SheetTab = .itinerary
   private var didPickInitialTab = false
@@ -190,16 +194,43 @@ final class TripPlanningModel {
     includeVisited = true
   }
 
+  // MARK: - ETA mode resolution
+
+  /// The effective transport mode for a leg: user override > auto-detect.
+  /// Auto-detect: walking ≥ 20 min → transit (best guess for long legs).
+  func effectiveMode(for leg: LegKey) -> TransportMode {
+    if let override = modeOverrides[leg] { return override }
+    if let walking = travelTimes[leg]?[.walking],
+      walking.seconds >= Self.autoSwitchThreshold {
+      return .transit
+    }
+    return .walking
+  }
+
+  /// Pre-computed effective modes for all legs — passed into `itineraryItems`
+  /// so the pure plan function doesn't need to call back into the model.
+  var effectiveModes: [LegKey: TransportMode] {
+    Dictionary(plan.allLegs.map { ($0, effectiveMode(for: $0)) },
+               uniquingKeysWith: { first, _ in first })
+  }
+
+  /// User-override the transport mode for a leg. Triggers an ETA fetch for
+  /// the new mode if it isn't already cached.
+  func setMode(_ mode: TransportMode, for leg: LegKey) {
+    modeOverrides[leg] = mode
+    Task { await fetchMissingETAs() }
+  }
+
   // MARK: - ETA fetch
 
-  /// Fetch walking ETAs for any uncached legs in the current itinerary.
-  /// Runs sequentially (MKDirections allows only one in-flight request); if
-  /// called while a fetch is already running, enqueues one re-run for after.
+  /// Fetch ETAs for uncached legs, sequentially (MKDirections: one in-flight
+  /// request at a time). Per leg:
+  ///   1. Always fetch walking.
+  ///   2. If walking ≥ threshold and no user override, fetch transit (auto-switch).
+  ///   3. If the user overrode to a mode we haven't fetched yet, fetch it.
+  /// If called while already running, enqueues one re-run for after.
   func fetchMissingETAs() async {
-    if isFetchingETAs {
-      pendingETAFetch = true
-      return
-    }
+    if isFetchingETAs { pendingETAFetch = true; return }
     isFetchingETAs = true
     defer {
       isFetchingETAs = false
@@ -208,10 +239,27 @@ final class TripPlanningModel {
         Task { await fetchMissingETAs() }
       }
     }
-    for leg in plan.allLegs where travelTimes[leg] == nil {
+    for leg in plan.allLegs {
       guard !Task.isCancelled else { break }
-      if let tt = try? await directionsClient.calculateETA(leg) {
-        travelTimes[leg] = tt
+      // Step 1: walking — always the baseline.
+      if travelTimes[leg]?[.walking] == nil,
+        let tt = try? await directionsClient.calculateETA(leg, .walking) {
+        travelTimes[leg, default: [:]][.walking] = tt
+      }
+      guard !Task.isCancelled else { break }
+      // Step 2: auto-switch — if walking is long and the user hasn't overridden,
+      // pre-fetch transit so the connector can show it without a second wait.
+      let walkingTime = travelTimes[leg]?[.walking]
+      let longLeg = (walkingTime?.seconds ?? 0) >= Self.autoSwitchThreshold
+      if longLeg, modeOverrides[leg] == nil, travelTimes[leg]?[.transit] == nil,
+        let tt = try? await directionsClient.calculateETA(leg, .transit) {
+        travelTimes[leg, default: [:]][.transit] = tt
+      }
+      guard !Task.isCancelled else { break }
+      // Step 3: user override — fetch the chosen mode if not yet cached.
+      if let override = modeOverrides[leg], travelTimes[leg]?[override] == nil,
+        let tt = try? await directionsClient.calculateETA(leg, override) {
+        travelTimes[leg, default: [:]][override] = tt
       }
     }
   }

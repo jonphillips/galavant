@@ -1,4 +1,5 @@
 import GalavantSchema
+import MapKit
 import SwiftUI
 
 /// The itinerary as a timeline (day-relative, never dates — docs/trip-time-model.md).
@@ -36,7 +37,8 @@ struct TripItineraryView: View {
 
   /// One day's stops, for the canvas's day lens.
   private func focusedDayList(_ day: Int) -> some View {
-    let items = model.plan.itineraryItems(forDay: day, travelTimes: model.travelTimes)
+    let items = model.plan.itineraryItems(
+      forDay: day, travelTimes: model.travelTimes, effectiveModes: model.effectiveModes)
     return List {
       Section {
         if items.isEmpty {
@@ -63,7 +65,8 @@ struct TripItineraryView: View {
         }
       }
       ForEach(model.plan.itinerary) { day in
-        let items = model.plan.itineraryItems(forDay: day.number, travelTimes: model.travelTimes)
+        let items = model.plan.itineraryItems(
+          forDay: day.number, travelTimes: model.travelTimes, effectiveModes: model.effectiveModes)
         Section {
           if items.isEmpty {
             Text("No stops yet")
@@ -80,8 +83,6 @@ struct TripItineraryView: View {
   }
 
   private var emptyState: some View {
-    // Shown in place of the list (not overlaid on it) so the empty message sits
-    // on its own opaque background instead of floating over day rows.
     ContentUnavailableView {
       Icon.calendar.label("Nothing scheduled")
     } description: {
@@ -122,14 +123,15 @@ struct TripItineraryView: View {
     .id(resolved.id)
   }
 
-  /// A compact interstitial row showing the walking time to the next stop.
+  /// A compact interstitial row showing the travel time and mode to the next stop.
+  /// Tap (long press / context menu) to switch mode or open Apple Maps for that leg.
   private func connectorRow(_ connector: TravelConnector) -> some View {
     HStack(spacing: 5) {
-      Icon.walk.image
+      Image(systemName: connector.mode.systemImageName)
         .imageScale(.small)
         .foregroundStyle(.tertiary)
       if let tt = connector.travelTime {
-        Text(tt.formatted)
+        Text(tt.formatted(mode: connector.mode))
           .font(.caption)
           .foregroundStyle(.secondary)
       } else {
@@ -141,6 +143,44 @@ struct TripItineraryView: View {
     .padding(.vertical, 2)
     .listRowSeparator(.hidden)
     .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 16))
-    .allowsHitTesting(false)
+    .contentShape(Rectangle())
+    .contextMenu {
+      // Mode picker — checkmark on the current mode via Picker-in-menu idiom.
+      Picker("Transport", selection: Binding(
+        get: { connector.mode },
+        set: { model.setMode($0, for: connector.leg) }
+      )) {
+        ForEach(TransportMode.allCases, id: \.self) { mode in
+          Label(mode.label, systemImage: mode.systemImageName).tag(mode)
+        }
+      }
+      Divider()
+      Button {
+        openInMaps(connector: connector)
+      } label: {
+        Label("Open in Maps", systemImage: "map")
+      }
+    }
+  }
+
+  /// Hands off to Apple Maps with the connector's from→to pair and chosen mode.
+  private func openInMaps(connector: TravelConnector) {
+    guard
+      let from = model.plan.idea(forStopID: connector.fromStopID),
+      let to = model.plan.idea(forStopID: connector.toStopID),
+      let fromCoord = from.coordinate,
+      let toCoord = to.coordinate
+    else { return }
+    let source = MKMapItem(
+      location: CLLocation(latitude: fromCoord.latitude, longitude: fromCoord.longitude),
+      address: nil)
+    source.name = from.name
+    let dest = MKMapItem(
+      location: CLLocation(latitude: toCoord.latitude, longitude: toCoord.longitude),
+      address: nil)
+    dest.name = to.name
+    MKMapItem.openMaps(with: [source, dest], launchOptions: [
+      MKLaunchOptionsDirectionsModeKey: connector.mode.mkDirectionsMode
+    ])
   }
 }
