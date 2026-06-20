@@ -13,6 +13,7 @@ import SQLiteData
 final class TripPlanningModel {
   @ObservationIgnored @Dependency(\.defaultDatabase) var database
   @ObservationIgnored @Dependency(\.recentTripStore) var recentTripStore
+  @ObservationIgnored @Dependency(\.directionsClient) var directionsClient
   @ObservationIgnored @FetchAll(Trip.all) var trips
   @ObservationIgnored @FetchAll(Idea.order(by: \.name)) var ideas
   @ObservationIgnored @FetchAll(TripIdea.all) var allTripIdeas
@@ -36,6 +37,12 @@ final class TripPlanningModel {
   // is the one selection the map pins and the timeline rows both project.
   var canvasSelectedDay: Int?
   var canvasSelectedStopID: TripIdea.ID?
+
+  // ETA cache (docs/trip-canvas.md): walking travel times between consecutive
+  // located stops. Populated on appear and when the itinerary changes.
+  var travelTimes: [LegKey: TravelTime] = [:]
+  private var isFetchingETAs = false
+  private var pendingETAFetch = false
   // The two surfaces the bottom sheet hosts (the segment moved into the sheet).
   var sheetTab: SheetTab = .itinerary
   private var didPickInitialTab = false
@@ -181,6 +188,32 @@ final class TripPlanningModel {
     selectedKinds = []
     selectedTagIDs = []
     includeVisited = true
+  }
+
+  // MARK: - ETA fetch
+
+  /// Fetch walking ETAs for any uncached legs in the current itinerary.
+  /// Runs sequentially (MKDirections allows only one in-flight request); if
+  /// called while a fetch is already running, enqueues one re-run for after.
+  func fetchMissingETAs() async {
+    if isFetchingETAs {
+      pendingETAFetch = true
+      return
+    }
+    isFetchingETAs = true
+    defer {
+      isFetchingETAs = false
+      if pendingETAFetch {
+        pendingETAFetch = false
+        Task { await fetchMissingETAs() }
+      }
+    }
+    for leg in plan.allLegs where travelTimes[leg] == nil {
+      guard !Task.isCancelled else { break }
+      if let tt = try? await directionsClient.calculateETA(leg) {
+        travelTimes[leg] = tt
+      }
+    }
   }
 
   // MARK: - Actions

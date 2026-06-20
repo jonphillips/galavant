@@ -32,6 +32,9 @@ enum Icon {
   case timeOfDay      // set/no time-of-day on a placed stop
   case someday        // held in a someday trip / backlog
 
+  // Travel
+  case walk           // walking travel-time connector between stops
+
   // Places
   case map
   case location       // a stop/idea that has coordinates
@@ -68,6 +71,7 @@ enum Icon {
     case .toBeScheduled: "calendar.badge.clock"
     case .timeOfDay: "clock"
     case .someday: "bookmark"
+    case .walk: "figure.walk"
     case .map: "map"
     case .location: "mappin.circle.fill"
     case .trips: "suitcase"

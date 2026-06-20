@@ -64,6 +64,10 @@ struct TripPlanningView: View {
         // Present the persistent sheet on appear (compact only) — `.constant(true)`
         // is unreliable on a NavigationStack push.
         if !usesColumn { showDetailSheet = true }
+        await model.fetchMissingETAs()
+      }
+      .onChange(of: model.plan.allLegs) { _, _ in
+        Task { await model.fetchMissingETAs() }
       }
       .onChange(of: model.tripRegionIDs) { _, _ in model.reseedLens() }
       .onChange(of: model.canvasSelectedStopID) { _, id in

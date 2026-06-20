@@ -25,6 +25,7 @@
 		4171E2BF905DAB98B77389EB /* CertaintyStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DD1C2B139D03095F082D99E /* CertaintyStyle.swift */; };
 		43267C623EF3B32592F6BCF0 /* TripItineraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6839D17655A85296477C1D5D /* TripItineraryView.swift */; };
 		4344BF96EA3F3DB017E4CCDF /* InterestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 292BC932AEA1B53EB11DA125 /* InterestView.swift */; };
+		466236484A344B3C7C6F3823 /* DirectionsClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 386282278C0DEBD19BF1925E /* DirectionsClient.swift */; };
 		474250E4E109ADF7680100C1 /* IdentityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E049286F9F226AF86DA12541 /* IdentityView.swift */; };
 		4A303DECCB8DFE842751E12F /* PoolFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 895F90CCD6B6EE453DBD785D /* PoolFlowUITests.swift */; };
 		4DAAA7D1E36518BAE6613248 /* TripFormModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20DAF6B7A5F203899F4C780 /* TripFormModel.swift */; };
@@ -118,6 +119,7 @@
 		292BC932AEA1B53EB11DA125 /* InterestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterestView.swift; sourceTree = "<group>"; };
 		2CD37357C07AFC3DAE3CDAE7 /* DemoFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoFixtures.swift; sourceTree = "<group>"; };
 		371FEFD498525E0EA4709909 /* StackedForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StackedForm.swift; sourceTree = "<group>"; };
+		386282278C0DEBD19BF1925E /* DirectionsClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectionsClient.swift; sourceTree = "<group>"; };
 		3DD1C2B139D03095F082D99E /* CertaintyStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CertaintyStyle.swift; sourceTree = "<group>"; };
 		3F02C470667EF6E9AC8AC761 /* IdeaDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaDetailView.swift; sourceTree = "<group>"; };
 		409050F2DDFD762C631818CF /* IdeaCoordinate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaCoordinate.swift; sourceTree = "<group>"; };
@@ -245,6 +247,7 @@
 			children = (
 				BAA9983C3B6D9D9B731F96F9 /* DayChipBar.swift */,
 				95C568B98EA55277C2DDA065 /* DayPalette.swift */,
+				386282278C0DEBD19BF1925E /* DirectionsClient.swift */,
 				97954EEA93EDDCB81E746016 /* PlanningRow.swift */,
 				91589ABCCE6CEFC2EC1F72F4 /* ReorderDifference+Apply.swift */,
 				B15DFF6883F3077AA8D6C591 /* StopMenu.swift */,
@@ -496,6 +499,7 @@
 				BA6DC33C006D131C9DDA042C /* DayChipBar.swift in Sources */,
 				35E279FA22C85810158AF02C /* DayPalette.swift in Sources */,
 				9515962CEF69E6D64F9B0322 /* DemoFixtures.swift in Sources */,
+				466236484A344B3C7C6F3823 /* DirectionsClient.swift in Sources */,
 				DA333E1DC58A089ED9E9C3E1 /* GalavantApp.swift in Sources */,
 				1AF90BB39A9A3751AA9A22E2 /* Icon.swift in Sources */,
 				5FC0A092CF36738BE434FB6D /* IdeaCoordinate.swift in Sources */,

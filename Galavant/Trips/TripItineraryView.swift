@@ -36,15 +36,15 @@ struct TripItineraryView: View {
 
   /// One day's stops, for the canvas's day lens.
   private func focusedDayList(_ day: Int) -> some View {
-    let stops = model.plan.itinerary.first { $0.number == day }?.stops ?? []
+    let items = model.plan.itineraryItems(forDay: day, travelTimes: model.travelTimes)
     return List {
       Section {
-        if stops.isEmpty {
+        if items.isEmpty {
           Text("No stops on this day yet")
             .font(.subheadline)
             .foregroundStyle(.tertiary)
         } else {
-          ForEach(stops) { resolved in stopRow(resolved) }
+          ForEach(items) { item in itineraryRow(item) }
         }
       } header: {
         Text(dayLabel(day, trip: model.trip))
@@ -63,13 +63,14 @@ struct TripItineraryView: View {
         }
       }
       ForEach(model.plan.itinerary) { day in
+        let items = model.plan.itineraryItems(forDay: day.number, travelTimes: model.travelTimes)
         Section {
-          if day.stops.isEmpty {
+          if items.isEmpty {
             Text("No stops yet")
               .font(.subheadline)
               .foregroundStyle(.tertiary)
           } else {
-            ForEach(day.stops) { resolved in stopRow(resolved) }
+            ForEach(items) { item in itineraryRow(item) }
           }
         } header: {
           Text(dayLabel(day.number, trip: model.trip))
@@ -92,6 +93,13 @@ struct TripItineraryView: View {
     .background(.background)
   }
 
+  @ViewBuilder private func itineraryRow(_ item: ItineraryItem) -> some View {
+    switch item {
+    case .stop(let resolved): stopRow(resolved)
+    case .connector(let connector): connectorRow(connector)
+    }
+  }
+
   /// A stop row: the idea, an info button to its detail, its `StopMenu`,
   /// tap-to-select (the shared canvas selection), and a tint when it's selected.
   /// Row-tap stays selection here (the map↔list link); the info button is its own
@@ -112,5 +120,27 @@ struct TripItineraryView: View {
     .contentShape(Rectangle())
     .onTapGesture { model.selectStop(resolved.id) }
     .id(resolved.id)
+  }
+
+  /// A compact interstitial row showing the walking time to the next stop.
+  private func connectorRow(_ connector: TravelConnector) -> some View {
+    HStack(spacing: 5) {
+      Icon.walk.image
+        .imageScale(.small)
+        .foregroundStyle(.tertiary)
+      if let tt = connector.travelTime {
+        Text(tt.formatted)
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      } else {
+        Text("…")
+          .font(.caption)
+          .foregroundStyle(.tertiary)
+      }
+    }
+    .padding(.vertical, 2)
+    .listRowSeparator(.hidden)
+    .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 16))
+    .allowsHitTesting(false)
   }
 }

@@ -112,4 +112,74 @@ import Testing
     #expect(p.itinerary[0].stops.isEmpty)
     #expect(p.itinerary[1].stops.map(\.idea.id) == [id])
   }
+
+  // MARK: - Travel connector tests
+
+  @Test func allLegsCoversEveryConsecutiveLocatedPair() {
+    let (a, b, c) = (UUID(), UUID(), UUID())
+    let entries = [
+      entry(idea: a, status: .scheduled, schedule: .day(1)),
+      entry(idea: b, status: .scheduled, schedule: .day(1)),
+      entry(idea: c, status: .scheduled, schedule: .day(2)),
+    ]
+    // a→b on day 1, nothing on day 2 (c is alone)
+    let p = plan(entries, ideas: [
+      idea(a, lat: 1, lon: 1), idea(b, lat: 2, lon: 2), idea(c, lat: 3, lon: 3),
+    ])
+    #expect(p.allLegs.count == 1)
+    #expect(p.allLegs.first == LegKey(fromLat: 1, fromLon: 1, toLat: 2, toLon: 2))
+  }
+
+  @Test func unlocatedStopBreaksConnectorChain() {
+    let (a, b, c) = (UUID(), UUID(), UUID())
+    let entries = [
+      entry(idea: a, status: .scheduled, schedule: .day(1)),
+      entry(idea: b, status: .scheduled, schedule: .day(1)),  // unlocated
+      entry(idea: c, status: .scheduled, schedule: .day(1)),
+    ]
+    let p = plan(entries, ideas: [
+      idea(a, lat: 1, lon: 1), idea(b, lat: nil, lon: nil), idea(c, lat: 3, lon: 3),
+    ])
+    // b has no coordinates: a→b and b→c both lack a full located pair
+    #expect(p.legs(forDay: 1).isEmpty)
+  }
+
+  @Test func itineraryItemsInterleaveConnectors() {
+    let (a, b, c) = (UUID(), UUID(), UUID())
+    let entries = [
+      entry(idea: a, status: .scheduled, schedule: .day(1)),
+      entry(idea: b, status: .scheduled, schedule: .day(1)),
+      entry(idea: c, status: .scheduled, schedule: .day(1)),
+    ]
+    let p = plan(entries, ideas: [
+      idea(a, lat: 1, lon: 1), idea(b, lat: 2, lon: 2), idea(c, lat: 3, lon: 3),
+    ])
+    let tt = TravelTime(seconds: 480, meters: 600)
+    let leg1 = LegKey(fromLat: 1, fromLon: 1, toLat: 2, toLon: 2)
+    let leg2 = LegKey(fromLat: 2, fromLon: 2, toLat: 3, toLon: 3)
+    let items = p.itineraryItems(forDay: 1, travelTimes: [leg1: tt])
+    // stop A, connector(loaded), stop B, connector(loading), stop C
+    #expect(items.count == 5)
+    if case .connector(let c1) = items[1] { #expect(c1.travelTime == tt) }
+    else { Issue.record("expected connector at [1]") }
+    if case .connector(let c2) = items[3] { #expect(c2.travelTime == nil) }  // leg2 not loaded
+    else { Issue.record("expected connector at [3]") }
+    _ = leg2  // referenced in the expectation above implicitly via cache miss
+  }
+
+  @Test func connectorAbsentForUnlocatedNeighbour() {
+    let (a, b, c) = (UUID(), UUID(), UUID())
+    let entries = [
+      entry(idea: a, status: .scheduled, schedule: .day(1)),
+      entry(idea: b, status: .scheduled, schedule: .day(1)),  // unlocated
+      entry(idea: c, status: .scheduled, schedule: .day(1)),
+    ]
+    let p = plan(entries, ideas: [
+      idea(a, lat: 1, lon: 1), idea(b, lat: nil, lon: nil), idea(c, lat: 3, lon: 3),
+    ])
+    let items = p.itineraryItems(forDay: 1, travelTimes: [:])
+    // 3 stops, no connectors (b lacks coords on both sides)
+    #expect(items.count == 3)
+    #expect(items.allSatisfy { if case .stop = $0 { true } else { false } })
+  }
 }

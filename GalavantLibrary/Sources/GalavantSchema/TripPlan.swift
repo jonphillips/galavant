@@ -133,4 +133,52 @@ public struct TripPlan: Equatable, Sendable {
     (itinerary.first { $0.number == day }?.stops ?? [])
       .filter { $0.idea.latitude != nil && $0.idea.longitude != nil }
   }
+
+  // MARK: - Travel-time connectors (docs/trip-canvas.md)
+
+  /// All directed route segments across every day, in itinerary order — the set
+  /// the directions client should pre-warm. Only pairs where both stops are
+  /// located produce a leg.
+  public var allLegs: [LegKey] {
+    itinerary.flatMap { legs(forDay: $0.number) }
+  }
+
+  /// Directed route segments between consecutive located stops on `day`.
+  /// Iterates all stops in order — an unlocated stop between two located ones
+  /// breaks the chain on both sides (no phantom A→C leg when B has no coords).
+  public func legs(forDay day: Int) -> [LegKey] {
+    let stops = itinerary.first(where: { $0.number == day })?.stops ?? []
+    return zip(stops, stops.dropFirst()).compactMap { a, b in
+      guard
+        let fromLat = a.idea.latitude, let fromLon = a.idea.longitude,
+        let toLat = b.idea.latitude, let toLon = b.idea.longitude
+      else { return nil }
+      return LegKey(fromLat: fromLat, fromLon: fromLon, toLat: toLat, toLon: toLon)
+    }
+  }
+
+  /// The interleaved stop + connector rows for one day's timeline. A connector
+  /// is inserted between consecutive stops when both are located; unlocated
+  /// stops appear in the list but break the connector chain on each side.
+  public func itineraryItems(
+    forDay day: Int, travelTimes: [LegKey: TravelTime]
+  ) -> [ItineraryItem] {
+    guard let resolvedDay = itinerary.first(where: { $0.number == day }) else { return [] }
+    let stops = resolvedDay.stops
+    guard !stops.isEmpty else { return [] }
+    var items: [ItineraryItem] = []
+    for (i, stop) in stops.enumerated() {
+      items.append(.stop(stop))
+      guard i < stops.count - 1 else { continue }
+      let next = stops[i + 1]
+      guard
+        let fromLat = stop.idea.latitude, let fromLon = stop.idea.longitude,
+        let toLat = next.idea.latitude, let toLon = next.idea.longitude
+      else { continue }
+      let key = LegKey(fromLat: fromLat, fromLon: fromLon, toLat: toLat, toLon: toLon)
+      items.append(.connector(TravelConnector(
+        fromStopID: stop.id, toStopID: next.id, travelTime: travelTimes[key])))
+    }
+    return items
+  }
 }
