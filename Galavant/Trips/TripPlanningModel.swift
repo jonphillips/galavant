@@ -161,7 +161,10 @@ final class TripPlanningModel {
   }
 
   private var statusByIdea: [Idea.ID: TripIdeaStatus] {
-    Dictionary(entries.map { ($0.ideaID, $0.status) }, uniquingKeysWith: { first, _ in first })
+    Dictionary(
+      entries.compactMap { entry in entry.ideaID.map { ($0, entry.status) } },
+      uniquingKeysWith: { first, _ in first }
+    )
   }
 
   /// This idea's status on the trip, or nil if it hasn't been pulled.
@@ -341,20 +344,18 @@ final class TripPlanningModel {
     }
   }
 
-  func setStatus(_ status: TripIdeaStatus, for idea: Idea) {
-    let (tripID, ideaID) = (tripID, idea.id)
+  func setStatus(_ status: TripIdeaStatus, for stopID: TripIdea.ID) {
     withErrorReporting {
       try database.write { db in
-        try TripIdea.setStatus(status, ideaID: ideaID, tripID: tripID, in: db)
+        try TripIdea.setStatus(status, stopID: stopID, in: db)
       }
     }
   }
 
-  func remove(_ idea: Idea) {
-    let (tripID, ideaID) = (tripID, idea.id)
+  func remove(_ stopID: TripIdea.ID) {
     withErrorReporting {
       try database.write { db in
-        try TripIdea.remove(ideaID: ideaID, from: tripID, in: db)
+        try TripIdea.remove(stopID: stopID, in: db)
       }
     }
   }
@@ -366,8 +367,10 @@ final class TripPlanningModel {
   func tapConsidering(_ idea: Idea) {
     switch status(for: idea) {
     case nil: pull(idea)
-    case .considering: remove(idea)
-    case .shortlisted: setStatus(.considering, for: idea)
+    case .considering:
+      if let id = entryID(for: idea) { remove(id) }
+    case .shortlisted:
+      if let id = entryID(for: idea) { setStatus(.considering, for: id) }
     case .scheduled, .done, .skipped: break
     }
   }
@@ -379,10 +382,17 @@ final class TripPlanningModel {
   func tapShortlist(_ idea: Idea) {
     switch status(for: idea) {
     case nil: pullToShortlist(idea)
-    case .considering: setStatus(.shortlisted, for: idea)
-    case .shortlisted: remove(idea)
+    case .considering:
+      if let id = entryID(for: idea) { setStatus(.shortlisted, for: id) }
+    case .shortlisted:
+      if let id = entryID(for: idea) { remove(id) }
     case .scheduled, .done, .skipped: break
     }
+  }
+
+  /// The TripIdea row for a pool idea on this trip, if it has been pulled.
+  private func entryID(for idea: Idea) -> TripIdea.ID? {
+    entries.first { $0.ideaID == idea.id }?.id
   }
 
   /// Persist a new shortlist order after a drag-to-reorder.
@@ -402,51 +412,48 @@ final class TripPlanningModel {
     destination = .scheduleStop
   }
 
-  /// Commit a shortlisted idea to the itinerary without a day — it lands in the
-  /// "To Be Scheduled" bucket, where the user assigns it a day.
-  func sendToBeScheduled(_ idea: Idea) {
-    let (tripID, ideaID) = (tripID, idea.id)
+  /// Commit a stop to the itinerary without a day — it lands in the "To Be
+  /// Scheduled" bucket, where the user assigns it a day.
+  func sendToBeScheduled(_ stopID: TripIdea.ID) {
     withErrorReporting {
       try database.write { db in
-        try TripIdea.scheduleUnplaced(ideaID: ideaID, tripID: tripID, in: db)
+        try TripIdea.scheduleUnplaced(stopID: stopID, in: db)
       }
     }
   }
 
   /// Set a stop's day-relative placement (move it between days, add/clear a
   /// daypart or time). Marks it `scheduled`.
-  func setSchedule(_ schedule: Schedule, for idea: Idea) {
-    let (tripID, ideaID) = (tripID, idea.id)
+  func setSchedule(_ schedule: Schedule, for stopID: TripIdea.ID) {
     withErrorReporting {
       try database.write { db in
-        try TripIdea.schedule(schedule, ideaID: ideaID, tripID: tripID, in: db)
+        try TripIdea.schedule(schedule, stopID: stopID, in: db)
       }
     }
   }
 
-  /// Pull a scheduled stop back to the shortlist.
-  func unschedule(_ idea: Idea) {
-    let (tripID, ideaID) = (tripID, idea.id)
+  /// Pull a stop back to the shortlist. Freeform stops skip the shortlist per
+  /// ADR-0010 — call `remove` instead.
+  func unschedule(_ stopID: TripIdea.ID) {
     withErrorReporting {
       try database.write { db in
-        try TripIdea.unschedule(ideaID: ideaID, tripID: tripID, in: db)
+        try TripIdea.unschedule(stopID: stopID, in: db)
       }
     }
   }
 
-  /// Mark a stop done after the trip — flips the idea's pool `visited` flag
-  /// (ADR-0004 feedback-to-pool).
-  func markDone(_ idea: Idea) {
-    let (tripID, ideaID) = (tripID, idea.id)
+  /// Mark a stop done after the trip. For idea-backed stops also flips the pool
+  /// idea's `visited` flag (ADR-0004 feedback-to-pool).
+  func markDone(_ stopID: TripIdea.ID) {
     withErrorReporting {
       try database.write { db in
-        try TripIdea.markDone(ideaID: ideaID, tripID: tripID, in: db)
+        try TripIdea.markDone(stopID: stopID, in: db)
       }
     }
   }
 
-  /// Mark a stop skipped — leaves the idea's `visited` flag untouched.
-  func markSkipped(_ idea: Idea) {
-    setStatus(.skipped, for: idea)
+  /// Mark a stop skipped — leaves any associated pool idea's `visited` flag untouched.
+  func markSkipped(_ stopID: TripIdea.ID) {
+    setStatus(.skipped, for: stopID)
   }
 }

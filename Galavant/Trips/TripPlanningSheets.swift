@@ -114,10 +114,11 @@ struct AddIdeasSheet: View {
 
 /// Add a shortlisted idea to the itinerary: pick the idea and either a day +
 /// time of day, or leave it in the "To Be Scheduled" bucket (the default).
+/// Freeform stops are never shortlisted (ADR-0010), so all rows here have ideas.
 struct ScheduleStopSheet: View {
   let model: TripPlanningModel
   @Environment(\.dismiss) private var dismiss
-  @State private var selectedIdeaID: Idea.ID?
+  @State private var selectedStopID: TripIdea.ID?
   // 0 = the "To Be Scheduled" bucket (the default — pick a day when you're ready).
   @State private var day = 0
   @State private var dayPart: DayPart?
@@ -136,15 +137,15 @@ struct ScheduleStopSheet: View {
             Section("Idea") {
               ForEach(model.plan.shortlist) { resolved in
                 Button {
-                  selectedIdeaID = resolved.idea.id
+                  selectedStopID = resolved.id
                 } label: {
                   HStack(spacing: 12) {
-                    Image(systemName: resolved.idea.kind?.systemImage ?? "mappin.and.ellipse")
+                    Image(systemName: resolved.content.idea?.kind?.systemImage ?? "mappin.and.ellipse")
                       .foregroundStyle(.secondary)
                       .frame(width: 24)
-                    Text(resolved.idea.name).foregroundStyle(.primary)
+                    Text(resolved.content.title).foregroundStyle(.primary)
                     Spacer()
-                    if selectedIdeaID == resolved.idea.id {
+                    if selectedStopID == resolved.id {
                       Icon.checkmark.image.foregroundStyle(.tint)
                     }
                   }
@@ -176,21 +177,19 @@ struct ScheduleStopSheet: View {
           Button("Cancel") { dismiss() }
         }
         ToolbarItem(placement: .confirmationAction) {
-          Button("Add") { add() }.disabled(selectedIdeaID == nil)
+          Button("Add") { add() }.disabled(selectedStopID == nil)
         }
       }
     }
   }
 
   private func add() {
-    guard let id = selectedIdeaID,
-      let resolved = model.plan.shortlist.first(where: { $0.idea.id == id })
-    else { return }
+    guard let id = selectedStopID else { return }
     if day == 0 {
-      model.sendToBeScheduled(resolved.idea)
+      model.sendToBeScheduled(id)
     } else {
       let schedule: Schedule = dayPart.map { .daypart(day, $0) } ?? .day(day)
-      model.setSchedule(schedule, for: resolved.idea)
+      model.setSchedule(schedule, for: id)
     }
     dismiss()
   }

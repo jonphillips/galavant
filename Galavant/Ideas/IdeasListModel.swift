@@ -140,7 +140,7 @@ final class IdeasListModel {
   /// show even when outside the trip's regions (the capture-onto-trip case Jon hit).
   private var activeTripIdeaIDs: Set<Idea.ID> {
     guard let tripID = activeTripID else { return [] }
-    return Set(tripIdeas.filter { $0.tripID == tripID }.map(\.ideaID))
+    return Set(tripIdeas.filter { $0.tripID == tripID }.compactMap(\.ideaID))
   }
 
   var filteredIdeas: [Idea] {
@@ -195,7 +195,7 @@ final class IdeasListModel {
     Dictionary(trips.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
   }
   private var entriesByIdea: [Idea.ID: [TripIdea]] {
-    Dictionary(grouping: tripIdeas, by: \.ideaID)
+    Dictionary(grouping: tripIdeas.filter { $0.ideaID != nil }, by: { $0.ideaID! })
   }
 
   /// The "All"-view badge for an idea: its most-actionable trip association

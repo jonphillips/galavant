@@ -104,18 +104,19 @@ struct TripItineraryView: View {
     }
   }
 
-  /// A stop row: the idea, an info button to its detail, its `StopMenu`,
-  /// tap-to-select (the shared canvas selection), and a tint when it's selected.
-  /// Row-tap stays selection here (the map↔list link); the info button is its own
-  /// hit target, so it opens detail without also selecting.
+  /// A stop row: the stop content, an optional info button (idea-backed only),
+  /// its `StopMenu`, tap-to-select (the shared canvas selection), and a tint when
+  /// selected. Row-tap is selection only; the info button is its own hit target.
   private func stopRow(_ resolved: ResolvedStop) -> some View {
-    PlanningRow(idea: resolved.idea, subtitle: .category) {
+    PlanningRow(content: resolved.content, subtitle: .category) {
       HStack(spacing: 14) {
-        Button { model.showDetail(resolved.idea) } label: {
-          Icon.info.image.foregroundStyle(.secondary)
+        if let idea = resolved.idea {
+          Button { model.showDetail(idea) } label: {
+            Icon.info.image.foregroundStyle(.secondary)
+          }
+          .buttonStyle(.borderless)
         }
-        .buttonStyle(.borderless)
-        StopMenu(model: model, idea: resolved.idea, schedule: resolved.entry.schedule)
+        StopMenu(model: model, stop: resolved)
       }
     }
     .listRowBackground(
