@@ -4,6 +4,28 @@ import Foundation
 import GalavantSchema
 import SQLiteData
 
+/// The editable state of the custom-stop sheet — author a new freeform stop or
+/// edit an existing one. `stopID == nil` means creating; a set id means editing
+/// that stop in place (ADR-0010 Slice 3). `day` (nil = To Be Scheduled) is the
+/// landing day chosen at create time; on edit, placement is the `StopMenu`'s job
+/// and the picker is hidden. Identifiable so it drives a `.sheet(item:)` like
+/// `Trip.Draft` does.
+struct FreeformStopDraft: Identifiable {
+  let id = UUID()
+  var stopID: TripIdea.ID?
+  var title = ""
+  var note = ""
+  var day: Int?
+}
+
+/// Which itinerary section a per-section "+" is adding into — a day, or the To
+/// Be Scheduled bucket (`day == nil`). Identifiable so each tap drives a fresh
+/// `.sheet(item:)` (ADR-0010 Slice 3).
+struct PlaceIdeaTarget: Identifiable {
+  let id = UUID()
+  let day: Int?
+}
+
 /// Owns one trip's planning surface (ADR-0004): the shortlist + considering
 /// pile of pulled ideas, and the filtered pool you pull *from*. Persistence
 /// delegates to the tested `TripIdea` operations; pool scoping reuses the pure
@@ -74,7 +96,8 @@ final class TripPlanningModel {
   enum Destination {
     case edit(Trip.Draft)
     case addIdeas
-    case scheduleStop
+    case placeIdea(PlaceIdeaTarget)
+    case freeformStop(FreeformStopDraft)
   }
 
   init(tripID: Trip.ID) {
@@ -406,10 +429,59 @@ final class TripPlanningModel {
 
   // MARK: - Scheduling actions
 
-  /// Present the "add a stop to the itinerary" sheet (pick a shortlisted idea +
-  /// a day and time of day).
-  func addStopButtonTapped() {
-    destination = .scheduleStop
+  /// Present the per-section idea picker — pick a shortlisted idea to drop into
+  /// `day` (nil = the To Be Scheduled bucket). Driven by a section header's "+".
+  func addToSectionTapped(day: Int?) {
+    destination = .placeIdea(PlaceIdeaTarget(day: day))
+  }
+
+  /// Commit the per-section picker: place a shortlisted idea onto its target
+  /// day (anytime — refine the time later via `StopMenu`) or into the bucket.
+  func placeIdea(_ stopID: TripIdea.ID, on day: Int?) {
+    if let day {
+      setSchedule(.day(day), for: stopID)
+    } else {
+      sendToBeScheduled(stopID)
+    }
+    destination = nil
+  }
+
+  /// Present the custom-stop editor to author a new freeform stop ("lunch",
+  /// "train to Aarhus", "check in"). Defaults to the To-Be-Scheduled bucket; the
+  /// sheet's day picker can land it on a day directly (ADR-0010).
+  func addCustomStopButtonTapped() {
+    destination = .freeformStop(FreeformStopDraft())
+  }
+
+  /// Re-open the editor seeded from an existing freeform stop. No-op on an
+  /// idea-backed stop (those edit through the pool idea, not here).
+  func editFreeform(_ stop: ResolvedStop) {
+    guard case let .freeform(title, note) = stop.content else { return }
+    destination = .freeformStop(
+      FreeformStopDraft(stopID: stop.id, title: title, note: note ?? "", day: stop.entry.dayNumber))
+  }
+
+  /// Commit the custom-stop editor: create a new stop (placed on its chosen day,
+  /// or left in the bucket), or update the edited one's content. A blank title
+  /// is dropped (the sheet's Save is disabled, but guard anyway).
+  func saveFreeform(_ draft: FreeformStopDraft) {
+    let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !title.isEmpty, let tripID = trip?.id else { return }
+    let trimmedNote = draft.note.trimmingCharacters(in: .whitespacesAndNewlines)
+    let note = trimmedNote.isEmpty ? nil : trimmedNote
+    withErrorReporting {
+      try database.write { db in
+        if let stopID = draft.stopID {
+          try TripIdea.editFreeform(stopID: stopID, title: title, note: note, in: db)
+        } else {
+          let id = try TripIdea.createFreeform(tripID: tripID, title: title, note: note, in: db)
+          if let day = draft.day {
+            try TripIdea.schedule(.day(day), stopID: id, in: db)
+          }
+        }
+      }
+    }
+    destination = nil
   }
 
   /// Commit a stop to the itinerary without a day — it lands in the "To Be

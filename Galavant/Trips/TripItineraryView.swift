@@ -28,14 +28,13 @@ struct TripItineraryView: View {
   @ViewBuilder private var content: some View {
     if let day = focusedDay {
       focusedDayList(day)
-    } else if model.plan.hasScheduledStops {
-      fullItinerary
     } else {
-      emptyState
+      fullItinerary
     }
   }
 
-  /// One day's stops, for the canvas's day lens.
+  /// One day's stops, for the canvas's day lens. Its header "+" adds straight
+  /// onto this day.
   private func focusedDayList(_ day: Int) -> some View {
     let items = model.plan.itineraryItems(
       forDay: day, travelTimes: model.travelTimes, effectiveModes: model.effectiveModes,
@@ -50,19 +49,25 @@ struct TripItineraryView: View {
           ForEach(items) { item in itineraryRow(item) }
         }
       } header: {
-        Text(dayLabel(day, trip: model.trip))
+        sectionHeader(dayLabel(day, trip: model.trip), day: day)
       }
     }
   }
 
-  /// The whole trip: the dayless bucket, then every day. (Dragging stops between
-  /// days is parked — List drag-and-drop times out on Xcode 27 beta 1; the
-  /// `StopMenu`'s Move-to-Day / To-Be-Scheduled covers it. See docs/KNOWN-ISSUES.md.)
+  /// The whole trip: the dayless bucket (only while it holds something — a stop
+  /// reaches it by being demoted via `StopMenu`; an empty bucket is just hidden),
+  /// then every day, each section's "+" adding a shortlisted idea straight into
+  /// it. (Dragging stops between days is parked — List drag-and-drop times out on
+  /// Xcode 27 beta 1; the `StopMenu`'s Move-to-Day / To-Be-Scheduled covers it.
+  /// See KNOWN-ISSUES.)
   private var fullItinerary: some View {
     List {
-      if !model.plan.toBeScheduled.isEmpty {
-        Section("To Be Scheduled") {
-          ForEach(model.plan.toBeScheduled) { resolved in stopRow(resolved) }
+      let bucket = model.plan.toBeScheduled
+      if !bucket.isEmpty {
+        Section {
+          ForEach(bucket) { resolved in stopRow(resolved) }
+        } header: {
+          sectionHeader("To Be Scheduled", day: nil)
         }
       }
       ForEach(model.plan.itinerary) { day in
@@ -78,22 +83,26 @@ struct TripItineraryView: View {
             ForEach(items) { item in itineraryRow(item) }
           }
         } header: {
-          Text(dayLabel(day.number, trip: model.trip))
+          sectionHeader(dayLabel(day.number, trip: model.trip), day: day.number)
         }
       }
     }
   }
 
-  private var emptyState: some View {
-    ContentUnavailableView {
-      Icon.calendar.label("Nothing scheduled")
-    } description: {
-      Text("Pull ideas onto the shortlist, then tap + to schedule them onto days.")
-    } actions: {
-      Button("Add a Stop") { model.addStopButtonTapped() }
+  /// A section header with a trailing "+" that drops a shortlisted idea straight
+  /// into this section — a day, or the To Be Scheduled bucket (`day == nil`).
+  private func sectionHeader(_ label: String, day: Int?) -> some View {
+    HStack {
+      Text(label)
+      Spacer()
+      Button {
+        model.addToSectionTapped(day: day)
+      } label: {
+        Icon.add.image
+      }
+      .buttonStyle(.borderless)
+      .accessibilityLabel("Add to \(label)")
     }
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .background(.background)
   }
 
   @ViewBuilder private func itineraryRow(_ item: ItineraryItem) -> some View {
@@ -105,10 +114,12 @@ struct TripItineraryView: View {
   }
 
   /// A stop row: the stop content, an optional info button (idea-backed only),
-  /// its `StopMenu`, tap-to-select (the shared canvas selection), and a tint when
-  /// selected. Row-tap is selection only; the info button is its own hit target.
+  /// its `StopMenu`, and a tap. An idea-backed row taps to select on the shared
+  /// canvas (the info button is its own hit target); a freeform row has no map
+  /// pin to select, so it taps to open its inline editor instead (ADR-0010).
   private func stopRow(_ resolved: ResolvedStop) -> some View {
-    PlanningRow(content: resolved.content, subtitle: .category) {
+    let isFreeform = resolved.idea == nil
+    return PlanningRow(content: resolved.content, subtitle: .category) {
       HStack(spacing: 14) {
         if let idea = resolved.idea {
           Button { model.showDetail(idea) } label: {
@@ -123,7 +134,13 @@ struct TripItineraryView: View {
       model.canvasSelectedStopID == resolved.id ? Color.accentColor.opacity(0.12) : nil
     )
     .contentShape(Rectangle())
-    .onTapGesture { model.selectStop(resolved.id) }
+    .onTapGesture {
+      if isFreeform {
+        model.editFreeform(resolved)
+      } else {
+        model.selectStop(resolved.id)
+      }
+    }
     .id(resolved.id)
   }
 

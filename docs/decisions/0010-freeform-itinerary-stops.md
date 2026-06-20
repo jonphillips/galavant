@@ -80,6 +80,39 @@ synced record type is a CloudKit schema migration not worth a naming nicety;
 the doc comment is broadened to "a trip's stop — usually a pulled pool idea,
 optionally a freeform inline entry."
 
+## Write path (Slice 3 — settled 2026-06-20)
+
+The create/edit UX, parked above for a design call. The affordance is split by
+*frequency*: idea stops dominate, freeform stops are rare, so the common action
+gets the direct tap and the rare one the global button (the reverse of a first
+sketch where the global button branched into both).
+
+- **Idea stops — per-section "+".** Every itinerary section header (each day
+  *and* the always-present To Be Scheduled bucket) carries a trailing "+". It
+  opens `PlaceIdeaSheet`, a one-tap picker of the shortlist scoped to that
+  section: tap an idea and it lands there (on a day: anytime; refine the time
+  later via `StopMenu`). The day is fixed by the section, so the old pick-idea-
+  *and*-day-*and*-time `ScheduleStopSheet` is retired. The TBS section is hidden
+  while empty (a stop reaches the bucket by `StopMenu` demotion, and the
+  shortlist pile already serves as the dayless staging area), so there's no
+  always-on empty header; its "+" appears once the bucket holds something.
+- **Freeform stops — the global button.** The Itinerary tab's top-strip "+" is
+  now solely "Add Custom Stop" → the freeform editor. A create-time day picker
+  (default: To Be Scheduled) lands it directly; rare enough that it doesn't need
+  a per-day entry point.
+- **Editor.** One compact sheet (`FreeformStopSheet`, `.medium` detent) does
+  double duty for create and edit, driven by `FreeformStopDraft` (`stopID == nil`
+  ⇒ creating). Title required, note optional, day picker on create only (editing
+  leaves placement to `StopMenu`, as for any stop). Tapping a freeform *row*
+  reopens the editor — a freeform stop has no map pin, so row-tap can't mean
+  "select on the canvas" the way an idea-backed row does; it means "edit".
+- **Naming.** "Custom Stop", not "Break" (too narrow — a train isn't a break)
+  nor "Note" (misleads — these are first-class timeline entries that occupy a
+  slot and sort among stops, not marginal annotations).
+- **Ops.** `TripIdea.createFreeform` / `editFreeform`, stop-ID-keyed;
+  `editFreeform` no-ops on an idea-backed stop. New freeform stops append to the
+  bottom of the trip's intra-day order (`nextStopRank`).
+
 ## Consequences
 
 - Schema migration: `ideaID` nullable + two new nullable text columns. Additive

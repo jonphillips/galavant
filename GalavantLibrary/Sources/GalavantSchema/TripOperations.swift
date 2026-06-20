@@ -326,6 +326,60 @@ extension TripIdea {
     try TripIdea.find(stopID).delete().execute(db)
   }
 
+  // MARK: - Freeform stops (ADR-0010)
+
+  /// Create a freeform stop (no pool idea) directly on the itinerary, born
+  /// `.scheduled` in the To-Be-Scheduled bucket — place it on a day afterward
+  /// with `schedule(_:stopID:)`. Appended to the bottom of the trip's intra-day
+  /// order so it lands last, not jostling existing stops. Returns the new id.
+  @discardableResult
+  public static func createFreeform(
+    tripID: Trip.ID,
+    title: String,
+    note: String? = nil,
+    in db: Database
+  ) throws -> TripIdea.ID {
+    let id = UUID()
+    let rank = try nextStopRank(tripID: tripID, in: db)
+    try TripIdea.insert {
+      TripIdea.Draft(
+        id: id, tripID: tripID, ideaID: nil,
+        inlineTitle: title, inlineNote: note,
+        status: .scheduled, shortlistRank: rank)
+    }
+    .execute(db)
+    return id
+  }
+
+  /// Edit a freeform stop's inline content. No-op on an idea-backed stop (whose
+  /// content lives in the pool idea, not here) or a missing stop. ADR-0010.
+  public static func editFreeform(
+    stopID: TripIdea.ID,
+    title: String,
+    note: String?,
+    in db: Database
+  ) throws {
+    guard let existing = try TripIdea.find(stopID).fetchOne(db), existing.ideaID == nil else { return }
+    try TripIdea.find(stopID)
+      .update {
+        $0.inlineTitle = #bind(title)
+        $0.inlineNote = #bind(note)
+      }
+      .execute(db)
+  }
+
+  /// One past the bottom of this trip's intra-day order — max `shortlistRank`
+  /// across *all* the trip's entries (not just shortlisted ones), where a fresh
+  /// freeform stop appends. Distinct from `nextShortlistRank`, which scopes to
+  /// the shortlist pile.
+  static func nextStopRank(tripID: Trip.ID, in db: Database) throws -> Int {
+    let ranks = try TripIdea
+      .where { $0.tripID.eq(tripID) }
+      .fetchAll(db)
+      .map(\.shortlistRank)
+    return (ranks.max() ?? -1) + 1
+  }
+
   /// One past the current bottom of this trip's shortlist (0 when empty).
   static func nextShortlistRank(tripID: Trip.ID, in db: Database) throws -> Int {
     let ranks = try TripIdea
