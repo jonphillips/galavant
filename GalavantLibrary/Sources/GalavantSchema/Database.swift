@@ -280,6 +280,58 @@ extension DependencyValues {
       )
       .execute(db)
     }
+    migrator.registerMigration("Add freeform-stop columns to tripIdeas (ADR-0010)") { db in
+      // ideaID becomes nullable: existing rows keep their non-null value; new
+      // freeform rows have ideaID NULL + inlineTitle/inlineNote non-null.
+      // SQLite doesn't let us drop NOT NULL from an existing column, but a NULL
+      // insert into a NOT NULL column is rejected — we need the column to accept
+      // NULLs. We work around SQLite's limitation by recreating the table.
+      try #sql(
+        """
+        CREATE TABLE "tripIdeas_new" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "tripID" TEXT NOT NULL REFERENCES "trips"("id") ON DELETE CASCADE,
+          "ideaID" TEXT,
+          "inlineTitle" TEXT,
+          "inlineNote" TEXT,
+          "status" INTEGER NOT NULL DEFAULT 0,
+          "shortlistRank" INTEGER NOT NULL DEFAULT 0,
+          "dayNumber" INTEGER,
+          "dayPart" INTEGER,
+          "startTime" TEXT,
+          "endTime" TEXT
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        INSERT INTO "tripIdeas_new"
+          SELECT "id","tripID","ideaID",NULL,NULL,"status","shortlistRank",
+                 "dayNumber","dayPart","startTime","endTime"
+          FROM "tripIdeas"
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        DROP TABLE "tripIdeas"
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        ALTER TABLE "tripIdeas_new" RENAME TO "tripIdeas"
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_tripIdeas_on_tripID" ON "tripIdeas"("tripID")
+        """
+      )
+      .execute(db)
+    }
     migrator.registerMigration("Create imageAssets table") { db in
       try #sql(
         """

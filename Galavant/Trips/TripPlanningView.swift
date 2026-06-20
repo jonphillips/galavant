@@ -64,6 +64,10 @@ struct TripPlanningView: View {
         // Present the persistent sheet on appear (compact only) — `.constant(true)`
         // is unreliable on a NavigationStack push.
         if !usesColumn { showDetailSheet = true }
+        await model.fetchMissingETAs()
+      }
+      .onChange(of: model.plan.allLegs) { _, _ in
+        Task { await model.fetchMissingETAs() }
       }
       .onChange(of: model.tripRegionIDs) { _, _ in model.reseedLens() }
       .onChange(of: model.canvasSelectedStopID) { _, id in
@@ -92,13 +96,11 @@ struct TripPlanningView: View {
       ) {
         AddIdeasSheet(model: model)
       }
-      .sheet(
-        isPresented: Binding(
-          get: { model.destination?.is(\.scheduleStop) ?? false },
-          set: { model.destination = $0 ? .scheduleStop : nil }
-        )
-      ) {
-        ScheduleStopSheet(model: model)
+      .sheet(item: $model.destination.placeIdea, id: \.id) { target in
+        PlaceIdeaSheet(model: model, target: target)
+      }
+      .sheet(item: $model.destination.freeformStop, id: \.id) { draft in
+        FreeformStopSheet(model: model, draft: draft)
       }
   }
 

@@ -112,86 +112,116 @@ struct AddIdeasSheet: View {
   }
 }
 
-/// Add a shortlisted idea to the itinerary: pick the idea and either a day +
-/// time of day, or leave it in the "To Be Scheduled" bucket (the default).
-struct ScheduleStopSheet: View {
+/// Drop a shortlisted idea into one itinerary section — a specific day, or the
+/// To Be Scheduled bucket — chosen by that section's "+". The day is fixed by
+/// the target, so adding is a single tap: tap an idea and it lands (anytime on
+/// that day; refine the time later via `StopMenu`). Freeform stops are never
+/// shortlisted (ADR-0010), so every row here is idea-backed.
+struct PlaceIdeaSheet: View {
   let model: TripPlanningModel
+  let target: PlaceIdeaTarget
   @Environment(\.dismiss) private var dismiss
-  @State private var selectedIdeaID: Idea.ID?
-  // 0 = the "To Be Scheduled" bucket (the default — pick a day when you're ready).
-  @State private var day = 0
-  @State private var dayPart: DayPart?
+
+  private var sectionLabel: String {
+    target.day.map { dayLabel($0, trip: model.trip) } ?? "To Be Scheduled"
+  }
 
   var body: some View {
     NavigationStack {
       Group {
         if model.plan.shortlist.isEmpty {
           ContentUnavailableView {
-            Icon.shortlist.label("Nothing to schedule")
+            Icon.shortlist.label("Nothing to add")
           } description: {
-            Text("Shortlist an idea first, then add it to a day here.")
+            Text("Shortlist an idea first, then drop it onto a day here.")
           }
         } else {
-          Form {
-            Section("Idea") {
-              ForEach(model.plan.shortlist) { resolved in
-                Button {
-                  selectedIdeaID = resolved.idea.id
-                } label: {
-                  HStack(spacing: 12) {
-                    Image(systemName: resolved.idea.kind?.systemImage ?? "mappin.and.ellipse")
-                      .foregroundStyle(.secondary)
-                      .frame(width: 24)
-                    Text(resolved.idea.name).foregroundStyle(.primary)
-                    Spacer()
-                    if selectedIdeaID == resolved.idea.id {
-                      Icon.checkmark.image.foregroundStyle(.tint)
-                    }
-                  }
+          List {
+            ForEach(model.plan.shortlist) { resolved in
+              Button {
+                model.placeIdea(resolved.id, on: target.day)
+              } label: {
+                HStack(spacing: 12) {
+                  Image(systemName: resolved.content.idea?.kind?.systemImage ?? "mappin.and.ellipse")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 24)
+                  Text(resolved.content.title).foregroundStyle(.primary)
+                  Spacer()
                 }
               }
-            }
-            Section("When") {
-              Picker("Day", selection: $day) {
-                Text("To be scheduled").tag(0)
-                ForEach(1...(model.trip?.lengthInDays ?? 1), id: \.self) { n in
-                  Text(dayLabel(n, trip: model.trip)).tag(n)
-                }
-              }
-              Picker("Time of Day", selection: $dayPart) {
-                Text("Anytime").tag(DayPart?.none)
-                ForEach(DayPart.allCases) { part in
-                  Text(part.label).tag(DayPart?.some(part))
-                }
-              }
-              .disabled(day == 0)
             }
           }
         }
       }
-      .navigationTitle("Add Stop")
+      .navigationTitle("Add to \(sectionLabel)")
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          Button("Cancel") { dismiss() }
+        }
+      }
+    }
+    .presentationDetents([.medium, .large])
+  }
+}
+
+/// Author or edit a freeform itinerary stop — a custom stop with no pool idea
+/// ("lunch", "train to Aarhus", "check in"). One sheet for both. When creating,
+/// a day picker (default: To Be Scheduled) lands it directly; when editing, only
+/// the content changes — day placement is the `StopMenu`'s job, as for any stop
+/// (ADR-0010 Slice 3). The title is required; the note is optional.
+struct FreeformStopSheet: View {
+  let model: TripPlanningModel
+  @State private var draft: FreeformStopDraft
+  @Environment(\.dismiss) private var dismiss
+  @FocusState private var titleFocused: Bool
+
+  init(model: TripPlanningModel, draft: FreeformStopDraft) {
+    self.model = model
+    _draft = State(initialValue: draft)
+  }
+
+  private var isEditing: Bool { draft.stopID != nil }
+  private var canSave: Bool {
+    !draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+  }
+
+  var body: some View {
+    NavigationStack {
+      Form {
+        Section("Stop") {
+          TextField("Title", text: $draft.title)
+            .focused($titleFocused)
+        }
+        Section("Note") {
+          TextField("Optional details", text: $draft.note, axis: .vertical)
+            .lineLimit(2...5)
+        }
+        // Placement is offered only at create time; editing leaves it to the
+        // StopMenu, as for any stop.
+        if !isEditing {
+          Section("When") {
+            Picker("Day", selection: $draft.day) {
+              Text("To Be Scheduled").tag(Int?.none)
+              ForEach(1...(model.trip?.lengthInDays ?? 1), id: \.self) { n in
+                Text(dayLabel(n, trip: model.trip)).tag(Int?.some(n))
+              }
+            }
+          }
+        }
+      }
+      .navigationTitle(isEditing ? "Edit Stop" : "Add Custom Stop")
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
           Button("Cancel") { dismiss() }
         }
         ToolbarItem(placement: .confirmationAction) {
-          Button("Add") { add() }.disabled(selectedIdeaID == nil)
+          Button(isEditing ? "Save" : "Add") { model.saveFreeform(draft) }.disabled(!canSave)
         }
       }
+      .onAppear { titleFocused = !isEditing }
     }
-  }
-
-  private func add() {
-    guard let id = selectedIdeaID,
-      let resolved = model.plan.shortlist.first(where: { $0.idea.id == id })
-    else { return }
-    if day == 0 {
-      model.sendToBeScheduled(resolved.idea)
-    } else {
-      let schedule: Schedule = dayPart.map { .daypart(day, $0) } ?? .day(day)
-      model.setSchedule(schedule, for: resolved.idea)
-    }
-    dismiss()
+    .presentationDetents([.medium])
   }
 }

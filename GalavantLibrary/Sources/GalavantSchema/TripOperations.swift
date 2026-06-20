@@ -252,6 +252,134 @@ extension TripIdea {
       .execute(db)
   }
 
+  // MARK: - Stop-ID-keyed variants (ADR-0010: works for both idea-backed and freeform stops)
+
+  /// Advance (or retreat) a stop's lifecycle status by its own primary key.
+  public static func setStatus(_ status: TripIdeaStatus, stopID: TripIdea.ID, in db: Database) throws {
+    guard let existing = try TripIdea.find(stopID).fetchOne(db) else { return }
+    var rank = existing.shortlistRank
+    if status.isOnShortlist, !existing.status.isOnShortlist {
+      rank = try nextShortlistRank(tripID: existing.tripID, in: db)
+    }
+    try TripIdea.find(stopID)
+      .update {
+        $0.status = status
+        $0.shortlistRank = rank
+      }
+      .execute(db)
+  }
+
+  /// Place a stop on a day by its own primary key.
+  public static func schedule(_ schedule: Schedule, stopID: TripIdea.ID, in db: Database) throws {
+    guard var entry = try TripIdea.find(stopID).fetchOne(db), schedule.dayNumber != nil else { return }
+    entry.status = .scheduled
+    entry.apply(schedule)
+    try TripIdea.find(stopID)
+      .update {
+        $0.status = #bind(entry.status)
+        $0.dayNumber = #bind(entry.dayNumber)
+        $0.dayPart = #bind(entry.dayPart)
+        $0.startTime = #bind(entry.startTime)
+        $0.endTime = #bind(entry.endTime)
+      }
+      .execute(db)
+  }
+
+  /// Commit a stop to the TBS bucket by its own primary key.
+  public static func scheduleUnplaced(stopID: TripIdea.ID, in db: Database) throws {
+    try TripIdea.find(stopID)
+      .update {
+        $0.status = #bind(.scheduled)
+        $0.dayNumber = #bind(nil)
+        $0.dayPart = #bind(nil)
+        $0.startTime = #bind(nil)
+        $0.endTime = #bind(nil)
+      }
+      .execute(db)
+  }
+
+  /// Pull a stop back to the shortlist by its own primary key.
+  public static func unschedule(stopID: TripIdea.ID, in db: Database) throws {
+    try TripIdea.find(stopID)
+      .update {
+        $0.status = #bind(.shortlisted)
+        $0.dayNumber = #bind(nil)
+        $0.dayPart = #bind(nil)
+        $0.startTime = #bind(nil)
+        $0.endTime = #bind(nil)
+      }
+      .execute(db)
+  }
+
+  /// Mark a stop done by its own primary key. For idea-backed stops also flips
+  /// the pool idea's `visited` flag (ADR-0004); freeform stops have no pool idea.
+  public static func markDone(stopID: TripIdea.ID, in db: Database) throws {
+    guard let existing = try TripIdea.find(stopID).fetchOne(db) else { return }
+    try TripIdea.find(stopID).update { $0.status = #bind(.done) }.execute(db)
+    if let ideaID = existing.ideaID {
+      try Idea.find(ideaID).update { $0.visited = #bind(true) }.execute(db)
+    }
+  }
+
+  /// Delete a stop from the trip entirely by its own primary key.
+  public static func remove(stopID: TripIdea.ID, in db: Database) throws {
+    try TripIdea.find(stopID).delete().execute(db)
+  }
+
+  // MARK: - Freeform stops (ADR-0010)
+
+  /// Create a freeform stop (no pool idea) directly on the itinerary, born
+  /// `.scheduled` in the To-Be-Scheduled bucket — place it on a day afterward
+  /// with `schedule(_:stopID:)`. Appended to the bottom of the trip's intra-day
+  /// order so it lands last, not jostling existing stops. Returns the new id.
+  @discardableResult
+  public static func createFreeform(
+    tripID: Trip.ID,
+    title: String,
+    note: String? = nil,
+    in db: Database
+  ) throws -> TripIdea.ID {
+    let id = UUID()
+    let rank = try nextStopRank(tripID: tripID, in: db)
+    try TripIdea.insert {
+      TripIdea.Draft(
+        id: id, tripID: tripID, ideaID: nil,
+        inlineTitle: title, inlineNote: note,
+        status: .scheduled, shortlistRank: rank)
+    }
+    .execute(db)
+    return id
+  }
+
+  /// Edit a freeform stop's inline content. No-op on an idea-backed stop (whose
+  /// content lives in the pool idea, not here) or a missing stop. ADR-0010.
+  public static func editFreeform(
+    stopID: TripIdea.ID,
+    title: String,
+    note: String?,
+    in db: Database
+  ) throws {
+    guard let existing = try TripIdea.find(stopID).fetchOne(db), existing.ideaID == nil else { return }
+    try TripIdea.find(stopID)
+      .update {
+        $0.inlineTitle = #bind(title)
+        $0.inlineNote = #bind(note)
+      }
+      .execute(db)
+  }
+
+  /// One past the bottom of this trip's intra-day order — max `shortlistRank`
+  /// across *all* the trip's entries (not just shortlisted ones), where a fresh
+  /// freeform stop appends. Distinct from `nextShortlistRank`, which scopes to
+  /// the shortlist pile.
+  static func nextStopRank(tripID: Trip.ID, in db: Database) throws -> Int {
+    let ranks = try TripIdea
+      .where { $0.tripID.eq(tripID) }
+      .fetchAll(db)
+      .map(\.shortlistRank)
+    return (ranks.max() ?? -1) + 1
+  }
+
   /// One past the current bottom of this trip's shortlist (0 when empty).
   static func nextShortlistRank(tripID: Trip.ID, in db: Database) throws -> Int {
     let ranks = try TripIdea

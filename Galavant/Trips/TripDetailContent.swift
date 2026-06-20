@@ -92,13 +92,15 @@ struct TripDetailContent: View {
     }
   }
 
-  /// Add a pool idea on the Ideas tab; add an itinerary stop on the Itinerary tab.
+  /// Add a pool idea on the Ideas tab. On the Itinerary tab this is the
+  /// freeform path only — a shortlisted idea is added straight onto a day (or
+  /// the bucket) via that section's own "+" (ADR-0010).
   @ViewBuilder private var addButton: some View {
     switch model.sheetTab {
     case .ideas:
       Button { model.addIdeasButtonTapped() } label: { Icon.add.label("Add Ideas") }
     case .itinerary:
-      Button { model.addStopButtonTapped() } label: { Icon.add.label("Add Stop") }
+      Button { model.addCustomStopButtonTapped() } label: { Icon.add.label("Add Custom Stop") }
     }
   }
 }

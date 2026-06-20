@@ -4,6 +4,28 @@ import Foundation
 import GalavantSchema
 import SQLiteData
 
+/// The editable state of the custom-stop sheet — author a new freeform stop or
+/// edit an existing one. `stopID == nil` means creating; a set id means editing
+/// that stop in place (ADR-0010 Slice 3). `day` (nil = To Be Scheduled) is the
+/// landing day chosen at create time; on edit, placement is the `StopMenu`'s job
+/// and the picker is hidden. Identifiable so it drives a `.sheet(item:)` like
+/// `Trip.Draft` does.
+struct FreeformStopDraft: Identifiable {
+  let id = UUID()
+  var stopID: TripIdea.ID?
+  var title = ""
+  var note = ""
+  var day: Int?
+}
+
+/// Which itinerary section a per-section "+" is adding into — a day, or the To
+/// Be Scheduled bucket (`day == nil`). Identifiable so each tap drives a fresh
+/// `.sheet(item:)` (ADR-0010 Slice 3).
+struct PlaceIdeaTarget: Identifiable {
+  let id = UUID()
+  let day: Int?
+}
+
 /// Owns one trip's planning surface (ADR-0004): the shortlist + considering
 /// pile of pulled ideas, and the filtered pool you pull *from*. Persistence
 /// delegates to the tested `TripIdea` operations; pool scoping reuses the pure
@@ -13,6 +35,7 @@ import SQLiteData
 final class TripPlanningModel {
   @ObservationIgnored @Dependency(\.defaultDatabase) var database
   @ObservationIgnored @Dependency(\.recentTripStore) var recentTripStore
+  @ObservationIgnored @Dependency(\.directionsClient) var directionsClient
   @ObservationIgnored @FetchAll(Trip.all) var trips
   @ObservationIgnored @FetchAll(Idea.order(by: \.name)) var ideas
   @ObservationIgnored @FetchAll(TripIdea.all) var allTripIdeas
@@ -36,6 +59,16 @@ final class TripPlanningModel {
   // is the one selection the map pins and the timeline rows both project.
   var canvasSelectedDay: Int?
   var canvasSelectedStopID: TripIdea.ID?
+
+  // ETA cache (docs/trip-canvas.md): travel times keyed by leg + mode.
+  // Walking is always fetched first; legs ≥ autoSwitchThreshold auto-switch to
+  // transit. Users can override per-leg; driving is always in the menu.
+  var travelTimes: [LegKey: [TransportMode: TravelTime]] = [:]
+  var modeOverrides: [LegKey: TransportMode] = [:]
+  private var isFetchingETAs = false
+  private var pendingETAFetch = false
+
+  static let autoSwitchThreshold: TimeInterval = 20 * 60  // 20 minutes
   // The two surfaces the bottom sheet hosts (the segment moved into the sheet).
   var sheetTab: SheetTab = .itinerary
   private var didPickInitialTab = false
@@ -63,7 +96,8 @@ final class TripPlanningModel {
   enum Destination {
     case edit(Trip.Draft)
     case addIdeas
-    case scheduleStop
+    case placeIdea(PlaceIdeaTarget)
+    case freeformStop(FreeformStopDraft)
   }
 
   init(tripID: Trip.ID) {
@@ -150,7 +184,10 @@ final class TripPlanningModel {
   }
 
   private var statusByIdea: [Idea.ID: TripIdeaStatus] {
-    Dictionary(entries.map { ($0.ideaID, $0.status) }, uniquingKeysWith: { first, _ in first })
+    Dictionary(
+      entries.compactMap { entry in entry.ideaID.map { ($0, entry.status) } },
+      uniquingKeysWith: { first, _ in first }
+    )
   }
 
   /// This idea's status on the trip, or nil if it hasn't been pulled.
@@ -181,6 +218,76 @@ final class TripPlanningModel {
     selectedKinds = []
     selectedTagIDs = []
     includeVisited = true
+  }
+
+  // MARK: - ETA mode resolution
+
+  /// The effective transport mode for a leg: user override > auto-detect.
+  /// Auto-detect: walking ≥ 20 min → transit (best guess for long legs).
+  func effectiveMode(for leg: LegKey) -> TransportMode {
+    if let override = modeOverrides[leg] { return override }
+    if let walking = travelTimes[leg]?[.walking],
+      walking.seconds >= Self.autoSwitchThreshold {
+      return .transit
+    }
+    return .walking
+  }
+
+  /// Pre-computed effective modes for all legs — passed into `itineraryItems`
+  /// so the pure plan function doesn't need to call back into the model.
+  var effectiveModes: [LegKey: TransportMode] {
+    Dictionary(plan.allLegs.map { ($0, effectiveMode(for: $0)) },
+               uniquingKeysWith: { first, _ in first })
+  }
+
+  /// User-override the transport mode for a leg. Triggers an ETA fetch for
+  /// the new mode if it isn't already cached.
+  func setMode(_ mode: TransportMode, for leg: LegKey) {
+    modeOverrides[leg] = mode
+    Task { await fetchMissingETAs() }
+  }
+
+  // MARK: - ETA fetch
+
+  /// Fetch ETAs for uncached legs, sequentially (MKDirections: one in-flight
+  /// request at a time). Per leg:
+  ///   1. Always fetch walking.
+  ///   2. If walking ≥ threshold and no user override, fetch transit (auto-switch).
+  ///   3. If the user overrode to a mode we haven't fetched yet, fetch it.
+  /// If called while already running, enqueues one re-run for after.
+  func fetchMissingETAs() async {
+    if isFetchingETAs { pendingETAFetch = true; return }
+    isFetchingETAs = true
+    defer {
+      isFetchingETAs = false
+      if pendingETAFetch {
+        pendingETAFetch = false
+        Task { await fetchMissingETAs() }
+      }
+    }
+    for leg in plan.allLegs {
+      guard !Task.isCancelled else { break }
+      // Step 1: walking — always the baseline.
+      if travelTimes[leg]?[.walking] == nil,
+        let tt = try? await directionsClient.calculateETA(leg, .walking) {
+        travelTimes[leg, default: [:]][.walking] = tt
+      }
+      guard !Task.isCancelled else { break }
+      // Step 2: auto-switch — if walking is long and the user hasn't overridden,
+      // pre-fetch transit so the connector can show it without a second wait.
+      let walkingTime = travelTimes[leg]?[.walking]
+      let longLeg = (walkingTime?.seconds ?? 0) >= Self.autoSwitchThreshold
+      if longLeg, modeOverrides[leg] == nil, travelTimes[leg]?[.transit] == nil,
+        let tt = try? await directionsClient.calculateETA(leg, .transit) {
+        travelTimes[leg, default: [:]][.transit] = tt
+      }
+      guard !Task.isCancelled else { break }
+      // Step 3: user override — fetch the chosen mode if not yet cached.
+      if let override = modeOverrides[leg], travelTimes[leg]?[override] == nil,
+        let tt = try? await directionsClient.calculateETA(leg, override) {
+        travelTimes[leg, default: [:]][override] = tt
+      }
+    }
   }
 
   // MARK: - Actions
@@ -260,20 +367,18 @@ final class TripPlanningModel {
     }
   }
 
-  func setStatus(_ status: TripIdeaStatus, for idea: Idea) {
-    let (tripID, ideaID) = (tripID, idea.id)
+  func setStatus(_ status: TripIdeaStatus, for stopID: TripIdea.ID) {
     withErrorReporting {
       try database.write { db in
-        try TripIdea.setStatus(status, ideaID: ideaID, tripID: tripID, in: db)
+        try TripIdea.setStatus(status, stopID: stopID, in: db)
       }
     }
   }
 
-  func remove(_ idea: Idea) {
-    let (tripID, ideaID) = (tripID, idea.id)
+  func remove(_ stopID: TripIdea.ID) {
     withErrorReporting {
       try database.write { db in
-        try TripIdea.remove(ideaID: ideaID, from: tripID, in: db)
+        try TripIdea.remove(stopID: stopID, in: db)
       }
     }
   }
@@ -285,8 +390,10 @@ final class TripPlanningModel {
   func tapConsidering(_ idea: Idea) {
     switch status(for: idea) {
     case nil: pull(idea)
-    case .considering: remove(idea)
-    case .shortlisted: setStatus(.considering, for: idea)
+    case .considering:
+      if let id = entryID(for: idea) { remove(id) }
+    case .shortlisted:
+      if let id = entryID(for: idea) { setStatus(.considering, for: id) }
     case .scheduled, .done, .skipped: break
     }
   }
@@ -298,10 +405,17 @@ final class TripPlanningModel {
   func tapShortlist(_ idea: Idea) {
     switch status(for: idea) {
     case nil: pullToShortlist(idea)
-    case .considering: setStatus(.shortlisted, for: idea)
-    case .shortlisted: remove(idea)
+    case .considering:
+      if let id = entryID(for: idea) { setStatus(.shortlisted, for: id) }
+    case .shortlisted:
+      if let id = entryID(for: idea) { remove(id) }
     case .scheduled, .done, .skipped: break
     }
+  }
+
+  /// The TripIdea row for a pool idea on this trip, if it has been pulled.
+  private func entryID(for idea: Idea) -> TripIdea.ID? {
+    entries.first { $0.ideaID == idea.id }?.id
   }
 
   /// Persist a new shortlist order after a drag-to-reorder.
@@ -315,57 +429,103 @@ final class TripPlanningModel {
 
   // MARK: - Scheduling actions
 
-  /// Present the "add a stop to the itinerary" sheet (pick a shortlisted idea +
-  /// a day and time of day).
-  func addStopButtonTapped() {
-    destination = .scheduleStop
+  /// Present the per-section idea picker — pick a shortlisted idea to drop into
+  /// `day` (nil = the To Be Scheduled bucket). Driven by a section header's "+".
+  func addToSectionTapped(day: Int?) {
+    destination = .placeIdea(PlaceIdeaTarget(day: day))
   }
 
-  /// Commit a shortlisted idea to the itinerary without a day — it lands in the
-  /// "To Be Scheduled" bucket, where the user assigns it a day.
-  func sendToBeScheduled(_ idea: Idea) {
-    let (tripID, ideaID) = (tripID, idea.id)
+  /// Commit the per-section picker: place a shortlisted idea onto its target
+  /// day (anytime — refine the time later via `StopMenu`) or into the bucket.
+  func placeIdea(_ stopID: TripIdea.ID, on day: Int?) {
+    if let day {
+      setSchedule(.day(day), for: stopID)
+    } else {
+      sendToBeScheduled(stopID)
+    }
+    destination = nil
+  }
+
+  /// Present the custom-stop editor to author a new freeform stop ("lunch",
+  /// "train to Aarhus", "check in"). Defaults to the To-Be-Scheduled bucket; the
+  /// sheet's day picker can land it on a day directly (ADR-0010).
+  func addCustomStopButtonTapped() {
+    destination = .freeformStop(FreeformStopDraft())
+  }
+
+  /// Re-open the editor seeded from an existing freeform stop. No-op on an
+  /// idea-backed stop (those edit through the pool idea, not here).
+  func editFreeform(_ stop: ResolvedStop) {
+    guard case let .freeform(title, note) = stop.content else { return }
+    destination = .freeformStop(
+      FreeformStopDraft(stopID: stop.id, title: title, note: note ?? "", day: stop.entry.dayNumber))
+  }
+
+  /// Commit the custom-stop editor: create a new stop (placed on its chosen day,
+  /// or left in the bucket), or update the edited one's content. A blank title
+  /// is dropped (the sheet's Save is disabled, but guard anyway).
+  func saveFreeform(_ draft: FreeformStopDraft) {
+    let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !title.isEmpty, let tripID = trip?.id else { return }
+    let trimmedNote = draft.note.trimmingCharacters(in: .whitespacesAndNewlines)
+    let note = trimmedNote.isEmpty ? nil : trimmedNote
     withErrorReporting {
       try database.write { db in
-        try TripIdea.scheduleUnplaced(ideaID: ideaID, tripID: tripID, in: db)
+        if let stopID = draft.stopID {
+          try TripIdea.editFreeform(stopID: stopID, title: title, note: note, in: db)
+        } else {
+          let id = try TripIdea.createFreeform(tripID: tripID, title: title, note: note, in: db)
+          if let day = draft.day {
+            try TripIdea.schedule(.day(day), stopID: id, in: db)
+          }
+        }
+      }
+    }
+    destination = nil
+  }
+
+  /// Commit a stop to the itinerary without a day — it lands in the "To Be
+  /// Scheduled" bucket, where the user assigns it a day.
+  func sendToBeScheduled(_ stopID: TripIdea.ID) {
+    withErrorReporting {
+      try database.write { db in
+        try TripIdea.scheduleUnplaced(stopID: stopID, in: db)
       }
     }
   }
 
   /// Set a stop's day-relative placement (move it between days, add/clear a
   /// daypart or time). Marks it `scheduled`.
-  func setSchedule(_ schedule: Schedule, for idea: Idea) {
-    let (tripID, ideaID) = (tripID, idea.id)
+  func setSchedule(_ schedule: Schedule, for stopID: TripIdea.ID) {
     withErrorReporting {
       try database.write { db in
-        try TripIdea.schedule(schedule, ideaID: ideaID, tripID: tripID, in: db)
+        try TripIdea.schedule(schedule, stopID: stopID, in: db)
       }
     }
   }
 
-  /// Pull a scheduled stop back to the shortlist.
-  func unschedule(_ idea: Idea) {
-    let (tripID, ideaID) = (tripID, idea.id)
+  /// Pull a stop back to the shortlist. Freeform stops skip the shortlist per
+  /// ADR-0010 — call `remove` instead.
+  func unschedule(_ stopID: TripIdea.ID) {
     withErrorReporting {
       try database.write { db in
-        try TripIdea.unschedule(ideaID: ideaID, tripID: tripID, in: db)
+        try TripIdea.unschedule(stopID: stopID, in: db)
       }
     }
   }
 
-  /// Mark a stop done after the trip — flips the idea's pool `visited` flag
-  /// (ADR-0004 feedback-to-pool).
-  func markDone(_ idea: Idea) {
-    let (tripID, ideaID) = (tripID, idea.id)
+  /// Mark a stop done after the trip. For idea-backed stops also flips the pool
+  /// idea's `visited` flag (ADR-0004 feedback-to-pool).
+  func markDone(_ stopID: TripIdea.ID) {
     withErrorReporting {
       try database.write { db in
-        try TripIdea.markDone(ideaID: ideaID, tripID: tripID, in: db)
+        try TripIdea.markDone(stopID: stopID, in: db)
       }
     }
   }
 
-  /// Mark a stop skipped — leaves the idea's `visited` flag untouched.
-  func markSkipped(_ idea: Idea) {
-    setStatus(.skipped, for: idea)
+  /// Mark a stop skipped — leaves any associated pool idea's `visited` flag untouched.
+  func markSkipped(_ stopID: TripIdea.ID) {
+    setStatus(.skipped, for: stopID)
   }
 }

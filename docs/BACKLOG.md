@@ -334,15 +334,15 @@ trip is past/marked complete, flip its scheduled ideas' `visited`. The
 `TripIdea.markDone` op + test stay (the mechanism); only the UI trigger changes.
 Design item; pairs with weather/“now” work on the trip canvas.
 
-## Freeform itinerary stops not tied to an idea (from Jon, 2026-06-13)
+## Freeform itinerary stops not tied to an idea (from Jon, 2026-06-13) — DESIGNED
 
-Some itinerary entries aren't pool ideas — "lunch break", "train to Aarhus",
-"check in". Today a stop **is** a `TripIdea` (requires `ideaID`). Options: make
-`TripIdea.ideaID` optional + carry an inline title, or a sibling freeform-stop
-record sharing the schedule columns. Touches the ADR-0004 "a stop is a pulled
-idea" assumption — wants a short ADR/design note before building. Schedule
-facade + day model already handle the timing; only the "what is this stop"
-identity changes.
+Design settled in **ADR-0010** (2026-06-20): `TripIdea.ideaID` becomes optional
+plus `inlineTitle`/`inlineNote` columns; the read-model resolves "what is this
+stop" into a `StopContent` enum (`.idea` / `.freeform`). One record, one
+itinerary pipeline. Freeform stops are born `.scheduled` and carry no coordinate
+(so no map pin / travel-leg, handled for free). Implementation not yet started —
+schema migration + ~13 `stop.idea.*` call-site moves + an "add a break" write
+path. See ADR-0010 for the full rationale (incl. why not a sibling record).
 
 ## Accommodations (from Jon, 2026-06-13)
 

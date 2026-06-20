@@ -1,21 +1,28 @@
 import Foundation
 import SQLiteData
 
-/// One idea pulled onto one trip, carrying its lifecycle `status` (ADR-0004).
-/// The single real foreign key is to `Trip` (so the join rides the trip and
-/// cascade-deletes with it); `ideaID` is a loose UUID, not a SQL FK, per the
-/// single-FK sharing rule (ADR-0007) — orphans (idea deleted from the pool) are
-/// reconciled on read, as with IdeaInterest. `shortlistRank` orders the
-/// shortlist (V1's RankLists reborn as an ordering, ADR-0004). Once `scheduled`,
-/// the stop is on the itinerary; its day-relative placement lives in the four
-/// schedule columns behind the `Schedule` facade. A `scheduled` stop with
-/// `dayNumber == nil` is committed to the trip but not yet placed on a day — the
-/// "To Be Scheduled" bucket; a non-nil `dayNumber` places it on that day.
+/// One **stop** on a trip — usually a pulled pool idea, optionally a freeform
+/// inline entry ("lunch break", "train to Aarhus") with no pool idea (ADR-0010).
+/// The single real foreign key is to `Trip` (so the stop rides the trip and
+/// cascade-deletes with it); `ideaID` is a loose, *optional* UUID, not a SQL FK,
+/// per the single-FK sharing rule (ADR-0007) — orphans (idea deleted from the
+/// pool) are reconciled on read, as with IdeaInterest. When `ideaID == nil` this
+/// is a freeform stop and `inlineTitle`/`inlineNote` carry its content; the
+/// read-model resolves the identity into a `StopContent` enum (ADR-0010).
+/// `shortlistRank` orders the shortlist (V1's RankLists reborn as an ordering,
+/// ADR-0004). Once `scheduled`, the stop is on the itinerary; its day-relative
+/// placement lives in the four schedule columns behind the `Schedule` facade. A
+/// `scheduled` stop with `dayNumber == nil` is committed to the trip but not yet
+/// placed on a day — the "To Be Scheduled" bucket; a non-nil `dayNumber` places
+/// it on that day. Freeform stops skip considering/shortlisted — they are born
+/// `.scheduled` (ADR-0010).
 @Table
 public struct TripIdea: Identifiable, Equatable, Sendable {
   public let id: UUID
   public var tripID: Trip.ID
-  public var ideaID: Idea.ID
+  public var ideaID: Idea.ID?
+  public var inlineTitle: String?
+  public var inlineNote: String?
   public var status: TripIdeaStatus = .considering
   public var shortlistRank = 0
   public var dayNumber: Int?
@@ -26,7 +33,9 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
   public init(
     id: UUID,
     tripID: Trip.ID,
-    ideaID: Idea.ID,
+    ideaID: Idea.ID?,
+    inlineTitle: String? = nil,
+    inlineNote: String? = nil,
     status: TripIdeaStatus = .considering,
     shortlistRank: Int = 0,
     dayNumber: Int? = nil,
@@ -37,12 +46,34 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
     self.id = id
     self.tripID = tripID
     self.ideaID = ideaID
+    self.inlineTitle = inlineTitle
+    self.inlineNote = inlineNote
     self.status = status
     self.shortlistRank = shortlistRank
     self.dayNumber = dayNumber
     self.dayPart = dayPart
     self.startTime = startTime
     self.endTime = endTime
+  }
+
+  /// Make a freeform stop (no pool idea) on a trip, born `.scheduled` per
+  /// ADR-0010. Placement is set afterward via `apply(_:)`.
+  public static func freeform(
+    id: UUID,
+    tripID: Trip.ID,
+    title: String,
+    note: String? = nil,
+    shortlistRank: Int = 0
+  ) -> TripIdea {
+    TripIdea(
+      id: id,
+      tripID: tripID,
+      ideaID: nil,
+      inlineTitle: title,
+      inlineNote: note,
+      status: .scheduled,
+      shortlistRank: shortlistRank
+    )
   }
 }
 

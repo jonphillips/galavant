@@ -24,17 +24,17 @@ struct TripIdeasView: View {
       if !model.plan.shortlist.isEmpty {
         Section("Shortlist") {
           ForEach(model.plan.shortlist) { resolved in
-            PlanningRow(idea: resolved.idea, subtitle: .category) {
+            PlanningRow(content: resolved.content, subtitle: .category) {
               // Lit star = shortlisted; tap demotes it back to Considering.
               starButton(filled: true) {
-                model.setStatus(.considering, for: resolved.idea)
+                model.setStatus(.considering, for: resolved.id)
               }
             }
             .contentShape(Rectangle())
-            .onTapGesture { model.showDetail(resolved.idea) }
+            .onTapGesture { if let idea = resolved.idea { model.showDetail(idea) } }
             .swipeActions(edge: .leading) {
               Button {
-                model.sendToBeScheduled(resolved.idea)
+                model.sendToBeScheduled(resolved.id)
               } label: {
                 Icon.schedule.label("Schedule")
               }
@@ -42,7 +42,7 @@ struct TripIdeasView: View {
             }
             .swipeActions(edge: .trailing) {
               Button(role: .destructive) {
-                model.remove(resolved.idea)
+                model.remove(resolved.id)
               } label: {
                 Icon.delete.label("Remove")
               }
@@ -55,17 +55,25 @@ struct TripIdeasView: View {
         Section("Scheduled") {
           ForEach(model.plan.scheduled) { resolved in
             // A scheduled stop can't be removed here — swipe to Unschedule first
-            // (it drops back to the Shortlist, where Remove is available again).
-            PlanningRow(idea: resolved.idea, subtitle: .category) { scheduledBadge(resolved.entry.schedule) }
+            // (idea-backed: drops back to Shortlist; freeform: removes it).
+            PlanningRow(content: resolved.content, subtitle: .category) { scheduledBadge(resolved.entry.schedule) }
               .contentShape(Rectangle())
-              .onTapGesture { model.showDetail(resolved.idea) }
+              .onTapGesture { if let idea = resolved.idea { model.showDetail(idea) } }
               .swipeActions(edge: .trailing) {
-                Button {
-                  model.unschedule(resolved.idea)
-                } label: {
-                  Icon.unschedule.label("Unschedule")
+                if case .freeform = resolved.content {
+                  Button(role: .destructive) {
+                    model.remove(resolved.id)
+                  } label: {
+                    Icon.delete.label("Remove")
+                  }
+                } else {
+                  Button {
+                    model.unschedule(resolved.id)
+                  } label: {
+                    Icon.unschedule.label("Unschedule")
+                  }
+                  .tint(.orange)
                 }
-                .tint(.orange)
               }
           }
         }
@@ -73,17 +81,17 @@ struct TripIdeasView: View {
       if !model.plan.considering.isEmpty {
         Section("Considering") {
           ForEach(model.plan.considering) { resolved in
-            PlanningRow(idea: resolved.idea, subtitle: .category) {
+            PlanningRow(content: resolved.content, subtitle: .category) {
               // Empty star = considering; tap promotes it to the Shortlist.
               starButton(filled: false) {
-                model.setStatus(.shortlisted, for: resolved.idea)
+                model.setStatus(.shortlisted, for: resolved.id)
               }
             }
             .contentShape(Rectangle())
-            .onTapGesture { model.showDetail(resolved.idea) }
+            .onTapGesture { if let idea = resolved.idea { model.showDetail(idea) } }
             .swipeActions(edge: .trailing) {
               Button(role: .destructive) {
-                model.remove(resolved.idea)
+                model.remove(resolved.id)
               } label: {
                 Icon.delete.label("Remove")
               }

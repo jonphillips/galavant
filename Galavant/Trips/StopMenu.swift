@@ -3,13 +3,19 @@ import SwiftUI
 
 /// The time-and-lifecycle menu on an itinerary stop: set or move its day, set its
 /// time of day, send it back to the To-Be-Scheduled bucket, skip it, or return it
-/// to the shortlist. (Marking a stop "done" is deliberately absent — completion is
-/// assumed once the trip passes; see docs/BACKLOG.md.) Shared by the canvas
-/// timeline (one focused day) and the full day-by-day itinerary.
+/// to the shortlist (idea-backed) / remove it (freeform — freeform stops have no
+/// shortlist per ADR-0010). (Marking a stop "done" is deliberately absent —
+/// completion is assumed once the trip passes; see docs/BACKLOG.md.) Shared by the
+/// canvas timeline (one focused day) and the full day-by-day itinerary.
 struct StopMenu: View {
   let model: TripPlanningModel
-  let idea: Idea
-  let schedule: Schedule
+  let stop: ResolvedStop
+
+  private var schedule: Schedule { stop.entry.schedule }
+  private var stopID: TripIdea.ID { stop.id }
+  private var isFreeform: Bool {
+    if case .freeform = stop.content { return true } else { return false }
+  }
 
   var body: some View {
     let placed = schedule.dayNumber != nil
@@ -19,7 +25,7 @@ struct StopMenu: View {
         Menu(placed ? "Move to Day" : "Set Day") {
           ForEach(1...length, id: \.self) { n in
             Button {
-              model.setSchedule(schedule.onDay(n), for: idea)
+              model.setSchedule(schedule.onDay(n), for: stopID)
             } label: {
               let title = dayLabel(n, trip: model.trip)
               if placed, n == day {
@@ -34,7 +40,7 @@ struct StopMenu: View {
       if placed {
         Menu("Time of Day") {
           Button {
-            model.setSchedule(.day(day), for: idea)
+            model.setSchedule(.day(day), for: stopID)
           } label: {
             if schedule.dayPart == nil {
               Icon.checkmark.label("Anytime")
@@ -44,7 +50,7 @@ struct StopMenu: View {
           }
           ForEach(DayPart.allCases) { part in
             Button {
-              model.setSchedule(.daypart(day, part), for: idea)
+              model.setSchedule(.daypart(day, part), for: stopID)
             } label: {
               if schedule.dayPart == part {
                 Label(part.label, systemImage: Icon.checkmark.systemName)
@@ -55,13 +61,19 @@ struct StopMenu: View {
           }
         }
         Button("To Be Scheduled", systemImage: Icon.toBeScheduled.systemName) {
-          model.sendToBeScheduled(idea)
+          model.sendToBeScheduled(stopID)
         }
       }
       Divider()
-      Button("Mark Skipped", systemImage: Icon.skip.systemName) { model.markSkipped(idea) }
-      Button("Move to Shortlist", systemImage: Icon.revert.systemName) {
-        model.unschedule(idea)
+      Button("Mark Skipped", systemImage: Icon.skip.systemName) { model.markSkipped(stopID) }
+      if isFreeform {
+        Button("Remove", systemImage: Icon.delete.systemName, role: .destructive) {
+          model.remove(stopID)
+        }
+      } else {
+        Button("Move to Shortlist", systemImage: Icon.revert.systemName) {
+          model.unschedule(stopID)
+        }
       }
     } label: {
       timeLabel

@@ -67,7 +67,7 @@ struct TripCanvasMapView: View {
     }
     ForEach(Array(stops.enumerated()), id: \.element.id) { index, resolved in
       if let coordinate = resolved.coordinate {
-        Annotation(resolved.idea.name, coordinate: coordinate, anchor: .bottom) {
+        Annotation(resolved.content.title, coordinate: coordinate, anchor: .bottom) {
           NumberedPin(
             number: index + 1,
             color: color,
@@ -166,8 +166,8 @@ private struct NumberedPin: View {
 }
 
 extension ResolvedStop {
-  /// The stop's map coordinate, when its idea has one (the canonical adapter).
-  fileprivate var coordinate: CLLocationCoordinate2D? { idea.coordinate }
+  /// The stop's map coordinate, when its idea has one. Freeform stops return nil.
+  fileprivate var coordinate: CLLocationCoordinate2D? { idea.flatMap(\.coordinate) }
 }
 
 extension MapFraming.Box {

@@ -228,13 +228,13 @@ struct TripTests {
         try TripIdea.setStatus(.shortlisted, ideaID: idea.id, tripID: trip.id, in: db)
       }
       let entries = try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db)
-      let joinID = Dictionary(uniqueKeysWithValues: entries.map { ($0.ideaID, $0.id) })
+      let joinID = Dictionary(uniqueKeysWithValues: entries.map { ($0.ideaID!, $0.id) })
       try TripIdea.reorderShortlist(
         [joinID[ideas[2].id]!, joinID[ideas[0].id]!, joinID[ideas[1].id]!], in: db
       )
       let names = Dictionary(uniqueKeysWithValues: ideas.map { ($0.id, $0.name) })
       let reordered = TripIdea.shortlist(try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db))
-      return reordered.map { names[$0.ideaID]! }
+      return reordered.map { names[$0.ideaID!]! }
     }
     #expect(order == ["C", "A", "B"])
   }
@@ -450,6 +450,63 @@ struct TripTests {
     #expect(dated.date(forDay: 1) == start)
     #expect(dated.date(forDay: 3) == Calendar.current.date(byAdding: .day, value: 2, to: start))
     #expect(trip("Someday", .someday(rank: 0)).date(forDay: 1) == nil)
+  }
+
+  // MARK: - Freeform stops (ADR-0010)
+
+  @Test func createFreeformBornScheduledInTheBucketWithNoIdea() async throws {
+    let entry = try await database.write { db -> TripIdea in
+      let trip = try Trip.create(name: "Copenhagen", lengthInDays: 3, in: db)
+      let id = try TripIdea.createFreeform(
+        tripID: trip.id, title: "Lunch break", note: "Try the smørrebrød place", in: db)
+      return try TripIdea.find(id).fetchOne(db)!
+    }
+    #expect(entry.ideaID == nil)
+    #expect(entry.inlineTitle == "Lunch break")
+    #expect(entry.inlineNote == "Try the smørrebrød place")
+    // Born scheduled but unplaced — the To-Be-Scheduled bucket.
+    #expect(entry.status == .scheduled)
+    #expect(entry.schedule == .unscheduled)
+  }
+
+  @Test func createFreeformAppendsToTheBottomOfTheIntraDayOrder() async throws {
+    let rank = try await database.write { db -> Int in
+      let trip = try Trip.create(name: "Copenhagen", in: db)
+      // Two shortlisted ideas take ranks 0 and 1; a freeform stop should land at 2.
+      for name in ["Tivoli", "Noma"] {
+        let idea = try seedIdea(name: name, in: db)
+        try TripIdea.pull(ideaID: idea.id, into: trip.id, in: db)
+        try TripIdea.setStatus(.shortlisted, ideaID: idea.id, tripID: trip.id, in: db)
+      }
+      let id = try TripIdea.createFreeform(tripID: trip.id, title: "Train to Aarhus", in: db)
+      return try TripIdea.find(id).fetchOne(db)!.shortlistRank
+    }
+    #expect(rank == 2)
+  }
+
+  @Test func editFreeformUpdatesInlineContent() async throws {
+    let entry = try await database.write { db -> TripIdea in
+      let trip = try Trip.create(name: "Copenhagen", in: db)
+      let id = try TripIdea.createFreeform(tripID: trip.id, title: "Lunch", in: db)
+      try TripIdea.editFreeform(stopID: id, title: "Late lunch", note: "1pm-ish", in: db)
+      return try TripIdea.find(id).fetchOne(db)!
+    }
+    #expect(entry.inlineTitle == "Late lunch")
+    #expect(entry.inlineNote == "1pm-ish")
+  }
+
+  @Test func editFreeformIsANoOpOnAnIdeaBackedStop() async throws {
+    let entry = try await database.write { db -> TripIdea in
+      let trip = try Trip.create(name: "Copenhagen", in: db)
+      let idea = try seedIdea(name: "Tivoli", in: db)
+      let pulled = try TripIdea.pull(ideaID: idea.id, into: trip.id, in: db)
+      // An idea-backed stop's content lives in the pool idea — editFreeform leaves it alone.
+      try TripIdea.editFreeform(stopID: pulled.id, title: "Hijacked", note: "nope", in: db)
+      return try TripIdea.find(pulled.id).fetchOne(db)!
+    }
+    #expect(entry.inlineTitle == nil)
+    #expect(entry.inlineNote == nil)
+    #expect(entry.ideaID != nil)
   }
 
   // MARK: - Helpers
