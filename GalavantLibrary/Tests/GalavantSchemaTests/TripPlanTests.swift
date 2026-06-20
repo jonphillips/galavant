@@ -170,6 +170,78 @@ import Testing
     else { Issue.record("expected connector at [3]") }
   }
 
+  // MARK: - Now marker tests
+
+  /// Fixed date: 2026-06-20 15:30 local time — afternoon of day 2 in a trip
+  /// that started 2026-06-19. Used across the now-marker tests.
+  var june20_1530: Date {
+    var c = DateComponents()
+    c.year = 2026; c.month = 6; c.day = 20; c.hour = 15; c.minute = 30
+    return Calendar.current.date(from: c)!
+  }
+  var tripStartJune19: Date {
+    var c = DateComponents()
+    c.year = 2026; c.month = 6; c.day = 19; c.hour = 0; c.minute = 0
+    return Calendar.current.date(from: c)!
+  }
+
+  @Test func nowMarkerAbsentForUndatedTrip() {
+    let id = UUID()
+    let p = plan([entry(idea: id, status: .scheduled, schedule: .timed(2, start: "09:00", end: nil))],
+                 ideas: [idea(id)])
+    let items = p.itineraryItems(forDay: 2, travelTimes: [:], effectiveModes: [:],
+                                 now: june20_1530, tripStartDate: nil)
+    #expect(!items.contains(.nowMarker))
+  }
+
+  @Test func nowMarkerAbsentOnNonCurrentDay() {
+    let id = UUID()
+    let p = plan([entry(idea: id, status: .scheduled, schedule: .timed(1, start: "09:00", end: nil))],
+                 ideas: [idea(id)])
+    // now = day 2, looking at day 1 — marker should not appear on day 1
+    let items = p.itineraryItems(forDay: 1, travelTimes: [:], effectiveModes: [:],
+                                 now: june20_1530, tripStartDate: tripStartJune19)
+    #expect(!items.contains(.nowMarker))
+  }
+
+  @Test func nowMarkerBeforeFirstFutureStop() {
+    let (a, b) = (UUID(), UUID())
+    // Day 2: 09:00 stop (past), 18:00 stop (future) — now = 15:30
+    let entries = [
+      entry(idea: a, status: .scheduled, schedule: .timed(2, start: "09:00", end: nil)),
+      entry(idea: b, status: .scheduled, schedule: .timed(2, start: "18:00", end: nil)),
+    ]
+    let p = plan(entries, ideas: [idea(a, lat: nil, lon: nil), idea(b, lat: nil, lon: nil)])
+    let items = p.itineraryItems(forDay: 2, travelTimes: [:], effectiveModes: [:],
+                                 now: june20_1530, tripStartDate: tripStartJune19)
+    // Expected: stop(a), nowMarker, stop(b)
+    #expect(items.count == 3)
+    #expect(items[0] == .stop(p.itinerary[1].stops[0]))
+    #expect(items[1] == .nowMarker)
+  }
+
+  @Test func nowMarkerAfterAllStopsWhenAllPast() {
+    let id = UUID()
+    // Day 2: 09:00 stop — now = 15:30, so the stop is past
+    let p = plan([entry(idea: id, status: .scheduled, schedule: .timed(2, start: "09:00", end: nil))],
+                 ideas: [idea(id, lat: nil, lon: nil)])
+    let items = p.itineraryItems(forDay: 2, travelTimes: [:], effectiveModes: [:],
+                                 now: june20_1530, tripStartDate: tripStartJune19)
+    // stop(a), nowMarker — marker trails the last past stop
+    #expect(items.last == .nowMarker)
+  }
+
+  @Test func nowMarkerBeforeFirstStopWhenAllFuture() {
+    let id = UUID()
+    // Day 2: 20:00 dinner — now = 15:30, so the stop is future
+    let p = plan([entry(idea: id, status: .scheduled, schedule: .timed(2, start: "20:00", end: nil))],
+                 ideas: [idea(id, lat: nil, lon: nil)])
+    let items = p.itineraryItems(forDay: 2, travelTimes: [:], effectiveModes: [:],
+                                 now: june20_1530, tripStartDate: tripStartJune19)
+    // nowMarker, stop — marker leads
+    #expect(items.first == .nowMarker)
+  }
+
   @Test func connectorAbsentForUnlocatedNeighbour() {
     let (a, b, c) = (UUID(), UUID(), UUID())
     let entries = [

@@ -82,16 +82,20 @@ public struct TravelConnector: Identifiable, Equatable, Sendable {
   }
 }
 
-/// One row in the itinerary timeline — either a stop or a travel-time connector
-/// between two consecutive located stops.
+/// One row in the itinerary timeline — a stop, a travel-time connector between
+/// two consecutive located stops, or the "Now" marker divider.
 public enum ItineraryItem: Identifiable, Equatable, Sendable {
   case stop(ResolvedStop)
   case connector(TravelConnector)
+  /// A divider that reads "Now" — inserted at the current moment in time within
+  /// today's day section. Only appears on dated trips while the trip is active.
+  case nowMarker
 
   public var id: String {
     switch self {
     case .stop(let s): "stop-\(s.id)"
     case .connector(let c): "connector-\(c.id)"
+    case .nowMarker: "now-marker"
     }
   }
 }

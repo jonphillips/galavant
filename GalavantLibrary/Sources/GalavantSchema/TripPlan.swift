@@ -158,20 +158,43 @@ public struct TripPlan: Equatable, Sendable {
   }
 
   /// The interleaved stop + connector rows for one day's timeline. A connector
-  /// is inserted between consecutive stops when both are located; unlocated
-  /// stops appear in the list but break the connector chain on each side.
-  /// `effectiveModes` supplies the resolved mode per leg (auto-detect or user
-  /// override); `travelTimes[leg][mode]` is the cached ETA for that mode.
+  /// is inserted between consecutive located stops. A `.nowMarker` divider is
+  /// inserted at the current moment when `now` and `tripStartDate` are supplied
+  /// and today falls on this day; it never appears for undated trips.
   public func itineraryItems(
     forDay day: Int,
     travelTimes: [LegKey: [TransportMode: TravelTime]],
-    effectiveModes: [LegKey: TransportMode]
+    effectiveModes: [LegKey: TransportMode],
+    now: Date? = nil,
+    tripStartDate: Date? = nil
   ) -> [ItineraryItem] {
     guard let resolvedDay = itinerary.first(where: { $0.number == day }) else { return [] }
     let stops = resolvedDay.stops
     guard !stops.isEmpty else { return [] }
+
+    // Index in `stops` before which to insert the now marker, or `stops.count`
+    // to place it after all stops (every stop is past). Nil = don't show marker.
+    let markerAt: Int? = {
+      guard let now, let tripStartDate else { return nil }
+      let cal = Calendar.current
+      guard
+        let dayStart = cal.date(byAdding: .day, value: day - 1, to: tripStartDate),
+        cal.isDate(now, inSameDayAs: dayStart)
+      else { return nil }
+      return stops.firstIndex(where: { stop in
+        guard let d = nominalDate(entry: stop.entry, dayStart: dayStart, calendar: cal)
+        else { return false }
+        return d > now
+      }) ?? stops.count
+    }()
+
     var items: [ItineraryItem] = []
+    var markerInserted = false
     for (i, stop) in stops.enumerated() {
+      if let at = markerAt, i == at, !markerInserted {
+        items.append(.nowMarker)
+        markerInserted = true
+      }
       items.append(.stop(stop))
       guard i < stops.count - 1 else { continue }
       let next = stops[i + 1]
@@ -185,6 +208,10 @@ public struct TripPlan: Equatable, Sendable {
       items.append(.connector(TravelConnector(
         fromStopID: stop.id, toStopID: next.id, leg: key, mode: mode, travelTime: tt)))
     }
+    // Marker after the last stop when every stop is past.
+    if let at = markerAt, at == stops.count, !markerInserted {
+      items.append(.nowMarker)
+    }
     return items
   }
 
@@ -193,5 +220,26 @@ public struct TripPlan: Equatable, Sendable {
   public func idea(forStopID id: TripIdea.ID) -> Idea? {
     guard let entry = entries.first(where: { $0.id == id }) else { return nil }
     return ideasByID[entry.ideaID]
+  }
+
+  // MARK: - Temporal helpers
+
+  /// The nominal start time of a scheduled stop on a given day — the moment
+  /// it's considered "upcoming." Returns nil for unscheduled stops.
+  /// - `.timed` → parsed start hour:minute
+  /// - `.daypart` → `sortHour` (the representative hour for ordering)
+  /// - `.day` → end of day (23:59), so a bare-day stop is only "past" after midnight
+  private func nominalDate(entry: TripIdea, dayStart: Date, calendar: Calendar) -> Date? {
+    switch entry.schedule {
+    case .unscheduled:
+      return nil
+    case .day:
+      return calendar.date(bySettingHour: 23, minute: 59, second: 59, of: dayStart)
+    case .daypart(_, let part):
+      return calendar.date(bySettingHour: part.sortHour, minute: 0, second: 0, of: dayStart)
+    case .timed(_, let start, _):
+      guard let mins = Schedule.minutes(from: start) else { return nil }
+      return calendar.date(byAdding: .minute, value: mins, to: calendar.startOfDay(for: dayStart))
+    }
   }
 }

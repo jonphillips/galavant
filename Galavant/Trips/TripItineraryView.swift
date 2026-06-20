@@ -38,7 +38,8 @@ struct TripItineraryView: View {
   /// One day's stops, for the canvas's day lens.
   private func focusedDayList(_ day: Int) -> some View {
     let items = model.plan.itineraryItems(
-      forDay: day, travelTimes: model.travelTimes, effectiveModes: model.effectiveModes)
+      forDay: day, travelTimes: model.travelTimes, effectiveModes: model.effectiveModes,
+      now: Date.now, tripStartDate: model.trip?.startDate)
     return List {
       Section {
         if items.isEmpty {
@@ -66,7 +67,8 @@ struct TripItineraryView: View {
       }
       ForEach(model.plan.itinerary) { day in
         let items = model.plan.itineraryItems(
-          forDay: day.number, travelTimes: model.travelTimes, effectiveModes: model.effectiveModes)
+          forDay: day.number, travelTimes: model.travelTimes, effectiveModes: model.effectiveModes,
+          now: Date.now, tripStartDate: model.trip?.startDate)
         Section {
           if items.isEmpty {
             Text("No stops yet")
@@ -98,6 +100,7 @@ struct TripItineraryView: View {
     switch item {
     case .stop(let resolved): stopRow(resolved)
     case .connector(let connector): connectorRow(connector)
+    case .nowMarker: nowMarkerRow
     }
   }
 
@@ -121,6 +124,26 @@ struct TripItineraryView: View {
     .contentShape(Rectangle())
     .onTapGesture { model.selectStop(resolved.id) }
     .id(resolved.id)
+  }
+
+  /// A "you are here" divider — red line with "Now" label, appears at the current
+  /// moment in today's day section. Non-interactive; just orients you on the timeline.
+  private var nowMarkerRow: some View {
+    HStack(spacing: 8) {
+      Rectangle()
+        .fill(Color.red)
+        .frame(height: 1)
+      Text("Now")
+        .font(.caption.bold())
+        .foregroundStyle(.red)
+        .fixedSize()
+      Rectangle()
+        .fill(Color.red)
+        .frame(height: 1)
+    }
+    .listRowSeparator(.hidden)
+    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+    .allowsHitTesting(false)
   }
 
   /// A compact interstitial row showing the travel time and mode to the next stop.
