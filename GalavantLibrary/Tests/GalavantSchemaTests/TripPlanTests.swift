@@ -26,6 +26,17 @@ import Testing
     return e
   }
 
+  func freeformEntry(
+    title: String,
+    note: String? = nil,
+    rank: Int = 0,
+    schedule: Schedule = .unscheduled
+  ) -> TripIdea {
+    var e = TripIdea.freeform(id: UUID(), tripID: UUID(), title: title, note: note, shortlistRank: rank)
+    e.apply(schedule)
+    return e
+  }
+
   func plan(_ entries: [TripIdea], ideas: [Idea], lengthInDays: Int = 3) -> TripPlan {
     TripPlan(
       entries: entries,
@@ -42,7 +53,7 @@ import Testing
       entry(idea: c, status: .scheduled, rank: 1, schedule: .day(1)),  // not on shortlist
     ]
     let p = plan(entries, ideas: [idea(a), idea(b), idea(c)])
-    #expect(p.shortlist.map(\.idea.id) == [b, a])
+    #expect(p.shortlist.map { $0.idea!.id } == [b, a])
   }
 
   @Test func scheduledOrdersByDayThenTimeOfDay() {
@@ -53,7 +64,7 @@ import Testing
       entry(idea: c, status: .scheduled, schedule: .timed(1, start: "08:00", end: nil)),
     ]
     let p = plan(entries, ideas: [idea(a), idea(b), idea(c)])
-    #expect(p.scheduled.map(\.idea.id) == [c, b, a])  // day1 08:00, day1 bare, day2 lunch
+    #expect(p.scheduled.map { $0.idea!.id } == [c, b, a])  // day1 08:00, day1 bare, day2 lunch
   }
 
   @Test func orphanEntriesAreDroppedFromEveryProjection() {
@@ -66,7 +77,7 @@ import Testing
       entry(idea: orphan, status: .scheduled, schedule: .day(1)),
     ]
     let p = plan(entries, ideas: [idea(kept)])  // orphan absent
-    #expect(p.shortlist.map(\.idea.id) == [kept])
+    #expect(p.shortlist.map { $0.idea!.id } == [kept])
     #expect(p.itinerary.flatMap(\.stops).isEmpty)
   }
 
@@ -78,7 +89,7 @@ import Testing
     let id = UUID()
     let one = plan([entry(idea: id, status: .considering)], ideas: [idea(id)])
     #expect(!one.isEmpty)
-    #expect(one.considering.map(\.idea.id) == [id])
+    #expect(one.considering.map { $0.idea!.id } == [id])
   }
 
   @Test func toBeScheduledIsScheduledWithoutADay() {
@@ -88,7 +99,7 @@ import Testing
       entry(idea: unplaced, status: .scheduled, schedule: .unscheduled),  // committed, no day
     ]
     let p = plan(entries, ideas: [idea(placed), idea(unplaced)])
-    #expect(p.toBeScheduled.map(\.idea.id) == [unplaced])
+    #expect(p.toBeScheduled.map { $0.idea!.id } == [unplaced])
     #expect(p.hasScheduledStops)
   }
 
@@ -100,7 +111,7 @@ import Testing
     ]
     let p = plan(entries, ideas: [idea(located), idea(unlocated, lat: nil, lon: nil)])
     #expect(p.hasLocatedStops)
-    #expect(p.locatedStops(forDay: 1).map(\.idea.id) == [located])
+    #expect(p.locatedStops(forDay: 1).map { $0.idea!.id } == [located])
     #expect(p.framingCoordinates(forDay: 1).count == 1)
     #expect(p.framingCoordinates(forDay: nil).count == 1)  // whole trip
   }
@@ -110,7 +121,7 @@ import Testing
     let p = plan([entry(idea: id, status: .scheduled, schedule: .day(2))], ideas: [idea(id)], lengthInDays: 3)
     #expect(p.itinerary.map(\.number) == [1, 2, 3])
     #expect(p.itinerary[0].stops.isEmpty)
-    #expect(p.itinerary[1].stops.map(\.idea.id) == [id])
+    #expect(p.itinerary[1].stops.map { $0.idea!.id } == [id])
   }
 
   // MARK: - Travel connector tests
@@ -256,5 +267,112 @@ import Testing
     // 3 stops, no connectors (b lacks coords on both sides)
     #expect(items.count == 3)
     #expect(items.allSatisfy { if case .stop = $0 { true } else { false } })
+  }
+
+  // MARK: - Freeform stop tests (ADR-0010)
+
+  @Test func freeformStopResolvesAsContent() {
+    let e = freeformEntry(title: "Lunch break", note: "Try the local place")
+    let p = plan([e], ideas: [])
+    // Freeform stops are born .scheduled so they appear in the itinerary when placed
+    let e2 = freeformEntry(title: "Check in", schedule: .day(1))
+    let p2 = plan([e2], ideas: [], lengthInDays: 2)
+    #expect(p2.itinerary[0].stops.count == 1)
+    let stop = p2.itinerary[0].stops[0]
+    if case let .freeform(title, note) = stop.content {
+      #expect(title == "Check in")
+      #expect(note == nil)
+    } else {
+      Issue.record("expected .freeform content")
+    }
+    #expect(stop.idea == nil)
+    _ = p  // suppress unused-variable warning; unplaced entry lands in toBeScheduled
+    #expect(p.toBeScheduled.count == 1)
+    if case let .freeform(title, note) = p.toBeScheduled[0].content {
+      #expect(title == "Lunch break")
+      #expect(note == "Try the local place")
+    } else {
+      Issue.record("expected .freeform content in toBeScheduled")
+    }
+  }
+
+  @Test func freeformStopHasNoCoordinateAndProducesNoLeg() {
+    let id = UUID()
+    let entries = [
+      entry(idea: id, status: .scheduled, schedule: .day(1)),
+      freeformEntry(title: "Lunch", schedule: .day(1)),
+      entry(idea: id, status: .scheduled, schedule: .day(1)),  // same coords; forces duplicate — use different
+    ]
+    let (a, b) = (UUID(), UUID())
+    let entries2 = [
+      entry(idea: a, status: .scheduled, schedule: .day(1)),
+      freeformEntry(title: "Lunch break", schedule: .day(1)),
+      entry(idea: b, status: .scheduled, schedule: .day(1)),
+    ]
+    let p = plan(entries2, ideas: [idea(a, lat: 1, lon: 1), idea(b, lat: 2, lon: 2)])
+    // 3 stops on day 1; freeform in the middle has no coords → breaks the leg chain
+    #expect(p.legs(forDay: 1).isEmpty)
+    #expect(!p.hasLocatedStops == false)  // located idea stops ARE present
+    #expect(p.hasLocatedStops)
+    // But freeform does not appear in locatedStops
+    #expect(p.locatedStops(forDay: 1).count == 2)
+    #expect(p.locatedStops(forDay: 1).allSatisfy { $0.content.latitude != nil })
+  }
+
+  @Test func freeformStopAppearsInItineraryItems() {
+    let (a, b) = (UUID(), UUID())
+    let entries = [
+      entry(idea: a, status: .scheduled, schedule: .timed(1, start: "09:00", end: nil)),
+      // 12:00 clock time places "Lunch" between the two timed idea stops in sort order
+      freeformEntry(title: "Lunch", schedule: .timed(1, start: "12:00", end: nil)),
+      entry(idea: b, status: .scheduled, schedule: .timed(1, start: "14:00", end: nil)),
+    ]
+    let p = plan(entries, ideas: [idea(a, lat: nil, lon: nil), idea(b, lat: nil, lon: nil)])
+    let items = p.itineraryItems(forDay: 1, travelTimes: [:], effectiveModes: [:])
+    // All 3 stops; no connectors (none are located)
+    #expect(items.count == 3)
+    #expect(items.allSatisfy { if case .stop = $0 { true } else { false } })
+    if case let .stop(resolved) = items[1] {
+      if case let .freeform(title, _) = resolved.content {
+        #expect(title == "Lunch")
+      } else {
+        Issue.record("middle item should be freeform stop")
+      }
+    } else {
+      Issue.record("expected stop at [1]")
+    }
+  }
+
+  @Test func malformedFreeformEntryIsDropped() {
+    // An entry with no ideaID and no inlineTitle is invalid — must be silently
+    // dropped rather than crashing.
+    let bad = TripIdea(id: UUID(), tripID: UUID(), ideaID: nil, inlineTitle: nil, status: .scheduled)
+    let bad2 = TripIdea(id: UUID(), tripID: UUID(), ideaID: nil, inlineTitle: "", status: .scheduled)
+    let good = freeformEntry(title: "Check in", schedule: .day(1))
+    let p = plan([bad, bad2, good], ideas: [], lengthInDays: 2)
+    // Only the valid freeform stop survives
+    #expect(p.itinerary[0].stops.count == 1)
+    if case let .freeform(title, _) = p.itinerary[0].stops[0].content {
+      #expect(title == "Check in")
+    } else {
+      Issue.record("expected freeform content")
+    }
+  }
+
+  @Test func freeformStopContentTitle() {
+    let id = UUID()
+    let ideaStop = ResolvedStop(
+      entry: TripIdea(id: UUID(), tripID: UUID(), ideaID: id, status: .scheduled),
+      content: .idea(Idea(id: id, name: "Tivoli"))
+    )
+    let freeformStop = ResolvedStop(
+      entry: TripIdea.freeform(id: UUID(), tripID: UUID(), title: "Train to Aarhus"),
+      content: .freeform(title: "Train to Aarhus", note: nil)
+    )
+    #expect(ideaStop.content.title == "Tivoli")
+    #expect(freeformStop.content.title == "Train to Aarhus")
+    #expect(ideaStop.content.latitude != nil || ideaStop.content.latitude == nil)  // just tests access
+    #expect(freeformStop.content.latitude == nil)
+    #expect(freeformStop.content.longitude == nil)
   }
 }

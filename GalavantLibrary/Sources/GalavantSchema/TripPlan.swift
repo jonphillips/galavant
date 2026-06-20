@@ -1,17 +1,54 @@
 import Foundation
+import IssueReporting
 
-/// A `TripIdea` join row resolved to its pool `Idea` — the unit every planning
-/// surface renders. Orphans (an idea deleted from the pool, ADR-0007) never form
-/// a `ResolvedStop`; they're dropped as the plan is built (read-time
-/// reconciliation).
+/// What a stop *is* — the pool idea it was pulled from, or an inline freeform
+/// entry with no idea (ADR-0010). The two cases have exactly the coordinate
+/// difference: `.idea` may carry lat/lon for pins and legs; `.freeform` never
+/// does, so it falls out of canvas/leg logic automatically.
+public enum StopContent: Equatable, Sendable {
+  case idea(Idea)
+  case freeform(title: String, note: String?)
+
+  /// Display title for the stop row.
+  public var title: String {
+    switch self {
+    case let .idea(idea): idea.name
+    case let .freeform(title, _): title
+    }
+  }
+
+  /// The pool idea, or nil for freeform stops.
+  public var idea: Idea? {
+    if case let .idea(idea) = self { idea } else { nil }
+  }
+
+  /// Latitude for canvas/leg geometry — nil when not a located idea.
+  public var latitude: Double? {
+    guard case let .idea(idea) = self else { return nil }
+    return idea.latitude
+  }
+
+  /// Longitude for canvas/leg geometry — nil when not a located idea.
+  public var longitude: Double? {
+    guard case let .idea(idea) = self else { return nil }
+    return idea.longitude
+  }
+}
+
+/// A `TripIdea` join row resolved to its content — the unit every planning
+/// surface renders. Orphans (an idea deleted from the pool, ADR-0007) and
+/// malformed freeform entries (no title) are dropped as the plan is built.
 public struct ResolvedStop: Identifiable, Equatable, Sendable {
   public var entry: TripIdea
-  public var idea: Idea
+  public var content: StopContent
   public var id: TripIdea.ID { entry.id }
 
-  public init(entry: TripIdea, idea: Idea) {
+  /// The pool idea for idea-backed stops; nil for freeform stops.
+  public var idea: Idea? { content.idea }
+
+  public init(entry: TripIdea, content: StopContent) {
     self.entry = entry
-    self.idea = idea
+    self.content = content
   }
 }
 
@@ -50,7 +87,15 @@ public struct TripPlan: Equatable, Sendable {
   }
 
   func resolve(_ entry: TripIdea) -> ResolvedStop? {
-    ideasByID[entry.ideaID].map { ResolvedStop(entry: entry, idea: $0) }
+    if let ideaID = entry.ideaID {
+      guard let idea = ideasByID[ideaID] else { return nil }  // orphan — drop
+      return ResolvedStop(entry: entry, content: .idea(idea))
+    } else if let title = entry.inlineTitle, !title.isEmpty {
+      return ResolvedStop(entry: entry, content: .freeform(title: title, note: entry.inlineNote))
+    } else {
+      reportIssue("TripIdea \(entry.id) has neither ideaID nor inlineTitle — dropping")
+      return nil
+    }
   }
 
   // MARK: - Planning piles (Trip Ideas)
@@ -110,7 +155,7 @@ public struct TripPlan: Equatable, Sendable {
   /// True when at least one scheduled stop carries coordinates to plot.
   public var hasLocatedStops: Bool {
     itinerary.contains { day in
-      day.stops.contains { $0.idea.latitude != nil && $0.idea.longitude != nil }
+      day.stops.contains { $0.content.latitude != nil && $0.content.longitude != nil }
     }
   }
 
@@ -120,7 +165,7 @@ public struct TripPlan: Equatable, Sendable {
   public func framingCoordinates(forDay day: Int?) -> [(latitude: Double, longitude: Double)] {
     let days = day.map { d in itinerary.filter { $0.number == d } } ?? itinerary
     return days.flatMap(\.stops).compactMap { resolved in
-      guard let lat = resolved.idea.latitude, let lon = resolved.idea.longitude
+      guard let lat = resolved.content.latitude, let lon = resolved.content.longitude
       else { return nil }
       return (latitude: lat, longitude: lon)
     }
@@ -131,7 +176,7 @@ public struct TripPlan: Equatable, Sendable {
   /// timeline). The view assigns the 1-based sequence number by position.
   public func locatedStops(forDay day: Int) -> [ResolvedStop] {
     (itinerary.first { $0.number == day }?.stops ?? [])
-      .filter { $0.idea.latitude != nil && $0.idea.longitude != nil }
+      .filter { $0.content.latitude != nil && $0.content.longitude != nil }
   }
 
   // MARK: - Travel-time connectors (docs/trip-canvas.md)
@@ -150,8 +195,8 @@ public struct TripPlan: Equatable, Sendable {
     let stops = itinerary.first(where: { $0.number == day })?.stops ?? []
     return zip(stops, stops.dropFirst()).compactMap { a, b in
       guard
-        let fromLat = a.idea.latitude, let fromLon = a.idea.longitude,
-        let toLat = b.idea.latitude, let toLon = b.idea.longitude
+        let fromLat = a.content.latitude, let fromLon = a.content.longitude,
+        let toLat = b.content.latitude, let toLon = b.content.longitude
       else { return nil }
       return LegKey(fromLat: fromLat, fromLon: fromLon, toLat: toLat, toLon: toLon)
     }
@@ -199,8 +244,8 @@ public struct TripPlan: Equatable, Sendable {
       guard i < stops.count - 1 else { continue }
       let next = stops[i + 1]
       guard
-        let fromLat = stop.idea.latitude, let fromLon = stop.idea.longitude,
-        let toLat = next.idea.latitude, let toLon = next.idea.longitude
+        let fromLat = stop.content.latitude, let fromLon = stop.content.longitude,
+        let toLat = next.content.latitude, let toLon = next.content.longitude
       else { continue }
       let key = LegKey(fromLat: fromLat, fromLon: fromLon, toLat: toLat, toLon: toLon)
       let mode = effectiveModes[key] ?? .walking
@@ -217,9 +262,13 @@ public struct TripPlan: Equatable, Sendable {
 
   /// Resolve the idea for an itinerary stop by its `TripIdea` ID — used by the
   /// view to get coordinates for the Open in Maps handoff on a connector row.
+  /// Returns nil for freeform stops (they produce no connectors, so this is
+  /// defensive only).
   public func idea(forStopID id: TripIdea.ID) -> Idea? {
-    guard let entry = entries.first(where: { $0.id == id }) else { return nil }
-    return ideasByID[entry.ideaID]
+    guard let entry = entries.first(where: { $0.id == id }),
+          let ideaID = entry.ideaID
+    else { return nil }
+    return ideasByID[ideaID]
   }
 
   // MARK: - Temporal helpers

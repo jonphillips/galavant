@@ -228,13 +228,13 @@ struct TripTests {
         try TripIdea.setStatus(.shortlisted, ideaID: idea.id, tripID: trip.id, in: db)
       }
       let entries = try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db)
-      let joinID = Dictionary(uniqueKeysWithValues: entries.map { ($0.ideaID, $0.id) })
+      let joinID = Dictionary(uniqueKeysWithValues: entries.map { ($0.ideaID!, $0.id) })
       try TripIdea.reorderShortlist(
         [joinID[ideas[2].id]!, joinID[ideas[0].id]!, joinID[ideas[1].id]!], in: db
       )
       let names = Dictionary(uniqueKeysWithValues: ideas.map { ($0.id, $0.name) })
       let reordered = TripIdea.shortlist(try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db))
-      return reordered.map { names[$0.ideaID]! }
+      return reordered.map { names[$0.ideaID!]! }
     }
     #expect(order == ["C", "A", "B"])
   }
