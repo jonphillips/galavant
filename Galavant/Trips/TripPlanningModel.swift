@@ -26,6 +26,29 @@ struct PlaceIdeaTarget: Identifiable {
   let day: Int?
 }
 
+/// The editable state of the lodging sheet — author a new stay or edit one in
+/// place (ADR-0011). `stayID == nil` means creating. `ideaID` set means the stay
+/// is backed by a pool hotel (chosen in the sheet's Hotel picker, or seeded by
+/// "Stay here") and `title`/`note` are unused; `ideaID == nil` is a freeform stay
+/// whose `title`/`note` carry it. `checkInDay`/`checkOutDay` are the span; optional
+/// `"HH:mm"` times default to evening / morning ordering. Identifiable so each
+/// presentation drives a fresh `.sheet(item:)`.
+struct StayDraft: Identifiable {
+  let id = UUID()
+  var stayID: TripStay.ID?
+  var ideaID: Idea.ID?
+  var title = ""
+  var note = ""
+  var checkInDay = 1
+  var checkOutDay = 2
+  var checkInTime: String?
+  var checkOutTime: String?
+
+  /// Backed by a pool hotel (vs. a freeform stay) — the sheet hides the title
+  /// field and shows the hotel name instead.
+  var isIdeaBacked: Bool { ideaID != nil }
+}
+
 /// Owns one trip's planning surface (ADR-0004): the shortlist + considering
 /// pile of pulled ideas, and the filtered pool you pull *from*. Persistence
 /// delegates to the tested `TripIdea` operations; pool scoping reuses the pure
@@ -39,6 +62,7 @@ final class TripPlanningModel {
   @ObservationIgnored @FetchAll(Trip.all) var trips
   @ObservationIgnored @FetchAll(Idea.order(by: \.name)) var ideas
   @ObservationIgnored @FetchAll(TripIdea.all) var allTripIdeas
+  @ObservationIgnored @FetchAll(TripStay.all) var allTripStays
   @ObservationIgnored @FetchAll(TripRegion.all) var allTripRegions
   @ObservationIgnored @FetchAll(MapRegion.order(by: \.name)) var regions
   @ObservationIgnored @FetchAll(Tag.order(by: \.name)) var tags
@@ -98,6 +122,7 @@ final class TripPlanningModel {
     case addIdeas
     case placeIdea(PlaceIdeaTarget)
     case freeformStop(FreeformStopDraft)
+    case stay(StayDraft)
   }
 
   init(tripID: Trip.ID) {
@@ -112,6 +137,7 @@ final class TripPlanningModel {
   var trip: Trip? { trips.first { $0.id == tripID } }
 
   private var entries: [TripIdea] { allTripIdeas.filter { $0.tripID == tripID } }
+  private var stays: [TripStay] { allTripStays.filter { $0.tripID == tripID } }
   private var ideaByID: [Idea.ID: Idea] {
     Dictionary(ideas.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
   }
@@ -121,7 +147,9 @@ final class TripPlanningModel {
   /// Views read `model.plan.shortlist`, `model.plan.itinerary`, etc.; the model
   /// keeps only UI state and the db-write actions.
   var plan: TripPlan {
-    TripPlan(entries: entries, ideasByID: ideaByID, lengthInDays: trip?.lengthInDays ?? 1)
+    TripPlan(
+      entries: entries, ideasByID: ideaByID,
+      lengthInDays: trip?.lengthInDays ?? 1, tripStays: stays)
   }
 
   // MARK: - Canvas mode (the map is the trip's home, M3d)
@@ -192,6 +220,11 @@ final class TripPlanningModel {
 
   /// This idea's status on the trip, or nil if it hasn't been pulled.
   func status(for idea: Idea) -> TripIdeaStatus? { statusByIdea[idea.id] }
+
+  /// Pool hotels (kind `.stay`) the lodging editor can attach a stay to, name-
+  /// ordered (the pool is already name-sorted). Tying a stay to a located hotel is
+  /// what puts it on the map (ADR-0011).
+  var lodgingIdeas: [Idea] { ideas.filter { $0.kind == .stay } }
 
   var sortedRegions: [MapRegion] {
     regions.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
@@ -482,6 +515,81 @@ final class TripPlanningModel {
       }
     }
     destination = nil
+  }
+
+  // MARK: - Stays (accommodations, ADR-0011)
+
+  /// "Add lodging" — present the lodging editor for a new freeform stay. Defaults
+  /// to nights 1→2; the sheet picks the span and (optionally) the hotel.
+  func addLodgingButtonTapped() {
+    destination = .stay(StayDraft(checkOutDay: min(2, max(2, trip?.lengthInDays ?? 2))))
+  }
+
+  /// "Stay here" — present the lodging editor seeded from a pool hotel. The span
+  /// defaults to the whole trip (a reasonable first guess for the one place you're
+  /// staying); the user trims it.
+  func stayHere(_ idea: Idea) {
+    let last = max(2, trip?.lengthInDays ?? 2)
+    destination = .stay(StayDraft(
+      ideaID: idea.id, checkInDay: 1, checkOutDay: last))
+  }
+
+  /// Re-open the lodging editor seeded from an existing stay.
+  func editStay(_ resolved: ResolvedStay) {
+    let stay = resolved.stay
+    var title = ""
+    var note = ""
+    if case let .freeform(t, n) = resolved.content {
+      title = t
+      note = n ?? ""
+    }
+    destination = .stay(StayDraft(
+      stayID: stay.id, ideaID: stay.ideaID,
+      title: title, note: note,
+      checkInDay: stay.checkInDay, checkOutDay: stay.checkOutDay,
+      checkInTime: stay.checkInTime, checkOutTime: stay.checkOutTime))
+  }
+
+  /// Commit the lodging editor: create or update the stay. A freeform stay needs a
+  /// non-empty title (the sheet's Save is gated, but guard anyway); the span is
+  /// coerced valid by the write op.
+  func saveStay(_ draft: StayDraft) {
+    guard let tripID = trip?.id else { return }
+    let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
+    let trimmedNote = draft.note.trimmingCharacters(in: .whitespacesAndNewlines)
+    let note = trimmedNote.isEmpty ? nil : trimmedNote
+    withErrorReporting {
+      try database.write { db in
+        if let stayID = draft.stayID {
+          try TripStay.edit(
+            stayID: stayID, ideaID: draft.ideaID,
+            title: title.isEmpty ? nil : title, note: note,
+            checkInDay: draft.checkInDay, checkOutDay: draft.checkOutDay,
+            checkInTime: draft.checkInTime, checkOutTime: draft.checkOutTime, in: db)
+        } else if let ideaID = draft.ideaID {
+          try TripStay.create(
+            tripID: tripID, ideaID: ideaID,
+            checkInDay: draft.checkInDay, checkOutDay: draft.checkOutDay,
+            checkInTime: draft.checkInTime, checkOutTime: draft.checkOutTime, in: db)
+        } else {
+          guard !title.isEmpty else { return }
+          try TripStay.createFreeform(
+            tripID: tripID, title: title, note: note,
+            checkInDay: draft.checkInDay, checkOutDay: draft.checkOutDay,
+            checkInTime: draft.checkInTime, checkOutTime: draft.checkOutTime, in: db)
+        }
+      }
+    }
+    destination = nil
+  }
+
+  /// Delete a stay from the trip.
+  func removeStay(_ stayID: TripStay.ID) {
+    withErrorReporting {
+      try database.write { db in
+        try TripStay.remove(stayID: stayID, in: db)
+      }
+    }
   }
 
   /// Commit a stop to the itinerary without a day — it lands in the "To Be

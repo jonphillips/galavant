@@ -225,3 +225,127 @@ struct FreeformStopSheet: View {
     .presentationDetents([.medium])
   }
 }
+
+/// Author or edit an accommodation (ADR-0011). One sheet for both entry points:
+/// **"Stay here"** seeds a pool hotel (`ideaID` set, name shown read-only) and
+/// **"Add lodging"** is a freeform stay (title + note). Both pick the night span
+/// (check-in day → check-out day, the latter always after the former) and an
+/// optional check-in / check-out time; absent a time the rows sort to evening /
+/// morning. The span pickers can't express an invalid range, so Save is gated only
+/// on a freeform title being present.
+struct StaySheet: View {
+  let model: TripPlanningModel
+  @State private var draft: StayDraft
+  @Environment(\.dismiss) private var dismiss
+  @FocusState private var titleFocused: Bool
+
+  init(model: TripPlanningModel, draft: StayDraft) {
+    self.model = model
+    _draft = State(initialValue: draft)
+  }
+
+  private var isEditing: Bool { draft.stayID != nil }
+  private var tripLength: Int { max(2, model.trip?.lengthInDays ?? 2) }
+  private var canSave: Bool {
+    draft.isIdeaBacked
+      || !draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+  }
+
+  var body: some View {
+    NavigationStack {
+      Form {
+        // A stay can tie to a pool hotel (so it gets a map pin, ADR-0011) or carry
+        // a custom name. The picker offers both; a custom name reveals the text
+        // fields.
+        Section("Hotel") {
+          Picker("Hotel", selection: $draft.ideaID) {
+            Text("Custom name").tag(Idea.ID?.none)
+            ForEach(model.lodgingIdeas) { idea in
+              Text(idea.name).tag(Idea.ID?.some(idea.id))
+            }
+          }
+          if draft.ideaID == nil {
+            TextField("Name (e.g. Airbnb — Old Town)", text: $draft.title)
+              .focused($titleFocused)
+          }
+        }
+        if draft.ideaID == nil {
+          Section("Note") {
+            TextField("Optional details", text: $draft.note, axis: .vertical)
+              .lineLimit(2...5)
+          }
+        }
+        Section("Check-in") {
+          dayPicker(selection: $draft.checkInDay, range: 1...(tripLength - 1))
+            .onChange(of: draft.checkInDay) { _, day in
+              if draft.checkOutDay <= day { draft.checkOutDay = day + 1 }
+            }
+          timeRow(label: "Time", time: $draft.checkInTime, seed: "15:00")
+        }
+        Section("Check-out") {
+          dayPicker(selection: $draft.checkOutDay, range: (draft.checkInDay + 1)...tripLength)
+          timeRow(label: "Time", time: $draft.checkOutTime, seed: "10:00")
+        }
+        if isEditing {
+          Section {
+            Button("Remove Stay", systemImage: Icon.delete.systemName, role: .destructive) {
+              if let id = draft.stayID { model.removeStay(id) }
+              dismiss()
+            }
+          }
+        }
+      }
+      .navigationTitle(isEditing ? "Edit Stay" : "Add Lodging")
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          Button("Cancel") { dismiss() }
+        }
+        ToolbarItem(placement: .confirmationAction) {
+          Button(isEditing ? "Save" : "Add") { model.saveStay(draft) }.disabled(!canSave)
+        }
+      }
+      .onAppear { titleFocused = !isEditing && !draft.isIdeaBacked }
+    }
+    .presentationDetents([.medium, .large])
+  }
+
+  private func dayPicker(selection: Binding<Int>, range: ClosedRange<Int>) -> some View {
+    Picker("Day", selection: selection) {
+      ForEach(Array(range), id: \.self) { n in
+        Text(dayLabel(n, trip: model.trip)).tag(n)
+      }
+    }
+  }
+
+  /// An optional `"HH:mm"` time: a toggle to set one, then an hour-minute picker.
+  /// Off ⇒ nil (sorts to the default evening/morning slot).
+  @ViewBuilder private func timeRow(label: String, time: Binding<String?>, seed: String) -> some View {
+    Toggle("Set \(label.lowercased())", isOn: Binding(
+      get: { time.wrappedValue != nil },
+      set: { time.wrappedValue = $0 ? (time.wrappedValue ?? seed) : nil }
+    ))
+    if time.wrappedValue != nil {
+      DatePicker(
+        label,
+        selection: Binding(
+          get: { Self.date(from: time.wrappedValue ?? seed) },
+          set: { time.wrappedValue = Self.hhmm(from: $0) }
+        ),
+        displayedComponents: .hourAndMinute)
+    }
+  }
+
+  private static func hhmm(from date: Date) -> String {
+    let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+    return String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0)
+  }
+
+  private static func date(from hhmm: String) -> Date {
+    let parts = hhmm.split(separator: ":")
+    var c = DateComponents()
+    c.hour = parts.first.flatMap { Int($0) } ?? 12
+    c.minute = parts.count > 1 ? Int(parts[1]) ?? 0 : 0
+    return Calendar.current.date(from: c) ?? .now
+  }
+}

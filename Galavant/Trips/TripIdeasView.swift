@@ -39,6 +39,14 @@ struct TripIdeasView: View {
                 Icon.schedule.label("Schedule")
               }
               .tint(.blue)
+              if resolved.idea?.kind == .stay {
+                Button {
+                  if let idea = resolved.idea { model.stayHere(idea) }
+                } label: {
+                  Icon.stay.label("Stay here")
+                }
+                .tint(.indigo)
+              }
             }
             .swipeActions(edge: .trailing) {
               Button(role: .destructive) {
@@ -89,6 +97,16 @@ struct TripIdeasView: View {
             }
             .contentShape(Rectangle())
             .onTapGesture { if let idea = resolved.idea { model.showDetail(idea) } }
+            .swipeActions(edge: .leading) {
+              if resolved.idea?.kind == .stay {
+                Button {
+                  if let idea = resolved.idea { model.stayHere(idea) }
+                } label: {
+                  Icon.stay.label("Stay here")
+                }
+                .tint(.indigo)
+              }
+            }
             .swipeActions(edge: .trailing) {
               Button(role: .destructive) {
                 model.remove(resolved.id)

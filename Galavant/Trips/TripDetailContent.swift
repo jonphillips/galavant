@@ -92,15 +92,24 @@ struct TripDetailContent: View {
     }
   }
 
-  /// Add a pool idea on the Ideas tab. On the Itinerary tab this is the
-  /// freeform path only — a shortlisted idea is added straight onto a day (or
-  /// the bucket) via that section's own "+" (ADR-0010).
+  /// Add a pool idea on the Ideas tab. On the Itinerary tab a menu offers the two
+  /// born-on-the-trip records: a freeform stop (ADR-0010) or lodging (ADR-0011) —
+  /// a shortlisted idea is still added onto a day via that section's own "+".
   @ViewBuilder private var addButton: some View {
     switch model.sheetTab {
     case .ideas:
       Button { model.addIdeasButtonTapped() } label: { Icon.add.label("Add Ideas") }
     case .itinerary:
-      Button { model.addCustomStopButtonTapped() } label: { Icon.add.label("Add Custom Stop") }
+      Menu {
+        Button { model.addCustomStopButtonTapped() } label: {
+          Label("Custom Stop", systemImage: "mappin.and.ellipse")
+        }
+        Button { model.addLodgingButtonTapped() } label: {
+          Icon.stay.label("Lodging")
+        }
+      } label: {
+        Icon.add.label("Add")
+      }
     }
   }
 }

@@ -32,6 +32,7 @@ struct TripCanvasMapView: View {
       ForEach(visibleDays) { day in
         dayContent(day)
       }
+      baseContent
     }
     .onMapCameraChange(frequency: .onEnd) { context in
       visibleRegion = context.region
@@ -43,7 +44,9 @@ struct TripCanvasMapView: View {
     // pin is already above the sheet, so shrinking it never jerks the map).
     .onChange(of: bottomInsetFraction) { _, _ in revealStop(model.canvasSelectedStopID) }
     .overlay {
-      if !model.plan.hasLocatedStops {
+      // A located home-base pin counts as something on the map, so a trip with
+      // only a hotel stay isn't a dead end (ADR-0011).
+      if !model.plan.hasLocatedStops && model.plan.baseStays(forDay: nil).isEmpty {
         ContentUnavailableView {
           Icon.map.label("Nothing on the map yet")
         } description: {
@@ -79,12 +82,32 @@ struct TripCanvasMapView: View {
     }
   }
 
+  /// The off-sequence home-base pins for the current lens (ADR-0011): a stay you
+  /// return to each night, drawn unnumbered and *not* on any day's polyline, on
+  /// every covered day-lens and on "All". A distinct neutral glyph reads as "home
+  /// base," not "step N of a route." Non-selectable (no `.tag`) — `locatedStops` /
+  /// `legs` and the shared stop selection stay untouched.
+  @MapContentBuilder
+  private var baseContent: some MapContent {
+    ForEach(model.plan.baseStays(forDay: model.canvasSelectedDay)) { stay in
+      if let coordinate = stay.coordinate {
+        Annotation(stay.content.title, coordinate: coordinate, anchor: .bottom) {
+          BasePin()
+        }
+      }
+    }
+  }
+
   // MARK: - Camera
 
   /// Frame the camera to the current lens: the selected day's located stops, the
   /// whole trip when "All", falling back to the trip's regions, then automatic.
   private func frameSelection() {
+    // Fold the lens's home-base pins into the framing so a stay stays in view even
+    // when the day's stops sit elsewhere (ADR-0011); `framingCoordinates` itself
+    // stays stop-only.
     let coords = model.plan.framingCoordinates(forDay: model.canvasSelectedDay)
+      + model.plan.baseCoordinates(forDay: model.canvasSelectedDay)
     if let box = MapFraming.box(for: coords) {
       cameraPosition = .region(box.region)
     } else if let region = tripRegionFrame {
@@ -165,8 +188,30 @@ private struct NumberedPin: View {
   }
 }
 
+/// The off-sequence home-base marker: a neutral bed glyph in a soft capsule,
+/// deliberately *unlike* the numbered route pins so it reads as "the place you
+/// return to," not a step on the day's route. (Final styling is Jon's to tune
+/// against the live map.)
+private struct BasePin: View {
+  var body: some View {
+    Image(systemName: Icon.stay.systemName)
+      .font(.caption.bold())
+      .foregroundStyle(.white)
+      .frame(width: 28, height: 28)
+      .background(Circle().fill(.gray))
+      .overlay(Circle().strokeBorder(.white, lineWidth: 2))
+      .shadow(radius: 1)
+  }
+}
+
 extension ResolvedStop {
   /// The stop's map coordinate, when its idea has one. Freeform stops return nil.
+  fileprivate var coordinate: CLLocationCoordinate2D? { idea.flatMap(\.coordinate) }
+}
+
+extension ResolvedStay {
+  /// The stay's map coordinate, when its hotel idea has one. Freeform/unlocated
+  /// stays return nil and draw no base pin.
   fileprivate var coordinate: CLLocationCoordinate2D? { idea.flatMap(\.coordinate) }
 }
 

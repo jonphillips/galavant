@@ -31,6 +31,9 @@ enum Icon {
   case toBeScheduled  // committed but dayless
   case timeOfDay      // set/no time-of-day on a placed stop
   case someday        // held in a someday trip / backlog
+  case stay           // an accommodation / home base (ADR-0011)
+  case checkIn        // arriving at a stay
+  case checkOut       // leaving a stay
 
   // Travel
   case walk           // walking travel-time connector between stops
@@ -71,6 +74,9 @@ enum Icon {
     case .toBeScheduled: "calendar.badge.clock"
     case .timeOfDay: "clock"
     case .someday: "bookmark"
+    case .stay: "bed.double"
+    case .checkIn: "arrow.down.to.line"
+    case .checkOut: "arrow.up.to.line"
     case .walk: "figure.walk"
     case .map: "map"
     case .location: "mappin.circle.fill"

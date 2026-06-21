@@ -102,6 +102,9 @@ struct TripPlanningView: View {
       .sheet(item: $model.destination.freeformStop, id: \.id) { draft in
         FreeformStopSheet(model: model, draft: draft)
       }
+      .sheet(item: $model.destination.stay, id: \.id) { draft in
+        StaySheet(model: model, draft: draft)
+      }
   }
 
   @ViewBuilder private var layout: some View {

@@ -52,6 +52,25 @@ public struct ResolvedStop: Identifiable, Equatable, Sendable {
   }
 }
 
+/// A `TripStay` resolved to its content (ADR-0011) — the home-base unit the
+/// itinerary chip and the canvas base pin render. Reuses `StopContent`: a stay
+/// resolves to `.idea` when its pool hotel is found, `.freeform` when it carries
+/// an inline title. Orphans (pool hotel deleted) and malformed entries (no title)
+/// drop on read, exactly as a stop does.
+public struct ResolvedStay: Identifiable, Equatable, Sendable {
+  public var stay: TripStay
+  public var content: StopContent
+  public var id: TripStay.ID { stay.id }
+
+  /// The pool hotel for idea-backed stays; nil for freeform stays.
+  public var idea: Idea? { content.idea }
+
+  public init(stay: TripStay, content: StopContent) {
+    self.stay = stay
+    self.content = content
+  }
+}
+
 /// One itinerary day with its resolved stops, pre-ordered (see `TripPlan`).
 public struct ResolvedDay: Identifiable, Equatable, Sendable {
   public var number: Int
@@ -79,11 +98,21 @@ public struct TripPlan: Equatable, Sendable {
   public var entries: [TripIdea]
   public var ideasByID: [Idea.ID: Idea]
   public var lengthInDays: Int
+  /// This trip's accommodations (already scoped to the trip), resolved against the
+  /// same `ideasByID` pool lookup as stops (ADR-0011). Defaults empty so existing
+  /// call sites that don't pass stays keep compiling.
+  public var tripStays: [TripStay]
 
-  public init(entries: [TripIdea], ideasByID: [Idea.ID: Idea], lengthInDays: Int) {
+  public init(
+    entries: [TripIdea],
+    ideasByID: [Idea.ID: Idea],
+    lengthInDays: Int,
+    tripStays: [TripStay] = []
+  ) {
     self.entries = entries
     self.ideasByID = ideasByID
     self.lengthInDays = lengthInDays
+    self.tripStays = tripStays
   }
 
   func resolve(_ entry: TripIdea) -> ResolvedStop? {
@@ -94,6 +123,21 @@ public struct TripPlan: Equatable, Sendable {
       return ResolvedStop(entry: entry, content: .freeform(title: title, note: entry.inlineNote))
     } else {
       reportIssue("TripIdea \(entry.id) has neither ideaID nor inlineTitle — dropping")
+      return nil
+    }
+  }
+
+  /// Resolve a stay to its content (ADR-0011) — the same total mapping `resolve`
+  /// performs for a stop. Orphan (pool hotel deleted) and malformed (no title)
+  /// stays drop.
+  func resolveStay(_ stay: TripStay) -> ResolvedStay? {
+    if let ideaID = stay.ideaID {
+      guard let idea = ideasByID[ideaID] else { return nil }  // orphan — drop
+      return ResolvedStay(stay: stay, content: .idea(idea))
+    } else if let title = stay.inlineTitle, !title.isEmpty {
+      return ResolvedStay(stay: stay, content: .freeform(title: title, note: stay.inlineNote))
+    } else {
+      reportIssue("TripStay \(stay.id) has neither ideaID nor inlineTitle — dropping")
       return nil
     }
   }
@@ -150,6 +194,59 @@ public struct TripPlan: Equatable, Sendable {
     TripIdea.toBeScheduled(entries).compactMap(resolve)
   }
 
+  // MARK: - Stays (accommodations, ADR-0011)
+
+  /// This trip's resolved accommodations in span order (check-in day, then
+  /// check-out day, then check-in time), orphans/malformed dropped. The Itinerary
+  /// home-base chips and the Canvas base pins both project from this.
+  public var stays: [ResolvedStay] {
+    tripStays
+      .sorted {
+        ($0.checkInDay, $0.checkOutDay, $0.checkInSortMinutes)
+          < ($1.checkInDay, $1.checkOutDay, $1.checkInSortMinutes)
+      }
+      .compactMap(resolveStay)
+  }
+
+  /// True once the trip has at least one (resolvable) stay.
+  public var hasStays: Bool { !stays.isEmpty }
+
+  /// The resolved stays whose span covers `day` (check-in through check-out,
+  /// inclusive) — the home-base chip on each covered day's section header and the
+  /// per-day canvas base pins draw from this. Already in span order.
+  public func stays(coveringDay day: Int) -> [ResolvedStay] {
+    stays.filter { $0.stay.covers(day: day) }
+  }
+
+  /// Stays flagged as overlapping another stay (sharing a night) — advisory only,
+  /// surfaced like the gap-conflict family, never blocked (ADR-0011 §6). Computed
+  /// over the *resolvable* stays so a dropped orphan never raises a phantom flag.
+  public var overlappingStayIDs: Set<TripStay.ID> {
+    TripStay.overlapping(stays.map(\.stay))
+  }
+
+  /// The **located** stays the canvas draws as off-sequence base pins for the
+  /// current lens (ADR-0011): the stays covering `day`, or every stay on the "All"
+  /// lens (`day == nil`). Distinct per stay (a span covering several days in the
+  /// "All" lens still draws one base pin). Freeform/unlocated stays drop — they
+  /// have no coordinate, so they fall out of the canvas for free.
+  public func baseStays(forDay day: Int?) -> [ResolvedStay] {
+    let candidates = day.map { stays(coveringDay: $0) } ?? stays
+    return candidates.filter { $0.content.latitude != nil && $0.content.longitude != nil }
+  }
+
+  /// Coordinates of the located base stays for `day` — the optional camera-framing
+  /// fold (ADR-0011): combine with `framingCoordinates(forDay:)` so a day's base
+  /// pin stays in frame even when its stops sit elsewhere. Kept separate so the
+  /// point-stop `framingCoordinates` stays untouched.
+  public func baseCoordinates(forDay day: Int?) -> [(latitude: Double, longitude: Double)] {
+    baseStays(forDay: day).compactMap { resolved in
+      guard let lat = resolved.content.latitude, let lon = resolved.content.longitude
+      else { return nil }
+      return (latitude: lat, longitude: lon)
+    }
+  }
+
   // MARK: - Canvas geometry (pure projections over located stops)
 
   /// True when at least one scheduled stop carries coordinates to plot.
@@ -202,25 +299,47 @@ public struct TripPlan: Equatable, Sendable {
     }
   }
 
-  /// The interleaved stop + connector rows for one day's timeline. A connector
-  /// is inserted between consecutive located stops. A `.nowMarker` divider is
-  /// inserted at the current moment when `now` and `tripStartDate` are supplied
-  /// and today falls on this day; it never appears for undated trips.
+  /// The interleaved rows for one day's timeline: stops, travel-time connectors
+  /// between consecutive located stops, the optional `.nowMarker`, and — when
+  /// `stays` is supplied (ADR-0011) — the `.checkIn` / `.checkOut` boundary rows
+  /// for any stay arriving or leaving on this day, woven in by their (optional)
+  /// time. A check row sorts by `checkInSortMinutes` / `checkOutSortMinutes`
+  /// (default evening / morning); a check-out at equal time sorts *before* a stop,
+  /// a check-in *after*, so an untimed day reads check-out → stops → check-in. The
+  /// now-marker continues to key off point stops only (ADR-0011); a stay's middle
+  /// days carry no row here — they show only the home-base chip in the header.
   public func itineraryItems(
     forDay day: Int,
     travelTimes: [LegKey: [TransportMode: TravelTime]],
     effectiveModes: [LegKey: TransportMode],
     now: Date? = nil,
-    tripStartDate: Date? = nil
+    tripStartDate: Date? = nil,
+    stays: [ResolvedStay] = []
   ) -> [ItineraryItem] {
-    guard let resolvedDay = itinerary.first(where: { $0.number == day }) else { return [] }
-    let stops = resolvedDay.stops
-    guard !stops.isEmpty else { return [] }
+    let stops = itinerary.first(where: { $0.number == day })?.stops ?? []
+
+    // The day's check boundary rows (a stay leaving and/or a stay arriving today).
+    // Rank orders ties against a same-minute stop: check-out (0) before, check-in
+    // (2) after, stops sit at rank 1.
+    struct Boundary { let key: Int; let rank: Int; let item: ItineraryItem }
+    let boundaries: [Boundary] = stays.flatMap { resolved -> [Boundary] in
+      var out: [Boundary] = []
+      if resolved.stay.checkOutDay == day {
+        out.append(Boundary(key: resolved.stay.checkOutSortMinutes, rank: 0, item: .checkOut(resolved)))
+      }
+      if resolved.stay.checkInDay == day {
+        out.append(Boundary(key: resolved.stay.checkInSortMinutes, rank: 2, item: .checkIn(resolved)))
+      }
+      return out
+    }
+
+    // A day with neither stops nor boundaries has no timeline.
+    guard !stops.isEmpty || !boundaries.isEmpty else { return [] }
 
     // Index in `stops` before which to insert the now marker, or `stops.count`
     // to place it after all stops (every stop is past). Nil = don't show marker.
     let markerAt: Int? = {
-      guard let now, let tripStartDate else { return nil }
+      guard let now, let tripStartDate, !stops.isEmpty else { return nil }
       let cal = Calendar.current
       guard
         let dayStart = cal.date(byAdding: .day, value: day - 1, to: tripStartDate),
@@ -233,25 +352,40 @@ public struct TripPlan: Equatable, Sendable {
       }) ?? stops.count
     }()
 
+    // One ordered stream of stops + boundaries. Stops carry their intra-day sort
+    // key at rank 1; a stable sort keeps stops in their existing order on ties.
+    enum Slot { case stop(Int); case boundary(ItineraryItem) }
+    var stream: [(key: Int, rank: Int, slot: Slot)] =
+      stops.enumerated().map { (i, stop) in (stop.entry.schedule.intraDaySort, 1, .stop(i)) }
+    stream += boundaries.map { ($0.key, $0.rank, .boundary($0.item)) }
+    stream.sort { ($0.key, $0.rank) < ($1.key, $1.rank) }
+
     var items: [ItineraryItem] = []
     var markerInserted = false
-    for (i, stop) in stops.enumerated() {
-      if let at = markerAt, i == at, !markerInserted {
-        items.append(.nowMarker)
-        markerInserted = true
+    for entry in stream {
+      switch entry.slot {
+      case let .boundary(item):
+        items.append(item)
+      case let .stop(i):
+        if let at = markerAt, i == at, !markerInserted {
+          items.append(.nowMarker)
+          markerInserted = true
+        }
+        let stop = stops[i]
+        items.append(.stop(stop))
+        // A connector trails a stop when the next route stop (i+1) is also located.
+        guard i < stops.count - 1 else { continue }
+        let next = stops[i + 1]
+        guard
+          let fromLat = stop.content.latitude, let fromLon = stop.content.longitude,
+          let toLat = next.content.latitude, let toLon = next.content.longitude
+        else { continue }
+        let key = LegKey(fromLat: fromLat, fromLon: fromLon, toLat: toLat, toLon: toLon)
+        let mode = effectiveModes[key] ?? .walking
+        let tt = travelTimes[key]?[mode]
+        items.append(.connector(TravelConnector(
+          fromStopID: stop.id, toStopID: next.id, leg: key, mode: mode, travelTime: tt)))
       }
-      items.append(.stop(stop))
-      guard i < stops.count - 1 else { continue }
-      let next = stops[i + 1]
-      guard
-        let fromLat = stop.content.latitude, let fromLon = stop.content.longitude,
-        let toLat = next.content.latitude, let toLon = next.content.longitude
-      else { continue }
-      let key = LegKey(fromLat: fromLat, fromLon: fromLon, toLat: toLat, toLon: toLon)
-      let mode = effectiveModes[key] ?? .walking
-      let tt = travelTimes[key]?[mode]
-      items.append(.connector(TravelConnector(
-        fromStopID: stop.id, toStopID: next.id, leg: key, mode: mode, travelTime: tt)))
     }
     // Marker after the last stop when every stop is past.
     if let at = markerAt, at == stops.count, !markerInserted {

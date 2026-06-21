@@ -354,6 +354,33 @@ extension DependencyValues {
       )
       .execute(db)
     }
+    migrator.registerMigration("Create tripStays table (ADR-0011)") { db in
+      // A stay rides its trip (single real FK, cascade-deletes); ideaID is a loose,
+      // optional UUID reconciled on read (ADR-0007), so no SQL FK on it. A freeform
+      // stay carries inlineTitle/inlineNote with ideaID NULL.
+      try #sql(
+        """
+        CREATE TABLE "tripStays" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "tripID" TEXT NOT NULL REFERENCES "trips"("id") ON DELETE CASCADE,
+          "ideaID" TEXT,
+          "inlineTitle" TEXT,
+          "inlineNote" TEXT,
+          "checkInDay" INTEGER NOT NULL DEFAULT 1,
+          "checkOutDay" INTEGER NOT NULL DEFAULT 2,
+          "checkInTime" TEXT,
+          "checkOutTime" TEXT
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_tripStays_on_tripID" ON "tripStays"("tripID")
+        """
+      )
+      .execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if context == .live, startSyncEngine {
@@ -365,7 +392,7 @@ extension DependencyValues {
           for: database,
           tables: TravelParty.self, Idea.self, Planner.self, IdeaInterest.self,
           MapRegion.self, Tag.self, IdeaTag.self, Trip.self, TripIdea.self,
-          TripRegion.self, ImageAsset.self
+          TripRegion.self, ImageAsset.self, TripStay.self
         )
       } catch {
         reportIssue("CloudKit sync unavailable; running local-only: \(error)")
