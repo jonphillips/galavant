@@ -40,6 +40,7 @@ struct TripItineraryView: View {
       forDay: day, travelTimes: model.travelTimes, effectiveModes: model.effectiveModes,
       now: Date.now, tripStartDate: model.trip?.startDate,
       stays: model.plan.stays(coveringDay: day))
+    let sequence = model.plan.locatedSequenceNumbers(forDay: day)
     return List {
       Section {
         if items.isEmpty {
@@ -47,7 +48,7 @@ struct TripItineraryView: View {
             .font(.subheadline)
             .foregroundStyle(.tertiary)
         } else {
-          ForEach(items) { item in itineraryRow(item) }
+          ForEach(items) { item in itineraryRow(item, sequence: sequence) }
         }
       } header: {
         sectionHeader(dayLabel(day, trip: model.trip), day: day)
@@ -76,13 +77,14 @@ struct TripItineraryView: View {
           forDay: day.number, travelTimes: model.travelTimes, effectiveModes: model.effectiveModes,
           now: Date.now, tripStartDate: model.trip?.startDate,
           stays: model.plan.stays(coveringDay: day.number))
+        let sequence = model.plan.locatedSequenceNumbers(forDay: day.number)
         Section {
           if items.isEmpty {
             Text("No stops yet")
               .font(.subheadline)
               .foregroundStyle(.tertiary)
           } else {
-            ForEach(items) { item in itineraryRow(item) }
+            ForEach(items) { item in itineraryRow(item, sequence: sequence) }
           }
         } header: {
           sectionHeader(dayLabel(day.number, trip: model.trip), day: day.number)
@@ -146,9 +148,11 @@ struct TripItineraryView: View {
     .textCase(nil)
   }
 
-  @ViewBuilder private func itineraryRow(_ item: ItineraryItem) -> some View {
+  @ViewBuilder private func itineraryRow(
+    _ item: ItineraryItem, sequence: [TripIdea.ID: Int] = [:]
+  ) -> some View {
     switch item {
-    case .stop(let resolved): stopRow(resolved)
+    case .stop(let resolved): stopRow(resolved, sequence: sequence)
     case .connector(let connector): connectorRow(connector)
     case .nowMarker: nowMarkerRow
     case .checkIn(let stay): checkRow(stay, isCheckIn: true)
@@ -187,9 +191,17 @@ struct TripItineraryView: View {
   /// its `StopMenu`, and a tap. An idea-backed row taps to select on the shared
   /// canvas (the info button is its own hit target); a freeform row has no map
   /// pin to select, so it taps to open its inline editor instead (ADR-0010).
-  private func stopRow(_ resolved: ResolvedStop) -> some View {
+  private func stopRow(
+    _ resolved: ResolvedStop, sequence: [TripIdea.ID: Int] = [:]
+  ) -> some View {
     let isFreeform = resolved.idea == nil
-    return PlanningRow(content: resolved.content, subtitle: .category) {
+    // A located stop wears its day-coloured map-pin number; everything else
+    // (unlocated/freeform stops, and every non-day caller — the To-Be-Scheduled
+    // bucket — passing an empty `sequence`) keeps the kind icon.
+    let marker: PlanningRowMarker = sequence[resolved.id].map {
+      .sequence($0, DayPalette.color(forDay: resolved.entry.dayNumber ?? 1))
+    } ?? .kind
+    return PlanningRow(content: resolved.content, subtitle: .category, marker: marker) {
       HStack(spacing: 14) {
         if let idea = resolved.idea {
           Button { model.showDetail(idea) } label: {

@@ -276,6 +276,18 @@ public struct TripPlan: Equatable, Sendable {
       .filter { $0.content.latitude != nil && $0.content.longitude != nil }
   }
 
+  /// The 1-based map-pin sequence number for each located stop on `day`, keyed by
+  /// stop ID — the exact numbering the canvas pins wear (`locatedStops(forDay:)`
+  /// order). Unlocated/freeform stops are absent (they carry no pin), so a timeline
+  /// row looks itself up here and shows a number only when it has a matching pin.
+  public func locatedSequenceNumbers(forDay day: Int) -> [TripIdea.ID: Int] {
+    var result: [TripIdea.ID: Int] = [:]
+    for (index, stop) in locatedStops(forDay: day).enumerated() {
+      result[stop.id] = index + 1
+    }
+    return result
+  }
+
   // MARK: - Travel-time connectors (docs/trip-canvas.md)
 
   /// All directed route segments across every day, in itinerary order — the set

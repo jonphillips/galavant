@@ -71,7 +71,7 @@ struct TripCanvasMapView: View {
     ForEach(Array(stops.enumerated()), id: \.element.id) { index, resolved in
       if let coordinate = resolved.coordinate {
         Annotation(resolved.content.title, coordinate: coordinate, anchor: .bottom) {
-          NumberedPin(
+          SequencePin(
             number: index + 1,
             color: color,
             selected: model.canvasSelectedStopID == resolved.id
@@ -165,26 +165,6 @@ struct TripCanvasMapView: View {
       ].map { (latitude: $0.0, longitude: $0.1) }
     }
     return MapFraming.box(for: corners)?.region
-  }
-}
-
-/// A numbered stop marker in its day's colour; it swells and lifts when it's the
-/// shared selection.
-private struct NumberedPin: View {
-  let number: Int
-  let color: Color
-  let selected: Bool
-
-  var body: some View {
-    Text("\(number)")
-      .font(.caption.bold())
-      .foregroundStyle(.white)
-      .frame(width: 26, height: 26)
-      .background(Circle().fill(color))
-      .overlay(Circle().strokeBorder(.white, lineWidth: 2))
-      .scaleEffect(selected ? 1.35 : 1)
-      .shadow(radius: selected ? 4 : 1)
-      .animation(.spring(duration: 0.25), value: selected)
   }
 }
 
