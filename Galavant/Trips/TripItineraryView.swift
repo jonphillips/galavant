@@ -38,7 +38,8 @@ struct TripItineraryView: View {
   private func focusedDayList(_ day: Int) -> some View {
     let items = model.plan.itineraryItems(
       forDay: day, travelTimes: model.travelTimes, effectiveModes: model.effectiveModes,
-      now: Date.now, tripStartDate: model.trip?.startDate)
+      now: Date.now, tripStartDate: model.trip?.startDate,
+      stays: model.plan.stays(coveringDay: day))
     return List {
       Section {
         if items.isEmpty {
@@ -73,7 +74,8 @@ struct TripItineraryView: View {
       ForEach(model.plan.itinerary) { day in
         let items = model.plan.itineraryItems(
           forDay: day.number, travelTimes: model.travelTimes, effectiveModes: model.effectiveModes,
-          now: Date.now, tripStartDate: model.trip?.startDate)
+          now: Date.now, tripStartDate: model.trip?.startDate,
+          stays: model.plan.stays(coveringDay: day.number))
         Section {
           if items.isEmpty {
             Text("No stops yet")
@@ -90,19 +92,58 @@ struct TripItineraryView: View {
   }
 
   /// A section header with a trailing "+" that drops a shortlisted idea straight
-  /// into this section — a day, or the To Be Scheduled bucket (`day == nil`).
+  /// into this section — a day, or the To Be Scheduled bucket (`day == nil`). On a
+  /// day a stay covers, a quiet home-base chip (🛏 hotel) sits under the label
+  /// (ADR-0011); tapping it edits the stay.
   private func sectionHeader(_ label: String, day: Int?) -> some View {
-    HStack {
-      Text(label)
-      Spacer()
-      Button {
-        model.addToSectionTapped(day: day)
-      } label: {
-        Icon.add.image
+    VStack(alignment: .leading, spacing: 6) {
+      HStack {
+        Text(label)
+        Spacer()
+        Button {
+          model.addToSectionTapped(day: day)
+        } label: {
+          Icon.add.image
+        }
+        .buttonStyle(.borderless)
+        .accessibilityLabel("Add to \(label)")
       }
-      .buttonStyle(.borderless)
-      .accessibilityLabel("Add to \(label)")
+      if let day {
+        let stays = model.plan.stays(coveringDay: day)
+        if !stays.isEmpty {
+          let overlapping = model.plan.overlappingStayIDs
+          HStack(spacing: 6) {
+            ForEach(stays) { stay in
+              homeBaseChip(stay, flagged: overlapping.contains(stay.id))
+            }
+          }
+        }
+      }
     }
+  }
+
+  /// A small "you're based here" chip for a stay covering this day. The bed glyph
+  /// + hotel name; an advisory warning tint when the stay overlaps another
+  /// (ADR-0011 §6). Tap to edit the stay. (Final styling is Jon's to tune.)
+  private func homeBaseChip(_ stay: ResolvedStay, flagged: Bool) -> some View {
+    Button {
+      model.editStay(stay)
+    } label: {
+      HStack(spacing: 5) {
+        Icon.stay.image.imageScale(.medium)
+        Text(stay.content.title).lineLimit(1)
+        if flagged {
+          Image(systemName: "exclamationmark.triangle.fill").imageScale(.small)
+        }
+      }
+      .font(.subheadline)
+      .foregroundStyle(flagged ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
+      .padding(.horizontal, 11)
+      .padding(.vertical, 6)
+      .background(Capsule().fill(Color(.tertiarySystemFill)))
+    }
+    .buttonStyle(.borderless)
+    .textCase(nil)
   }
 
   @ViewBuilder private func itineraryRow(_ item: ItineraryItem) -> some View {
@@ -110,7 +151,36 @@ struct TripItineraryView: View {
     case .stop(let resolved): stopRow(resolved)
     case .connector(let connector): connectorRow(connector)
     case .nowMarker: nowMarkerRow
+    case .checkIn(let stay): checkRow(stay, isCheckIn: true)
+    case .checkOut(let stay): checkRow(stay, isCheckIn: false)
     }
+  }
+
+  /// A stay boundary row — "Check in" on the stay's check-in day, "Check out" on
+  /// its check-out day, with the hotel name and the optional clock time. Taps to
+  /// edit the stay. Reads as an event in the timeline, distinct from a point stop.
+  private func checkRow(_ stay: ResolvedStay, isCheckIn: Bool) -> some View {
+    let time = isCheckIn ? stay.stay.checkInTime : stay.stay.checkOutTime
+    return HStack(spacing: 12) {
+      (isCheckIn ? Icon.checkIn : Icon.checkOut).image
+        .foregroundStyle(.secondary)
+        .frame(width: 24)
+      VStack(alignment: .leading, spacing: 2) {
+        Text(isCheckIn ? "Check in" : "Check out")
+          .font(.subheadline.weight(.medium))
+        Text(stay.content.title)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+          .lineLimit(1)
+      }
+      Spacer()
+      if let time {
+        Text(time).font(.subheadline.monospaced()).foregroundStyle(.secondary)
+      }
+    }
+    .padding(.vertical, 2)
+    .contentShape(Rectangle())
+    .onTapGesture { model.editStay(stay) }
   }
 
   /// A stop row: the stop content, an optional info button (idea-backed only),

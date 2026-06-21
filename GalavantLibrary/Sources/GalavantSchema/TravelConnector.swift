@@ -90,12 +90,20 @@ public enum ItineraryItem: Identifiable, Equatable, Sendable {
   /// A divider that reads "Now" — inserted at the current moment in time within
   /// today's day section. Only appears on dated trips while the trip is active.
   case nowMarker
+  /// The check-in boundary of a stay, on its `checkInDay` — a timeline event
+  /// sorted by the stay's (optional) check-in time, default evening (ADR-0011).
+  case checkIn(ResolvedStay)
+  /// The check-out boundary of a stay, on its `checkOutDay` — sorted by the stay's
+  /// (optional) check-out time, default morning.
+  case checkOut(ResolvedStay)
 
   public var id: String {
     switch self {
     case .stop(let s): "stop-\(s.id)"
     case .connector(let c): "connector-\(c.id)"
     case .nowMarker: "now-marker"
+    case .checkIn(let s): "checkIn-\(s.id)"
+    case .checkOut(let s): "checkOut-\(s.id)"
     }
   }
 }
