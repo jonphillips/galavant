@@ -3,7 +3,15 @@
 Not milestone-scoped (see ROADMAP.md for those). Running list of refinements
 noted in passing, with enough context to act on cold.
 
-## On-device Apple Intelligence for capture enrichment (2026-06-17) — next up
+## On-device Apple Intelligence for capture enrichment (2026-06-17) — DONE
+
+Shipped as **M4d** (2026-06-17, commit e7b0ebe; see ROADMAP). `PlaceIntelligence`,
+an injectable `FoundationModels` client in `GalavantPlaces`, refines the parse
+before the Apple Maps match via one guided-generation call (`@Generable` +
+`@Guide`): clean name, mined city/region, classified `IdeaKind`, de-marketed
+notes; availability-gated with silent fallback to the deterministic parser, and
+unit-tested with a fixture. Built as described below. Original note retained for
+context.
 
 Use the on-device **Foundation Models** framework (Apple Intelligence; iOS 26+, we
 deploy 27) to clean and supplement what the `GalavantCapture` parser extracts —
@@ -321,7 +329,14 @@ unobscured area above the sheet). Needs the sheet's current height plumbed from
 than mapping detents to points. Costs a bit more than the strict minimum pan, by
 design (keep the pin out from under the sheet).
 
-## Itinerary completion model: assume-done + a "now" marker (from Jon, 2026-06-13)
+## Itinerary completion model: assume-done + a "now" marker (from Jon, 2026-06-13) — PARTLY DONE
+
+The **"now" marker shipped 2026-06-20** (commit 5353650): a you-are-here divider
+on active dated trips (`TripItineraryView` + the `TripPlan` core), so the current
+moment's place in the itinerary is shown. **Still deferred:** the inferred
+completion / **trip-level done→visited rollup** (flip a past trip's non-skipped
+scheduled ideas' `visited`) — the `TripIdea.markDone` op + test remain the
+mechanism; only the trip-level trigger is unbuilt. Original note below.
 
 Jon removed per-stop **Mark Done** from M3c — "no one wants to mark Done on an
 itinerary; just assume they did it." Skipped stays (an explicit negative signal).
@@ -334,15 +349,17 @@ trip is past/marked complete, flip its scheduled ideas' `visited`. The
 `TripIdea.markDone` op + test stay (the mechanism); only the UI trigger changes.
 Design item; pairs with weather/“now” work on the trip canvas.
 
-## Freeform itinerary stops not tied to an idea (from Jon, 2026-06-13) — DESIGNED
+## Freeform itinerary stops not tied to an idea (from Jon, 2026-06-13) — DONE
 
-Design settled in **ADR-0010** (2026-06-20): `TripIdea.ideaID` becomes optional
-plus `inlineTitle`/`inlineNote` columns; the read-model resolves "what is this
-stop" into a `StopContent` enum (`.idea` / `.freeform`). One record, one
-itinerary pipeline. Freeform stops are born `.scheduled` and carry no coordinate
-(so no map pin / travel-leg, handled for free). Implementation not yet started —
-schema migration + ~13 `stop.idea.*` call-site moves + an "add a break" write
-path. See ADR-0010 for the full rationale (incl. why not a sibling record).
+Shipped 2026-06-20 across three slices per **ADR-0010** (commits b3a1015 /
+61d900a / d3f4008): (1) schema migration + read-model core — `TripIdea.ideaID`
+made optional with `inlineTitle`/`inlineNote` columns, the read-model resolving
+each stop into a `StopContent` enum (`.idea` / `.freeform`); (2) stop ops re-keyed
+from `Idea.ID` to `TripIdea.ID` so freeform stops work end-to-end; (3) the write
+path — per-section "+" and an Add Custom Stop flow. Freeform stops are born
+`.scheduled` and carry no coordinate (so no map pin / travel-leg, handled for
+free). One record, one itinerary pipeline. See ADR-0010 for the full rationale
+(incl. why not a sibling record).
 
 ## Accommodations (from Jon, 2026-06-13)
 

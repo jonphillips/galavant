@@ -20,7 +20,7 @@ first. Update this file when reality diverges — it's a living doc, not a contr
 - ✅ M2a: TravelParty/Planner/IdeaInterest schema, kinds, per-planner first-run identity, his/hers interest UI
 - ✅ M2b: MapKit location search in the form (idea gets coordinates) + pool map with pins + list/map toggle
 - ✅ M2c: first-class MapRegion (containment-based), pool filter (region/kind/visited), filter UI + define-region-from-map, filter-summary bar
-- ✅ Capture polish: **search-first form** — place search leads, auto-populates name/kind/link/address/phone from MapKit (`MKMapItem` + pure `IdeaKind` POI mapping); ⏳ Tags (first-class?); ⏳ location-search robustness (region-bias — docs/BACKLOG.md)
+- ✅ Capture polish: **search-first form** — place search leads, auto-populates name/kind/link/address/phone from MapKit (`MKMapItem` + pure `IdeaKind` POI mapping); ⏳ Tags (first-class?); ✅ location-search robustness (worldwide `MKLocalSearch` natural-language query — DONE 2026-06-16, docs/BACKLOG.md)
 - ⏳ Second-device identity hardening (ADR-0008): bind-or-create planner picker, stray-party cleanup, IdeaInterest dedup-on-read
 - Full Idea model: kinds, visited state, tags, URLs, images, opening days/hours and reservable-from (manual entry)
   - **Image storage strategy** (cross-cutting; inherited by M4 scraped images + M5
@@ -38,7 +38,7 @@ first. Update this file when reality diverges — it's a living doc, not a contr
 ## M2→M3 — Adaptive nav shell ✅ (2026-06-12)
 - ✅ AppContainer: tabs on iPhone, sidebar+detail split on iPad/Mac (prefersTabNavigation, ported from V2). AppScreen sections: Ideas (real) + Trips (placeholder). Fixes the "stretched iPhone" iPad layout.
 
-## M3 — Trips
+## M3 — Trips ✅ (done 2026-06-20 — M3a–M3d + travel-time connectors, transport modes, "now" marker)
 - ✅ M3a: Trip schema (certainty pipeline someday(rank)→targeted(year,quarter)→dated + lengthInDays, flat columns behind a `Certainty` enum facade) + TripIdea join with `considering→shortlisted→scheduled→done/skipped` status (ADR-0004); functional core (`Trip.create`/`update`/`reorderSomeday`/`sectioned`, `TripIdea.pull`/`setStatus`/`remove`) + 13 tests; Trips list grouped by certainty with create/edit form and reorderable() someday backlog (deployment target bumped to iOS 27 for native reorder). Demo trips seeded.
 - ✅ M3b: pull-to-shortlist. Tapping a trip pushes a **Trip Planning screen** (segmented Shortlist | Add); Add shows the pool scoped by the reused M2c filters (region/kind/tag/visited) with pull → considering / straight-to-shortlist; Shortlist shows ranked pulls (reorderable()) + a Considering pile; per-row status menu (considering/shortlisted/scheduled/skipped/remove). Core: `TripIdea.reorderShortlist` + rank-on-promote in `setStatus` + pure `shortlist()`/`considering()`; 3 new tests (29 total). Edit moved into the planning screen. Title fix: trip name now shows (segmented control moved to a bar under the nav bar).
 - ✅ M3c (2026-06-13): **the itinerary core** — day-relative scheduling. New
@@ -85,11 +85,11 @@ first. Update this file when reality diverges — it's a living doc, not a contr
 - Itinerary: days, per-day regions (with percentDay splits), stops with the V2 Schedule enum; "bookable now / opens in N days" section on dated trips
 - Post-trip: done/skipped feedback to pool
 - Map-as-canvas trip view: day chips, numbered sequence pins, bottom-sheet timeline (docs/trip-canvas.md)
-- Travel-time connectors between a day's stops (MKDirections ETAs, gap conflicts) + open-in-Maps handoff
+- ✅ Travel-time connectors between a day's stops (MKDirections ETAs + transport-mode auto-detect/per-leg override; `TravelConnector`/`DirectionsClient`, 2026-06-20) + open-in-Maps handoff (M3d). The "now" you-are-here marker on active dated trips also shipped (2026-06-20; docs/BACKLOG.md "now marker" item).
 - Stretch: start-day solver (slide start date → check key stops' open days; docs/trip-time-model.md)
 - ✅ Done when: the Copenhagen scenario works end to end
 
-## M4 — Capture from anywhere
+## M4 — Capture from anywhere ✅ (done 2026-06-18 — M4a–M4h; CloudKit BLOB sync still to verify on two real devices, ADR-0009 §4)
 - ✅ M4a (2026-06-16): **the pure parser engine** — new isolated SPM target
   `GalavantCapture` (SwiftSoup + Foundation only; **no** SwiftUI/CloudKit, never
   sees `Idea`/`Trip` — the portfolio-extraction seam, BACKLOG/ADR-0009). `HTML →
