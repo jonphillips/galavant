@@ -344,13 +344,19 @@ itinerary pipeline. Freeform stops are born `.scheduled` and carry no coordinate
 schema migration + ~13 `stop.idea.*` call-site moves + an "add a break" write
 path. See ADR-0010 for the full rationale (incl. why not a sibling record).
 
-## Accommodations (from Jon, 2026-06-13)
+## Accommodations (from Jon, 2026-06-13) — DESIGNED
 
-Not yet modeled. Hotels/stays behave unlike point stops: they **span nights**,
-should appear across the days they cover (or as a persistent day-header chip),
-and drive each day's "home base" region (ties into the deferred per-day region
-stops). Likely its own record (a stay with check-in/out day numbers) rather than
-a `.timed` stop. Own design pass — sibling to per-day regions and the map canvas.
+Design settled in **ADR-0011** (2026-06-20): a sibling **`TripStay`** record (one
+FK → `Trip`, loose optional `ideaID`, freeform-capable, `checkInDay`/`checkOutDay`
++ optional `"HH:mm"` times), *not* a `Schedule` case — the span inverts ADR-0010's
+one-record logic. Itinerary = a home-base chip on every covered day header +
+check-in/check-out timeline rows (new `ItineraryItem.checkIn`/`.checkOut`); canvas
+= a distinct off-sequence base pin, unnumbered, off the day polyline. Stays are
+born on the trip (not pulled); overlap is allowed-but-flagged. Deferred seams:
+booking metadata/`pinnedDate` (trip-time-model §4), per-day-region *driving*
+(display-only for now), a "Stays" summary band, hotel-anchored routing.
+Implementation not yet started. See ADR-0011 for the full rationale (incl. why a
+sibling record, not a `TripIdea` extension).
 
 ## Portfolio extraction seams: parser engine + image processing (from Jon, 2026-06-14)
 
