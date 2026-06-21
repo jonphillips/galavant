@@ -61,8 +61,8 @@ first. Update this file when reality diverges — it's a living doc, not a contr
   per-stop action** (Jon: completion is assumed once the trip passes) — the
   `markDone`→`visited` op stays as the mechanism for a future trip-level rollup +
   a "now" marker (docs/BACKLOG.md). Deferred: clock-time *entry* UI, drag stops
-  between days, freeform (non-idea) stops, accommodations, per-day region stops
-  (`.timed` + schema already support the first). `TripRegion` join (single-FK→Trip ON DELETE CASCADE, loose regionID per ADR-0007) with `setRegions` reconcile + `regionIDs(forTrip:)`. `poolFiltered` now takes a region **union** (`regions: [MapRegion]`, empty = no constraint, match any); IdeasListModel + tests updated. Multi-region picker in the trip form; the Add lens (`Set<MapRegion.ID>`) **pre-seeds from the trip's regions** on appear. Demo trips pre-associated with regions. 32 tests green. (Reorder-on-fast-nav race parked as a beta-watch item — docs/KNOWN-ISSUES.md.)
+  between days, per-day region stops (`.timed` + schema already support the first;
+  freeform stops shipped M3g, accommodations M3h, the now marker M3f). `TripRegion` join (single-FK→Trip ON DELETE CASCADE, loose regionID per ADR-0007) with `setRegions` reconcile + `regionIDs(forTrip:)`. `poolFiltered` now takes a region **union** (`regions: [MapRegion]`, empty = no constraint, match any); IdeasListModel + tests updated. Multi-region picker in the trip form; the Add lens (`Set<MapRegion.ID>`) **pre-seeds from the trip's regions** on appear. Demo trips pre-associated with regions. 32 tests green. (Reorder-on-fast-nav race parked as a beta-watch item — docs/KNOWN-ISSUES.md.)
 - ✅ M3d (done, 2026-06-14): **map-as-canvas trip view** — the map is the
   trip's home (docs/trip-canvas.md). Full-bleed `TripCanvasMapView` with numbered,
   day-coloured sequence pins + per-day `MapPolyline`; a `DayChipBar` lens (All +
@@ -75,9 +75,47 @@ first. Update this file when reality diverges — it's a living doc, not a contr
   Edit sits in the trip nav toolbar. Model `Mode`→`SheetTab` + canvas
   selection/lens state; `StopMenu` extracted; `TripItineraryView` gains
   `focusedDay` + selectable rows. 49 GalavantSchema tests green; builds clean.
-  **Travel-time connectors deferred to M3e** (canvas only). (Metal API Validation
+  **Travel-time connectors deferred** (landed in M3f). (Metal API Validation
   off in the Run scheme — MapKit trips a false assert on the iOS 27 sim beta;
   docs/KNOWN-ISSUES.md.)
+- ✅ M3e (2026-06-16, PRs #1–#2): **planning polish batch.** Ideas list
+  **trip-awareness** — active-trip capsules (the certainty-derived launchpad: every
+  dated/targeted trip + the top someday) and per-cell badges showing where an idea
+  sits on the in-play trips. **His/hers rating redesign** + a pool match signal.
+  Itinerary **cleanup**: one time vocabulary across rows (clock range = hard
+  constraint, daypart = soft, bare day = faint affordance) and a category subtitle
+  inside a single-destination trip. Refactor: the **`TripPlan` read-model** pulled
+  out of `TripPlanningModel` into the tested functional core (the join + projections
+  the views consume).
+- ✅ M3f (2026-06-20): **travel-time connectors + now marker** (closes M3d's
+  deferred connectors; docs/trip-canvas.md). Injectable `directionsClient`
+  (MKDirections) fetches **walking ETAs** between consecutive located stops, cached
+  by `LegKey`+mode; **transport-mode auto-detect** (walking ≥ 20 min → transit) with
+  a **per-leg override**, and an **open-in-Maps** handoff per leg. `TravelConnector`
+  rows interleave between stops; a **"Now" marker** divider marks the current moment
+  in today's section on active **dated** trips (never undated). Pure `itineraryItems`
+  weaves stops + connectors + marker. (Itinerary drag-between-days stays backed out —
+  List DnD times out on Xcode 27 beta; docs/KNOWN-ISSUES.md.)
+- ✅ M3g (2026-06-20, ADR-0010): **freeform itinerary stops** — a custom stop with
+  no pool idea ("lunch", "train to Aarhus"), folded into the one `TripIdea` record
+  (it *is* a point stop). Three slices: schema + read-model (`StopContent` enum
+  `.idea`/`.freeform`, resolved totally — orphans/malformed dropped); re-key the stop
+  ops to `TripIdea.ID` so they serve idea-backed and freeform alike; write path —
+  per-section "+" drops a shortlisted idea straight onto a day, plus an **Add Custom
+  Stop** sheet.
+- ✅ M3h (2026-06-21, ADR-0011): **accommodations as stays** — a sibling
+  trip-scoped `TripStay` record (a span, not a `Schedule` point). Three slices:
+  schema + read-model (`TripStay` @Table, `stays` / `stays(coveringDay:)` / overlap
+  flag / `baseStays` projections reusing `StopContent`); itinerary —
+  `ItineraryItem.checkIn`/`.checkOut` rows woven by time (default evening / morning),
+  a home-base chip on every covered day, write ops + "Stay here" / "Add Lodging"
+  entry points, a lodging sheet whose hotel picker ties a stay to a pool `Idea` (so
+  it gets a map pin) or a custom name; canvas — an off-sequence base pin on every
+  covered day-lens + All, folded into camera framing, `locatedStops`/`legs`
+  untouched. Deferred (clean seams): booking metadata / `pinnedDate`,
+  per-day-region driving, stays summary band + spanning banner, hotel-anchored
+  routing. **Next: numbered itinerary rows (located-only, matching map pins), then
+  per-day regions.**
 - Trip model: **certainty lifecycle** someday(rank) → targeted(year, quarter) → dated (docs/trip-time-model.md); duration in days; **day-number-relative itinerary** + **TripIdea join with status lifecycle** (ADR-0004)
 - Trips list grouped by certainty; drag-rank the someday backlog; trip link bookmarks (label+URL)
 - Planning view: pool filtered by trip lens → pull to shortlist
