@@ -254,6 +254,75 @@ where it runs, what context/tools it gets (read the SQLite pool? call the
 schedule ops?), cost, and the two-person-household privacy posture. Park here as
 a direction; revisit after the core loop (M3/M4) is solid.
 
+## AI pool-stocking via App Intents — discovery → candidate ideas (from Jon, 2026-06-22)
+
+The concrete, bounded first slice of the "AI assistant / chat" theme above: not
+open chat, but a small **action layer**. The organizing principle (from the
+2026-06-22 design chat) — **AI stocks and understands the pool; it never decides
+the trip.** PRODUCT.md already says "a trip never automatically contains anything";
+that explicit-**pull** boundary is exactly where AI stops. AI may fill the junk
+drawer aggressively and help with the *mechanical* parts of scheduling, but the
+taste calls (what's worth pulling, what makes the trip) stay Jon's. Jon's own best
+example: *"find me all the 2- and 3-star Michelin restaurants in the Loire and
+create ideas for them"* — research that **stocks** the pool, where pulling is still
+manual, so it feels safe.
+
+**Architectural fit (no new UI concept):** ADR-0013 already distinguishes
+**candidate vs. pulled** pins. AI-generated ideas land as **candidates** — Jon
+dispositions them on the map exactly as he does today. AI is just a third,
+tireless source feeding the pool alongside share-extension capture and manual
+entry.
+
+**The discovery pipeline (generalizes the Michelin case).** This is *discovery*
+(query → a set of candidate places), distinct from today's *enrichment* (fill in
+an already-known place). Steps:
+- Query + region → a candidate set ("2–3⭐ Michelin in the Loire"; "natural wine
+  bars in Lisbon"; "playgrounds near our Rome stops").
+- Each candidate becomes a **candidate `Idea`**, auto-bucketed into the right
+  `MapRegion`, auto-`IdeaKind`/auto-tagged, enriched on-device via the existing
+  `PlaceIntelligence` (`FoundationModels`) + `GalavantPlaces` search stack.
+- **Dedup against the pool is the non-obvious essential** — don't re-add the
+  places already saved; flag near-matches. Reuse the existing place-matching in
+  `GalavantPlaces` (`PlaceMatcher`).
+
+**App Intents — two distinct payoffs (don't dismiss because we're not on the App
+Store):**
+- *Personal friction reduction.* "Hey Siri, add this to our France ideas";
+  Spotlight-search the pool from the home screen; a geofence Shortcut that opens a
+  region's ideas on arrival; a glanceable "today's stops" widget.
+- *The substrate (the real reason).* Define a small, safe **verb vocabulary** as
+  App Intents over the tested schema core — `findPlaces`, `createIdea`,
+  `scheduleStop`, `rateIdea` — and expose `Idea`/`Trip`/`Region` as `AppEntity`s.
+  Then the Michelin sentence isn't a bespoke feature; it's a model decomposing the
+  request into `findPlaces` ∘ `createIdea`. Build the action layer once; natural
+  language orchestrates it. This is what makes the whole pool-stocking theme
+  *composable* rather than one-off.
+
+**Open design questions (need a real pass):**
+- **Discovery quality is the main risk.** Does "all Michelin in the Loire"
+  actually return the right set? Worth a **throwaway spike** before committing —
+  if the candidate set is wrong/incomplete, the feature is noise. On-device
+  `FoundationModels` is great at *structuring* a known place but is not a
+  web-search index; discovery likely needs web fetch (in-app, no server per
+  ADR-0001) and/or the Claude API — that's the where-it-runs/cost call the AI-chat
+  entry already flags.
+- **Live data** (real-time hours, availability, reservations) bumps the no-server
+  constraint — feasible via on-device web fetch in enrichment, but flakier; keep it
+  out of the first slice.
+- **Two-person privacy posture** — same as the AI-chat entry.
+
+**Suggested first slice:** the discovery → candidate-ideas pipeline behind a
+`findPlaces` App Intent + a simple in-app entry (region-scoped themed search,
+results reviewed as candidate pins on the pool map). Spike discovery quality
+*first*; only then wire `createIdea` and the dedup pass.
+
+**Adjacent bets surfaced in the same chat** (separate entries when they ripen, not
+this slice): **match *prediction*** — extend the his/hers `Interest.standing`
+projection from a lagging tally to a *predicted* match for unrated ideas (the most
+differentiated long-term bet, unique to a two-person app); **semantic pool search**
+("that cozy waterfront place we saved") via on-device embeddings; **latent-trip
+clustering** (surface a someday-Jutland from 14 clustered ideas).
+
 ## Drag itinerary stops between days / out of the bucket (from Jon, 2026-06-13/14) — BLOCKED (Xcode 27 beta 1)
 
 Attempted and **backed out** 2026-06-15 (M3d follow-up): **List drag-and-drop is
