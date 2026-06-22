@@ -110,21 +110,11 @@ struct TripItineraryView: View {
         .buttonStyle(.borderless)
         .accessibilityLabel("Add to \(label)")
       }
-      if let day {
-        let stays = model.plan.stays(coveringDay: day)
-        // The region menu (only worth showing once a trip spans 2+ regions) and the
-        // home-base chips share one row under the day label.
-        if model.tripRegions.count >= 2 || !stays.isEmpty {
-          let overlapping = model.plan.overlappingStayIDs
-          HStack(spacing: 6) {
-            if model.tripRegions.count >= 2 {
-              dayRegionMenu(day: day)
-            }
-            ForEach(stays) { stay in
-              homeBaseChip(stay, flagged: overlapping.contains(stay.id))
-            }
-          }
-        }
+      // The region menu lives in the header (only worth showing once a trip spans
+      // 2+ regions); accommodations moved out to real timeline rows (check-in /
+      // check-out / home-base) so the stay reads as part of the day, not a chip.
+      if let day, model.tripRegions.count >= 2 {
+        dayRegionMenu(day: day)
       }
     }
   }
@@ -159,28 +149,33 @@ struct TripItineraryView: View {
     .textCase(nil)
   }
 
-  /// A small "you're based here" chip for a stay covering this day. The bed glyph
-  /// + hotel name; an advisory warning tint when the stay overlaps another
-  /// (ADR-0011 §6). Tap to edit the stay. (Final styling is Jon's to tune.)
-  private func homeBaseChip(_ stay: ResolvedStay, flagged: Bool) -> some View {
-    Button {
-      model.editStay(stay)
-    } label: {
-      HStack(spacing: 5) {
-        Icon.stay.image.imageScale(.medium)
-        Text(stay.content.title).lineLimit(1)
-        if flagged {
-          Image(systemName: "exclamationmark.triangle.fill").imageScale(.small)
-        }
+  /// The persistent "you're based here" row on a stay's middle days (ADR-0011,
+  /// promoted from a header chip to a real row). The bed glyph + hotel name, an
+  /// advisory warning tint when the stay overlaps another (§6); tap to edit. Reads
+  /// like the check-in/out rows so the home base is part of the day's timeline.
+  private func homeBaseRow(_ stay: ResolvedStay) -> some View {
+    let flagged = model.plan.overlappingStayIDs.contains(stay.id)
+    return HStack(spacing: 12) {
+      Icon.stay.image
+        .foregroundStyle(flagged ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
+        .frame(width: 24)
+      VStack(alignment: .leading, spacing: 2) {
+        Text("Home base").font(.subheadline.weight(.medium))
+        Text(stay.content.title)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+          .lineLimit(1)
       }
-      .font(.subheadline)
-      .foregroundStyle(flagged ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
-      .padding(.horizontal, 11)
-      .padding(.vertical, 6)
-      .background(Capsule().fill(Color(.tertiarySystemFill)))
+      Spacer()
+      if flagged {
+        Image(systemName: "exclamationmark.triangle.fill")
+          .imageScale(.small)
+          .foregroundStyle(.orange)
+      }
     }
-    .buttonStyle(.borderless)
-    .textCase(nil)
+    .padding(.vertical, 2)
+    .contentShape(Rectangle())
+    .onTapGesture { model.editStay(stay) }
   }
 
   @ViewBuilder private func itineraryRow(
@@ -192,6 +187,7 @@ struct TripItineraryView: View {
     case .nowMarker: nowMarkerRow
     case .checkIn(let stay): checkRow(stay, isCheckIn: true)
     case .checkOut(let stay): checkRow(stay, isCheckIn: false)
+    case .homeBase(let stay): homeBaseRow(stay)
     }
   }
 

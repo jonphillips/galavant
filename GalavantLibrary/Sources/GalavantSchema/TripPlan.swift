@@ -355,21 +355,26 @@ public struct TripPlan: Equatable, Sendable {
 
     // The day's check boundary rows (a stay leaving and/or a stay arriving today).
     // Rank orders ties against a same-minute stop: check-out (0) before, check-in
-    // (2) after, stops sit at rank 1.
+    // (2) after, stops sit at rank 1. A *middle* day a stay covers (neither
+    // boundary) instead gets a persistent home-base row, pinned to the top.
     struct Boundary { let key: Int; let rank: Int; let item: ItineraryItem }
-    let boundaries: [Boundary] = stays.flatMap { resolved -> [Boundary] in
-      var out: [Boundary] = []
-      if resolved.stay.checkOutDay == day {
-        out.append(Boundary(key: resolved.stay.checkOutSortMinutes, rank: 0, item: .checkOut(resolved)))
+    var boundaries: [Boundary] = []
+    var homeBaseRows: [ItineraryItem] = []
+    for resolved in stays {
+      let stay = resolved.stay
+      if stay.checkOutDay == day {
+        boundaries.append(Boundary(key: stay.checkOutSortMinutes, rank: 0, item: .checkOut(resolved)))
       }
-      if resolved.stay.checkInDay == day {
-        out.append(Boundary(key: resolved.stay.checkInSortMinutes, rank: 2, item: .checkIn(resolved)))
+      if stay.checkInDay == day {
+        boundaries.append(Boundary(key: stay.checkInSortMinutes, rank: 2, item: .checkIn(resolved)))
       }
-      return out
+      if stay.checkInDay != day, stay.checkOutDay != day {
+        homeBaseRows.append(.homeBase(resolved))  // covered middle day
+      }
     }
 
-    // A day with neither stops nor boundaries has no timeline.
-    guard !stops.isEmpty || !boundaries.isEmpty else { return [] }
+    // A day with no stops, boundaries, or home base has no timeline.
+    guard !stops.isEmpty || !boundaries.isEmpty || !homeBaseRows.isEmpty else { return [] }
 
     // Index in `stops` before which to insert the now marker, or `stops.count`
     // to place it after all stops (every stop is past). Nil = don't show marker.
@@ -395,7 +400,8 @@ public struct TripPlan: Equatable, Sendable {
     stream += boundaries.map { ($0.key, $0.rank, .boundary($0.item)) }
     stream.sort { ($0.key, $0.rank) < ($1.key, $1.rank) }
 
-    var items: [ItineraryItem] = []
+    // Home-base rows lead the day (the persistent "you're staying here" anchor).
+    var items: [ItineraryItem] = homeBaseRows
     var markerInserted = false
     for entry in stream {
       switch entry.slot {

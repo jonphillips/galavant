@@ -96,6 +96,10 @@ public enum ItineraryItem: Identifiable, Equatable, Sendable {
   /// The check-out boundary of a stay, on its `checkOutDay` — sorted by the stay's
   /// (optional) check-out time, default morning.
   case checkOut(ResolvedStay)
+  /// A persistent "you're based here" row on a *middle* day a stay covers (neither
+  /// its check-in nor check-out day) — the home base as a real timeline row rather
+  /// than a header chip (ADR-0011, promoted). Sorts to the top of the day.
+  case homeBase(ResolvedStay)
 
   public var id: String {
     switch self {
@@ -104,6 +108,7 @@ public enum ItineraryItem: Identifiable, Equatable, Sendable {
     case .nowMarker: "now-marker"
     case .checkIn(let s): "checkIn-\(s.id)"
     case .checkOut(let s): "checkOut-\(s.id)"
+    case .homeBase(let s): "homeBase-\(s.id)"
     }
   }
 }

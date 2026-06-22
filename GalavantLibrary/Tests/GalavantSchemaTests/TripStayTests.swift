@@ -171,8 +171,10 @@ import Testing
     if case .checkIn(let r) = items[2] { #expect(r.id == arriving.id) } else { Issue.record("want check-in last") }
   }
 
-  @Test func middleDayOfAStayHasNoBoundaryRow() {
-    // Day 3 sits inside stay (checkIn 2, checkOut 4) — covered, but no boundary.
+  @Test func middleDayShowsAHomeBaseRowAtopItsStops() {
+    // Day 3 sits inside stay (checkIn 2, checkOut 4) — a covered middle day, so it
+    // shows a persistent home-base row leading the day, then the stop (ADR-0011,
+    // promoted to a real row).
     let (h, s) = (UUID(), UUID())
     let spanning = stay(idea: h, checkIn: 2, checkOut: 4)
     var stop = TripIdea(id: UUID(), tripID: UUID(), ideaID: s, status: .scheduled)
@@ -180,8 +182,26 @@ import Testing
     let p = planWith(stops: [stop], stays: [spanning], ideas: [idea(h), idea(s)])
     let items = p.itineraryItems(
       forDay: 3, travelTimes: [:], effectiveModes: [:], stays: p.stays(coveringDay: 3))
-    #expect(items.count == 1)
-    if case .stop = items[0] {} else { Issue.record("middle day should show only the stop") }
+    #expect(items.count == 2)
+    if case .homeBase(let r) = items[0] { #expect(r.id == spanning.id) }
+    else { Issue.record("middle day should lead with the home-base row") }
+    if case .stop = items[1] {} else { Issue.record("then the day's stop") }
+  }
+
+  @Test func boundaryDaysGetTheirEventRowNotAHomeBaseRow() {
+    // The check-in day (2) and check-out day (4) carry their event rows; neither
+    // doubles up a home-base row (the event names the hotel).
+    let h = UUID()
+    let spanning = stay(idea: h, checkIn: 2, checkOut: 4)
+    let p = planWith(stops: [], stays: [spanning], ideas: [idea(h)])
+    let checkInDay = p.itineraryItems(
+      forDay: 2, travelTimes: [:], effectiveModes: [:], stays: p.stays(coveringDay: 2))
+    let checkOutDay = p.itineraryItems(
+      forDay: 4, travelTimes: [:], effectiveModes: [:], stays: p.stays(coveringDay: 4))
+    #expect(checkInDay.count == 1)
+    if case .checkIn = checkInDay[0] {} else { Issue.record("check-in day shows the check-in row only") }
+    #expect(checkOutDay.count == 1)
+    if case .checkOut = checkOutDay[0] {} else { Issue.record("check-out day shows the check-out row only") }
   }
 
   @Test func timedCheckInWeavesAmongStopsByTime() {
