@@ -50,6 +50,7 @@ struct TripDetailContent: View {
         idea: idea,
         tagNames: model.tagNames(for: idea),
         interests: model.interests(for: idea),
+        evaluations: model.evaluations(for: idea),
         stopContext: model.stopContext(for: idea)
       )
     }
