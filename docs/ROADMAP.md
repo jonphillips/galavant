@@ -255,3 +255,46 @@ first. Update this file when reality diverges — it's a living doc, not a contr
 - TestFlight setup; app on wife's phone
 - Future/backlog: booking-window local notifications with time-of-day precision (the 3 a.m. hard-to-get-restaurant alarm — docs/recovered-requirements.md Q2)
 - ✅ Done when: both phones run it daily
+
+## M6 — Intelligence *(designing)*
+
+The AI layer, from the 2026-06-22 design chat. Spine: **AI captures, enriches, and
+explains the pool — native-faithful and provenance-aware; it never silently becomes
+the authority and never makes the pull/route decision** (reinforces ADR-0004's
+explicit-pull boundary). Stays no-server (ADR-0001): on-device models + the user's
+own frontier key + on-device web fetch, never infra Jon runs. Slices are sequenced
+so each earns the next — substrate → knowledge model → enrichment → conversation.
+
+- ✅ **M6a — model-access substrate (ADR-0014, accepted 2026-06-22):** one
+  injectable `ModelClient` boundary, two tiers — on-device `FoundationModels`
+  (generalizing M4d's `PlaceIntelligence`) + frontier Anthropic/OpenAI authenticated
+  with the user's own Keychain API key. Establishes that BYO-key frontier APIs
+  preserve no-server (no infra/auth/shared-secret) and that the key is a device-local
+  exception to ADR-0003. Design only; client + Keychain UI build with the first
+  consumer below.
+- ⏳ **M6b — source evaluations + taste profile (ADR in draft):** an `IdeaEvaluation`
+  sibling record (the `TripStay`/ADR-0011 pattern — loose optional `ideaID`,
+  native-faithful source/kind/value/display, provenance + staleness; collapse
+  source+rating-system to enums for v1; defer the normalized band) so Michelin /
+  Andrew Harper / etc. ratings attach to an `Idea` faithfully. Plus a `TravelProfile`
+  (shared party + per-planner overlay) injected through the `ModelClient` boundary as
+  the reusable taste prompt. Pure schema/domain — independent of the model plumbing.
+- ⏳ **M6c — source-aware capture + on-demand supplement (BACKLOG):** sharing from a
+  ratings source recognizes it and routes the rating into `IdeaEvaluation`; a
+  per-field "supplement" affordance fills gaps (opening hours first) via the
+  cheapest-source ladder — MapKit (`MKMapItem`) → the place's official site → a
+  human-in-the-loop `WKWebView` scrape. Generalizes M4g's `PlaceEnricher`,
+  interactive and field-targeted. (Not Google SERP scraping — ToS/brittle.)
+- ⏳ **M6d — context-aware chat window (BACKLOG/ADR):** discuss the current screen
+  (this idea + its evaluations + his/hers ratings; or this trip's itinerary) with the
+  tiered backend — on-device by default, BYO-key frontier opt-in per conversation.
+  Tools = the App Intents pool verbs (`findPlaces` / `createIdea` / query-the-pool)
+  so "which Denmark food ideas haven't we visited?" is a tool call, not a
+  hallucination. Privacy posture is a surfaced choice, never silent.
+- Adjacent long-term bet (own slice when it ripens): **match *prediction*** — extend
+  the his/hers `Interest.standing` projection from a lagging tally to a *predicted*
+  match for unrated ideas, seeded by the taste profile. The most differentiated
+  feature, unique to a two-person app.
+- ✅ Done when: shared Michelin/Harper pages land faithful ratings on pool ideas, a
+  tap supplements a stop's opening hours, and the chat window answers a real
+  pool/trip question on-device or with Jon's key.
