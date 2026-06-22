@@ -167,18 +167,10 @@ struct TripCanvasMapView: View {
         span: region.span))
   }
 
-  /// A region covering every map region the trip is scoped to (the corners of
-  /// each), or nil if the trip has none.
+  /// A region covering every map region the trip is scoped to (the union of their
+  /// extents), or nil if the trip has none.
   private var tripRegionFrame: MKCoordinateRegion? {
-    let corners = model.tripRegions.flatMap { region -> [(latitude: Double, longitude: Double)] in
-      [
-        (region.centerLatitude - region.latitudeDelta / 2,
-         region.centerLongitude - region.longitudeDelta / 2),
-        (region.centerLatitude + region.latitudeDelta / 2,
-         region.centerLongitude + region.longitudeDelta / 2),
-      ].map { (latitude: $0.0, longitude: $0.1) }
-    }
-    return MapFraming.box(for: corners)?.region
+    MapRegion.boundingBox(of: model.tripRegions)?.region
   }
 }
 

@@ -7,6 +7,8 @@ import SwiftUINavigation
 
 struct IdeasScreen: View {
   @Environment(\.scenePhase) private var scenePhase
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+  @Environment(AppRouter.self) private var router
   @State private var model = IdeasListModel()
   @State private var mode: Mode = .list
   @State private var visibleRegion: MKCoordinateRegion?
@@ -25,32 +27,36 @@ struct IdeasScreen: View {
       if !model.capsules.isEmpty {
         capsuleBar
       }
-      switch mode {
-      case .list:
-        ideasList
-      case .map:
-        PoolMapView(
-          ideas: model.filteredIdeas,
-          selectedRegion: model.selectedRegion,
-          onSelect: model.ideaTapped,
-          visibleRegion: $visibleRegion
-        )
+      // The active trip's subregions, to steer the browse (ADR-0013) — only worth
+      // showing once a trip spans 2+ regions.
+      if model.activeTripID != nil, model.tripSubregions.count >= 2 {
+        subregionBar
       }
+      content
     }
     .navigationTitle("Ideas")
+    // Consume an itinerary "Browse ideas for this day" hand-off (ADR-0013): scope to
+    // the trip, pre-toggle the day's region, and show the map. `initial: true` covers
+    // the split-view case where this screen is freshly built on selection.
+    .onChange(of: router.ideasScope?.id, initial: true) { applyIdeasScope() }
     .toolbar {
-      ToolbarItem(placement: .principal) {
-        Picker("View", selection: $mode) {
-          ForEach(Mode.allCases, id: \.self) { mode in
-            Image(systemName: mode.systemImage).tag(mode)
+      // Regular width shows list + map together (ADR-0013); the list/map toggle is
+      // only for compact, where they swap.
+      if horizontalSizeClass == .compact {
+        ToolbarItem(placement: .principal) {
+          Picker("View", selection: $mode) {
+            ForEach(Mode.allCases, id: \.self) { mode in
+              Image(systemName: mode.systemImage).tag(mode)
+            }
           }
+          .pickerStyle(.segmented)
         }
-        .pickerStyle(.segmented)
       }
       ToolbarItem {
         filterMenu
       }
-      if mode == .map {
+      // Define Region whenever a map is on screen (always on regular, map mode on compact).
+      if horizontalSizeClass == .regular || mode == .map {
         ToolbarItem {
           Button {
             namingRegion = true
@@ -126,6 +132,78 @@ struct IdeasScreen: View {
     .sheet(isPresented: $managingTags) {
       TagManagerView(model: model)
     }
+  }
+
+  /// The browse body: list + map side-by-side on iPad (regular width, ADR-0013 —
+  /// the cavern fix; Jon wants pins always in view), the list/map toggle on iPhone.
+  @ViewBuilder private var content: some View {
+    if horizontalSizeClass == .regular {
+      HStack(spacing: 0) {
+        ideasList
+          .frame(maxWidth: 420)
+        Divider()
+        poolMap
+      }
+    } else {
+      switch mode {
+      case .list: ideasList
+      case .map: poolMap
+      }
+    }
+  }
+
+  /// Apply a pending itinerary hand-off (ADR-0013): select the trip's capsule,
+  /// pre-toggle the day's region, surface the map, then clear the request.
+  private func applyIdeasScope() {
+    guard let scope = router.ideasScope else { return }
+    model.selectCapsule(scope.tripID)
+    if let regionID = scope.regionID {
+      model.selectedSubregionIDs = [regionID]
+    }
+    mode = .map
+    router.ideasScope = nil
+  }
+
+  private var poolMap: some View {
+    PoolMapView(
+      ideas: model.filteredIdeas,
+      framingRegions: model.framingRegions,
+      pulledIDs: model.activeTripIdeaIDs,
+      onSelect: model.ideaTapped,
+      visibleRegion: $visibleRegion
+    )
+  }
+
+  /// The active trip's subregions as opt-in narrowing chips (ADR-0013). None on =
+  /// the trip's full union; toggling some narrows the list and the map's framing.
+  private var subregionBar: some View {
+    ScrollView(.horizontal, showsIndicators: false) {
+      HStack(spacing: 8) {
+        ForEach(model.tripSubregions) { region in
+          subregionChip(region)
+        }
+      }
+      .padding(.horizontal)
+      .padding(.bottom, 8)
+    }
+  }
+
+  private func subregionChip(_ region: MapRegion) -> some View {
+    let on = model.selectedSubregionIDs.contains(region.id)
+    return Button {
+      model.toggleSubregion(region.id)
+    } label: {
+      HStack(spacing: 5) {
+        Icon.map.image.imageScale(.small)
+        Text(region.name).lineLimit(1)
+      }
+      .font(.subheadline)
+      .padding(.horizontal, 11)
+      .padding(.vertical, 6)
+      .background(Capsule().fill(on ? AnyShapeStyle(.tint) : AnyShapeStyle(.thinMaterial)))
+      .foregroundStyle(on ? Color.white : Color.primary)
+    }
+    .buttonStyle(.plain)
   }
 
   /// The eternal pool shows each idea's derived trip badge; an active-trip
@@ -328,4 +406,5 @@ struct IdeasScreen: View {
   NavigationStack {
     IdeasScreen()
   }
+  .environment(AppRouter())
 }
