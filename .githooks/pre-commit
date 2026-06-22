@@ -1,0 +1,25 @@
+#!/bin/sh
+# Drift-gate pre-commit hook. Runs the same SwiftLint gate as CI so violations
+# surface at commit time, not on push. Mirrors .github/workflows/ci.yml's lint job.
+# Enable on a fresh clone with:  git config core.hooksPath .githooks
+#
+# Skip with `git commit --no-verify` for an intentional WIP commit.
+
+# Nothing to lint if no Swift files are staged.
+if ! git diff --cached --name-only --diff-filter=ACM | grep -q '\.swift$'; then
+  exit 0
+fi
+
+if ! command -v swiftlint >/dev/null 2>&1; then
+  echo "pre-commit: swiftlint not found — install it with 'brew install swiftlint' (or commit with --no-verify to skip)." >&2
+  exit 1
+fi
+
+# Lint the whole project per .swiftlint.yml's included/excluded paths, exactly as
+# CI does. The drift gate is small and fast, so a full pass is cheap.
+swiftlint lint --strict --quiet
+status=$?
+if [ "$status" -ne 0 ]; then
+  echo "pre-commit: SwiftLint drift gate failed — fix the above or commit with --no-verify." >&2
+fi
+exit "$status"
