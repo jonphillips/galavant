@@ -64,6 +64,7 @@ final class TripPlanningModel {
   @ObservationIgnored @FetchAll(TripIdea.all) var allTripIdeas
   @ObservationIgnored @FetchAll(TripStay.all) var allTripStays
   @ObservationIgnored @FetchAll(TripRegion.all) var allTripRegions
+  @ObservationIgnored @FetchAll(TripDayRegion.all) var allTripDayRegions
   @ObservationIgnored @FetchAll(MapRegion.order(by: \.name)) var regions
   @ObservationIgnored @FetchAll(Tag.order(by: \.name)) var tags
   @ObservationIgnored @FetchAll(IdeaTag.all) var ideaTags
@@ -138,8 +139,12 @@ final class TripPlanningModel {
 
   private var entries: [TripIdea] { allTripIdeas.filter { $0.tripID == tripID } }
   private var stays: [TripStay] { allTripStays.filter { $0.tripID == tripID } }
+  private var dayRegions: [TripDayRegion] { allTripDayRegions.filter { $0.tripID == tripID } }
   private var ideaByID: [Idea.ID: Idea] {
     Dictionary(ideas.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+  }
+  private var regionByID: [MapRegion.ID: MapRegion] {
+    Dictionary(regions.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
   }
 
   /// This trip's resolved planning read-model — the joins, projections, and
@@ -149,7 +154,8 @@ final class TripPlanningModel {
   var plan: TripPlan {
     TripPlan(
       entries: entries, ideasByID: ideaByID,
-      lengthInDays: trip?.lengthInDays ?? 1, tripStays: stays)
+      lengthInDays: trip?.lengthInDays ?? 1, tripStays: stays,
+      dayRegions: dayRegions, regionsByID: regionByID)
   }
 
   // MARK: - Canvas mode (the map is the trip's home, M3d)
@@ -591,6 +597,22 @@ final class TripPlanningModel {
       }
     }
   }
+
+  /// Assign (or, with `nil`, clear) one of the trip's regions to a day (ADR-0012)
+  /// — frames the day's empty map and labels it. Replaces any existing assignment
+  /// for the day.
+  func setDayRegion(_ regionID: MapRegion.ID?, forDay day: Int) {
+    let tripID = tripID
+    withErrorReporting {
+      try database.write { db in
+        try TripDayRegion.setRegion(regionID, forTrip: tripID, day: day, in: db)
+      }
+    }
+  }
+
+  /// The region currently assigned to a day, if any — drives the day-header menu's
+  /// selection.
+  func dayRegion(forDay day: Int) -> MapRegion? { plan.region(forDay: day) }
 
   /// Commit a stop to the itinerary without a day — it lands in the "To Be
   /// Scheduled" bucket, where the user assigns it a day.

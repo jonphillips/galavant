@@ -112,9 +112,14 @@ struct TripItineraryView: View {
       }
       if let day {
         let stays = model.plan.stays(coveringDay: day)
-        if !stays.isEmpty {
+        // The region menu (only worth showing once a trip spans 2+ regions) and the
+        // home-base chips share one row under the day label.
+        if model.tripRegions.count >= 2 || !stays.isEmpty {
           let overlapping = model.plan.overlappingStayIDs
           HStack(spacing: 6) {
+            if model.tripRegions.count >= 2 {
+              dayRegionMenu(day: day)
+            }
             ForEach(stays) { stay in
               homeBaseChip(stay, flagged: overlapping.contains(stay.id))
             }
@@ -122,6 +127,36 @@ struct TripItineraryView: View {
         }
       }
     }
+  }
+
+  /// A chip-styled menu to assign one of the trip's regions to this day (ADR-0012)
+  /// — the region scopes the day and frames its empty map. Shown only on multi-region
+  /// trips. "None" clears it. (Final styling is Jon's to tune.)
+  private func dayRegionMenu(day: Int) -> some View {
+    let assigned = model.dayRegion(forDay: day)
+    return Menu {
+      Picker("Region", selection: Binding(
+        get: { assigned?.id },
+        set: { model.setDayRegion($0, forDay: day) }
+      )) {
+        Text("None").tag(MapRegion.ID?.none)
+        ForEach(model.tripRegions) { region in
+          Text(region.name).tag(MapRegion.ID?.some(region.id))
+        }
+      }
+    } label: {
+      HStack(spacing: 5) {
+        Icon.map.image.imageScale(.medium)
+        Text(assigned?.name ?? "Set region").lineLimit(1)
+      }
+      .font(.subheadline)
+      .foregroundStyle(assigned == nil ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
+      .padding(.horizontal, 11)
+      .padding(.vertical, 6)
+      .background(Capsule().fill(Color(.tertiarySystemFill)))
+    }
+    .buttonStyle(.borderless)
+    .textCase(nil)
   }
 
   /// A small "you're based here" chip for a stay covering this day. The bed glyph

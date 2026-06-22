@@ -102,17 +102,27 @@ public struct TripPlan: Equatable, Sendable {
   /// same `ideasByID` pool lookup as stops (ADR-0011). Defaults empty so existing
   /// call sites that don't pass stays keep compiling.
   public var tripStays: [TripStay]
+  /// This trip's per-day region assignments (already scoped to the trip), resolved
+  /// against `regionsByID` (ADR-0012). Defaults empty so existing call sites keep
+  /// compiling.
+  public var dayRegions: [TripDayRegion]
+  /// The pool of map regions a day assignment can resolve to. Defaults empty.
+  public var regionsByID: [MapRegion.ID: MapRegion]
 
   public init(
     entries: [TripIdea],
     ideasByID: [Idea.ID: Idea],
     lengthInDays: Int,
-    tripStays: [TripStay] = []
+    tripStays: [TripStay] = [],
+    dayRegions: [TripDayRegion] = [],
+    regionsByID: [MapRegion.ID: MapRegion] = [:]
   ) {
     self.entries = entries
     self.ideasByID = ideasByID
     self.lengthInDays = lengthInDays
     self.tripStays = tripStays
+    self.dayRegions = dayRegions
+    self.regionsByID = regionsByID
   }
 
   func resolve(_ entry: TripIdea) -> ResolvedStop? {
@@ -245,6 +255,19 @@ public struct TripPlan: Equatable, Sendable {
       else { return nil }
       return (latitude: lat, longitude: lon)
     }
+  }
+
+  // MARK: - Per-day region (ADR-0012)
+
+  /// The `MapRegion` assigned to `day`, if any — resolved from the day's
+  /// `TripDayRegion` assignment against `regionsByID`. A deleted region (orphan)
+  /// resolves to nil and drops out, the same reconciliation `TripRegion` uses. The
+  /// canvas frames an *empty* day (no located stops) to this region; the day-header
+  /// chip labels the day with it.
+  public func region(forDay day: Int) -> MapRegion? {
+    dayRegions
+      .first { $0.dayNumber == day }
+      .flatMap { regionsByID[$0.regionID] }
   }
 
   // MARK: - Canvas geometry (pure projections over located stops)

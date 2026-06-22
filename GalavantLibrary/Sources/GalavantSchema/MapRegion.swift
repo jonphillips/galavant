@@ -35,6 +35,18 @@ public struct MapRegion: Identifiable, Equatable, Sendable {
 }
 
 extension MapRegion {
+  /// This region as a `MapFraming.Box` — its exact center and span, no padding.
+  /// The empty-day camera frame (ADR-0012): a region is a deliberate viewport, so
+  /// it's used as drawn rather than grown like a stops crop.
+  public var box: MapFraming.Box {
+    MapFraming.Box(
+      centerLatitude: centerLatitude,
+      centerLongitude: centerLongitude,
+      latitudeDelta: latitudeDelta,
+      longitudeDelta: longitudeDelta
+    )
+  }
+
   /// Whether a coordinate falls within this region's bounds. Pure (no MapKit),
   /// so it's unit-testable and usable in queries. Antimeridian wrap is ignored
   /// — fine for a household planner.

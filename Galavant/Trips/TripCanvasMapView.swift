@@ -100,15 +100,29 @@ struct TripCanvasMapView: View {
 
   // MARK: - Camera
 
-  /// Frame the camera to the current lens: the selected day's located stops, the
-  /// whole trip when "All", falling back to the trip's regions, then automatic.
+  /// Frame the camera to the current lens, in precedence order (ADR-0012):
+  /// 1. the lens's **located stops** → a tight crop (home-base pins folded in so a
+  ///    stay stays in view, ADR-0011). Stops always win when present.
+  /// 2. else, on a specific day with an **assigned region** → that region's box —
+  ///    the empty-day canvas ("you're in the Loire today").
+  /// 3. else the existing fallback: a lone located base pin, the trip's regions,
+  ///    then automatic.
   private func frameSelection() {
-    // Fold the lens's home-base pins into the framing so a stay stays in view even
-    // when the day's stops sit elsewhere (ADR-0011); `framingCoordinates` itself
-    // stays stop-only.
-    let coords = model.plan.framingCoordinates(forDay: model.canvasSelectedDay)
-      + model.plan.baseCoordinates(forDay: model.canvasSelectedDay)
-    if let box = MapFraming.box(for: coords) {
+    let day = model.canvasSelectedDay
+    let stopCoords = model.plan.framingCoordinates(forDay: day)
+    if !stopCoords.isEmpty {
+      if let box = MapFraming.box(for: stopCoords + model.plan.baseCoordinates(forDay: day)) {
+        cameraPosition = .region(box.region)
+        return
+      }
+    }
+    // Empty of stops: a day assigned a region frames to it (only stops gate rung 1,
+    // so a lone hotel on an otherwise-empty day shows the region, not a street zoom).
+    if let day, let region = model.plan.region(forDay: day) {
+      cameraPosition = .region(region.box.region)
+      return
+    }
+    if let box = MapFraming.box(for: model.plan.baseCoordinates(forDay: day)) {
       cameraPosition = .region(box.region)
     } else if let region = tripRegionFrame {
       cameraPosition = .region(region)

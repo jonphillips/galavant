@@ -236,4 +236,45 @@ import Testing
     let p = plan(stays: [kept, gone], ideas: [idea(present)])
     #expect(p.overlappingStayIDs.isEmpty)
   }
+
+  // MARK: - Per-day region (ADR-0012)
+
+  func region(
+    _ name: String, lat: Double, lon: Double, latDelta: Double, lonDelta: Double
+  ) -> MapRegion {
+    MapRegion(
+      id: UUID(), name: name,
+      centerLatitude: lat, centerLongitude: lon,
+      latitudeDelta: latDelta, longitudeDelta: lonDelta)
+  }
+
+  func planWith(dayRegions: [TripDayRegion], regions: [MapRegion]) -> TripPlan {
+    TripPlan(
+      entries: [], ideasByID: [:], lengthInDays: 5,
+      dayRegions: dayRegions,
+      regionsByID: Dictionary(regions.map { ($0.id, $0) }, uniquingKeysWith: { f, _ in f }))
+  }
+
+  @Test func mapRegionBoxIsItsExactCenterAndSpanNoPadding() {
+    // The empty-day frame uses the region as drawn, not grown like a stops crop.
+    let loire = region("Loire", lat: 47.5, lon: 0.7, latDelta: 1.5, lonDelta: 1.5)
+    #expect(loire.box == MapFraming.Box(
+      centerLatitude: 47.5, centerLongitude: 0.7, latitudeDelta: 1.5, longitudeDelta: 1.5))
+  }
+
+  @Test func regionForDayResolvesTheAssignedRegion() {
+    let loire = region("Loire", lat: 47.5, lon: 0.7, latDelta: 1.5, lonDelta: 1.5)
+    let assignment = TripDayRegion(id: UUID(), tripID: UUID(), dayNumber: 2, regionID: loire.id)
+    let p = planWith(dayRegions: [assignment], regions: [loire])
+    #expect(p.region(forDay: 2)?.id == loire.id)
+    #expect(p.region(forDay: 3) == nil)  // unassigned day
+  }
+
+  @Test func regionForDayDropsAnOrphanAssignment() {
+    // The assignment points at a region no longer in the pool (deleted) — it drops
+    // out on read, exactly as a TripRegion orphan does.
+    let assignment = TripDayRegion(id: UUID(), tripID: UUID(), dayNumber: 2, regionID: UUID())
+    let p = planWith(dayRegions: [assignment], regions: [])
+    #expect(p.region(forDay: 2) == nil)
+  }
 }
