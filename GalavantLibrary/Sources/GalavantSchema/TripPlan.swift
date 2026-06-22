@@ -376,21 +376,8 @@ public struct TripPlan: Equatable, Sendable {
     // A day with no stops, boundaries, or home base has no timeline.
     guard !stops.isEmpty || !boundaries.isEmpty || !homeBaseRows.isEmpty else { return [] }
 
-    // Index in `stops` before which to insert the now marker, or `stops.count`
-    // to place it after all stops (every stop is past). Nil = don't show marker.
-    let markerAt: Int? = {
-      guard let now, let tripStartDate, !stops.isEmpty else { return nil }
-      let cal = Calendar.current
-      guard
-        let dayStart = cal.date(byAdding: .day, value: day - 1, to: tripStartDate),
-        cal.isDate(now, inSameDayAs: dayStart)
-      else { return nil }
-      return stops.firstIndex(where: { stop in
-        guard let d = nominalDate(entry: stop.entry, dayStart: dayStart, calendar: cal)
-        else { return false }
-        return d > now
-      }) ?? stops.count
-    }()
+    let markerAt = nowMarkerIndex(
+      in: stops, day: day, now: now, tripStartDate: tripStartDate)
 
     // One ordered stream of stops + boundaries. Stops carry their intra-day sort
     // key at rank 1; a stable sort keeps stops in their existing order on ties.
@@ -433,6 +420,25 @@ public struct TripPlan: Equatable, Sendable {
       items.append(.nowMarker)
     }
     return items
+  }
+
+  /// Index in `stops` before which the "now" marker belongs, or `stops.count` to
+  /// place it after all stops (every stop is past). Nil = no marker (not today, or
+  /// no clock supplied). Factored out of `itineraryItems` to keep that body lean.
+  private func nowMarkerIndex(
+    in stops: [ResolvedStop], day: Int, now: Date?, tripStartDate: Date?
+  ) -> Int? {
+    guard let now, let tripStartDate, !stops.isEmpty else { return nil }
+    let cal = Calendar.current
+    guard
+      let dayStart = cal.date(byAdding: .day, value: day - 1, to: tripStartDate),
+      cal.isDate(now, inSameDayAs: dayStart)
+    else { return nil }
+    return stops.firstIndex(where: { stop in
+      guard let d = nominalDate(entry: stop.entry, dayStart: dayStart, calendar: cal)
+      else { return false }
+      return d > now
+    }) ?? stops.count
   }
 
   /// Resolve the idea for an itinerary stop by its `TripIdea` ID — used by the

@@ -53,7 +53,8 @@ struct IdeasScreen: View {
         }
       }
       ToolbarItem {
-        filterMenu
+        IdeasFilterMenu(
+          model: model, managingRegions: $managingRegions, managingTags: $managingTags)
       }
       // Define Region whenever a map is on screen (always on regular, map mode on compact).
       if horizontalSizeClass == .regular || mode == .map {
@@ -219,15 +220,6 @@ struct IdeasScreen: View {
     )
   }
 
-  @ViewBuilder
-  private func checked(_ title: String, on: Bool) -> some View {
-    if on {
-      Label(title, systemImage: Icon.checkmark.systemName)
-    } else {
-      Text(title)
-    }
-  }
-
   /// The active-trip launchpad: "All" (the eternal pool) plus a pill per in-play
   /// trip. Tapping a trip scopes the pool to its lens and turns rows into a
   /// pull/rate surface for it.
@@ -274,80 +266,6 @@ struct IdeasScreen: View {
       .foregroundStyle(selected ? Color.white : Color.primary)
     }
     .buttonStyle(.plain)
-  }
-
-  private var filterMenu: some View {
-    Menu {
-      // A trip capsule supplies the geography; the manual region picker only
-      // applies to the eternal "All" pool.
-      if model.activeTripID == nil {
-        Menu("Region") {
-          Button {
-            model.selectedRegionID = nil
-          } label: {
-            checked("All regions", on: model.selectedRegionID == nil)
-          }
-          ForEach(model.sortedRegions) { region in
-            Button {
-              model.selectedRegionID = region.id
-            } label: {
-              checked(region.name, on: model.selectedRegionID == region.id)
-            }
-          }
-          if !model.regions.isEmpty {
-            Divider()
-            Button("Manage Regions…", systemImage: Icon.manage.systemName) {
-              managingRegions = true
-            }
-          }
-        }
-      }
-      Menu("Kinds") {
-        ForEach(IdeaKind.allCases, id: \.self) { kind in
-          Button {
-            model.toggleKind(kind)
-          } label: {
-            checked(kind.label, on: model.selectedKinds.contains(kind))
-          }
-        }
-      }
-      Menu("Tags") {
-        ForEach(model.sortedTags) { tag in
-          Button {
-            model.toggleTag(tag.id)
-          } label: {
-            checked(tag.name, on: model.selectedTagIDs.contains(tag.id))
-          }
-        }
-        if !model.tags.isEmpty {
-          Divider()
-          Button("Manage Tags…", systemImage: Icon.manage.systemName) {
-            managingTags = true
-          }
-        }
-      }
-      Toggle("Show visited", isOn: $model.includeVisited)
-      Toggle("Matches only", isOn: $model.showMatchesOnly)
-      Menu("Sort") {
-        ForEach(IdeasListModel.IdeaSort.allCases, id: \.self) { sort in
-          Button {
-            model.sortMode = sort
-          } label: {
-            checked(sort.label, on: model.sortMode == sort)
-          }
-        }
-      }
-      if model.isFiltering {
-        Button("Clear filters", role: .destructive) { model.clearFilters() }
-      }
-    } label: {
-      Label(
-        "Filter",
-        systemImage: model.isFiltering
-          ? Icon.filterActive.systemName
-          : "line.3.horizontal.decrease.circle"
-      )
-    }
   }
 
   private var filterSummaryBar: some View {
