@@ -70,6 +70,7 @@ final class TripPlanningModel {
   @ObservationIgnored @FetchAll(IdeaTag.all) var ideaTags
   @ObservationIgnored @FetchAll(Planner.all) var planners
   @ObservationIgnored @FetchAll(IdeaInterest.all) var interestRows
+  @ObservationIgnored @FetchAll(IdeaEvaluation.all) var allEvaluations
 
   let tripID: Trip.ID
   var destination: Destination?
@@ -383,6 +384,16 @@ final class TripPlanningModel {
         return (planner, level)
       }
       .sorted { $0.planner.displayName < $1.planner.displayName }
+  }
+
+  /// Source evaluations for an idea, orphan-drops applied. Most-recently-recorded
+  /// first — the evaluations detail section's data source (ADR-0015).
+  func evaluations(for idea: Idea) -> [IdeaEvaluation] {
+    IdeaEvaluation.evaluations(
+      forIdea: idea.id,
+      from: allEvaluations,
+      knownIdeaIDs: Set(ideas.map(\.id))
+    )
   }
 
   /// Pull an idea onto the trip as a "considering" maybe (the default + action).

@@ -23,6 +23,8 @@ struct IdeaDetailView: View {
   let idea: Idea
   let tagNames: [String]
   let interests: [(planner: Planner, level: Interest)]
+  /// Source evaluations for this idea (ADR-0015) — most-recently-recorded first.
+  var evaluations: [IdeaEvaluation] = []
   /// Set when this is a scheduled itinerary stop (vs. a plain pool idea).
   var stopContext: StopDetailContext? = nil
 
@@ -83,6 +85,14 @@ struct IdeaDetailView: View {
               Spacer()
               InterestView(interest: entry.level)
             }
+          }
+        }
+      }
+
+      if !evaluations.isEmpty {
+        Section("Evaluations") {
+          ForEach(evaluations) { eval in
+            EvaluationRow(evaluation: eval)
           }
         }
       }
@@ -159,6 +169,50 @@ struct IdeaDetailView: View {
       LabeledContent("Day", value: context.dayLabel)
       LabeledContent("Time", value: context.schedule.display)
     }
+  }
+}
+
+/// One source evaluation row — source name, native display, staleness/confidence
+/// context — shown exactly as the source expressed it (ADR-0015: never normalized).
+private struct EvaluationRow: View {
+  let evaluation: IdeaEvaluation
+
+  var body: some View {
+    HStack(alignment: .top) {
+      VStack(alignment: .leading, spacing: 2) {
+        Text(evaluation.sourceName)
+          .font(.subheadline)
+          .foregroundStyle(.primary)
+        if !contextText.isEmpty {
+          Text(contextText)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+      }
+      Spacer()
+      Text(evaluation.nativeDisplay)
+        .font(.subheadline.bold())
+        .foregroundStyle(.primary)
+    }
+    .padding(.vertical, 2)
+  }
+
+  /// Compact provenance: guide year or evaluation date + confidence badge when not
+  /// official + a staleness note when not current.
+  private var contextText: String {
+    var parts: [String] = []
+    if let year = evaluation.guideYear {
+      parts.append(String(year))
+    } else if let date = evaluation.evaluationDate {
+      parts.append(date.formatted(.dateTime.year()))
+    }
+    if evaluation.confidence != .official {
+      parts.append(evaluation.confidence.label)
+    }
+    if evaluation.staleness != .current {
+      parts.append(evaluation.staleness.label)
+    }
+    return parts.joined(separator: " · ")
   }
 }
 

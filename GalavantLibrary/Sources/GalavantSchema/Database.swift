@@ -402,6 +402,65 @@ extension DependencyValues {
       )
       .execute(db)
     }
+    migrator.registerMigration("Create ideaEvaluations and travelProfiles tables (ADR-0015)") { db in
+      // IdeaEvaluation: rides the travel party (single real FK, cascade-deletes);
+      // ideaID is a loose UUID — no SQL FK — reconciled on read (ADR-0007).
+      try #sql(
+        """
+        CREATE TABLE "ideaEvaluations" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "travelPartyID" TEXT NOT NULL REFERENCES "travelParties"("id") ON DELETE CASCADE,
+          "ideaID" TEXT NOT NULL,
+          "sourceName" TEXT NOT NULL DEFAULT '',
+          "kind" TEXT NOT NULL DEFAULT 'text',
+          "nativeValueText" TEXT NOT NULL DEFAULT '',
+          "nativeValueNumber" REAL,
+          "nativeValueMax" REAL,
+          "nativeDisplay" TEXT NOT NULL DEFAULT '',
+          "evaluationDate" TEXT,
+          "guideYear" INTEGER,
+          "recordedAt" TEXT NOT NULL,
+          "lastVerifiedAt" TEXT,
+          "confidence" TEXT NOT NULL DEFAULT 'unverified',
+          "staleness" TEXT NOT NULL DEFAULT 'unknown',
+          "sourceURL" TEXT,
+          "summary" TEXT
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_ideaEvaluations_on_travelPartyID" ON "ideaEvaluations"("travelPartyID")
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_ideaEvaluations_on_ideaID" ON "ideaEvaluations"("ideaID")
+        """
+      )
+      .execute(db)
+      // TravelProfile: rides the travel party (single real FK, cascade-deletes);
+      // plannerID is a loose optional UUID (nil = shared household profile, ADR-0007).
+      try #sql(
+        """
+        CREATE TABLE "travelProfiles" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "travelPartyID" TEXT NOT NULL REFERENCES "travelParties"("id") ON DELETE CASCADE,
+          "plannerID" TEXT,
+          "preferences" TEXT NOT NULL DEFAULT ''
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_travelProfiles_on_travelPartyID" ON "travelProfiles"("travelPartyID")
+        """
+      )
+      .execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if context == .live, startSyncEngine {
@@ -413,7 +472,8 @@ extension DependencyValues {
           for: database,
           tables: TravelParty.self, Idea.self, Planner.self, IdeaInterest.self,
           MapRegion.self, Tag.self, IdeaTag.self, Trip.self, TripIdea.self,
-          TripRegion.self, ImageAsset.self, TripStay.self, TripDayRegion.self
+          TripRegion.self, ImageAsset.self, TripStay.self, TripDayRegion.self,
+          IdeaEvaluation.self, TravelProfile.self
         )
       } catch {
         reportIssue("CloudKit sync unavailable; running local-only: \(error)")
