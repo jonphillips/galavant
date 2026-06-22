@@ -9,6 +9,7 @@ let package = Package(
     .library(name: "GalavantPlaces", targets: ["GalavantPlaces"]),
     .library(name: "GalavantCapture", targets: ["GalavantCapture"]),
     .library(name: "GalavantImaging", targets: ["GalavantImaging"]),
+    .library(name: "GalavantAI", targets: ["GalavantAI"]),
   ],
   dependencies: [
     .package(url: "https://github.com/pointfreeco/sqlite-data", from: "1.0.0"),
@@ -72,6 +73,24 @@ let package = Package(
     .testTarget(
       name: "GalavantImagingTests",
       dependencies: ["GalavantImaging"]
+    ),
+    // The tiered model-access boundary (ADR-0014): one injectable `ModelClient`
+    // every AI feature calls through, with an on-device tier (FoundationModels)
+    // and a BYO-key frontier tier (Anthropic over URLSession). App-internal, so a
+    // Galavant-scoped name is fine (ADR-0006). No SwiftUI, no CloudKit; the API
+    // key is device-local Keychain state, never a synced record (ADR-0014 §1).
+    .target(
+      name: "GalavantAI",
+      dependencies: [
+        .product(name: "Dependencies", package: "swift-dependencies"),
+      ]
+    ),
+    .testTarget(
+      name: "GalavantAITests",
+      dependencies: [
+        "GalavantAI",
+        .product(name: "DependenciesTestSupport", package: "swift-dependencies"),
+      ]
     ),
   ]
 )

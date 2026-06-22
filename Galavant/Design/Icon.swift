@@ -23,6 +23,9 @@ enum Icon {
   case manage         // manage / adjust (regions, tags)
   case info           // open a read-only detail
   case sidebar
+  case settings       // app settings / "You" area
+  case aiOnDevice     // on-device (private) AI tier
+  case aiFrontier     // frontier (networked, BYO-key) AI tier
 
   // Scheduling
   case calendar       // generic / "nothing scheduled"
@@ -68,6 +71,9 @@ enum Icon {
     case .manage: "slider.horizontal.3"
     case .info: "info.circle"
     case .sidebar: "sidebar.left"
+    case .settings: "gearshape"
+    case .aiOnDevice: "lock.iphone"
+    case .aiFrontier: "cloud"
     case .calendar: "calendar"
     case .schedule: "calendar.badge.plus"
     case .unschedule: "calendar.badge.minus"
