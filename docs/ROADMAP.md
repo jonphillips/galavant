@@ -272,6 +272,9 @@ the authority and never makes the pull/route decision** (reinforces ADR-0004's
 explicit-pull boundary). Stays no-server (ADR-0001): on-device models + the user's
 own frontier key + on-device web fetch, never infra Jon runs. Slices are sequenced
 so each earns the next — substrate → knowledge model → enrichment → conversation.
+Per-slice hand-off prompts (precedents to clone, skill checkpoints, done-criteria)
+live in `docs/M6-EXECUTION.md` — paste one into a fresh session of the suggested
+model.
 
 - ✅ **M6a — model-access substrate (ADR-0014, accepted 2026-06-22):** one
   injectable `ModelClient` boundary, two tiers — on-device `FoundationModels`
