@@ -36,6 +36,10 @@ final class IdeasListModel {
 
   // Pool filters (the "Virginia case" scoping).
   var selectedRegionID: MapRegion.ID?
+  /// The active trip's subregions toggled *on* to narrow the browse (ADR-0013).
+  /// Empty = the trip's full region union (an opt-in narrowing, not "show nothing").
+  /// Reset whenever the capsule changes.
+  var selectedSubregionIDs: Set<MapRegion.ID> = []
   var selectedKinds: Set<IdeaKind> = []
   var selectedTagIDs: Set<Tag.ID> = []
   var includeVisited = true
@@ -117,28 +121,53 @@ final class IdeasListModel {
     return trips.first { $0.id == id }
   }
 
-  /// The regions scoping the pool: the active trip's saved lens when a capsule is
-  /// selected, otherwise the manual region filter. A trip defines its own
-  /// geography, so its capsule replaces the single-region menu.
+  /// The active trip's regions, name-ordered — the subregion chips (ADR-0013).
+  var tripSubregions: [MapRegion] {
+    guard let trip = activeTrip else { return [] }
+    let ids = Set(tripRegions.filter { $0.tripID == trip.id }.map(\.regionID))
+    return sortedRegions.filter { ids.contains($0.id) }
+  }
+
+  /// The regions scoping the pool: the active trip's lens — narrowed to the toggled
+  /// subregions when any are on, else its full union (ADR-0013) — otherwise the
+  /// manual region filter. A trip defines its own geography, so its capsule replaces
+  /// the single-region menu.
   private var scopeRegions: [MapRegion] {
-    if let trip = activeTrip {
-      let ids = Set(tripRegions.filter { $0.tripID == trip.id }.map(\.regionID))
-      return regions.filter { ids.contains($0.id) }
+    if activeTrip != nil {
+      let all = tripSubregions
+      guard !selectedSubregionIDs.isEmpty else { return all }  // none on = full union
+      return all.filter { selectedSubregionIDs.contains($0.id) }
     }
     return selectedRegion.map { [$0] } ?? []
   }
 
+  /// The regions the pool map frames to — the effective lens (ADR-0013). Empty when
+  /// unscoped, leaving the map to auto-fit its pins.
+  var framingRegions: [MapRegion] { scopeRegions }
+
   /// Select an active-trip capsule, or `nil` for "All" (the eternal pool).
   /// Selecting an actual trip records it as the recent trip so a share-extension
-  /// capture defaults onto it; selecting "All" doesn't erase that memory.
+  /// capture defaults onto it; selecting "All" doesn't erase that memory. Resets the
+  /// subregion narrowing (ADR-0013) — a fresh capsule starts on its full lens.
   func selectCapsule(_ tripID: Trip.ID?) {
     activeTripID = tripID
+    selectedSubregionIDs = []
     if let tripID { recentTripStore.record(tripID) }
   }
 
+  /// Toggle a subregion chip on/off for the active-trip browse (ADR-0013).
+  func toggleSubregion(_ id: MapRegion.ID) {
+    if selectedSubregionIDs.contains(id) {
+      selectedSubregionIDs.remove(id)
+    } else {
+      selectedSubregionIDs.insert(id)
+    }
+  }
+
   /// Ideas already pulled onto the active trip — pinned into its capsule so they
-  /// show even when outside the trip's regions (the capture-onto-trip case Jon hit).
-  private var activeTripIdeaIDs: Set<Idea.ID> {
+  /// show even when outside the trip's regions (the capture-onto-trip case Jon hit),
+  /// and drawn in a distinct tint on the pool map (ADR-0013).
+  var activeTripIdeaIDs: Set<Idea.ID> {
     guard let tripID = activeTripID else { return [] }
     return Set(tripIdeas.filter { $0.tripID == tripID }.compactMap(\.ideaID))
   }

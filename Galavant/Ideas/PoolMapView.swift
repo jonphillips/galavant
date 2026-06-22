@@ -6,7 +6,12 @@ import SwiftUI
 /// Tapping a pin opens that idea.
 struct PoolMapView: View {
   let ideas: [Idea]
-  let selectedRegion: MapRegion?
+  /// The lens regions to frame to (ADR-0013): the active trip's toggled subregions,
+  /// or empty to auto-fit the pins.
+  var framingRegions: [MapRegion] = []
+  /// Ideas already on the active trip — drawn in a distinct tint from candidates
+  /// (ADR-0013). Empty for the eternal "All" pool, so nothing reads as "pulled."
+  var pulledIDs: Set<Idea.ID> = []
   let onSelect: (Idea) -> Void
   @Binding var visibleRegion: MKCoordinateRegion?
 
@@ -15,6 +20,12 @@ struct PoolMapView: View {
 
   private var mappableIdeas: [Idea] {
     ideas.filter { $0.coordinate != nil }
+  }
+
+  /// Green = already on this trip, gray = visited, red = a candidate (ADR-0013).
+  private func tint(for idea: Idea) -> Color {
+    if pulledIDs.contains(idea.id) { return .green }
+    return idea.visited ? .gray : .red
   }
 
   var body: some View {
@@ -26,7 +37,7 @@ struct PoolMapView: View {
             systemImage: idea.kind?.systemImage ?? "mappin",
             coordinate: coordinate
           )
-          .tint(idea.visited ? .gray : .red)
+          .tint(tint(for: idea))
           .tag(idea.id)
         }
       }
@@ -34,7 +45,7 @@ struct PoolMapView: View {
     .onMapCameraChange(frequency: .onEnd) { context in
       visibleRegion = context.region
     }
-    .onChange(of: selectedRegion?.id, initial: true) { frameSelectedRegion() }
+    .onChange(of: framingRegions.map(\.id), initial: true) { frameSelectedRegion() }
     .overlay {
       if mappableIdeas.isEmpty {
         ContentUnavailableView(
@@ -51,19 +62,15 @@ struct PoolMapView: View {
     }
   }
 
-  /// Zoom to the selected region's bounds, or auto-frame all pins when cleared.
+  /// Zoom to the union of the lens regions, or auto-frame all pins when unscoped.
   private func frameSelectedRegion() {
-    if let region = selectedRegion {
+    if let box = MapRegion.boundingBox(of: framingRegions) {
       cameraPosition = .region(
         MKCoordinateRegion(
           center: CLLocationCoordinate2D(
-            latitude: region.centerLatitude,
-            longitude: region.centerLongitude
-          ),
+            latitude: box.centerLatitude, longitude: box.centerLongitude),
           span: MKCoordinateSpan(
-            latitudeDelta: region.latitudeDelta,
-            longitudeDelta: region.longitudeDelta
-          )
+            latitudeDelta: box.latitudeDelta, longitudeDelta: box.longitudeDelta)
         )
       )
     } else {

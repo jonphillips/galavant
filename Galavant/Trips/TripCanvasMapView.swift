@@ -71,7 +71,7 @@ struct TripCanvasMapView: View {
     ForEach(Array(stops.enumerated()), id: \.element.id) { index, resolved in
       if let coordinate = resolved.coordinate {
         Annotation(resolved.content.title, coordinate: coordinate, anchor: .bottom) {
-          NumberedPin(
+          SequencePin(
             number: index + 1,
             color: color,
             selected: model.canvasSelectedStopID == resolved.id
@@ -100,15 +100,29 @@ struct TripCanvasMapView: View {
 
   // MARK: - Camera
 
-  /// Frame the camera to the current lens: the selected day's located stops, the
-  /// whole trip when "All", falling back to the trip's regions, then automatic.
+  /// Frame the camera to the current lens, in precedence order (ADR-0012):
+  /// 1. the lens's **located stops** → a tight crop (home-base pins folded in so a
+  ///    stay stays in view, ADR-0011). Stops always win when present.
+  /// 2. else, on a specific day with an **assigned region** → that region's box —
+  ///    the empty-day canvas ("you're in the Loire today").
+  /// 3. else the existing fallback: a lone located base pin, the trip's regions,
+  ///    then automatic.
   private func frameSelection() {
-    // Fold the lens's home-base pins into the framing so a stay stays in view even
-    // when the day's stops sit elsewhere (ADR-0011); `framingCoordinates` itself
-    // stays stop-only.
-    let coords = model.plan.framingCoordinates(forDay: model.canvasSelectedDay)
-      + model.plan.baseCoordinates(forDay: model.canvasSelectedDay)
-    if let box = MapFraming.box(for: coords) {
+    let day = model.canvasSelectedDay
+    let stopCoords = model.plan.framingCoordinates(forDay: day)
+    if !stopCoords.isEmpty {
+      if let box = MapFraming.box(for: stopCoords + model.plan.baseCoordinates(forDay: day)) {
+        cameraPosition = .region(box.region)
+        return
+      }
+    }
+    // Empty of stops: a day assigned a region frames to it (only stops gate rung 1,
+    // so a lone hotel on an otherwise-empty day shows the region, not a street zoom).
+    if let day, let region = model.plan.region(forDay: day) {
+      cameraPosition = .region(region.box.region)
+      return
+    }
+    if let box = MapFraming.box(for: model.plan.baseCoordinates(forDay: day)) {
       cameraPosition = .region(box.region)
     } else if let region = tripRegionFrame {
       cameraPosition = .region(region)
@@ -153,38 +167,10 @@ struct TripCanvasMapView: View {
         span: region.span))
   }
 
-  /// A region covering every map region the trip is scoped to (the corners of
-  /// each), or nil if the trip has none.
+  /// A region covering every map region the trip is scoped to (the union of their
+  /// extents), or nil if the trip has none.
   private var tripRegionFrame: MKCoordinateRegion? {
-    let corners = model.tripRegions.flatMap { region -> [(latitude: Double, longitude: Double)] in
-      [
-        (region.centerLatitude - region.latitudeDelta / 2,
-         region.centerLongitude - region.longitudeDelta / 2),
-        (region.centerLatitude + region.latitudeDelta / 2,
-         region.centerLongitude + region.longitudeDelta / 2),
-      ].map { (latitude: $0.0, longitude: $0.1) }
-    }
-    return MapFraming.box(for: corners)?.region
-  }
-}
-
-/// A numbered stop marker in its day's colour; it swells and lifts when it's the
-/// shared selection.
-private struct NumberedPin: View {
-  let number: Int
-  let color: Color
-  let selected: Bool
-
-  var body: some View {
-    Text("\(number)")
-      .font(.caption.bold())
-      .foregroundStyle(.white)
-      .frame(width: 26, height: 26)
-      .background(Circle().fill(color))
-      .overlay(Circle().strokeBorder(.white, lineWidth: 2))
-      .scaleEffect(selected ? 1.35 : 1)
-      .shadow(radius: selected ? 4 : 1)
-      .animation(.spring(duration: 0.25), value: selected)
+    MapRegion.boundingBox(of: model.tripRegions)?.region
   }
 }
 

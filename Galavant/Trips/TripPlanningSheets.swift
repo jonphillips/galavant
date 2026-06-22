@@ -121,9 +121,28 @@ struct PlaceIdeaSheet: View {
   let model: TripPlanningModel
   let target: PlaceIdeaTarget
   @Environment(\.dismiss) private var dismiss
+  @Environment(AppRouter.self) private var router
 
   private var sectionLabel: String {
     target.day.map { dayLabel($0, trip: model.trip) } ?? "To Be Scheduled"
+  }
+
+  /// The day's assigned region, if any (ADR-0012) — names the browse hand-off and
+  /// pre-toggles it on the Ideas screen.
+  private var dayRegion: MapRegion? {
+    target.day.flatMap { model.dayRegion(forDay: $0) }
+  }
+
+  /// Hand off to the Ideas shopping surface scoped to this trip + the day's region
+  /// (ADR-0013) — the way to browse the *whole* pool for this day, not just the
+  /// shortlist. Dismiss first so the sheet doesn't fight the screen switch.
+  private func browse() {
+    dismiss()
+    router.browseIdeas(forTrip: model.tripID, regionID: dayRegion?.id)
+  }
+
+  private var browseLabel: String {
+    dayRegion.map { "Browse \($0.name) Ideas" } ?? "Browse Ideas"
   }
 
   var body: some View {
@@ -131,9 +150,14 @@ struct PlaceIdeaSheet: View {
       Group {
         if model.plan.shortlist.isEmpty {
           ContentUnavailableView {
-            Icon.shortlist.label("Nothing to add")
+            Icon.shortlist.label("Nothing shortlisted yet")
           } description: {
-            Text("Shortlist an idea first, then drop it onto a day here.")
+            Text("Browse the pool to find ideas for this day, then shortlist them to drop here.")
+          } actions: {
+            Button(action: browse) {
+              Label(browseLabel, systemImage: Icon.map.systemName)
+            }
+            .buttonStyle(.borderedProminent)
           }
         } else {
           List {
@@ -158,6 +182,12 @@ struct PlaceIdeaSheet: View {
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
           Button("Cancel") { dismiss() }
+        }
+        // Browse the full pool for this day on the Ideas shopping surface (ADR-0013).
+        ToolbarItem(placement: .primaryAction) {
+          Button(action: browse) {
+            Label(browseLabel, systemImage: Icon.map.systemName)
+          }
         }
       }
     }

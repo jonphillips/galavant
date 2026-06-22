@@ -7,6 +7,19 @@ import Testing
     #expect(MapFraming.box(for: []) == nil)
   }
 
+  @Test func boundingBoxOfRegionsUnionsTheirExtents() throws {
+    // Two 1°-square regions; the union box should span both centres' extent.
+    let a = MapRegion(
+      id: UUID(), centerLatitude: 10, centerLongitude: 10, latitudeDelta: 1, longitudeDelta: 1)
+    let b = MapRegion(
+      id: UUID(), centerLatitude: 20, centerLongitude: 20, latitudeDelta: 1, longitudeDelta: 1)
+    let box = try #require(MapRegion.boundingBox(of: [a, b]))
+    #expect(box.centerLatitude == 15)  // midpoint of the two extents
+    #expect(box.centerLongitude == 15)
+    #expect(box.latitudeDelta > 10)    // spans corner 9.5 … 20.5
+    #expect(MapRegion.boundingBox(of: []) == nil)
+  }
+
   @Test func singlePointCentersWithDefaultSpan() {
     let box = MapFraming.box(for: [(latitude: 55.67, longitude: 12.57)])
     #expect(box?.centerLatitude == 55.67)

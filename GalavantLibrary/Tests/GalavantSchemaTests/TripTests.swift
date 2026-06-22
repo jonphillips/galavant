@@ -276,6 +276,32 @@ struct TripTests {
     #expect(count == 0)
   }
 
+  @Test func setDayRegionReplacesAndClears() async throws {
+    let (a, b) = (UUID(), UUID())
+    let (afterReassign, afterClear) = try await database.write { db -> (UUID?, UUID?) in
+      let trip = try Trip.create(name: "France", in: db)
+      try TripDayRegion.setRegion(a, forTrip: trip.id, day: 4, in: db)
+      try TripDayRegion.setRegion(b, forTrip: trip.id, day: 4, in: db)  // replaces a
+      let reassigned = try TripDayRegion.regionID(forTrip: trip.id, day: 4, in: db)
+      try TripDayRegion.setRegion(nil, forTrip: trip.id, day: 4, in: db)  // clears
+      let cleared = try TripDayRegion.regionID(forTrip: trip.id, day: 4, in: db)
+      return (reassigned, cleared)
+    }
+    #expect(afterReassign == b)  // at most one row per (trip, day)
+    #expect(afterClear == nil)
+  }
+
+  @Test func deletingTripCascadesItsDayRegions() async throws {
+    let count = try await database.write { db -> Int in
+      let trip = try Trip.create(name: "France", in: db)
+      try TripDayRegion.setRegion(UUID(), forTrip: trip.id, day: 1, in: db)
+      try TripDayRegion.setRegion(UUID(), forTrip: trip.id, day: 2, in: db)
+      try Trip.find(trip.id).delete().execute(db)
+      return try TripDayRegion.all.fetchCount(db)
+    }
+    #expect(count == 0)
+  }
+
   // MARK: - Scheduling (M3c)
 
   @Test func scheduleRoundTripsThroughColumns() {

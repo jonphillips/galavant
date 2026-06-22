@@ -40,6 +40,7 @@ struct TripItineraryView: View {
       forDay: day, travelTimes: model.travelTimes, effectiveModes: model.effectiveModes,
       now: Date.now, tripStartDate: model.trip?.startDate,
       stays: model.plan.stays(coveringDay: day))
+    let sequence = model.plan.locatedSequenceNumbers(forDay: day)
     return List {
       Section {
         if items.isEmpty {
@@ -47,7 +48,7 @@ struct TripItineraryView: View {
             .font(.subheadline)
             .foregroundStyle(.tertiary)
         } else {
-          ForEach(items) { item in itineraryRow(item) }
+          ForEach(items) { item in itineraryRow(item, sequence: sequence) }
         }
       } header: {
         sectionHeader(dayLabel(day, trip: model.trip), day: day)
@@ -76,13 +77,14 @@ struct TripItineraryView: View {
           forDay: day.number, travelTimes: model.travelTimes, effectiveModes: model.effectiveModes,
           now: Date.now, tripStartDate: model.trip?.startDate,
           stays: model.plan.stays(coveringDay: day.number))
+        let sequence = model.plan.locatedSequenceNumbers(forDay: day.number)
         Section {
           if items.isEmpty {
             Text("No stops yet")
               .font(.subheadline)
               .foregroundStyle(.tertiary)
           } else {
-            ForEach(items) { item in itineraryRow(item) }
+            ForEach(items) { item in itineraryRow(item, sequence: sequence) }
           }
         } header: {
           sectionHeader(dayLabel(day.number, trip: model.trip), day: day.number)
@@ -108,36 +110,37 @@ struct TripItineraryView: View {
         .buttonStyle(.borderless)
         .accessibilityLabel("Add to \(label)")
       }
-      if let day {
-        let stays = model.plan.stays(coveringDay: day)
-        if !stays.isEmpty {
-          let overlapping = model.plan.overlappingStayIDs
-          HStack(spacing: 6) {
-            ForEach(stays) { stay in
-              homeBaseChip(stay, flagged: overlapping.contains(stay.id))
-            }
-          }
-        }
+      // The region menu lives in the header (only worth showing once a trip spans
+      // 2+ regions); accommodations moved out to real timeline rows (check-in /
+      // check-out / home-base) so the stay reads as part of the day, not a chip.
+      if let day, model.tripRegions.count >= 2 {
+        dayRegionMenu(day: day)
       }
     }
   }
 
-  /// A small "you're based here" chip for a stay covering this day. The bed glyph
-  /// + hotel name; an advisory warning tint when the stay overlaps another
-  /// (ADR-0011 §6). Tap to edit the stay. (Final styling is Jon's to tune.)
-  private func homeBaseChip(_ stay: ResolvedStay, flagged: Bool) -> some View {
-    Button {
-      model.editStay(stay)
-    } label: {
-      HStack(spacing: 5) {
-        Icon.stay.image.imageScale(.medium)
-        Text(stay.content.title).lineLimit(1)
-        if flagged {
-          Image(systemName: "exclamationmark.triangle.fill").imageScale(.small)
+  /// A chip-styled menu to assign one of the trip's regions to this day (ADR-0012)
+  /// — the region scopes the day and frames its empty map. Shown only on multi-region
+  /// trips. "None" clears it. (Final styling is Jon's to tune.)
+  private func dayRegionMenu(day: Int) -> some View {
+    let assigned = model.dayRegion(forDay: day)
+    return Menu {
+      Picker("Region", selection: Binding(
+        get: { assigned?.id },
+        set: { model.setDayRegion($0, forDay: day) }
+      )) {
+        Text("None").tag(MapRegion.ID?.none)
+        ForEach(model.tripRegions) { region in
+          Text(region.name).tag(MapRegion.ID?.some(region.id))
         }
       }
+    } label: {
+      HStack(spacing: 5) {
+        Icon.map.image.imageScale(.medium)
+        Text(assigned?.name ?? "Set region").lineLimit(1)
+      }
       .font(.subheadline)
-      .foregroundStyle(flagged ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
+      .foregroundStyle(assigned == nil ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
       .padding(.horizontal, 11)
       .padding(.vertical, 6)
       .background(Capsule().fill(Color(.tertiarySystemFill)))
@@ -146,13 +149,45 @@ struct TripItineraryView: View {
     .textCase(nil)
   }
 
-  @ViewBuilder private func itineraryRow(_ item: ItineraryItem) -> some View {
+  /// The persistent "you're based here" row on a stay's middle days (ADR-0011,
+  /// promoted from a header chip to a real row). The bed glyph + hotel name, an
+  /// advisory warning tint when the stay overlaps another (§6); tap to edit. Reads
+  /// like the check-in/out rows so the home base is part of the day's timeline.
+  private func homeBaseRow(_ stay: ResolvedStay) -> some View {
+    let flagged = model.plan.overlappingStayIDs.contains(stay.id)
+    return HStack(spacing: 12) {
+      Icon.stay.image
+        .foregroundStyle(flagged ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
+        .frame(width: 24)
+      VStack(alignment: .leading, spacing: 2) {
+        Text("Home base").font(.subheadline.weight(.medium))
+        Text(stay.content.title)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+          .lineLimit(1)
+      }
+      Spacer()
+      if flagged {
+        Image(systemName: "exclamationmark.triangle.fill")
+          .imageScale(.small)
+          .foregroundStyle(.orange)
+      }
+    }
+    .padding(.vertical, 2)
+    .contentShape(Rectangle())
+    .onTapGesture { model.editStay(stay) }
+  }
+
+  @ViewBuilder private func itineraryRow(
+    _ item: ItineraryItem, sequence: [TripIdea.ID: Int] = [:]
+  ) -> some View {
     switch item {
-    case .stop(let resolved): stopRow(resolved)
+    case .stop(let resolved): stopRow(resolved, sequence: sequence)
     case .connector(let connector): connectorRow(connector)
     case .nowMarker: nowMarkerRow
     case .checkIn(let stay): checkRow(stay, isCheckIn: true)
     case .checkOut(let stay): checkRow(stay, isCheckIn: false)
+    case .homeBase(let stay): homeBaseRow(stay)
     }
   }
 
@@ -187,9 +222,17 @@ struct TripItineraryView: View {
   /// its `StopMenu`, and a tap. An idea-backed row taps to select on the shared
   /// canvas (the info button is its own hit target); a freeform row has no map
   /// pin to select, so it taps to open its inline editor instead (ADR-0010).
-  private func stopRow(_ resolved: ResolvedStop) -> some View {
+  private func stopRow(
+    _ resolved: ResolvedStop, sequence: [TripIdea.ID: Int] = [:]
+  ) -> some View {
     let isFreeform = resolved.idea == nil
-    return PlanningRow(content: resolved.content, subtitle: .category) {
+    // A located stop wears its day-coloured map-pin number; everything else
+    // (unlocated/freeform stops, and every non-day caller — the To-Be-Scheduled
+    // bucket — passing an empty `sequence`) keeps the kind icon.
+    let marker: PlanningRowMarker = sequence[resolved.id].map {
+      .sequence($0, DayPalette.color(forDay: resolved.entry.dayNumber ?? 1))
+    } ?? .kind
+    return PlanningRow(content: resolved.content, subtitle: .category, marker: marker) {
       HStack(spacing: 14) {
         if let idea = resolved.idea {
           Button { model.showDetail(idea) } label: {

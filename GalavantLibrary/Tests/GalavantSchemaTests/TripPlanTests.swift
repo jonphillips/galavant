@@ -116,6 +116,22 @@ import Testing
     #expect(p.framingCoordinates(forDay: nil).count == 1)  // whole trip
   }
 
+  @Test func locatedSequenceNumbersRankLocatedStopsOnly() {
+    // Day 1: located A, unlocated B, located C → A=1, C=2, B absent (no pin).
+    let (a, b, c) = (UUID(), UUID(), UUID())
+    let entries = [
+      entry(idea: a, status: .scheduled, rank: 0, schedule: .day(1)),
+      entry(idea: b, status: .scheduled, rank: 1, schedule: .day(1)),  // unlocated
+      entry(idea: c, status: .scheduled, rank: 2, schedule: .day(1)),
+    ]
+    let p = plan(entries, ideas: [idea(a), idea(b, lat: nil, lon: nil), idea(c)])
+    let stops = p.itinerary[0].stops  // itinerary order [A, B, C]
+    let seq = p.locatedSequenceNumbers(forDay: 1)
+    #expect(seq[stops[0].id] == 1)    // A
+    #expect(seq[stops[2].id] == 2)    // C
+    #expect(seq[stops[1].id] == nil)  // B unlocated → no number
+  }
+
   @Test func itineraryHasEveryDayEvenWhenEmpty() {
     let id = UUID()
     let p = plan([entry(idea: id, status: .scheduled, schedule: .day(2))], ideas: [idea(id)], lengthInDays: 3)

@@ -6,8 +6,40 @@ import SwiftUINavigation
 
 struct TripsScreen: View {
   @State private var model = TripsListModel()
+  @Environment(AppRouter.self) private var router
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
   var body: some View {
+    @Bindable var router = router
+    Group {
+      if horizontalSizeClass == .regular {
+        // iPad/Mac: the split detail rebuilds when you flip sections, which *pops* a
+        // pushed trip and clears the binding. So drill into a trip as an in-panel
+        // overlay swap, driven purely by `router.openTrip` (the codebase's iPad
+        // pattern) — it survives the rebuild because we own the state.
+        if let trip = router.openTrip {
+          TripPlanningView(trip: trip)
+            .toolbar {
+              ToolbarItem(placement: .topBarLeading) {
+                Button { router.openTrip = nil } label: {
+                  Label("Trips", systemImage: "chevron.backward")
+                }
+              }
+            }
+        } else {
+          tripsList
+        }
+      } else {
+        // iPhone: a real push (the tab stays alive, so it persists across flips).
+        tripsList
+          .navigationDestination(item: $router.openTrip) { trip in
+            TripPlanningView(trip: trip)
+          }
+      }
+    }
+  }
+
+  private var tripsList: some View {
     List {
       certaintySection(model.sections.dated, "Dated")
       certaintySection(model.sections.targeted, "Targeted")
@@ -17,9 +49,6 @@ struct TripsScreen: View {
       var someday = model.sections.someday
       difference.apply(to: &someday)
       model.reorderSomeday(someday.map(\.id))
-    }
-    .navigationDestination(for: Trip.self) { trip in
-      TripPlanningView(trip: trip)
     }
     .overlay {
       if model.trips.isEmpty {
@@ -72,9 +101,13 @@ struct TripsScreen: View {
   }
 
   private func tripButton(_ trip: Trip) -> some View {
-    NavigationLink(value: trip) {
+    Button {
+      router.openTrip = trip
+    } label: {
       TripRow(trip: trip)
     }
+    .buttonStyle(.plain)
+    .contentShape(Rectangle())
   }
 }
 
@@ -85,4 +118,5 @@ struct TripsScreen: View {
   NavigationStack {
     TripsScreen()
   }
+  .environment(AppRouter())
 }

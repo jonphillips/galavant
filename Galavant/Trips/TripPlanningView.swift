@@ -17,7 +17,12 @@ import SwiftUINavigation
 /// either layout.
 struct TripPlanningView: View {
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-  @State private var model: TripPlanningModel
+  @Environment(AppRouter.self) private var router
+  let trip: Trip
+  /// The trip's planning model, cached on the router so the in-trip state (day lens,
+  /// sheet tab, selection) survives flipping to Ideas and back (the iPad detail
+  /// rebuilds on screen change).
+  private var model: TripPlanningModel { router.planningModel(for: trip) }
   @State private var showDetailSheet = false
   @State private var sheetDetent: PresentationDetent = .medium
   /// Measured heights of the full-bleed map and the bottom sheet over it — their
@@ -32,10 +37,6 @@ struct TripPlanningView: View {
   private static let peek: PresentationDetent = .height(120)
   /// The iPad detail column width — wide enough for itinerary rows to read.
   private static let columnWidth: CGFloat = 380
-
-  init(trip: Trip) {
-    _model = State(initialValue: TripPlanningModel(tripID: trip.id))
-  }
 
   /// iPad/Mac get the side column; iPhone (and a narrow iPad split) get the sheet.
   private var usesColumn: Bool { horizontalSizeClass == .regular }

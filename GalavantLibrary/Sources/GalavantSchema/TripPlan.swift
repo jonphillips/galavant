@@ -102,17 +102,27 @@ public struct TripPlan: Equatable, Sendable {
   /// same `ideasByID` pool lookup as stops (ADR-0011). Defaults empty so existing
   /// call sites that don't pass stays keep compiling.
   public var tripStays: [TripStay]
+  /// This trip's per-day region assignments (already scoped to the trip), resolved
+  /// against `regionsByID` (ADR-0012). Defaults empty so existing call sites keep
+  /// compiling.
+  public var dayRegions: [TripDayRegion]
+  /// The pool of map regions a day assignment can resolve to. Defaults empty.
+  public var regionsByID: [MapRegion.ID: MapRegion]
 
   public init(
     entries: [TripIdea],
     ideasByID: [Idea.ID: Idea],
     lengthInDays: Int,
-    tripStays: [TripStay] = []
+    tripStays: [TripStay] = [],
+    dayRegions: [TripDayRegion] = [],
+    regionsByID: [MapRegion.ID: MapRegion] = [:]
   ) {
     self.entries = entries
     self.ideasByID = ideasByID
     self.lengthInDays = lengthInDays
     self.tripStays = tripStays
+    self.dayRegions = dayRegions
+    self.regionsByID = regionsByID
   }
 
   func resolve(_ entry: TripIdea) -> ResolvedStop? {
@@ -247,6 +257,19 @@ public struct TripPlan: Equatable, Sendable {
     }
   }
 
+  // MARK: - Per-day region (ADR-0012)
+
+  /// The `MapRegion` assigned to `day`, if any — resolved from the day's
+  /// `TripDayRegion` assignment against `regionsByID`. A deleted region (orphan)
+  /// resolves to nil and drops out, the same reconciliation `TripRegion` uses. The
+  /// canvas frames an *empty* day (no located stops) to this region; the day-header
+  /// chip labels the day with it.
+  public func region(forDay day: Int) -> MapRegion? {
+    dayRegions
+      .first { $0.dayNumber == day }
+      .flatMap { regionsByID[$0.regionID] }
+  }
+
   // MARK: - Canvas geometry (pure projections over located stops)
 
   /// True when at least one scheduled stop carries coordinates to plot.
@@ -274,6 +297,18 @@ public struct TripPlan: Equatable, Sendable {
   public func locatedStops(forDay day: Int) -> [ResolvedStop] {
     (itinerary.first { $0.number == day }?.stops ?? [])
       .filter { $0.content.latitude != nil && $0.content.longitude != nil }
+  }
+
+  /// The 1-based map-pin sequence number for each located stop on `day`, keyed by
+  /// stop ID — the exact numbering the canvas pins wear (`locatedStops(forDay:)`
+  /// order). Unlocated/freeform stops are absent (they carry no pin), so a timeline
+  /// row looks itself up here and shows a number only when it has a matching pin.
+  public func locatedSequenceNumbers(forDay day: Int) -> [TripIdea.ID: Int] {
+    var result: [TripIdea.ID: Int] = [:]
+    for (index, stop) in locatedStops(forDay: day).enumerated() {
+      result[stop.id] = index + 1
+    }
+    return result
   }
 
   // MARK: - Travel-time connectors (docs/trip-canvas.md)
@@ -320,21 +355,26 @@ public struct TripPlan: Equatable, Sendable {
 
     // The day's check boundary rows (a stay leaving and/or a stay arriving today).
     // Rank orders ties against a same-minute stop: check-out (0) before, check-in
-    // (2) after, stops sit at rank 1.
+    // (2) after, stops sit at rank 1. A *middle* day a stay covers (neither
+    // boundary) instead gets a persistent home-base row, pinned to the top.
     struct Boundary { let key: Int; let rank: Int; let item: ItineraryItem }
-    let boundaries: [Boundary] = stays.flatMap { resolved -> [Boundary] in
-      var out: [Boundary] = []
-      if resolved.stay.checkOutDay == day {
-        out.append(Boundary(key: resolved.stay.checkOutSortMinutes, rank: 0, item: .checkOut(resolved)))
+    var boundaries: [Boundary] = []
+    var homeBaseRows: [ItineraryItem] = []
+    for resolved in stays {
+      let stay = resolved.stay
+      if stay.checkOutDay == day {
+        boundaries.append(Boundary(key: stay.checkOutSortMinutes, rank: 0, item: .checkOut(resolved)))
       }
-      if resolved.stay.checkInDay == day {
-        out.append(Boundary(key: resolved.stay.checkInSortMinutes, rank: 2, item: .checkIn(resolved)))
+      if stay.checkInDay == day {
+        boundaries.append(Boundary(key: stay.checkInSortMinutes, rank: 2, item: .checkIn(resolved)))
       }
-      return out
+      if stay.checkInDay != day, stay.checkOutDay != day {
+        homeBaseRows.append(.homeBase(resolved))  // covered middle day
+      }
     }
 
-    // A day with neither stops nor boundaries has no timeline.
-    guard !stops.isEmpty || !boundaries.isEmpty else { return [] }
+    // A day with no stops, boundaries, or home base has no timeline.
+    guard !stops.isEmpty || !boundaries.isEmpty || !homeBaseRows.isEmpty else { return [] }
 
     // Index in `stops` before which to insert the now marker, or `stops.count`
     // to place it after all stops (every stop is past). Nil = don't show marker.
@@ -360,7 +400,8 @@ public struct TripPlan: Equatable, Sendable {
     stream += boundaries.map { ($0.key, $0.rank, .boundary($0.item)) }
     stream.sort { ($0.key, $0.rank) < ($1.key, $1.rank) }
 
-    var items: [ItineraryItem] = []
+    // Home-base rows lead the day (the persistent "you're staying here" anchor).
+    var items: [ItineraryItem] = homeBaseRows
     var markerInserted = false
     for entry in stream {
       switch entry.slot {
