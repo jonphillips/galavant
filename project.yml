@@ -53,6 +53,8 @@ targets:
         product: GalavantSchema
       - package: GalavantLibrary
         product: GalavantPlaces
+      - package: GalavantLibrary
+        product: GalavantAI
       - package: sqlite-data
         product: SQLiteData
       - package: swift-navigation

@@ -16,6 +16,7 @@ struct IdeasScreen: View {
   @State private var regionNameDraft = ""
   @State private var managingRegions = false
   @State private var managingTags = false
+  @State private var showingSettings = false
 
   enum Mode: String, CaseIterable {
     case list, map
@@ -81,6 +82,15 @@ struct IdeasScreen: View {
           Icon.add.label("Add Idea")
         }
       }
+      // Stub entry point for the "You"/settings area (ADR-0014 slice 4): manage the
+      // device-local frontier API key. Lands here until the settings area is built.
+      ToolbarItem {
+        Button {
+          showingSettings = true
+        } label: {
+          Icon.settings.label("Settings")
+        }
+      }
     }
     .alert("Name this area", isPresented: $namingRegion) {
       TextField("Region name", text: $regionNameDraft)
@@ -132,6 +142,9 @@ struct IdeasScreen: View {
     }
     .sheet(isPresented: $managingTags) {
       TagManagerView(model: model)
+    }
+    .sheet(isPresented: $showingSettings) {
+      AISettingsView()
     }
   }
 
