@@ -3,6 +3,14 @@
 Vertical slices; each milestone ends with something that runs. Riskiest unknowns
 first. Update this file when reality diverges — it's a living doc, not a contract.
 
+Each unbuilt slice carries a **suggested executor model** — conservative and
+Opus-leaning. Sonnet only where the work is well-precedented and low-novelty (an
+existing in-tree pattern to clone, guarded by tests + the drift gate); Opus wherever
+quality matters more (foundational boundaries, judgment-heavy design) or the surface
+is API-novel/past-cutoff (new OS-27 / FoundationModels / App Intents / frontier-API
+work, where recall fails and current docs must be checked). The tag tells you when
+opening a fresh Opus session is worth it.
+
 ## M0 — Skeleton that persists ✅ (done 2026-06-10, Xcode 27 beta 1)
 - Xcode project: multiplatform SwiftUI app + share-extension target stub + local SPM package
 - SQLiteData wired up; database in the **app group container** from day one
@@ -271,30 +279,42 @@ so each earns the next — substrate → knowledge model → enrichment → conv
   with the user's own Keychain API key. Establishes that BYO-key frontier APIs
   preserve no-server (no infra/auth/shared-secret) and that the key is a device-local
   exception to ADR-0003. Design only; client + Keychain UI build with the first
-  consumer below.
-- ⏳ **M6b — source evaluations + taste profile (ADR in draft):** an `IdeaEvaluation`
+  consumer below. **Suggested executor: Opus** — the frontier URLSession/SSE client,
+  Keychain storage, and tool-use loop are past-cutoff and foundational; everything
+  downstream inherits this boundary, so accuracy here is worth the spend.
+- ⏳ **M6b — source evaluations + taste profile (ADR-0015):** an `IdeaEvaluation`
   sibling record (the `TripStay`/ADR-0011 pattern — loose optional `ideaID`,
   native-faithful source/kind/value/display, provenance + staleness; collapse
   source+rating-system to enums for v1; defer the normalized band) so Michelin /
   Andrew Harper / etc. ratings attach to an `Idea` faithfully. Plus a `TravelProfile`
   (shared party + per-planner overlay) injected through the `ModelClient` boundary as
   the reusable taste prompt. Pure schema/domain — independent of the model plumbing.
+  **Suggested executor: Sonnet** — a `TripStay`/ADR-0011 clone with a built, tested
+  precedent in-tree; low novelty, guarded by the package test suite + drift gate. The
+  one clear Sonnet-solo slice in M6.
 - ⏳ **M6c — source-aware capture + on-demand supplement (ADR-0016):** sharing from a
   ratings source recognizes it and routes the rating into `IdeaEvaluation`; a
   per-field "supplement" affordance fills gaps (opening hours first) via the
   cheapest-source ladder — MapKit (`MKMapItem`) → the place's official site → a
   human-in-the-loop `WKWebView` scrape. Generalizes M4g's `PlaceEnricher`,
   interactive and field-targeted. (Not Google SERP scraping — ToS/brittle.)
+  **Suggested executor: Opus** — `MKMapItem` hours (iOS 27, past cutoff), the HITL
+  `WKWebView` flow, and the source recognizers / LLM extract-fallback are API-novel
+  and judgment-heavy; wants the Apple-SDK + claude-api skills at the rungs.
 - ⏳ **M6d — context-aware chat window (ADR-0017):** discuss the current screen
   (this idea + its evaluations + his/hers ratings; or this trip's itinerary) with the
   tiered backend — on-device by default, BYO-key frontier opt-in per conversation.
   Tools = the App Intents pool verbs (`findPlaces` / `createIdea` / query-the-pool)
   so "which Denmark food ideas haven't we visited?" is a tool call, not a
   hallucination. Privacy posture is a surfaced choice, never silent.
+  **Suggested executor: Opus** — the frontier SSE + tool-use loop, streaming chat UI,
+  and App Intents tool definitions are the most API-novel and most visible surface in
+  M6; first real consumer of the frontier tier.
 - Adjacent long-term bet (own slice when it ripens): **match *prediction*** — extend
   the his/hers `Interest.standing` projection from a lagging tally to a *predicted*
   match for unrated ideas, seeded by the taste profile. The most differentiated
-  feature, unique to a two-person app.
+  feature, unique to a two-person app. **Suggested executor: Opus** (when it ripens) —
+  modeling judgment + the taste signal.
 - ✅ Done when: shared Michelin/Harper pages land faithful ratings on pool ideas, a
   tap supplements a stop's opening hours, and the chat window answers a real
   pool/trip question on-device or with Jon's key.
