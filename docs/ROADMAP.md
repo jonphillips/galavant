@@ -279,13 +279,13 @@ so each earns the next — substrate → knowledge model → enrichment → conv
   Andrew Harper / etc. ratings attach to an `Idea` faithfully. Plus a `TravelProfile`
   (shared party + per-planner overlay) injected through the `ModelClient` boundary as
   the reusable taste prompt. Pure schema/domain — independent of the model plumbing.
-- ⏳ **M6c — source-aware capture + on-demand supplement (BACKLOG):** sharing from a
+- ⏳ **M6c — source-aware capture + on-demand supplement (ADR-0016):** sharing from a
   ratings source recognizes it and routes the rating into `IdeaEvaluation`; a
   per-field "supplement" affordance fills gaps (opening hours first) via the
   cheapest-source ladder — MapKit (`MKMapItem`) → the place's official site → a
   human-in-the-loop `WKWebView` scrape. Generalizes M4g's `PlaceEnricher`,
   interactive and field-targeted. (Not Google SERP scraping — ToS/brittle.)
-- ⏳ **M6d — context-aware chat window (BACKLOG/ADR):** discuss the current screen
+- ⏳ **M6d — context-aware chat window (ADR-0017):** discuss the current screen
   (this idea + its evaluations + his/hers ratings; or this trip's itinerary) with the
   tiered backend — on-device by default, BYO-key frontier opt-in per conversation.
   Tools = the App Intents pool verbs (`findPlaces` / `createIdea` / query-the-pool)
