@@ -6,7 +6,7 @@ self-contained: it names the authoritative ADR, the in-tree precedent to clone, 
 don't guess), where tests go, and the done-criteria. Open the session with the
 slice's **suggested model** (ROADMAP M6).
 
-Design lives in the ADRs (`docs/decisions/0014`–`0017`); these are the operational
+Design lives in the ADRs (`docs/decisions/0014`–`0018`); these are the operational
 wrappers, not a re-statement of the design.
 
 ---
@@ -209,3 +209,67 @@ on-device answers a context question privately; with a key, the frontier tier an
 "which Denmark food ideas haven't we visited?" via a `queryPool` tool call; `createIdea`
 from chat lands a candidate pin; the frontier path visibly flags that data leaves the
 device.
+
+---
+
+## M6e — AI pool-stocking, the discovery pipeline · **Opus** *(spike-gated)*
+
+**Goal:** query + region → candidate pool ideas, grounded in live web search, deduped
+against the pool. **AI stocks the pool; it never pulls onto a trip.** ADR-0018.
+Frontier-only (on-device can't web-search), BYO-key (ADR-0014); a candidate is a pool
+`Idea` on no trip (ADR-0013 — **no new table** for v1).
+
+**ADR:** `docs/decisions/0018-ai-pool-stocking-discovery.md` (read in full). Depends on
+M6a (the `ModelClient`/`AnthropicWire` boundary) and the M4 place stack.
+
+**Reuse:** `GalavantAI` (`ModelClient.complete`, `AnthropicWire.requestData`/`.response`);
+`GalavantPlaces` `PlaceMatcher.match` (M4b/c MapKit resolve ladder), `PlaceMatching.score`
+(overlap), `PlaceEnricher` (M4g); `MapRegion.contains(latitude:longitude:)`; `Idea.Draft`
++ save.
+
+**Architecture (ADR-0018):** one `ModelClient.complete()` frontier call with web search
+on → a strict **JSON candidate array** (`name`/`kind`/`locality`/`region`/`note`/`sourceURL`);
+the **app parses + owns dedup/persistence** — the model finds & structures, never writes.
+(Simpler/more testable than a client-side tool-loop for a batch; the `findPlaces`
+App-Intent wrapper comes later.) Resolve each via `PlaceMatcher` → dedup against the pool
+(`PlaceMatching.score` + coordinate proximity) → `MapRegion` auto-bucket → `Idea.Draft`
+save as a **candidate** → optional `PlaceEnricher`.
+
+**Wire change first (`GalavantAI`) — `claude-api` skill before writing:**
+- `ModelRequest`: add `webSearchMaxUses: Int?`.
+- `AnthropicWire.requestData`: emit `{"type":"web_search_20250305","name":"web_search","max_uses":N}`.
+- `AnthropicWire.response`: tolerate `server_tool_use` / `web_search_tool_result` blocks
+  (server-executed — ignore) and still capture final text. **Non-streaming `complete()`
+  only.** Unit-test request-assembly + response-parse against the stub backend.
+
+**Slices:**
+0. **The spike (build now, Jon runs it):** the `web_search` wire change + a
+   `PlaceDiscoveryClient` (grounded `complete()` + JSON parse). A **dev-only entry on the
+   Ideas-screen toolbar** (Jon's call — small, easy to delete; *not* a separate debug
+   view) that dumps the raw candidate list (names/localities/sourceURLs) — no dedup, no
+   save. Tests: request-assembly + JSON parse vs. stub. Jon runs the live call on-device
+   for "all 2–3★ Michelin in the Loire". **Decision gate** — eyeball
+   completeness/accuracy/freshness; good → build on, weak → tune prompt/search first.
+1. **Dedup core (pure, tested):** `DiscoveryDedup` (`.new`/`.duplicate(Idea.ID)`/
+   `.nearMatch(Idea.ID)`) + `MapRegion` bucketing; fixture tests (exact dup, near-match,
+   distinct, junk).
+2. **Resolution + persistence:** `PlaceMatcher` resolve → dedup → batch `Idea.save` →
+   optional enrich; tested with an in-memory DB + fixture matcher.
+3. **The real UI:** region-scoped discovery entry + candidate review (list + candidate-
+   tinted pins on `PoolMapView`, reuse ADR-0013 styling) + Add all/selected.
+   `swiftui-specialist` checkpoint.
+4. **Docs:** flip ADR-0018 to accepted; ROADMAP/BACKLOG updates.
+
+**Skill checkpoints (past cutoff):** **`claude-api`** for the `web_search` server-tool
+block + response shape + model IDs (`claude-opus-4-8`) before any wire change;
+**`swiftui-specialist`** for the discovery/review UI.
+
+**Targets/tests/verify:** code lands in existing targets (`GalavantAI` + `GalavantPlaces`
++ app); the orchestrator goes in `GalavantPlaces` (add a `GalavantAI` dep in `project.yml`
+if missing → `xcodegen generate`; **no new SPM target expected**). Tests in the package.
+`swift test` green · app `xcodebuild` succeeds · `swiftlint --strict` clean.
+
+**Done when:** the spike returns a usable candidate set for the Loire-Michelin query
+on-device with Jon's key; dedup classifies new/dup/near-match correctly; discovered
+places land as candidate pins auto-bucketed by region; no candidate is ever auto-pulled
+onto a trip.
