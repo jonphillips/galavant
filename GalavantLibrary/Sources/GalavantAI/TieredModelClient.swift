@@ -9,25 +9,41 @@ import Foundation
 /// the degradation is unit-testable with stubs.
 public struct TieredModelClient: ModelClient {
   let onDevice: any ModelClient
-  let frontier: (any ModelClient)?
+  /// One backend per configured frontier provider (ADR-0014 multi-provider
+  /// amendment). A provider absent from the map has no key, so a request for it
+  /// degrades to on-device.
+  let frontiers: [FrontierProvider: any ModelClient]
 
-  public init(onDevice: any ModelClient, frontier: (any ModelClient)?) {
+  public init(onDevice: any ModelClient, frontiers: [FrontierProvider: any ModelClient]) {
     self.onDevice = onDevice
-    self.frontier = frontier
+    self.frontiers = frontiers
   }
 
-  /// Whether the frontier tier is usable (a key is configured). Drives the
-  /// settings/chat UI: absent a key, frontier options are disabled and on-device
-  /// is offered instead.
-  public var isFrontierAvailable: Bool { frontier != nil }
+  /// Back-compat convenience: a single Anthropic frontier (or none).
+  public init(onDevice: any ModelClient, frontier: (any ModelClient)?) {
+    self.init(
+      onDevice: onDevice,
+      frontiers: frontier.map { [.anthropic: $0] } ?? [:]
+    )
+  }
+
+  /// Whether *any* frontier provider is configured. Drives the "frontier offered at
+  /// all" copy; per-provider availability is `isAvailable(_:)`.
+  public var isFrontierAvailable: Bool { !frontiers.isEmpty }
+
+  /// Whether a specific provider has a configured backend — drives the switcher
+  /// (a provider with no key is shown disabled).
+  public func isAvailable(_ provider: FrontierProvider) -> Bool {
+    frontiers[provider] != nil
+  }
 
   /// The backend that will actually serve a request for `tier` — on-device for
-  /// `.onDevice`, and for `.frontier` the frontier backend when present, else
-  /// on-device (the named degradation).
+  /// `.onDevice`, and for `.frontier(provider)` that provider's backend when
+  /// present, else on-device (the named degradation).
   func backend(for tier: ModelTier) -> any ModelClient {
     switch tier {
     case .onDevice: return onDevice
-    case .frontier: return frontier ?? onDevice
+    case let .frontier(provider): return frontiers[provider] ?? onDevice
     }
   }
 
@@ -47,9 +63,15 @@ extension TieredModelClient {
   /// rather than every call site.
   public static var live: TieredModelClient {
     @Dependency(\.apiKeyStore) var keyStore
-    let frontier: (any ModelClient)? = keyStore.key(.anthropic)
-      .map { AnthropicModelClient(apiKey: $0) }
-    return TieredModelClient(onDevice: OnDeviceModelClient.live, frontier: frontier)
+    var frontiers: [FrontierProvider: any ModelClient] = [:]
+    for provider in FrontierProvider.allCases {
+      guard let key = keyStore.key(provider) else { continue }
+      switch provider {
+      case .anthropic: frontiers[provider] = AnthropicModelClient(apiKey: key)
+      case .openai: frontiers[provider] = OpenAIModelClient(apiKey: key)
+      }
+    }
+    return TieredModelClient(onDevice: OnDeviceModelClient.live, frontiers: frontiers)
   }
 }
 

@@ -1,3 +1,4 @@
+import GalavantAI
 import GalavantChat
 import SwiftUI
 
@@ -113,7 +114,7 @@ struct ChatPanelView: View {
     HStack(spacing: 6) {
       if model.sendsToProvider {
         Icon.aiFrontier.image.foregroundStyle(.blue)
-        Text("Messages and the on-screen context are sent to Anthropic.")
+        Text("Messages and the on-screen context are sent to \(model.selectedProvider.displayName).")
       } else {
         Icon.aiOnDevice.image.foregroundStyle(.green)
         Text("Private — this conversation stays on your device.")
@@ -124,19 +125,32 @@ struct ChatPanelView: View {
     .foregroundStyle(.secondary)
   }
 
+  /// On-device (the private default) plus one entry per frontier provider — the
+  /// per-conversation model switcher (ADR-0014 multi-provider amendment). A
+  /// provider without a key is shown disabled so you know it exists.
   private var tierMenu: some View {
     Menu {
       Button {
         model.useFrontier = false
       } label: {
         Label("On-device (private)", systemImage: Icon.aiOnDevice.systemName)
+        if !model.sendsToProvider { Image(systemName: Icon.checkmark.systemName) }
       }
-      Button {
-        model.useFrontier = true
-      } label: {
-        Label("Claude (sends data off device)", systemImage: Icon.aiFrontier.systemName)
+      ForEach(FrontierProvider.allCases) { provider in
+        Button {
+          model.selectedProvider = provider
+          model.useFrontier = true
+        } label: {
+          Label(
+            "\(provider.displayName) (sends data off device)",
+            systemImage: Icon.aiFrontier.systemName
+          )
+          if model.sendsToProvider, model.selectedProvider == provider {
+            Image(systemName: Icon.checkmark.systemName)
+          }
+        }
+        .disabled(!model.availableProviders.contains(provider))
       }
-      .disabled(!model.frontierAvailable)
     } label: {
       (model.sendsToProvider ? Icon.aiFrontier : Icon.aiOnDevice).image
         .foregroundStyle(model.sendsToProvider ? .blue : .green)

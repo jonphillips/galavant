@@ -25,11 +25,22 @@ public enum ModelTier: Sendable, Equatable {
   case frontier(FrontierProvider)
 }
 
-/// The frontier providers behind a BYO-key. Anthropic-only in v1 (ADR-0014 §2 /
-/// "open at build"); the enum keeps the boundary ready for more without a
-/// call-site sweep.
-public enum FrontierProvider: String, Sendable, Equatable, CaseIterable {
+/// The frontier providers behind a BYO-key (ADR-0014 §2 + the 2026-06-23
+/// multi-provider amendment). `CaseIterable` so the settings/chat switcher
+/// enumerates providers for free; each gets its own Keychain slot (`APIKeyStore`).
+public enum FrontierProvider: String, Sendable, Equatable, CaseIterable, Identifiable {
   case anthropic
+  case openai
+
+  public var id: String { rawValue }
+
+  /// User-facing name for the switcher.
+  public var displayName: String {
+    switch self {
+    case .anthropic: "Claude"
+    case .openai: "ChatGPT"
+    }
+  }
 }
 
 /// One turn in a conversation. Roles alternate user/assistant; the system prompt
