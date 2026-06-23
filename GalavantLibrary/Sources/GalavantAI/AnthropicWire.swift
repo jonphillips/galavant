@@ -25,13 +25,20 @@ enum AnthropicWire {
 
   /// The JSON body for a request. `stream` toggles SSE.
   static func requestData(for request: ModelRequest, model: String, stream: Bool) throws -> Data {
+    // Custom verb tools (ADR-0017) plus Anthropic's server-side web_search tool
+    // when discovery asks for it (ADR-0018). Both ride one heterogeneous `tools`
+    // array on the wire; a missing array is omitted entirely.
+    var tools = request.tools.map(WireToolEntry.custom)
+    if let maxUses = request.webSearchMaxUses {
+      tools.append(.webSearch(maxUses: maxUses))
+    }
     let body = RequestBody(
       model: model,
       maxTokens: request.maxTokens,
       system: request.system,
       stream: stream,
       messages: request.messages.map(WireMessage.init),
-      tools: request.tools.isEmpty ? nil : request.tools.map(WireTool.init)
+      tools: tools.isEmpty ? nil : tools
     )
     // No key strategy: explicit CodingKeys carry snake_case; nested tool
     // schema/input keys must not be rewritten.
@@ -44,11 +51,40 @@ enum AnthropicWire {
     var system: String?
     var stream: Bool
     var messages: [WireMessage]
-    var tools: [WireTool]?
+    var tools: [WireToolEntry]?
 
     enum CodingKeys: String, CodingKey {
       case model, system, stream, messages, tools
       case maxTokens = "max_tokens"
+    }
+  }
+
+  /// One entry in the `tools` array — either a custom verb tool or the server-side
+  /// `web_search` tool (a different wire shape: a versioned `type` + `max_uses`,
+  /// no `input_schema`). `web_search_20260209` is the current version (`claude-api`
+  /// skill); it runs server-side and adds result pre-filtering for free.
+  private enum WireToolEntry: Encodable {
+    case custom(ModelTool)
+    case webSearch(maxUses: Int?)
+
+    enum CodingKeys: String, CodingKey {
+      case type, name, description
+      case inputSchema = "input_schema"
+      case maxUses = "max_uses"
+    }
+
+    func encode(to encoder: any Encoder) throws {
+      var container = encoder.container(keyedBy: CodingKeys.self)
+      switch self {
+      case let .custom(tool):
+        try container.encode(tool.name, forKey: .name)
+        try container.encode(tool.description, forKey: .description)
+        try container.encode(tool.inputSchema, forKey: .inputSchema)
+      case let .webSearch(maxUses):
+        try container.encode("web_search_20260209", forKey: .type)
+        try container.encode("web_search", forKey: .name)
+        try container.encodeIfPresent(maxUses, forKey: .maxUses)
+      }
     }
   }
 
@@ -102,28 +138,14 @@ enum AnthropicWire {
     }
   }
 
-  private struct WireTool: Encodable {
-    let tool: ModelTool
-    init(_ tool: ModelTool) { self.tool = tool }
-
-    enum CodingKeys: String, CodingKey {
-      case name, description
-      case inputSchema = "input_schema"
-    }
-
-    func encode(to encoder: any Encoder) throws {
-      var container = encoder.container(keyedBy: CodingKeys.self)
-      try container.encode(tool.name, forKey: .name)
-      try container.encode(tool.description, forKey: .description)
-      try container.encode(tool.inputSchema, forKey: .inputSchema)
-    }
-  }
-
   // MARK: Non-streaming response
 
   /// Decode a full (non-stream) response into a `ModelResponse`: concatenated text
   /// blocks plus any `tool_use` blocks as `ModelToolCall`s (ADR-0017 §3). Throws
-  /// `.malformedResponse` if the body doesn't decode.
+  /// `.malformedResponse` if the body doesn't decode. Server-executed blocks
+  /// (`server_tool_use` / `web_search_tool_result` from the web_search tool,
+  /// ADR-0018) carry no `tool_use`/`text` we act on, so they fall through the
+  /// `compactMap`s and the final answer text is still captured.
   static func response(from data: Data) throws -> ModelResponse {
     guard let body = try? JSONDecoder().decode(ResponseBody.self, from: data) else {
       throw ModelClientError.malformedResponse

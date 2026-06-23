@@ -17,6 +17,7 @@
 		1AF90BB39A9A3751AA9A22E2 /* Icon.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF388F1C56D173F7C5F3079C /* Icon.swift */; };
 		1C3D2E2D9EEF8BC709447AE6 /* PoolMapUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17EBCBAEA0AF8C840A0DA921 /* PoolMapUITests.swift */; };
 		242EC6987A08C0DCEBF3BC64 /* GalavantPlaces in Frameworks */ = {isa = PBXBuildFile; productRef = 6527A596FFD56B45F77446D0 /* GalavantPlaces */; };
+		2445DDD4EADE5ED439B81BCF /* DiscoverySpikeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E366F943A813F9B4B344A1AD /* DiscoverySpikeView.swift */; };
 		25A7842AF8875EEF8BFA2887 /* PrefersTabNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDA439EDEF5339154F3D8C08 /* PrefersTabNavigation.swift */; };
 		28CB0F1054F9EC0012E413AD /* CasePaths in Frameworks */ = {isa = PBXBuildFile; productRef = 26D83C2182F9FE47C3A1CA25 /* CasePaths */; };
 		35E279FA22C85810158AF02C /* DayPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95C568B98EA55277C2DDA065 /* DayPalette.swift */; };
@@ -182,6 +183,7 @@
 		E13450922E6B719B55DC57BC /* IdeasScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeasScreen.swift; sourceTree = "<group>"; };
 		E146770B6C9957BA19FC94EC /* IdeasListModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeasListModel.swift; sourceTree = "<group>"; };
 		E35BE6CD061373B731E38031 /* SequencePin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencePin.swift; sourceTree = "<group>"; };
+		E366F943A813F9B4B344A1AD /* DiscoverySpikeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverySpikeView.swift; sourceTree = "<group>"; };
 		EA2BBF3B289FD7D02957833B /* AppContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainer.swift; sourceTree = "<group>"; };
 		EC86C7931F1026669DFCE6AB /* TripBadgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripBadgeView.swift; sourceTree = "<group>"; };
 		ED4DA130D3A7069430825C31 /* TripCanvasMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripCanvasMapView.swift; sourceTree = "<group>"; };
@@ -367,6 +369,7 @@
 		E74AA89EA770500888848A49 /* Ideas */ = {
 			isa = PBXGroup;
 			children = (
+				E366F943A813F9B4B344A1AD /* DiscoverySpikeView.swift */,
 				CBC7AEA209B6D84D189928AB /* HoursBrowserView.swift */,
 				409050F2DDFD762C631818CF /* IdeaCoordinate.swift */,
 				3F02C470667EF6E9AC8AC761 /* IdeaDetailView.swift */,
@@ -563,6 +566,7 @@
 				35E279FA22C85810158AF02C /* DayPalette.swift in Sources */,
 				9515962CEF69E6D64F9B0322 /* DemoFixtures.swift in Sources */,
 				466236484A344B3C7C6F3823 /* DirectionsClient.swift in Sources */,
+				2445DDD4EADE5ED439B81BCF /* DiscoverySpikeView.swift in Sources */,
 				DA333E1DC58A089ED9E9C3E1 /* GalavantApp.swift in Sources */,
 				7B5CD1B317D736E2B4EF5D6F /* HoursBrowserView.swift in Sources */,
 				1AF90BB39A9A3751AA9A22E2 /* Icon.swift in Sources */,

@@ -19,6 +19,10 @@ struct IdeasScreen: View {
   @State private var managingTags = false
   @State private var showingSettings = false
   @State private var showingChat = false
+  // DEV (M6e slice-0 spike, ADR-0018): throwaway discovery entry. Delete this line,
+  // the toolbar item below, the sheet, and DiscoverySpikeView.swift once the spike
+  // has served its purpose.
+  @State private var showingDiscoverySpike = false
 
   enum Mode: String, CaseIterable {
     case list, map
@@ -101,6 +105,14 @@ struct IdeasScreen: View {
           Icon.settings.label("Settings")
         }
       }
+      // DEV (M6e slice-0 spike, ADR-0018): delete with the rest of the spike.
+      ToolbarItem {
+        Button {
+          showingDiscoverySpike = true
+        } label: {
+          Label("Discover (dev)", systemImage: "sparkle.magnifyingglass")
+        }
+      }
     }
     .alert("Name this area", isPresented: $namingRegion) {
       TextField("Region name", text: $regionNameDraft)
@@ -155,6 +167,10 @@ struct IdeasScreen: View {
     }
     .sheet(isPresented: $showingSettings) {
       AISettingsView()
+    }
+    // DEV (M6e slice-0 spike, ADR-0018): delete with the rest of the spike.
+    .sheet(isPresented: $showingDiscoverySpike) {
+      DiscoverySpikeView()
     }
     .chatPanel(isPresented: $showingChat, context: .pool(poolChatContext))
   }
