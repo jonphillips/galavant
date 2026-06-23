@@ -54,6 +54,9 @@ struct TripPlanningView: View {
   var body: some View {
     @Bindable var model = model
     layout
+      // Inspector nested *below* the toolbar host: an `.inspector` applied outside a
+      // toolbar-bearing view swallows its `.toolbar` on iPad (docs/KNOWN-ISSUES.md).
+      .chatPanel(isPresented: $showingChat, context: .trip(model.plan))
       .navigationTitle(model.trip?.name ?? "Trip")
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
@@ -116,7 +119,6 @@ struct TripPlanningView: View {
       .sheet(item: $model.destination.stay, id: \.id) { draft in
         StaySheet(model: model, draft: draft)
       }
-      .chatPanel(isPresented: $showingChat, context: .trip(model.plan))
   }
 
   @ViewBuilder private var layout: some View {

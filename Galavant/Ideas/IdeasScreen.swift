@@ -35,7 +35,12 @@ struct IdeasScreen: View {
       if model.activeTripID != nil, model.tripSubregions.count >= 2 {
         subregionBar
       }
+      // The chat inspector is attached *inside* the toolbar-bearing view, not on the
+      // whole screen: an `.inspector` on the detail-root content swallows that view's
+      // `.toolbar` on iPad (the items silently vanish). Nesting it below the toolbar
+      // host keeps both. (docs/KNOWN-ISSUES.md)
       content
+        .chatPanel(isPresented: $showingChat, context: .pool(poolChatContext))
     }
     .navigationTitle("Ideas")
     // Consume an itinerary "Browse ideas for this day" hand-off (ADR-0013): scope to
@@ -156,7 +161,6 @@ struct IdeasScreen: View {
     .sheet(isPresented: $showingSettings) {
       AISettingsView()
     }
-    .chatPanel(isPresented: $showingChat, context: .pool(poolChatContext))
   }
 
   /// The pool the chat is "looking at" (ADR-0017 §2): the active lens label plus
