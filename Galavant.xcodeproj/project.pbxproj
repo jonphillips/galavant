@@ -32,6 +32,7 @@
 		4DAAA7D1E36518BAE6613248 /* TripFormModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20DAF6B7A5F203899F4C780 /* TripFormModel.swift */; };
 		4FA9D5986A89B2B51B88F5C2 /* AppScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82AECABDADDBF8957A5816F8 /* AppScreen.swift */; };
 		52949A4330FDF85D0EBF5AEA /* SwiftUINavigation in Frameworks */ = {isa = PBXBuildFile; productRef = A0C2774E35241633FE89B7A7 /* SwiftUINavigation */; };
+		52FDF2960D787D40108B3780 /* Binding+Present.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4784A4E4DDB7356EEF63A970 /* Binding+Present.swift */; };
 		53262564E42B4E5C64231A96 /* IdeasFilterMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15F0079F14EE5923209192B1 /* IdeasFilterMenu.swift */; };
 		565E450BE96483372954E175 /* CaptureExtraction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43D5D11997CB5E747A590622 /* CaptureExtraction.swift */; };
 		58AA03B4EE0BD1C9A0F6E5D7 /* AISettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5FAACEBA300D2EFE2586D8E /* AISettingsView.swift */; };
@@ -83,7 +84,6 @@
 		F03422C3671BFFD56B78737A /* TripCanvasMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED4DA130D3A7069430825C31 /* TripCanvasMapView.swift */; };
 		F236D648886F9BA4EF2CCCCB /* GalavantPlaces in Frameworks */ = {isa = PBXBuildFile; productRef = C94234B5AEF12EA0F921B5B0 /* GalavantPlaces */; };
 		F41E8D178B9FE462E5E797F5 /* AppContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA2BBF3B289FD7D02957833B /* AppContainer.swift */; };
-		FC1341812FEAC8150095E55B /* Binding+Present.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1341802FEAC8150095E55B /* Binding+Present.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -141,6 +141,7 @@
 		409050F2DDFD762C631818CF /* IdeaCoordinate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaCoordinate.swift; sourceTree = "<group>"; };
 		43AABFB8B03E2303AECAF355 /* GalavantApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GalavantApp.swift; sourceTree = "<group>"; };
 		43D5D11997CB5E747A590622 /* CaptureExtraction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureExtraction.swift; sourceTree = "<group>"; };
+		4784A4E4DDB7356EEF63A970 /* Binding+Present.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Binding+Present.swift"; sourceTree = "<group>"; };
 		51B1DF18254B63AD4237897B /* IdeaPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaPersistenceTests.swift; sourceTree = "<group>"; };
 		549199D3FB7222F5D893194E /* TravelProfileEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelProfileEditView.swift; sourceTree = "<group>"; };
 		5F046B49AE38F92268A2FA12 /* GalavantShare.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = GalavantShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -167,7 +168,7 @@
 		BAA9983C3B6D9D9B731F96F9 /* DayChipBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayChipBar.swift; sourceTree = "<group>"; };
 		BC5C21FC298AEA29CFE09DC6 /* TripsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripsScreen.swift; sourceTree = "<group>"; };
 		C01187279655F718B34FA9DC /* ChatPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatPanelView.swift; sourceTree = "<group>"; };
-		C071E50FDA62E29FC448F993 /* GalavantLibrary */ = {isa = PBXFileReference; lastKnownFileType = folder; path = GalavantLibrary; sourceTree = SOURCE_ROOT; };
+		C071E50FDA62E29FC448F993 /* GalavantLibrary */ = {isa = PBXFileReference; lastKnownFileType = folder; name = GalavantLibrary; path = GalavantLibrary; sourceTree = SOURCE_ROOT; };
 		C0A1B810182571FD874E4261 /* SyncSeedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncSeedTests.swift; sourceTree = "<group>"; };
 		C5AD27A1248EEA1D9B580277 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		CBC7AEA209B6D84D189928AB /* HoursBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoursBrowserView.swift; sourceTree = "<group>"; };
@@ -188,7 +189,6 @@
 		EF388F1C56D173F7C5F3079C /* Icon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Icon.swift; sourceTree = "<group>"; };
 		EF473C91775923ADF6F5FDEF /* AppRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRouter.swift; sourceTree = "<group>"; };
 		F8D1F8D207FE25FE14CCFED7 /* IdeasListModel+Taxonomy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "IdeasListModel+Taxonomy.swift"; sourceTree = "<group>"; };
-		FC1341802FEAC8150095E55B /* Binding+Present.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Binding+Present.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -321,8 +321,8 @@
 				EA2BBF3B289FD7D02957833B /* AppContainer.swift */,
 				EF473C91775923ADF6F5FDEF /* AppRouter.swift */,
 				82AECABDADDBF8957A5816F8 /* AppScreen.swift */,
+				4784A4E4DDB7356EEF63A970 /* Binding+Present.swift */,
 				EDA439EDEF5339154F3D8C08 /* PrefersTabNavigation.swift */,
-				FC1341802FEAC8150095E55B /* Binding+Present.swift */,
 			);
 			path = Navigation;
 			sourceTree = "<group>";
@@ -556,6 +556,7 @@
 				F41E8D178B9FE462E5E797F5 /* AppContainer.swift in Sources */,
 				686D8E04502200DBC618B751 /* AppRouter.swift in Sources */,
 				4FA9D5986A89B2B51B88F5C2 /* AppScreen.swift in Sources */,
+				52FDF2960D787D40108B3780 /* Binding+Present.swift in Sources */,
 				4171E2BF905DAB98B77389EB /* CertaintyStyle.swift in Sources */,
 				C7FC1AA264B96268F69FC474 /* ChatPanelView.swift in Sources */,
 				BA6DC33C006D131C9DDA042C /* DayChipBar.swift in Sources */,
@@ -573,7 +574,6 @@
 				53262564E42B4E5C64231A96 /* IdeasFilterMenu.swift in Sources */,
 				8C1110FDA05FA4D83DCF9A4F /* IdeasListModel+Taxonomy.swift in Sources */,
 				7B999C65BDCCA5657877F9CD /* IdeasListModel.swift in Sources */,
-				FC1341812FEAC8150095E55B /* Binding+Present.swift in Sources */,
 				3DF889FDCBE7A7C979E41F13 /* IdeasScreen.swift in Sources */,
 				474250E4E109ADF7680100C1 /* IdentityView.swift in Sources */,
 				4344BF96EA3F3DB017E4CCDF /* InterestView.swift in Sources */,
