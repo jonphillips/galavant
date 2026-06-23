@@ -35,18 +35,43 @@ public enum FrontierProvider: String, Sendable, Equatable, CaseIterable {
 /// One turn in a conversation. Roles alternate user/assistant; the system prompt
 /// rides on `ModelRequest.system` (not a message), matching both the Anthropic
 /// wire shape and the on-device session's instructions.
+///
+/// Content is a list of blocks so the tool-use loop can round-trip: an assistant
+/// turn carries `.text` + `.toolUse` blocks, and the following user turn carries
+/// the matching `.toolResult` blocks (ADR-0017 §3). Plain text turns stay simple
+/// via the `.user`/`.assistant(_:)` helpers and the `text` accessor.
 public struct ModelMessage: Sendable, Equatable {
   public enum Role: String, Sendable, Equatable {
     case user
     case assistant
   }
 
+  /// One piece of a message. The Anthropic wire encodes these as content blocks;
+  /// the on-device tier only ever sees `.text`.
+  public enum Content: Sendable, Equatable {
+    case text(String)
+    /// An assistant request to call a tool (`tool_use`).
+    case toolUse(ModelToolCall)
+    /// A user-turn reply carrying a tool's output (`tool_result`).
+    case toolResult(toolUseID: String, text: String, isError: Bool)
+  }
+
   public var role: Role
-  public var text: String
+  public var content: [Content]
+
+  public init(role: Role, content: [Content]) {
+    self.role = role
+    self.content = content
+  }
 
   public init(role: Role, text: String) {
-    self.role = role
-    self.text = text
+    self.init(role: role, content: [.text(text)])
+  }
+
+  /// The concatenated text of this message's `.text` blocks — what the on-device
+  /// prompt and the stub backends read; tool blocks contribute nothing.
+  public var text: String {
+    content.compactMap { if case let .text(value) = $0 { value } else { nil } }.joined()
   }
 
   public static func user(_ text: String) -> ModelMessage { .init(role: .user, text: text) }
@@ -65,6 +90,9 @@ public struct ModelRequest: Sendable, Equatable {
   public var system: String?
   /// The conversation so far. Must be non-empty and start with a user turn.
   public var messages: [ModelMessage]
+  /// Tools the model may call (ADR-0017 §3). Empty for plain completions; the
+  /// on-device tier ignores them (its tool-use is limited).
+  public var tools: [ModelTool]
   /// Hard ceiling on generated tokens (Anthropic requires it; on-device ignores).
   public var maxTokens: Int
 
@@ -72,11 +100,13 @@ public struct ModelRequest: Sendable, Equatable {
     tier: ModelTier = .onDevice,
     system: String? = nil,
     messages: [ModelMessage],
+    tools: [ModelTool] = [],
     maxTokens: Int = 1024
   ) {
     self.tier = tier
     self.system = system
     self.messages = messages
+    self.tools = tools
     self.maxTokens = maxTokens
   }
 
@@ -91,16 +121,29 @@ public struct ModelRequest: Sendable, Equatable {
   }
 }
 
-/// A completed response. `text` is the concatenated assistant text; `stopReason`
-/// is the backend's stop signal (`end_turn` / `max_tokens` / `refusal` / …) when
-/// it reports one.
+/// A completed response. `text` is the concatenated assistant text; `toolCalls`
+/// are any `tool_use` blocks the model emitted (drives the tool loop, ADR-0017 §3);
+/// `stopReason` is the backend's stop signal (`end_turn` / `tool_use` /
+/// `max_tokens` / `refusal` / …) when it reports one.
 public struct ModelResponse: Sendable, Equatable {
   public var text: String
+  public var toolCalls: [ModelToolCall]
   public var stopReason: String?
 
-  public init(text: String, stopReason: String? = nil) {
+  public init(text: String, toolCalls: [ModelToolCall] = [], stopReason: String? = nil) {
     self.text = text
+    self.toolCalls = toolCalls
     self.stopReason = stopReason
+  }
+
+  /// The assistant message to append to the conversation before sending tool
+  /// results back — its text plus a `.toolUse` block per call, in order. Used by
+  /// the tool loop to echo the model's turn (the wire requires the originating
+  /// `tool_use` blocks precede their `tool_result`s).
+  public var assistantMessage: ModelMessage {
+    var content: [ModelMessage.Content] = text.isEmpty ? [] : [.text(text)]
+    content += toolCalls.map { .toolUse($0) }
+    return ModelMessage(role: .assistant, content: content)
   }
 }
 

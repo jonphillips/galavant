@@ -7,6 +7,12 @@ import Foundation
 /// `anthropic-version: 2023-06-01`; default model `claude-opus-4-8`, which is
 /// adaptive-thinking-only — **no** `temperature`/`top_p`/`budget_tokens`
 /// (they 400), so none are sent.
+///
+/// Snake-case wire keys (`max_tokens`, `input_schema`, `tool_use_id`, `is_error`,
+/// `stop_reason`) are spelled out with explicit `CodingKeys` rather than a global
+/// `keyEncodingStrategy`: the strategy would also rewrite the *nested* keys inside
+/// a tool's JSON-Schema and a `tool_use`'s arbitrary input (ADR-0017 §3), which
+/// must pass through verbatim.
 enum AnthropicWire {
   /// Default model — `claude-opus-4-8`, 1M context (ADR-0014 §2; `claude-api`
   /// names it the default).
@@ -24,11 +30,12 @@ enum AnthropicWire {
       maxTokens: request.maxTokens,
       system: request.system,
       stream: stream,
-      messages: request.messages.map { Message(role: $0.role.rawValue, content: $0.text) }
+      messages: request.messages.map(WireMessage.init),
+      tools: request.tools.isEmpty ? nil : request.tools.map(WireTool.init)
     )
-    let encoder = JSONEncoder()
-    encoder.keyEncodingStrategy = .convertToSnakeCase
-    return try encoder.encode(body)
+    // No key strategy: explicit CodingKeys carry snake_case; nested tool
+    // schema/input keys must not be rewritten.
+    return try JSONEncoder().encode(body)
   }
 
   private struct RequestBody: Encodable {
@@ -36,26 +43,99 @@ enum AnthropicWire {
     var maxTokens: Int
     var system: String?
     var stream: Bool
-    var messages: [Message]
+    var messages: [WireMessage]
+    var tools: [WireTool]?
+
+    enum CodingKeys: String, CodingKey {
+      case model, system, stream, messages, tools
+      case maxTokens = "max_tokens"
+    }
   }
 
-  private struct Message: Encodable {
-    var role: String
-    var content: String
+  /// Encodes a `ModelMessage` as `{role, content}`. A lone text block serializes
+  /// as a plain string (the simple, common case); anything with tool blocks
+  /// serializes as a typed content-block array.
+  private struct WireMessage: Encodable {
+    let message: ModelMessage
+    init(_ message: ModelMessage) { self.message = message }
+
+    enum CodingKeys: String, CodingKey { case role, content }
+
+    func encode(to encoder: any Encoder) throws {
+      var container = encoder.container(keyedBy: CodingKeys.self)
+      try container.encode(message.role.rawValue, forKey: .role)
+      if message.content.count == 1, case let .text(text) = message.content[0] {
+        try container.encode(text, forKey: .content)
+      } else {
+        try container.encode(message.content.map(WireBlock.init), forKey: .content)
+      }
+    }
+  }
+
+  private struct WireBlock: Encodable {
+    let content: ModelMessage.Content
+    init(_ content: ModelMessage.Content) { self.content = content }
+
+    enum CodingKeys: String, CodingKey {
+      case type, text, id, name, input, content
+      case toolUseID = "tool_use_id"
+      case isError = "is_error"
+    }
+
+    func encode(to encoder: any Encoder) throws {
+      var container = encoder.container(keyedBy: CodingKeys.self)
+      switch content {
+      case let .text(text):
+        try container.encode("text", forKey: .type)
+        try container.encode(text, forKey: .text)
+      case let .toolUse(call):
+        try container.encode("tool_use", forKey: .type)
+        try container.encode(call.id, forKey: .id)
+        try container.encode(call.name, forKey: .name)
+        try container.encode(call.input, forKey: .input)
+      case let .toolResult(toolUseID, text, isError):
+        try container.encode("tool_result", forKey: .type)
+        try container.encode(toolUseID, forKey: .toolUseID)
+        try container.encode(text, forKey: .content)
+        try container.encode(isError, forKey: .isError)
+      }
+    }
+  }
+
+  private struct WireTool: Encodable {
+    let tool: ModelTool
+    init(_ tool: ModelTool) { self.tool = tool }
+
+    enum CodingKeys: String, CodingKey {
+      case name, description
+      case inputSchema = "input_schema"
+    }
+
+    func encode(to encoder: any Encoder) throws {
+      var container = encoder.container(keyedBy: CodingKeys.self)
+      try container.encode(tool.name, forKey: .name)
+      try container.encode(tool.description, forKey: .description)
+      try container.encode(tool.inputSchema, forKey: .inputSchema)
+    }
   }
 
   // MARK: Non-streaming response
 
-  /// Decode a full (non-stream) response into a `ModelResponse`, concatenating
-  /// text blocks. Throws `.malformedResponse` if the body doesn't decode.
+  /// Decode a full (non-stream) response into a `ModelResponse`: concatenated text
+  /// blocks plus any `tool_use` blocks as `ModelToolCall`s (ADR-0017 §3). Throws
+  /// `.malformedResponse` if the body doesn't decode.
   static func response(from data: Data) throws -> ModelResponse {
-    let decoder = JSONDecoder()
-    decoder.keyDecodingStrategy = .convertFromSnakeCase
-    guard let body = try? decoder.decode(ResponseBody.self, from: data) else {
+    guard let body = try? JSONDecoder().decode(ResponseBody.self, from: data) else {
       throw ModelClientError.malformedResponse
     }
     let text = body.content.compactMap { $0.type == "text" ? $0.text : nil }.joined()
-    return ModelResponse(text: text, stopReason: body.stopReason)
+    let toolCalls: [ModelToolCall] = body.content.compactMap { block in
+      guard block.type == "tool_use", let id = block.id, let name = block.name else {
+        return nil
+      }
+      return ModelToolCall(id: id, name: name, input: block.input ?? .object([:]))
+    }
+    return ModelResponse(text: text, toolCalls: toolCalls, stopReason: body.stopReason)
   }
 
   /// Decode an API error body (`{"error": {"message": "..."}}`) into its message,
@@ -71,18 +151,27 @@ enum AnthropicWire {
   private struct ResponseBody: Decodable {
     var content: [ContentBlock]
     var stopReason: String?
+
+    enum CodingKeys: String, CodingKey {
+      case content
+      case stopReason = "stop_reason"
+    }
   }
 
   private struct ContentBlock: Decodable {
     var type: String
     var text: String?
+    var id: String?
+    var name: String?
+    var input: JSONValue?
   }
 
   // MARK: Streaming (SSE)
 
-  /// What a single decoded SSE `data:` payload tells us. The chat only needs the
-  /// text deltas and the terminal stop reason; everything else (`message_start`,
-  /// `content_block_start`, `ping`, …) is `.other`.
+  /// What a single decoded SSE `data:` payload tells us. The chat streams the text
+  /// deltas and the terminal stop reason; tool-use turns run through the
+  /// non-streaming `complete` loop, so tool deltas aren't surfaced here. Everything
+  /// else (`message_start`, `content_block_start`, `ping`, …) is `.other`.
   enum StreamEvent: Equatable {
     case delta(String)
     case stop(reason: String?)

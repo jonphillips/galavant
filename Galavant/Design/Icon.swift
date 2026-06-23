@@ -26,6 +26,7 @@ enum Icon {
   case settings       // app settings / "You" area
   case aiOnDevice     // on-device (private) AI tier
   case aiFrontier     // frontier (networked, BYO-key) AI tier
+  case chat           // open the context-aware chat panel (ADR-0017)
 
   // Scheduling
   case calendar       // generic / "nothing scheduled"
@@ -94,6 +95,7 @@ enum Icon {
     case .tag: "tag"
     case .travelParty: "person.2"
     case .emptyPool: "tray"
+    case .chat: "bubble.left.and.text.bubble.right"
     }
   }
 
