@@ -105,6 +105,17 @@ struct IdeaDetailView: View {
         }
       }
 
+      if let hours = idea.openingHours, !hours.isEmpty {
+        Section("Hours") {
+          Text(hours)
+          if let provenance = idea.hoursProvenance {
+            Text(provenance.label)
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
+        }
+      }
+
       if !idea.notes.isEmpty {
         Section("Notes") { Text(idea.notes) }
       }

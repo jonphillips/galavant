@@ -34,6 +34,30 @@ extension Idea {
   }
 }
 
+extension Idea {
+  /// Write supplemented opening hours onto an idea with their provenance and a
+  /// verified-at stamp (ADR-0016 §2). Blank hours clear the field back to unknown.
+  /// No-op on a missing idea.
+  public static func setOpeningHours(
+    ideaID: Idea.ID,
+    hours: String?,
+    provenance: FactProvenance,
+    verifiedAt: Date,
+    in db: Database
+  ) throws {
+    guard try Idea.find(ideaID).fetchOne(db) != nil else { return }
+    let trimmed = hours?.trimmingCharacters(in: .whitespacesAndNewlines)
+    let cleaned = (trimmed?.isEmpty ?? true) ? nil : trimmed
+    try Idea.find(ideaID)
+      .update {
+        $0.openingHours = #bind(cleaned)
+        $0.hoursProvenance = #bind(cleaned == nil ? nil : provenance)
+        $0.hoursVerifiedAt = #bind(cleaned == nil ? nil : verifiedAt)
+      }
+      .execute(db)
+  }
+}
+
 extension Planner {
   /// Create a planner attached to the default travel party and return it.
   public static func create(displayName: String, in db: Database) throws -> Planner {

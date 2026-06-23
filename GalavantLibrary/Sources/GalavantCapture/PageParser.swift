@@ -38,6 +38,10 @@ public enum PageParser {
     BodyImageExtractor.extract(from: document, into: &builder)
 
     var page = builder.build(capturedAt: capturedAt)
+    // Native source judgments (Michelin stars, a Harper score, an embedded aggregate
+    // rating) — deterministic recognizers keyed on structure + host (ADR-0016 §1).
+    // Run before the boilerplate strip below, which mutates the document.
+    page.evaluations = EvaluationRecognizers.recognize(in: document, sourceURL: sourceURL)
     // A plain-text excerpt for the on-device summarizer (done last: it strips
     // boilerplate from the document, after the extractors and image sweep have run).
     page.textExcerpt = textExcerpt(from: document)

@@ -10,6 +10,7 @@ struct ParseBuilder {
   private(set) var socialURLs: [URL] = []
   private(set) var openingHours: [String] = []
   private(set) var schemaTypes: [String] = []
+  private(set) var evaluations: [ParsedEvaluation] = []
 
   let sourceURL: URL?
 
@@ -41,6 +42,19 @@ struct ParseBuilder {
       !schemaTypes.contains(value)
     else { return }
     schemaTypes.append(value)
+  }
+
+  /// Record a detected source judgment, de-duplicated on (source, kind, value) so a
+  /// rating echoed across JSON-LD and a host pattern is kept once. Deterministic
+  /// recognizers run first, so a later duplicate is dropped, not the earlier vote.
+  mutating func addEvaluation(_ evaluation: ParsedEvaluation) {
+    let isDuplicate = evaluations.contains {
+      $0.sourceName.caseInsensitiveCompare(evaluation.sourceName) == .orderedSame
+        && $0.kind == evaluation.kind
+        && $0.valueText.caseInsensitiveCompare(evaluation.valueText) == .orderedSame
+    }
+    guard !isDuplicate else { return }
+    evaluations.append(evaluation)
   }
 
   // MARK: Resolve
@@ -81,7 +95,8 @@ struct ParseBuilder {
       socialURLs: socialURLs,
       schemaTypes: schemaTypes,
       openingHours: openingHours,
-      capturedAt: capturedAt
+      capturedAt: capturedAt,
+      evaluations: evaluations
     )
   }
 

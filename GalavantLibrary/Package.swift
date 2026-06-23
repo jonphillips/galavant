@@ -37,6 +37,7 @@ let package = Package(
         "GalavantSchema",
         "GalavantCapture",
         "GalavantImaging",
+        "GalavantAI",
         .product(name: "SQLiteData", package: "sqlite-data"),
         .product(name: "Dependencies", package: "swift-dependencies"),
       ]
@@ -47,6 +48,7 @@ let package = Package(
         "GalavantPlaces",
         "GalavantSchema",
         "GalavantCapture",
+        "GalavantAI",
         .product(name: "DependenciesTestSupport", package: "swift-dependencies"),
       ]
     ),

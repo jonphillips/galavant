@@ -103,8 +103,23 @@ struct IdeaFormView: View {
             .autocorrectionDisabled()
         }
         Toggle("Visited", isOn: $model.draft.visited)
+        if !model.isNew {
+          hoursSection
+        }
         Section {
           StackedTextEditor(title: "Notes", text: $model.draft.notes, minHeight: 120)
+        }
+      }
+      .sheet(
+        isPresented: Binding(
+          get: { model.hoursBrowserURL != nil },
+          set: { if !$0 { model.hoursBrowserURL = nil } }
+        )
+      ) {
+        if let url = model.hoursBrowserURL {
+          HoursBrowserView(startURL: url) { html, sourceURL in
+            await model.applyBrowsedHours(html: html, sourceURL: sourceURL)
+          }
         }
       }
       .navigationTitle(model.isNew ? "New Idea" : "Edit Idea")
@@ -122,6 +137,46 @@ struct IdeaFormView: View {
       }
       .task { await model.task() }
     }
+  }
+
+  /// Opening hours (a *fact* on the idea, ADR-0016 §2): the current value with its
+  /// provenance, and the supplement affordance that fills it from the cheapest
+  /// source — the place's own site, falling through to an in-app browser.
+  @ViewBuilder private var hoursSection: some View {
+    @Bindable var model = model
+    Section("Hours") {
+      if let hours = model.draft.openingHours, !hours.isEmpty {
+        Text(hours)
+        if let provenance = model.draft.hoursProvenance {
+          Label(hoursProvenanceText(provenance), systemImage: "checkmark.seal")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+      } else {
+        Text("No hours yet").foregroundStyle(.secondary)
+      }
+      if model.canSupplementHours {
+        Button {
+          Task { await model.supplementHours() }
+        } label: {
+          if model.supplementingHours {
+            Label { Text("Finding hours…") } icon: { ProgressView() }
+          } else {
+            Label(
+              model.draft.openingHours == nil ? "Find hours" : "Refresh hours",
+              systemImage: "clock"
+            )
+          }
+        }
+        .disabled(model.supplementingHours)
+      }
+    }
+  }
+
+  /// "Verified · Jun 22, 2026" — the provenance label plus the verified date.
+  private func hoursProvenanceText(_ provenance: FactProvenance) -> String {
+    guard let date = model.draft.hoursVerifiedAt else { return provenance.label }
+    return "\(provenance.label) · \(date.formatted(date: .abbreviated, time: .omitted))"
   }
 
   /// The idea's photos: a large cover preview over a tappable thumbnail strip.

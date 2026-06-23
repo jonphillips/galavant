@@ -461,6 +461,13 @@ extension DependencyValues {
       )
       .execute(db)
     }
+    migrator.registerMigration("Add opening-hours fact columns to ideas (ADR-0016)") { db in
+      // Hours are a *fact* on the idea (not an evaluation), with provenance so a
+      // HITL-scraped or edited value never reads as authoritative.
+      try #sql(#"ALTER TABLE "ideas" ADD COLUMN "openingHours" TEXT"#).execute(db)
+      try #sql(#"ALTER TABLE "ideas" ADD COLUMN "hoursProvenance" TEXT"#).execute(db)
+      try #sql(#"ALTER TABLE "ideas" ADD COLUMN "hoursVerifiedAt" TEXT"#).execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if context == .live, startSyncEngine {

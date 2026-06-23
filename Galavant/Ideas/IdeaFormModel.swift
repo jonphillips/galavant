@@ -15,6 +15,11 @@ final class IdeaFormModel {
   var draft: Idea.Draft
   var tagNames: [String] = []
   var newTag = ""
+  /// True while the field-supplement ladder is running (ADR-0016 §2).
+  var supplementingHours = false
+  /// Set to present the human-in-the-loop browser (rung 3) when the cheaper rungs
+  /// can't find hours — the page the user drives to grab them from.
+  var hoursBrowserURL: URL?
   /// The idea's stored images, header first (M4g/M4h). The user can re-pick the
   /// cover from here; the header the enrichment chose (Vision-recommended) is the
   /// default. Empty for a new idea or one without images.
@@ -109,6 +114,52 @@ final class IdeaFormModel {
     draft.longitude = nil
     draft.address = nil
     draft.phone = nil
+  }
+
+  /// Whether the supplement affordance applies — only a saved idea (it writes by
+  /// id) that has somewhere to look (a link or a location).
+  var canSupplementHours: Bool {
+    !isNew && (!draft.url.isEmpty || hasLocation)
+  }
+
+  /// Climb the cheapest-source ladder to fill opening hours (ADR-0016 §2). On a hit
+  /// the form refreshes from the DB; when no cheap rung can, offer the in-app
+  /// browser (rung 3) pointed at the idea's own link.
+  func supplementHours() async {
+    guard let id = draft.id else { return }
+    supplementingHours = true
+    defer { supplementingHours = false }
+    let outcome = await FieldSupplement().supplementHours(ideaID: id)
+    switch outcome {
+    case .filled, .alreadyPresent:
+      await reloadHours()
+    case .notFound:
+      if !draft.url.isEmpty, let url = URL(string: draft.url) {
+        hoursBrowserURL = url
+      }
+    }
+  }
+
+  /// Apply hours grabbed from the in-app browser's loaded page (rung 3), stamped
+  /// `.unverified`, then refresh the form. Returns whether the page yielded any.
+  @discardableResult
+  func applyBrowsedHours(html: String, sourceURL: URL?) async -> Bool {
+    guard let id = draft.id else { return false }
+    let filled = await FieldSupplement().applyBrowsedHours(html: html, sourceURL: sourceURL, ideaID: id)
+    if filled { await reloadHours() }
+    return filled
+  }
+
+  /// Pull the persisted hours fields back into the draft after a supplement write.
+  private func reloadHours() async {
+    guard let id = draft.id else { return }
+    await withErrorReporting {
+      if let idea = try await database.read({ db in try Idea.find(id).fetchOne(db) }) {
+        draft.openingHours = idea.openingHours
+        draft.hoursProvenance = idea.hoursProvenance
+        draft.hoursVerifiedAt = idea.hoursVerifiedAt
+      }
+    }
   }
 
   func saveButtonTapped() {
