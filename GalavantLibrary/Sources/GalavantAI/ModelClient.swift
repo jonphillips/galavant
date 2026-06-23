@@ -95,19 +95,25 @@ public struct ModelRequest: Sendable, Equatable {
   public var tools: [ModelTool]
   /// Hard ceiling on generated tokens (Anthropic requires it; on-device ignores).
   public var maxTokens: Int
+  /// When set, attach Anthropic's server-side `web_search` tool with this `max_uses`
+  /// cap (ADR-0018, M6e discovery). Frontier-tier only — the on-device tier can't
+  /// web-search, so the backend ignores it. `nil` = no web search.
+  public var webSearchMaxUses: Int?
 
   public init(
     tier: ModelTier = .onDevice,
     system: String? = nil,
     messages: [ModelMessage],
     tools: [ModelTool] = [],
-    maxTokens: Int = 1024
+    maxTokens: Int = 1024,
+    webSearchMaxUses: Int? = nil
   ) {
     self.tier = tier
     self.system = system
     self.messages = messages
     self.tools = tools
     self.maxTokens = maxTokens
+    self.webSearchMaxUses = webSearchMaxUses
   }
 
   /// A single-prompt convenience for one-shot extraction/classification tasks.
@@ -115,9 +121,13 @@ public struct ModelRequest: Sendable, Equatable {
     tier: ModelTier = .onDevice,
     system: String? = nil,
     prompt: String,
-    maxTokens: Int = 1024
+    maxTokens: Int = 1024,
+    webSearchMaxUses: Int? = nil
   ) {
-    self.init(tier: tier, system: system, messages: [.user(prompt)], maxTokens: maxTokens)
+    self.init(
+      tier: tier, system: system, messages: [.user(prompt)],
+      maxTokens: maxTokens, webSearchMaxUses: webSearchMaxUses
+    )
   }
 }
 
