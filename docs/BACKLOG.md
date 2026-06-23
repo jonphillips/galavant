@@ -3,7 +3,20 @@
 Not milestone-scoped (see ROADMAP.md for those). Running list of refinements
 noted in passing, with enough context to act on cold.
 
-## Hours extraction misses unstructured-markup sites (ADR-0016, 2026-06-23)
+## Hours extraction misses unstructured-markup sites (ADR-0016, 2026-06-23) — PARTLY DONE
+
+**On-demand ladder DONE (2026-06-23, branch `m6-hours-extractor`).** Shipped the
+`HoursExtractor` (`GalavantPlaces/HoursExtractor.swift`) — the on-device LLM
+extract-only fallback, mirroring `EvaluationExtractor` (on-device `ModelClient` tier,
+strict extract-only prompt, tolerant JSON-object parse degrading to `nil`,
+`testValue` → `nil`). Wired into **both** `FieldSupplement` paths via a shared
+`resolvedHours(from:)` helper: rung 2 (official-site fetch → `.official`) and the
+HITL `applyBrowsedHours` (→ `.unverified`), deterministic structured hours first so a
+structured page never pays for a model call. 8 tests (the brewerybhavana-shaped
+unstructured fixture + the pure parse degrade). The existing "Find hours" affordance +
+HITL browser (`IdeaFormModel`/`IdeaFormView`) now reach unstructured sites with no UI
+change. **Remaining:** the capture-time fallback — see the dedicated gap below; the
+implementation sketch (1–5) is preserved for that work.
 
 The opening-hours pipeline (capture *and* the on-demand supplement ladder) is
 **structured-data only** — it mines hours solely from JSON-LD
@@ -63,7 +76,37 @@ strict extract-only prompt, a tolerant parse of the model's output.
    miss, the provenance stamp, and the malformed-reply→`nil` degrade. A
    brewerybhavana-shaped fixture (styled hours, no schema.org) is the canonical case.
 
-No code touched — logged for when the M6 hours work is picked back up.
+The on-demand half is now built (see the DONE note above). The capture-time fallback
+remains — and is bigger than first framed, per the gap below.
+
+## Capture never persists opening hours at all (found 2026-06-23)
+
+Discovered while wiring the on-demand hours ladder: the share-extension capture path
+**never writes `openingHours` onto the `Idea`** — even when the parser *did* extract
+structured hours. `CapturedPlace` carries `openingHours` (from `page.openingHours`),
+but `CaptureModel.persistCapture` builds the `Idea.Draft`
+([CaptureModel.swift:239](../GalavantLibrary/Sources/GalavantPlaces/CaptureModel.swift)) without that field, so hours are dropped on save.
+(`Idea.Draft` *supports* `openingHours`/`hoursProvenance`/`hoursVerifiedAt` — they're
+just never set.) Today hours only ever reach an `Idea` via the on-demand
+`FieldSupplement` ladder.
+
+So the BACKLOG's "capture-time LLM fallback **after the deterministic extractors come
+up empty**" presumes a deterministic capture-hours write that doesn't exist. The
+capture-time work is therefore two steps, not one:
+
+1. **Persist deterministic hours at capture.** Set
+   `Idea.Draft.openingHours`/`hoursProvenance`/`hoursVerifiedAt` from
+   `captured.openingHours` in `persistCapture`, stamped `.official` (the place's own
+   shared page) with `now`. Small, clearly correct, valuable on its own.
+2. **LLM fallback at capture.** Only then does the `HoursExtractor` fallback make
+   sense at capture. **Cost caveat:** capture runs in the share extension, which
+   already makes one on-device model call (`PlaceIntelligence`) under the ~120 MB
+   budget; a second call (hours) doubles model load there. Consider gating it (only
+   when the page has a URL and no structured hours), or deferring hours-LLM to the
+   app-side `PlaceEnricher` two-hop (M4g) where the budget isn't a concern, rather
+   than the extension.
+
+Provenance / availability / tests follow the on-demand pattern already shipped.
 
 ## On-device Apple Intelligence for capture enrichment (2026-06-17) — DONE
 

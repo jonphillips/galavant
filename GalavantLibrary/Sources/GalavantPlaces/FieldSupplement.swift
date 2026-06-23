@@ -44,9 +44,14 @@ extension DependencyValues {
 ///
 /// 1. **MapKit** (`mapItemHoursProbe`) — no hours API on iOS 27; a no-op seam.
 /// 2. **The place's own site** — fetch `Idea.url` (reusing M4g's `PageFetcher`) and
-///    re-parse; `ParsedPage.openingHours` is already extracted. Provenance `.official`.
+///    re-parse. First the deterministic `ParsedPage.openingHours` (JSON-LD/microdata);
+///    then, when that's empty, an on-device **LLM extract-only** pass over the same
+///    page text (`hoursExtractor`) reaches the unstructured-markup sites the parser
+///    can't (Squarespace/Wix; docs/BACKLOG.md). Either way the source is the place's
+///    own site, so provenance `.official`.
 /// 3. **HITL `WKWebView`** — the app's interactive fallback when 1–2 come up empty;
-///    it hands the loaded DOM to `applyBrowsedHours` (provenance `.unverified`).
+///    it hands the loaded DOM to `applyBrowsedHours` (deterministic then the same LLM
+///    fallback; provenance `.unverified` — an arbitrary page the user drove).
 ///
 /// Hours land on **`Idea`** (facts), never `IdeaEvaluation` (judgments) — the
 /// load-bearing split. Lives in the package so the network-free path is the tested
@@ -56,6 +61,7 @@ public final class FieldSupplement {
   @Dependency(\.defaultDatabase) private var database
   @Dependency(\.pageFetcher) private var pageFetcher
   @Dependency(\.mapItemHoursProbe) private var hoursProbe
+  @Dependency(\.hoursExtractor) private var hoursExtractor
   @Dependency(\.date) private var now
 
   /// What a supplement attempt did — drives the affordance's feedback.
@@ -86,10 +92,11 @@ public final class FieldSupplement {
       return .filled(.official)
     }
 
-    // Rung 2: the place's own official site.
-    if !idea.url.isEmpty, let url = URL(string: idea.url),
-      let html = await pageFetcher(url),
-      let hours = Self.hours(fromHTML: html, sourceURL: url)
+    // Rung 2: the place's own official site — fetch + parse once, then try the
+    // deterministic hours and, failing that, the on-device LLM extract-only pass over
+    // the same page text. Both draw from the place's own site → `.official`.
+    if !idea.url.isEmpty, let url = URL(string: idea.url), let html = await pageFetcher(url),
+      let hours = await resolvedHours(from: PageParser.parse(html: html, sourceURL: url))
     {
       await write(hours, provenance: .official, ideaID: ideaID)
       return .filled(.official)
@@ -99,20 +106,30 @@ public final class FieldSupplement {
   }
 
   /// Rung 3 write-back: hours grabbed from the DOM the user loaded in the in-app
-  /// browser. Provenance `.unverified` — it came through a page the user drove, not
-  /// an authoritative source. Returns whether the DOM yielded any hours.
+  /// browser — the deterministic parser first, then the same on-device LLM fallback
+  /// for unstructured-markup pages. Provenance `.unverified` — it came through a page
+  /// the user drove, not an authoritative source. Returns whether any hours were found.
   @discardableResult
   public func applyBrowsedHours(html: String, sourceURL: URL?, ideaID: Idea.ID) async -> Bool {
-    guard let hours = Self.hours(fromHTML: html, sourceURL: sourceURL) else { return false }
+    let page = PageParser.parse(html: html, sourceURL: sourceURL)
+    guard let hours = await resolvedHours(from: page) else { return false }
     await write(hours, provenance: .unverified, ideaID: ideaID)
     return true
   }
 
-  /// Parse an opening-hours block out of a page's DOM/HTML — reuses the capture
-  /// parser, which already mines `openingHours`. `nil` when the page states none.
-  static func hours(fromHTML html: String, sourceURL: URL?) -> String? {
-    let page = PageParser.parse(html: html, sourceURL: sourceURL)
-    return page.openingHours.isEmpty ? nil : page.openingHours.joined(separator: "\n")
+  /// Hours from an already-parsed page: the deterministic `openingHours` first, and
+  /// only when that's empty the on-device LLM extract-only pass (the unstructured-
+  /// markup fallback — Squarespace/Wix; docs/BACKLOG.md). So a structured page never
+  /// pays for a model call. `nil` when neither yields hours.
+  private func resolvedHours(from page: ParsedPage) async -> String? {
+    if let deterministic = Self.hours(from: page) { return deterministic }
+    return (await hoursExtractor(page)).flatMap(Self.cleaned)
+  }
+
+  /// The deterministic opening-hours block from an already-parsed page — the capture
+  /// parser already mines `openingHours` (JSON-LD/microdata). `nil` when it found none.
+  static func hours(from page: ParsedPage) -> String? {
+    page.openingHours.isEmpty ? nil : page.openingHours.joined(separator: "\n")
   }
 
   private static func cleaned(_ value: String) -> String? {
