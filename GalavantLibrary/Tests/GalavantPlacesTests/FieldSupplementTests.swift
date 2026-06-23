@@ -21,6 +21,17 @@ import Testing
     }</script></head><body></body></html>
     """
 
+  /// A Squarespace-shaped page (the brewerybhavana.com miss): JSON-LD is only an
+  /// `Organization` node with no `openingHours`, no microdata; the hours live in a
+  /// styled `.module--hours` widget the deterministic parser can't read.
+  nonisolated private static let unstructuredHTML = """
+    <html><head><script type="application/ld+json">{
+      "@context": "https://schema.org", "@type": "Organization", "name": "Brewery Bhavana"
+    }</script></head><body>
+    <div class="module--hours"><p class="hours-entry">Wed–Sun</p><p class="hours-entry">5pm–10pm</p></div>
+    </body></html>
+    """
+
   nonisolated private func seedIdea(url: String = "https://spot.example", in db: Database) throws -> Idea.ID {
     let party = try TravelParty.ensureDefault(in: db)
     let id = UUID()
@@ -130,6 +141,84 @@ import Testing
       #expect(filled)
       let idea = try #require(try await database.read { db in try Idea.find(ideaID).fetchOne(db) })
       #expect(idea.openingHours == "Tu-Sa 17:00-23:00")
+      #expect(idea.hoursProvenance == .unverified)
+    }
+  }
+
+  @Test("Rung 2 LLM fallback fills hours from an unstructured-markup site, stamped official")
+  func llmFallbackFillsUnstructuredSite() async throws {
+    let stamp = Date(timeIntervalSince1970: 1_780_000_000)
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.date = .constant(stamp)
+      $0.pageFetcher = PageFetcher { _ in Self.unstructuredHTML }
+      $0.hoursExtractor = HoursExtractor { _ in "Wed–Sun 5:00 PM–10:00 PM" }
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      let ideaID = try await database.write { db in try self.seedIdea(in: db) }
+
+      let outcome = await FieldSupplement().supplementHours(ideaID: ideaID)
+      #expect(outcome == .filled(.official))
+
+      let idea = try #require(try await database.read { db in try Idea.find(ideaID).fetchOne(db) })
+      #expect(idea.openingHours == "Wed–Sun 5:00 PM–10:00 PM")
+      #expect(idea.hoursProvenance == .official)
+      #expect(idea.hoursVerifiedAt == stamp)
+    }
+  }
+
+  @Test("Deterministic structured hours win — the LLM rung is never consulted")
+  func deterministicWinsOverLLM() async throws {
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.date = .constant(Date(timeIntervalSince1970: 1_780_000_000))
+      $0.pageFetcher = PageFetcher { _ in Self.siteHTML }
+      $0.hoursExtractor = HoursExtractor { _ in
+        Issue.record("the LLM rung must not run when structured hours exist")
+        return nil
+      }
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      let ideaID = try await database.write { db in try self.seedIdea(in: db) }
+      let outcome = await FieldSupplement().supplementHours(ideaID: ideaID)
+      #expect(outcome == .filled(.official))
+      let idea = try #require(try await database.read { db in try Idea.find(ideaID).fetchOne(db) })
+      #expect(idea.openingHours == "Tu-Sa 17:00-23:00")
+    }
+  }
+
+  @Test("Unstructured site + the LLM finds nothing → notFound")
+  func llmEmptyFallsThrough() async throws {
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.date = .constant(Date(timeIntervalSince1970: 1_780_000_000))
+      $0.pageFetcher = PageFetcher { _ in Self.unstructuredHTML }
+      // hoursExtractor defaults to testValue → nil (no model offline).
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      let ideaID = try await database.write { db in try self.seedIdea(in: db) }
+      let outcome = await FieldSupplement().supplementHours(ideaID: ideaID)
+      #expect(outcome == .notFound)
+      let idea = try #require(try await database.read { db in try Idea.find(ideaID).fetchOne(db) })
+      #expect(idea.openingHours == nil)
+    }
+  }
+
+  @Test("Rung 3 HITL LLM fallback fills unstructured hours, stamped unverified")
+  func browsedLLMFallbackUnverified() async throws {
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.date = .constant(Date(timeIntervalSince1970: 1_780_000_000))
+      $0.hoursExtractor = HoursExtractor { _ in "Daily 11:00–23:00" }
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      let ideaID = try await database.write { db in try self.seedIdea(in: db) }
+      let filled = await FieldSupplement().applyBrowsedHours(
+        html: Self.unstructuredHTML, sourceURL: nil, ideaID: ideaID
+      )
+      #expect(filled)
+      let idea = try #require(try await database.read { db in try Idea.find(ideaID).fetchOne(db) })
+      #expect(idea.openingHours == "Daily 11:00–23:00")
       #expect(idea.hoursProvenance == .unverified)
     }
   }
