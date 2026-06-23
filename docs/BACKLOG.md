@@ -3,6 +3,68 @@
 Not milestone-scoped (see ROADMAP.md for those). Running list of refinements
 noted in passing, with enough context to act on cold.
 
+## Hours extraction misses unstructured-markup sites (ADR-0016, 2026-06-23)
+
+The opening-hours pipeline (capture *and* the on-demand supplement ladder) is
+**structured-data only** — it mines hours solely from JSON-LD
+`openingHours`/`openingHoursSpecification` ([JSONLDExtractor.swift:111](../GalavantLibrary/Sources/GalavantCapture/JSONLDExtractor.swift)) and microdata
+`itemprop="openingHours"` ([MicrodataExtractor.swift:32](../GalavantLibrary/Sources/GalavantCapture/MicrodataExtractor.swift)). There is no
+free-text scanner. So a large class of small-business sites
+(Squarespace/Wix/Webflow) that render hours as a styled widget with no schema.org
+markup yield **nothing** — at capture time and on demand.
+
+Surfaced on **brewerybhavana.com**: a Squarespace site whose only JSON-LD is a
+`WebSite`/`WebPage`/`Organization` `@graph` (no `LocalBusiness`/`Restaurant` node,
+no `openingHours`), no microdata, and visible hours in a `.module--hours` /
+`.hours-entry` block (day names in the static DOM, times injected client-side).
+Capture brought in no hours — correct behavior, but a real gap.
+
+Important: because rungs 2–3 of the supplement ladder run the **same**
+`PageParser` over the fetched/rendered DOM (`page.openingHours`,
+[FieldSupplement.swift:113](../GalavantLibrary/Sources/GalavantPlaces/FieldSupplement.swift)), tapping **"Find hours"** on such an idea also comes up
+empty — *including the human-in-the-loop browser* (rung 3), since even the rendered
+DOM has no structured hours. There is currently **no path** to pull hours for these
+sites, at capture or on demand.
+
+ADR-0016 §1 specified an **LLM extract-only fallback** ("preserve native values
+exactly; do not invent; return null if missing"), but it was scoped to
+*evaluations/ratings* and **not wired into the hours ladder**. Completing that
+already-chosen approach for hours (not a new decision) is the plan; a deterministic
+free-text day/time recognizer in `GalavantCapture` is the cheaper-but-brittle
+alternative if the on-device model proves unreliable for hours.
+
+**Implementation sketch — mirror `EvaluationExtractor` for hours.** The rating path
+is the exact template: an injectable struct, `ModelClient` at the on-device tier, a
+strict extract-only prompt, a tolerant parse of the model's output.
+
+1. **`HoursExtractor` in `GalavantPlaces`** — mirror
+   [EvaluationExtractor.swift](../GalavantLibrary/Sources/GalavantPlaces/EvaluationExtractor.swift): injectable
+   `@Sendable (ParsedPage) async -> String?` (the hours block, or `nil`).
+   `liveValue` routes a body-text excerpt through `@Dependency(\.modelClient)`
+   `.complete` at the on-device tier under a prompt like *"Extract this place's
+   opening hours exactly as stated, weekday granularity; return null if the page
+   states none. Do not infer or invent."* Reuse the JSON-slice/tolerant-parse style
+   (`jsonArraySlice`) so a malformed reply degrades to `nil`, never a crash.
+   `testValue` returns `nil` (offline-default, like the other clients).
+2. **New final rung in the ladder** — in
+   [FieldSupplement.supplementHours](../GalavantLibrary/Sources/GalavantPlaces/FieldSupplement.swift), after the
+   official-site fetch (rung 2) and before `return .notFound`, call the
+   `HoursExtractor` over the already-fetched page text. Also worth wiring as a
+   capture-time fallback after the deterministic extractors come up empty.
+3. **Provenance / the facts-vs-judgments split (ADR-0016 §2)** — hours still land on
+   `Idea`, never `IdeaEvaluation`: the model *extracts a fact*, it doesn't *judge*.
+   Stamp `.official` only when the text came from the place's own site;
+   `.unverified` for an LLM extraction over an arbitrary page (or HITL DOM).
+4. **Availability + cost** — gate on model availability with silent fallback to
+   `.notFound` (degrade like `EvaluationExtractor`'s empty return); on-device tier
+   keeps the page on-device (ADR-0014) and avoids spend.
+5. **Tests** — `GalavantPlacesTests` fixture mirroring `EvaluationCaptureTests`: an
+   injected `HoursExtractor` stub proving the ladder reaches the new rung when 1–2
+   miss, the provenance stamp, and the malformed-reply→`nil` degrade. A
+   brewerybhavana-shaped fixture (styled hours, no schema.org) is the canonical case.
+
+No code touched — logged for when the M6 hours work is picked back up.
+
 ## On-device Apple Intelligence for capture enrichment (2026-06-17) — DONE
 
 Shipped as **M4d** (2026-06-17, commit e7b0ebe; see ROADMAP). `PlaceIntelligence`,
@@ -74,12 +136,13 @@ iOS-26→27 correction. The rest, in rough priority order:
   stray** rule rather than "first party by UUID." Slated for the M2 tail per the
   ADR. Adjacent to the existing "Planner identity feels fly-by-night" item.
 
-- **Schedule doc-drift sweep.** Code dropped V2's `Schedule.exact` for the
-  day-relative model, but several docs still describe the V2 vocabulary as
-  current: `docs/PRODUCT.md:23`, `docs/STYLE.md:51`,
-  `docs/decisions/0004-pull-based-trip-membership.md:27`, `docs/ROADMAP.md:86`.
-  Update to V3 vocabulary (`unscheduled / day / daypart / timed`, calendar dates
-  derived from `Trip.startDate` + day number).
+- **Schedule doc-drift sweep.** — DONE (2026-06-23). Updated `docs/PRODUCT.md`,
+  `docs/STYLE.md`, and `docs/decisions/0004-pull-based-trip-membership.md` to the
+  V3 vocabulary (`unscheduled / day / daypart(DayPart) / timed`, calendar dates
+  derived from the trip's start, `.exact` dropped). `docs/ROADMAP.md` was already
+  corrected (the M3c entry notes "drops V2's `.exact`"); the review's other
+  `.exact` mentions (`trip-time-model.md`, `recovered-requirements.md`) are
+  correct history and left as-is.
 
 - **UUID dependency-control for *new* schema ops.** Operations call `UUID()`
   directly (`TripOperations`, `PoolOperations`, `Tag`, `TripRegion`, `IdeaTag`).
@@ -87,17 +150,22 @@ iOS-26→27 correction. The rest, in rough priority order:
   (model supplies a dependency-controlled `@Dependency(\.uuid)`) rather than
   spreading direct `UUID()`.
 
-- **Standardize derived bindings.** A few `Binding(get:set:)` sites
-  (`TripPlanningSheets.swift:91`, `TripPlanningView.swift:87/95`,
-  `RegionManagerView.swift:45`, `TagManagerView.swift:46`). Prefer reusable
-  binding helpers on the value type / `SwiftUINavigation` case bindings, so
-  agents copy a local pattern. Consistency, not code reduction.
+- **Standardize derived bindings.** — DONE (2026-06-23). `TripPlanningView`'s two
+  sites were already gone. The `TripPlanningSheets` "Show visited" toggle now uses
+  `@Bindable var model` + `$model.includeVisited` (the codebase's established
+  idiom). The `RegionManagerView`/`TagManagerView` rename alerts drive off an
+  optional *struct* payload → bool — which `@Bindable` and the current
+  SwiftUINavigation case-path bindings (enum-only) don't cover — so they now use a
+  small reusable `Binding.isPresent()` helper
+  (`Galavant/Navigation/Binding+Present.swift`), the local pattern to copy.
 
-- **Swallow `CancellationError` on one-shot model reads.** `IdeaFormModel`/
-  `TripFormModel` `.task` flows do one-shot reads wrapped in
-  `withErrorReporting`; view dismissal can surface a harmless `CancellationError`
-  as an issue. Either make them observed projections or catch cancellation
-  explicitly around the read.
+- **Swallow `CancellationError` on one-shot model reads.** — RESOLVED, no code
+  change needed (verified 2026-06-23). The pinned `withErrorReporting`
+  (xctest-dynamic-overlay) already catches `CancellationError` and ignores it in
+  every overload (sync + async — `ErrorReporting.swift` `catch is CancellationError`).
+  Both `IdeaFormModel` and `TripFormModel` wrap their `.task` reads in it, so a
+  cancelled read is silently swallowed, never reported. The review's concern
+  predates this library behavior (or assumed it reported all errors).
 
 - **Document `-skipMacroValidation` for headless verification.** First Xcode CLI
   build stops on macro re-approval; `xcodebuild … -skipMacroValidation build`
