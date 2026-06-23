@@ -153,3 +153,7 @@ applied to facts).
 - **Open at build:** whether `MKMapItem` actually exposes hours on iOS 27 (SDK check
   decides rung 1); the HITL-browser UX; which fields follow hours; how aggressively
   the confirm sheet should pre-trust a recognized evaluation vs require a tap.
+- **Known gap (2026-06-23):** hours extraction is structured-data only (JSON-LD +
+  microdata), so unstructured-markup sites (e.g. Squarespace `.module--hours`
+  widgets) yield nothing at capture *or* on demand — the §1 extract-only LLM
+  fallback was never wired into the hours ladder. See `docs/BACKLOG.md`.
