@@ -10,6 +10,7 @@ let package = Package(
     .library(name: "GalavantCapture", targets: ["GalavantCapture"]),
     .library(name: "GalavantImaging", targets: ["GalavantImaging"]),
     .library(name: "GalavantAI", targets: ["GalavantAI"]),
+    .library(name: "GalavantChat", targets: ["GalavantChat"]),
   ],
   dependencies: [
     .package(url: "https://github.com/pointfreeco/sqlite-data", from: "1.0.0"),
@@ -90,6 +91,29 @@ let package = Package(
     .testTarget(
       name: "GalavantAITests",
       dependencies: [
+        "GalavantAI",
+        .product(name: "DependenciesTestSupport", package: "swift-dependencies"),
+      ]
+    ),
+    // The context-aware chat (ADR-0017): an `@Observable` `ChatModel` over the
+    // tiered `ModelClient`, seeded with a per-screen `ChatContext`, with pool
+    // verbs as tools over the tested `GalavantSchema` core. App-internal name
+    // (ADR-0006). No SwiftUI; the dispatch + serialization logic is the testable
+    // core, the app target is the thin panel.
+    .target(
+      name: "GalavantChat",
+      dependencies: [
+        "GalavantSchema",
+        "GalavantAI",
+        .product(name: "SQLiteData", package: "sqlite-data"),
+        .product(name: "Dependencies", package: "swift-dependencies"),
+      ]
+    ),
+    .testTarget(
+      name: "GalavantChatTests",
+      dependencies: [
+        "GalavantChat",
+        "GalavantSchema",
         "GalavantAI",
         .product(name: "DependenciesTestSupport", package: "swift-dependencies"),
       ]

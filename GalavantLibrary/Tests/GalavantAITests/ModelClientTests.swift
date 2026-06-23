@@ -83,6 +83,78 @@ import Testing
     #expect(AnthropicModelClient.sseDataPayload("event: message_stop") == nil)
     #expect(AnthropicModelClient.sseDataPayload("") == nil)
   }
+
+  @Test("tools serialize as input_schema with nested keys left verbatim")
+  func requestBodyTools() throws {
+    let tool = ModelTool(
+      name: "query_pool",
+      description: "Filter the idea pool",
+      inputSchema: [
+        "type": "object",
+        "properties": ["includeVisited": ["type": "boolean"]],
+        "required": ["includeVisited"],
+      ]
+    )
+    let request = ModelRequest(
+      tier: .frontier(.anthropic), messages: [.user("hi")], tools: [tool])
+    let data = try AnthropicWire.requestData(for: request, model: "m", stream: false)
+    let json = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+    let tools = try #require(json["tools"] as? [[String: Any]])
+    #expect(tools.first?["name"] as? String == "query_pool")
+    let schema = try #require(tools.first?["input_schema"] as? [String: Any])
+    let properties = try #require(schema["properties"] as? [String: Any])
+    // The nested camelCase property key must survive — not snake-cased to a
+    // different name the tool dispatcher wouldn't recognize.
+    #expect(properties["includeVisited"] != nil)
+    #expect(properties["include_visited"] == nil)
+  }
+
+  @Test("an assistant tool_use turn and a user tool_result turn round-trip on the wire")
+  func toolLoopMessages() throws {
+    let assistant = ModelMessage(
+      role: .assistant,
+      content: [
+        .text("Let me check."),
+        .toolUse(ModelToolCall(id: "toolu_1", name: "query_pool", input: ["q": "food"])),
+      ]
+    )
+    let result = ModelMessage(
+      role: .user,
+      content: [.toolResult(toolUseID: "toolu_1", text: "2 ideas", isError: false)]
+    )
+    let request = ModelRequest(messages: [.user("hi"), assistant, result])
+    let data = try AnthropicWire.requestData(for: request, model: "m", stream: false)
+    let json = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+    let messages = try #require(json["messages"] as? [[String: Any]])
+
+    let assistantBlocks = try #require(messages[1]["content"] as? [[String: Any]])
+    #expect(assistantBlocks[0]["type"] as? String == "text")
+    #expect(assistantBlocks[1]["type"] as? String == "tool_use")
+    #expect(assistantBlocks[1]["id"] as? String == "toolu_1")
+
+    let resultBlocks = try #require(messages[2]["content"] as? [[String: Any]])
+    #expect(resultBlocks[0]["type"] as? String == "tool_result")
+    #expect(resultBlocks[0]["tool_use_id"] as? String == "toolu_1")
+    #expect(resultBlocks[0]["content"] as? String == "2 ideas")
+    #expect(resultBlocks[0]["is_error"] as? Bool == false)
+  }
+
+  @Test("response decodes tool_use blocks into tool calls alongside text")
+  func decodeToolUseResponse() throws {
+    let body = """
+      {"content":[
+        {"type":"text","text":"Looking…"},
+        {"type":"tool_use","id":"toolu_9","name":"create_idea","input":{"name":"Noma"}}
+      ],"stop_reason":"tool_use"}
+      """
+    let response = try AnthropicWire.response(from: Data(body.utf8))
+    #expect(response.text == "Looking…")
+    #expect(response.stopReason == "tool_use")
+    #expect(response.toolCalls.count == 1)
+    #expect(response.toolCalls.first?.name == "create_idea")
+    #expect(response.toolCalls.first?.input.string("name") == "Noma")
+  }
 }
 
 @Suite struct TieredModelClientTests {

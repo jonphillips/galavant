@@ -1,4 +1,5 @@
 import Dependencies
+import GalavantChat
 import GalavantSchema
 import MapKit
 import SQLiteData
@@ -17,6 +18,7 @@ struct IdeasScreen: View {
   @State private var managingRegions = false
   @State private var managingTags = false
   @State private var showingSettings = false
+  @State private var showingChat = false
 
   enum Mode: String, CaseIterable {
     case list, map
@@ -80,6 +82,14 @@ struct IdeasScreen: View {
           model.addIdeaButtonTapped()
         } label: {
           Icon.add.label("Add Idea")
+        }
+      }
+      // Discuss the current shopping surface with the model (ADR-0017).
+      ToolbarItem {
+        Button {
+          showingChat = true
+        } label: {
+          Icon.chat.label("Discuss")
         }
       }
       // Stub entry point for the "You"/settings area (ADR-0014 slice 4): manage the
@@ -146,6 +156,21 @@ struct IdeasScreen: View {
     .sheet(isPresented: $showingSettings) {
       AISettingsView()
     }
+    .chatPanel(isPresented: $showingChat, context: .pool(poolChatContext))
+  }
+
+  /// The pool the chat is "looking at" (ADR-0017 §2): the active lens label plus
+  /// the ideas currently visible under it.
+  private var poolChatContext: PoolContext {
+    let lens: String
+    if let tripID = model.activeTripID,
+      let trip = model.capsules.first(where: { $0.id == tripID })
+    {
+      lens = trip.name.isEmpty ? "Active trip" : trip.name
+    } else {
+      lens = "All ideas"
+    }
+    return PoolContext(lens: lens, ideas: model.filteredIdeas)
   }
 
   /// The browse body: list + map side-by-side on iPad (regular width, ADR-0013 —

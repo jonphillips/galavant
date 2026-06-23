@@ -1,3 +1,4 @@
+import GalavantChat
 import GalavantSchema
 import SwiftUI
 import SwiftUINavigation
@@ -24,6 +25,7 @@ struct TripPlanningView: View {
   /// rebuilds on screen change).
   private var model: TripPlanningModel { router.planningModel(for: trip) }
   @State private var showDetailSheet = false
+  @State private var showingChat = false
   @State private var sheetDetent: PresentationDetent = .medium
   /// Measured heights of the full-bleed map and the bottom sheet over it — their
   /// ratio is the southern slice of the map the sheet hides, fed to the canvas so
@@ -57,6 +59,14 @@ struct TripPlanningView: View {
       .toolbar {
         ToolbarItem(placement: .primaryAction) {
           Button("Edit") { model.editButtonTapped() }
+        }
+        // Discuss this trip's itinerary with the model (ADR-0017).
+        ToolbarItem {
+          Button {
+            showingChat = true
+          } label: {
+            Icon.chat.label("Discuss")
+          }
         }
       }
       .task {
@@ -106,6 +116,7 @@ struct TripPlanningView: View {
       .sheet(item: $model.destination.stay, id: \.id) { draft in
         StaySheet(model: model, draft: draft)
       }
+      .chatPanel(isPresented: $showingChat, context: .trip(model.plan))
   }
 
   @ViewBuilder private var layout: some View {
