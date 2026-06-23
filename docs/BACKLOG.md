@@ -324,6 +324,14 @@ a direction; revisit after the core loop (M3/M4) is solid.
 
 ## AI pool-stocking via App Intents — discovery → candidate ideas (from Jon, 2026-06-22)
 
+> **Designed as ADR-0018 + M6e (2026-06-23).** The discovery-pipeline first slice
+> below is now settled in `docs/decisions/0018-ai-pool-stocking-discovery.md` with an
+> execution brief in `docs/M6-EXECUTION.md` (M6e): one grounded `complete()` web-search
+> call → JSON candidates → reuse `PlaceMatcher`/`DiscoveryDedup` → candidate Ideas;
+> frontier-only/BYO-key; slice-0 spike gates discovery quality. The `findPlaces`
+> App-Intent verb vocabulary (the rest of this entry) remains the later composable
+> payoff, not the v1 slice.
+
 The concrete, bounded first slice of the "AI assistant / chat" theme above: not
 open chat, but a small **action layer**. The organizing principle (from the
 2026-06-22 design chat) — **AI stocks and understands the pool; it never decides
