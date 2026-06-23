@@ -110,6 +110,48 @@ import Testing
     #expect(properties["include_visited"] == nil)
   }
 
+  @Test("webSearchMaxUses adds the server-side web_search tool alongside custom tools")
+  func requestBodyWebSearch() throws {
+    let tool = ModelTool(name: "q", description: "d", inputSchema: ["type": "object"])
+    let request = ModelRequest(
+      tier: .frontier(.anthropic), messages: [.user("find places")],
+      tools: [tool], webSearchMaxUses: 8
+    )
+    let data = try AnthropicWire.requestData(for: request, model: "m", stream: false)
+    let json = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+    let tools = try #require(json["tools"] as? [[String: Any]])
+
+    // The custom verb tool and the server web_search tool ride one array.
+    #expect(tools.contains { $0["name"] as? String == "q" })
+    let webSearch = try #require(tools.first { $0["type"] as? String == "web_search_20260209" })
+    #expect(webSearch["name"] as? String == "web_search")
+    #expect(webSearch["max_uses"] as? Int == 8)
+    // A custom verb tool carries no `type`; the web_search tool carries no schema.
+    #expect(webSearch["input_schema"] == nil)
+  }
+
+  @Test("no web_search tool is sent when webSearchMaxUses is nil")
+  func requestBodyNoWebSearch() throws {
+    let request = ModelRequest(messages: [.user("hi")])
+    let data = try AnthropicWire.requestData(for: request, model: "m", stream: false)
+    let json = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+    #expect(json["tools"] == nil)
+  }
+
+  @Test("server_tool_use / web_search_tool_result blocks pass through; final text is captured")
+  func decodeResponseWithServerToolBlocks() throws {
+    let body = """
+      {"content":[
+        {"type":"server_tool_use","id":"srv_1","name":"web_search","input":{"query":"x"}},
+        {"type":"web_search_tool_result","tool_use_id":"srv_1","content":[{"type":"web_search_result","title":"t","url":"u"}]},
+        {"type":"text","text":"[{\\"name\\":\\"Noma\\"}]"}
+      ],"stop_reason":"end_turn"}
+      """
+    let response = try AnthropicWire.response(from: Data(body.utf8))
+    #expect(response.text == #"[{"name":"Noma"}]"#)
+    #expect(response.toolCalls.isEmpty)
+  }
+
   @Test("an assistant tool_use turn and a user tool_result turn round-trip on the wire")
   func toolLoopMessages() throws {
     let assistant = ModelMessage(
@@ -207,6 +249,37 @@ import Testing
       frontier: StubModelClient.constant("frontier")
     )
     let response = try await client.complete(.init(tier: .onDevice, prompt: "x"))
+    #expect(response.text == "on-device")
+  }
+
+  @Test("each frontier request routes to its own provider's backend")
+  func multiProviderRoutesByProvider() async throws {
+    let client = TieredModelClient(
+      onDevice: StubModelClient.constant("on-device"),
+      frontiers: [
+        .anthropic: StubModelClient.constant("claude"),
+        .openai: StubModelClient.constant("gpt"),
+      ]
+    )
+    #expect(client.isAvailable(.anthropic))
+    #expect(client.isAvailable(.openai))
+
+    let claude = try await client.complete(.init(tier: .frontier(.anthropic), prompt: "x"))
+    #expect(claude.text == "claude")
+    let gpt = try await client.complete(.init(tier: .frontier(.openai), prompt: "x"))
+    #expect(gpt.text == "gpt")
+  }
+
+  @Test("a request for an unconfigured provider degrades to on-device")
+  func unconfiguredProviderDegrades() async throws {
+    // Only OpenAI configured; an Anthropic request falls back to on-device.
+    let client = TieredModelClient(
+      onDevice: StubModelClient.constant("on-device"),
+      frontiers: [.openai: StubModelClient.constant("gpt")]
+    )
+    #expect(client.isAvailable(.anthropic) == false)
+    #expect(client.isFrontierAvailable)
+    let response = try await client.complete(.init(tier: .frontier(.anthropic), prompt: "x"))
     #expect(response.text == "on-device")
   }
 }

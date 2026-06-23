@@ -34,6 +34,11 @@ public final class ChatModel {
   /// flipping this on (when a key exists) routes the conversation to the frontier
   /// and surfaces that data leaves the device. Ignored when no key is configured.
   public var useFrontier = false
+  /// Which frontier provider this conversation uses when `useFrontier` is on
+  /// (ADR-0014 multi-provider amendment) — the per-conversation switch that lets
+  /// you develop a plan with one model and ask another to critique it. Ignored when
+  /// its key is absent (then the conversation degrades to on-device).
+  public var selectedProvider: FrontierProvider = .anthropic
   public private(set) var isResponding = false
   public private(set) var errorText: String?
 
@@ -47,17 +52,28 @@ public final class ChatModel {
   public init(context: ChatContext, tools: ChatToolExecutor = PoolToolExecutor()) {
     self.context = context
     self.tools = tools
+    // Default the switcher to whichever provider actually has a key, so a single
+    // configured provider "just works" without a manual pick.
+    if let first = availableProviders.first { selectedProvider = first }
   }
 
-  /// Whether the frontier tier can be offered — a key is in the Keychain
-  /// (ADR-0014 §1). Drives the panel's tier toggle.
-  public var frontierAvailable: Bool { apiKeyStore.key(.anthropic) != nil }
+  /// Whether *any* frontier provider can be offered — at least one key is in the
+  /// Keychain (ADR-0014 §1). Drives whether the panel shows the frontier toggle.
+  public var frontierAvailable: Bool { !availableProviders.isEmpty }
 
-  /// The tier this conversation will actually use — frontier only when chosen
-  /// *and* available, else the on-device default (the boundary degrades too, but
-  /// the panel also keys its "data leaves the device" copy off this).
+  /// The frontier providers with a configured key, in stable order — drives the
+  /// switcher (providers without a key aren't offered).
+  public var availableProviders: [FrontierProvider] {
+    FrontierProvider.allCases.filter { apiKeyStore.key($0) != nil }
+  }
+
+  /// The tier this conversation will actually use — the selected frontier provider
+  /// only when chosen *and* its key is present, else the on-device default (the
+  /// boundary degrades too, but the panel also keys its "data leaves the device"
+  /// copy off this).
   public var activeTier: ModelTier {
-    useFrontier && frontierAvailable ? .frontier(.anthropic) : .onDevice
+    useFrontier && apiKeyStore.key(selectedProvider) != nil
+      ? .frontier(selectedProvider) : .onDevice
   }
 
   /// True when the next message will leave the device — the explicit affordance

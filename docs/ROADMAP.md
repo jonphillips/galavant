@@ -313,6 +313,18 @@ model.
   **Suggested executor: Opus** — the frontier SSE + tool-use loop, streaming chat UI,
   and App Intents tool definitions are the most API-novel and most visible surface in
   M6; first real consumer of the frontier tier.
+- ⏳ **M6e — AI pool-stocking, the discovery pipeline (ADR-0018, proposed
+  2026-06-23):** query + region → candidate pool ideas, grounded in Anthropic
+  **web search** (frontier-only, BYO-key — on-device can't web-search), deduped
+  against the pool and auto-bucketed by region. One grounded `complete()` returns a
+  JSON candidate array; the app owns resolve (`PlaceMatcher`) → dedup
+  (`DiscoveryDedup`) → save as **candidates** (ADR-0013, no new table). **AI stocks
+  the pool; it never pulls onto a trip** (ADR-0004). **Slice 0 is a throwaway spike**
+  (behind a small, deletable Ideas-toolbar entry — Jon's call) that gates the rest on
+  discovery quality for "all 2–3★ Michelin in the Loire." Brief in
+  `docs/M6-EXECUTION.md`. **Suggested executor: Opus** — the `web_search` wire change
+  (`AnthropicWire`) is past-cutoff (needs `claude-api`) and the discovery-quality call
+  is judgment-heavy.
 - Adjacent long-term bet (own slice when it ripens): **match *prediction*** — extend
   the his/hers `Interest.standing` projection from a lagging tally to a *predicted*
   match for unrated ideas, seeded by the taste profile. The most differentiated
