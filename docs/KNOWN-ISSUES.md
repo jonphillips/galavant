@@ -4,6 +4,28 @@ Bugs we're tolerating for now, especially ones that may be Xcode/SDK **beta**
 regressions worth re-checking as the betas evolve. Re-verify each on every new
 Xcode 27 beta; delete an entry when it's fixed upstream or we work around it.
 
+## `.inspector` swallows a view's `.toolbar` on iPad (Xcode 27 beta 1) — WORKED AROUND
+
+*Observed 2026-06-23, iOS 27 iPad simulator, Xcode 27 beta 1. Surfaced when the
+Ideas screen lost its entire trailing toolbar (filter / add / Discuss / Settings).*
+
+Attaching `.inspector(isPresented:)` (our `.chatPanel`, ADR-0017) to a view that
+also carries a `.toolbar` **silently drops the toolbar** when that view is the
+root of a `NavigationSplitView` detail column on iPad — the nav bar shows only the
+system sidebar-toggle, no title, no items. Confirmed by A/B: removing `.chatPanel`
+brought the toolbar back; nesting it below the toolbar host fixed it with the panel
+intact (verified by screenshot).
+
+- **Root cause (hypothesis):** SwiftUI resolves the inspector's own toolbar
+  contribution at the same nav container and discards the explicit `.toolbar` items
+  when the inspector wraps the toolbar-bearing detail-root view.
+- **Workaround (shipped):** attach `.chatPanel`/`.inspector` *inside* the
+  toolbar-bearing view, not outside it — on Ideas, onto the inner `content`; on
+  Trips, as the first modifier on `layout` (so `.toolbar`, applied after, wraps the
+  inspector). `Galavant/Ideas/IdeasScreen.swift`, `Galavant/Trips/TripPlanningView.swift`.
+- **Re-check on later betas:** if fixed upstream, the modifier can move back out;
+  the nesting is harmless if it is.
+
 ## Someday reorder doesn't persist on fast navigation (Xcode 27 beta 1)
 
 *Observed 2026-06-13 (M3b), iOS 27 simulator, Xcode 27 beta 1.*
