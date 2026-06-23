@@ -60,7 +60,8 @@ struct AddIdeasSheet: View {
   }
 
   private var filterMenu: some View {
-    Menu {
+    @Bindable var model = model
+    return Menu {
       Menu("Regions") {
         ForEach(model.sortedRegions) { region in
           Button {
@@ -88,7 +89,7 @@ struct AddIdeasSheet: View {
           }
         }
       }
-      Toggle("Show visited", isOn: Binding(get: { model.includeVisited }, set: { model.includeVisited = $0 }))
+      Toggle("Show visited", isOn: $model.includeVisited)
       if model.isFiltering {
         Button("Clear filters", role: .destructive) { model.clearFilters() }
       }

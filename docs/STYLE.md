@@ -47,10 +47,12 @@ size alone isn't the problem; logic-in-the-view is.
 
 ## 3. Make impossible states unrepresentable
 
-Enums with associated values over flag combinations. The bar is V2's `Schedule`
-enum — `unknown / approximated(day, daypart) / timed / exact` — which replaced
-five interacting V1 fields (`dateSelected`, `scheduled`, `timeGranularity`,
-`approximatedDayNumber`, `daypart`). When two booleans can describe a state
+Enums with associated values over flag combinations. The bar is the `Schedule`
+facade — `unscheduled / day / daypart(DayPart) / timed` (calendar dates derived
+from the trip's start, never stored) — which collapses five interacting V1 fields
+(`dateSelected`, `scheduled`, `timeGranularity`, `approximatedDayNumber`,
+`daypart`) into one value. (M3c refined V2's original `unknown / approximated /
+timed / exact`, dropping `.exact`.) When two booleans can describe a state
 that can't happen, reach for an enum. CasePaths where ergonomics demand.
 
 Navigation state is the same principle: one optional `Destination` enum per

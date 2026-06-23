@@ -19,8 +19,9 @@ to the App Store; distributed to exactly two phones (plus iPads/Macs) via TestFl
    explicitly **pulled** onto the trip's shortlist. A trip never automatically
    contains anything.
 3. **Schedule** — shortlisted ideas get ordered (priority negotiation) and
-   placed onto itinerary days as stops, with V2's schedule granularity
-   (unknown → approximated day/daypart → timed → exact).
+   placed onto itinerary days as stops, with day-relative schedule granularity
+   (unscheduled → day → daypart → timed; calendar dates derived from the trip's
+   start date, never stored — see docs/trip-time-model.md).
 
 **Canonical test case:** collect 38 Denmark ideas over four years; two years out, an
 actual Copenhagen trip pulls the 12 that fit; the Skagen beaches stay in the pool,

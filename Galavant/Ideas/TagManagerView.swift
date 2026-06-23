@@ -45,7 +45,7 @@ struct TagManagerView: View {
       }
       .alert(
         "Rename tag",
-        isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })
+        isPresented: $renaming.isPresent()
       ) {
         TextField("Name", text: $newName)
         Button("Save") {

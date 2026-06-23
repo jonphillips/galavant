@@ -24,5 +24,8 @@ future planning sees visited-state honestly.
 ## Carried forward from V2
 
 - `MapRegion` for geographic bucketing and per-day region stops.
-- The `Schedule` enum (`unknown / approximated(day, daypart) / timed / exact`) for
-  stop timing granularity — a clean refinement over V1's flag soup.
+- The `Schedule` facade (`unscheduled / day / daypart(DayPart) / timed`) for
+  stop timing granularity — a clean refinement over V1's flag soup. (M3c refined
+  V2's original `unknown / approximated / timed / exact`: calendar dates are
+  derived from the trip's start, never stored, and `.exact` was dropped — see
+  docs/trip-time-model.md.)

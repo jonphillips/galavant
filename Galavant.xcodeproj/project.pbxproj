@@ -83,6 +83,7 @@
 		F03422C3671BFFD56B78737A /* TripCanvasMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED4DA130D3A7069430825C31 /* TripCanvasMapView.swift */; };
 		F236D648886F9BA4EF2CCCCB /* GalavantPlaces in Frameworks */ = {isa = PBXBuildFile; productRef = C94234B5AEF12EA0F921B5B0 /* GalavantPlaces */; };
 		F41E8D178B9FE462E5E797F5 /* AppContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA2BBF3B289FD7D02957833B /* AppContainer.swift */; };
+		FC1341812FEAC8150095E55B /* Binding+Present.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1341802FEAC8150095E55B /* Binding+Present.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -166,7 +167,7 @@
 		BAA9983C3B6D9D9B731F96F9 /* DayChipBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayChipBar.swift; sourceTree = "<group>"; };
 		BC5C21FC298AEA29CFE09DC6 /* TripsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripsScreen.swift; sourceTree = "<group>"; };
 		C01187279655F718B34FA9DC /* ChatPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatPanelView.swift; sourceTree = "<group>"; };
-		C071E50FDA62E29FC448F993 /* GalavantLibrary */ = {isa = PBXFileReference; lastKnownFileType = folder; name = GalavantLibrary; path = GalavantLibrary; sourceTree = SOURCE_ROOT; };
+		C071E50FDA62E29FC448F993 /* GalavantLibrary */ = {isa = PBXFileReference; lastKnownFileType = folder; path = GalavantLibrary; sourceTree = SOURCE_ROOT; };
 		C0A1B810182571FD874E4261 /* SyncSeedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncSeedTests.swift; sourceTree = "<group>"; };
 		C5AD27A1248EEA1D9B580277 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		CBC7AEA209B6D84D189928AB /* HoursBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoursBrowserView.swift; sourceTree = "<group>"; };
@@ -187,6 +188,7 @@
 		EF388F1C56D173F7C5F3079C /* Icon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Icon.swift; sourceTree = "<group>"; };
 		EF473C91775923ADF6F5FDEF /* AppRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRouter.swift; sourceTree = "<group>"; };
 		F8D1F8D207FE25FE14CCFED7 /* IdeasListModel+Taxonomy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "IdeasListModel+Taxonomy.swift"; sourceTree = "<group>"; };
+		FC1341802FEAC8150095E55B /* Binding+Present.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Binding+Present.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -320,6 +322,7 @@
 				EF473C91775923ADF6F5FDEF /* AppRouter.swift */,
 				82AECABDADDBF8957A5816F8 /* AppScreen.swift */,
 				EDA439EDEF5339154F3D8C08 /* PrefersTabNavigation.swift */,
+				FC1341802FEAC8150095E55B /* Binding+Present.swift */,
 			);
 			path = Navigation;
 			sourceTree = "<group>";
@@ -570,6 +573,7 @@
 				53262564E42B4E5C64231A96 /* IdeasFilterMenu.swift in Sources */,
 				8C1110FDA05FA4D83DCF9A4F /* IdeasListModel+Taxonomy.swift in Sources */,
 				7B999C65BDCCA5657877F9CD /* IdeasListModel.swift in Sources */,
+				FC1341812FEAC8150095E55B /* Binding+Present.swift in Sources */,
 				3DF889FDCBE7A7C979E41F13 /* IdeasScreen.swift in Sources */,
 				474250E4E109ADF7680100C1 /* IdentityView.swift in Sources */,
 				4344BF96EA3F3DB017E4CCDF /* InterestView.swift in Sources */,
