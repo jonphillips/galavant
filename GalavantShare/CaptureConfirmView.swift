@@ -98,6 +98,27 @@ struct CaptureConfirmView: View {
         }
       }
 
+      if !model.detectedEvaluations.isEmpty {
+        Section("Ratings") {
+          ForEach($model.detectedEvaluations) { $detected in
+            Toggle(isOn: $detected.included) {
+              HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                  Text(detected.sourceName)
+                  if detected.confidence != .official {
+                    Text(detected.confidence.label)
+                      .font(.caption)
+                      .foregroundStyle(.secondary)
+                  }
+                }
+                Spacer()
+                Text(detected.nativeDisplay).bold()
+              }
+            }
+          }
+        }
+      }
+
       Section("Notes") {
         TextField("Notes", text: $model.draft.notes, axis: .vertical)
           .lineLimit(1...5)

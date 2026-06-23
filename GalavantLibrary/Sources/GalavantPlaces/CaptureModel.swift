@@ -30,7 +30,9 @@ public final class CaptureModel {
   @ObservationIgnored @Dependency(\.placeIntelligence) private var placeIntelligence
   @ObservationIgnored @Dependency(\.imageFetcher) private var imageFetcher
   @ObservationIgnored @Dependency(\.recentTripStore) private var recentTripStore
+  @ObservationIgnored @Dependency(\.evaluationExtractor) private var evaluationExtractor
   @ObservationIgnored @Dependency(\.uuid) private var uuid
+  @ObservationIgnored @Dependency(\.date) private var now
 
   private let html: String
   private let sourceURL: URL?
@@ -48,6 +50,10 @@ public final class CaptureModel {
   /// Carry-over signals the `Idea` schema doesn't hold yet (images, hours, the
   /// second-hop `websiteURL`) — kept for the deferred app-side enrichment.
   public private(set) var captured: CapturedPlace?
+  /// Source judgments detected on the page (ADR-0016 §1), surfaced in the confirm
+  /// sheet so Jon vets them (confirm-and-tweak). Each is `included` by default;
+  /// toggling it off drops it from the save. Saved as sibling `IdeaEvaluation`s.
+  public var detectedEvaluations: [DetectedEvaluation] = []
 
   public init(html: String, sourceURL: URL?) {
     self.html = html
@@ -96,8 +102,26 @@ public final class CaptureModel {
 
     self.captured = captured
     self.draft = draft
+    self.detectedEvaluations = await resolveEvaluations(captured.evaluations, page: page)
     await self.loadTrips()
     self.phase = .ready
+  }
+
+  /// Turn the page's detected ratings into confirm-sheet rows. Deterministic
+  /// recognizers win (`.official`); only when they find nothing does the on-device
+  /// LLM extract-only fallback run (`.inferred`) — extraction, never invention
+  /// (ADR-0016 §1). Empty when the page carries no recognizable rating.
+  private func resolveEvaluations(
+    _ recognized: [ParsedEvaluation], page: ParsedPage
+  ) async -> [DetectedEvaluation] {
+    if !recognized.isEmpty {
+      return recognized.map {
+        DetectedEvaluation(id: uuid(), parsed: $0, confidence: .official)
+      }
+    }
+    return await evaluationExtractor(page).map {
+      DetectedEvaluation(id: uuid(), parsed: $0, confidence: .inferred)
+    }
   }
 
   /// Load the active trips for the picker: the most-recently-used trip first and
@@ -168,13 +192,26 @@ public final class CaptureModel {
   /// travel party, so it rides the travel-party CloudKit share (ADR-0003).
   public func save() async {
     phase = .saving
+    do {
+      try await persistCapture()
+      // Remember the trip so the next capture defaults to the same one.
+      if let tripID = selectedTripID { recentTripStore.record(tripID) }
+      phase = .saved
+    } catch {
+      phase = .failed(error.localizedDescription)
+    }
+  }
+
+  /// Persist the captured idea + its sibling image and evaluations in one
+  /// transaction. Splits the Sendable-scalar marshalling and the write out of
+  /// `save()` (the `Idea.Draft` @Table type isn't Sendable, so the draft is rebuilt
+  /// inside the closure from captured scalars).
+  private func persistCapture() async throws {
     // Hybrid capture (M4f): fetch + shrink just the single best candidate here in
     // the extension (one image stays well inside the ~120 MB budget) so the idea
     // lands with a header image; the full ranked gallery is the app's job (M4g).
     // Best-effort — a missing/undecodable image never blocks the save.
     let headerImage = await prepareHeaderImage()
-    // Capture only Sendable scalars into the DB write — `Idea.Draft` itself isn't
-    // Sendable (the @Table-generated type), so rebuild it inside the closure.
     let id = draft.id
     let name = draft.name
     let notes = draft.notes
@@ -190,48 +227,54 @@ public final class CaptureModel {
     let imageThumbnail = headerImage?.thumbnail
     let imageSourceURL = headerImage?.sourceURL
     let imageID = headerImage?.id
-    do {
-      try await database.write { db in
-        let party = try TravelParty.ensureDefault(in: db)
-        try Idea.insert {
-          Idea.Draft(
-            id: id,
-            name: name,
-            notes: notes,
-            kind: kind,
-            regionName: regionName,
-            address: address,
-            phone: phone,
-            latitude: latitude,
-            longitude: longitude,
-            url: url,
-            travelPartyID: party.id
-          )
-        }
-        .execute(db)
-        // Pull onto the chosen trip (idempotent) so the capture lands as a
-        // "considering" entry, not just in the eternal pool.
-        if let tripID, let id {
-          try TripIdea.pull(ideaID: id, into: tripID, in: db)
-        }
-        // Store the header image alongside the idea, in the same transaction.
-        if let id, let imageDisplay, let imageThumbnail, let imageID {
-          try ImageAsset.store(
-            ideaID: id,
-            display: imageDisplay,
-            thumbnail: imageThumbnail,
-            sourceURL: imageSourceURL,
-            asHeader: true,
-            id: imageID,
-            in: db
-          )
-        }
+    // Detected ratings Jon kept — written as sibling evaluations in the same
+    // transaction as the idea (ADR-0016 §1). `DetectedEvaluation` is Sendable.
+    let evaluations = detectedEvaluations.filter(\.included)
+    // Only consult the clock when there's an evaluation to stamp (keeps the
+    // no-rating capture path free of the `date` dependency).
+    let stamp = evaluations.isEmpty ? Date.distantPast : now.now
+    try await database.write { db in
+      let party = try TravelParty.ensureDefault(in: db)
+      try Idea.insert {
+        Idea.Draft(
+          id: id,
+          name: name,
+          notes: notes,
+          kind: kind,
+          regionName: regionName,
+          address: address,
+          phone: phone,
+          latitude: latitude,
+          longitude: longitude,
+          url: url,
+          travelPartyID: party.id
+        )
       }
-      // Remember the trip so the next capture defaults to the same one.
-      if let tripID { recentTripStore.record(tripID) }
-      phase = .saved
-    } catch {
-      phase = .failed(error.localizedDescription)
+      .execute(db)
+      // Pull onto the chosen trip (idempotent) so the capture lands as a
+      // "considering" entry, not just in the eternal pool.
+      if let tripID, let id {
+        try TripIdea.pull(ideaID: id, into: tripID, in: db)
+      }
+      // Store the header image alongside the idea, in the same transaction.
+      if let id, let imageDisplay, let imageThumbnail, let imageID {
+        try ImageAsset.store(
+          ideaID: id,
+          display: imageDisplay,
+          thumbnail: imageThumbnail,
+          sourceURL: imageSourceURL,
+          asHeader: true,
+          id: imageID,
+          in: db
+        )
+      }
+      // Sibling source evaluations (Michelin ★★★, a Harper 96/100, …), born with
+      // the idea and riding the same travel party (ADR-0015/0016).
+      if let id {
+        try IdeaEvaluation.record(
+          evaluations, ideaID: id, travelPartyID: party.id, asOf: stamp, in: db
+        )
+      }
     }
   }
 }

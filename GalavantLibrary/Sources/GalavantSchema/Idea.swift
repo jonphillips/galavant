@@ -14,6 +14,15 @@ public struct Idea: Identifiable, Equatable, Sendable {
   public var longitude: Double?
   public var url = ""
   public var visited = false
+  /// Opening hours as a plain text block (one line per weekday rule, as the source
+  /// stated them). A *fact* about the place (ADR-0016 §2), filled by the field-
+  /// supplement ladder or hand-edited; `nil` = unknown, the supplement trigger.
+  public var openingHours: String?
+  /// How `openingHours` was sourced — stamped so a HITL-scraped or hand-edited value
+  /// never reads as authoritative (ADR-0016 §2). `nil` when there are no hours.
+  public var hoursProvenance: FactProvenance?
+  /// When `openingHours` was last filled/verified — hours rot, so they're dated.
+  public var hoursVerifiedAt: Date?
   /// When the app last took the second enrichment hop for this idea (re-fetched its
   /// website for images + facts; M4g). `nil` = not yet enriched — the trigger for a
   /// one-time enrichment pass. Synced so a second device doesn't redo the work.
@@ -32,6 +41,9 @@ public struct Idea: Identifiable, Equatable, Sendable {
     longitude: Double? = nil,
     url: String = "",
     visited: Bool = false,
+    openingHours: String? = nil,
+    hoursProvenance: FactProvenance? = nil,
+    hoursVerifiedAt: Date? = nil,
     enrichedAt: Date? = nil,
     travelPartyID: TravelParty.ID? = nil
   ) {
@@ -46,6 +58,9 @@ public struct Idea: Identifiable, Equatable, Sendable {
     self.longitude = longitude
     self.url = url
     self.visited = visited
+    self.openingHours = openingHours
+    self.hoursProvenance = hoursProvenance
+    self.hoursVerifiedAt = hoursVerifiedAt
     self.enrichedAt = enrichedAt
     self.travelPartyID = travelPartyID
   }

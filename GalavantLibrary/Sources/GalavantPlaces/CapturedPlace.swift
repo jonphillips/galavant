@@ -21,6 +21,9 @@ public struct CapturedPlace {
   public var socialURLs: [URL]
   /// Raw opening-hours specs (weekday granularity), paired with `capturedAt`.
   public var openingHours: [String]
+  /// Source judgments detected on the page (ADR-0016 §1) — native, never normalized.
+  /// Mapped to sibling `IdeaEvaluation`s when the capture is saved.
+  public var evaluations: [ParsedEvaluation]
   /// When the page was parsed — opening hours and other facts rot.
   public var capturedAt: Date
   /// The page we captured from (the shared/origin URL).
@@ -34,6 +37,7 @@ public struct CapturedPlace {
     imageURLs: [URL] = [],
     socialURLs: [URL] = [],
     openingHours: [String] = [],
+    evaluations: [ParsedEvaluation] = [],
     capturedAt: Date = Date(),
     sourceURL: URL? = nil,
     websiteURL: URL? = nil
@@ -42,6 +46,7 @@ public struct CapturedPlace {
     self.imageURLs = imageURLs
     self.socialURLs = socialURLs
     self.openingHours = openingHours
+    self.evaluations = evaluations
     self.capturedAt = capturedAt
     self.sourceURL = sourceURL
     self.websiteURL = websiteURL
@@ -79,6 +84,7 @@ extension CapturedPlace {
       imageURLs: page.imageURLs,
       socialURLs: page.socialURLs,
       openingHours: page.openingHours,
+      evaluations: page.evaluations,
       capturedAt: page.capturedAt,
       sourceURL: page.sourceURL,
       websiteURL: page.websiteURL

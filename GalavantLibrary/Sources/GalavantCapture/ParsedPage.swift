@@ -38,6 +38,11 @@ public struct ParsedPage: Equatable, Sendable {
   public var openingHours: [String]
   /// When this page was parsed — opening hours and other facts are dated.
   public var capturedAt: Date
+  /// Source judgments detected on the page (Michelin stars, a Harper score, an
+  /// embedded aggregate rating) — native, never normalized (ADR-0016 §1). Many may
+  /// fire; the domain bridge maps each to an `IdeaEvaluation`. Empty when the page
+  /// carried no recognizable rating.
+  public var evaluations: [ParsedEvaluation]
   /// A cleaned, truncated plain-text excerpt of the page's main content (nav/footer/
   /// script stripped). Not a voted fact — raw material so an on-device summarizer can
   /// describe the place even when the page carries no structured description, or only
@@ -59,6 +64,7 @@ public struct ParsedPage: Equatable, Sendable {
     schemaTypes: [String] = [],
     openingHours: [String] = [],
     capturedAt: Date = Date(),
+    evaluations: [ParsedEvaluation] = [],
     textExcerpt: String? = nil
   ) {
     self.sourceURL = sourceURL
@@ -75,6 +81,7 @@ public struct ParsedPage: Equatable, Sendable {
     self.schemaTypes = schemaTypes
     self.openingHours = openingHours
     self.capturedAt = capturedAt
+    self.evaluations = evaluations
     self.textExcerpt = textExcerpt
   }
 
