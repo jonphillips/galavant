@@ -251,6 +251,37 @@ import Testing
     let response = try await client.complete(.init(tier: .onDevice, prompt: "x"))
     #expect(response.text == "on-device")
   }
+
+  @Test("each frontier request routes to its own provider's backend")
+  func multiProviderRoutesByProvider() async throws {
+    let client = TieredModelClient(
+      onDevice: StubModelClient.constant("on-device"),
+      frontiers: [
+        .anthropic: StubModelClient.constant("claude"),
+        .openai: StubModelClient.constant("gpt"),
+      ]
+    )
+    #expect(client.isAvailable(.anthropic))
+    #expect(client.isAvailable(.openai))
+
+    let claude = try await client.complete(.init(tier: .frontier(.anthropic), prompt: "x"))
+    #expect(claude.text == "claude")
+    let gpt = try await client.complete(.init(tier: .frontier(.openai), prompt: "x"))
+    #expect(gpt.text == "gpt")
+  }
+
+  @Test("a request for an unconfigured provider degrades to on-device")
+  func unconfiguredProviderDegrades() async throws {
+    // Only OpenAI configured; an Anthropic request falls back to on-device.
+    let client = TieredModelClient(
+      onDevice: StubModelClient.constant("on-device"),
+      frontiers: [.openai: StubModelClient.constant("gpt")]
+    )
+    #expect(client.isAvailable(.anthropic) == false)
+    #expect(client.isFrontierAvailable)
+    let response = try await client.complete(.init(tier: .frontier(.anthropic), prompt: "x"))
+    #expect(response.text == "on-device")
+  }
 }
 
 @Suite struct APIKeyStoreTests {

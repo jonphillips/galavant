@@ -169,3 +169,157 @@ the boundary is designed for it; the record itself is the next ADR's scope.
   shape; whether OpenAI ships in v1 or Anthropic-only first (lean Anthropic-only —
   `claude-opus-4-8` default — and add OpenAI behind the same protocol only if a
   real need appears).
+
+---
+
+## Amendment — multi-provider + a model switcher (2026-06-23)
+
+*The "real need" the base ADR's last open item gated on has appeared.*
+
+### Context
+
+Two concrete needs (from Jon, 2026-06-23): **resilience** — the app must stay usable
+if a Claude key runs out of tokens or the provider is down — and a **cross-model
+second opinion** — develop a plan with one model, then ask a *different* model to
+evaluate it. Both want more than one frontier provider behind the same boundary. Jon
+also flagged that this model-access layer is **cross-app** — it'll be reused across
+several of his apps — which makes the extraction posture (below) part of the decision.
+
+The base ADR designed for exactly this: `FrontierProvider` is already an enum,
+`APIKeyStore` is already **keyed by provider** (each provider gets its own Keychain
+slot), and `ModelTier.frontier(FrontierProvider)` already carries which provider. The
+hard architectural call was made. What's actually new here is (a) confirming iOS 27
+doesn't supersede this, (b) a routing generalization, (c) the second backend, (d) a
+switcher + fallback, and (e) the cross-app extraction plan.
+
+### Does iOS 27 already provide this? (verified against the SDK)
+
+Checked the iOS 27 `FoundationModels.framework` interface directly
+(`apple-sdk-headers-authoritative`). Findings:
+
+- **No built-in third-party router.** There is no OpenAI/Anthropic connector, no
+  cloud endpoint, no BYO-provider mechanism — nothing matching `url` / `endpoint` /
+  `http` / `openai` / `anthropic` in the public surface. iOS 27 will not call a
+  frontier provider for us.
+- **But iOS 27 newly opened FoundationModels into a protocol seam:** `public protocol
+  LanguageModel` + `public protocol LanguageModelExecutor` (with `init(configuration:)`,
+  `prewarm`, and `respond(to: LanguageModelExecutorGenerationRequest, model:,
+  streamingInto: channel)`), and `LanguageModelSession.init(model: some LanguageModel,
+  …)` is generic. So one *could* write a custom executor that routes generation to
+  Anthropic/OpenAI and reuse Apple's `@Generable`, `Tool`, `Transcript`, and streaming.
+- **Apple also now ships `PrivateCloudComputeLanguageModel`** — a first-class
+  `LanguageModel` tier (Apple's privacy-preserving cloud, with its own `availability`
+  and `quotaUsage`), distinct from on-device `SystemLanguageModel`.
+
+**Decision: keep our own `ModelClient` as the cross-app core; do not adopt Apple's
+`LanguageModel`/`LanguageModelExecutor` for the shared layer.** Rationale:
+
+1. **Portability is the stated goal.** Apple's protocol is Apple-only and iOS-26/27+;
+   binding the shared model layer to it forecloses any future non-Apple app or any
+   server-side use. Our `ModelClient` + provider-agnostic value types stay portable.
+2. **First-beta volatility.** CLAUDE.md already warns first-beta SDKs churn; coupling
+   the substrate every AI feature sits on to a brand-new, fast-moving Apple protocol
+   is the wrong bet for a foundation.
+3. **It doesn't save the hard part.** The real labor is each provider's wire shape
+   (auth, request/response JSON, SSE, tool format, web search) — provider-specific
+   under *either* approach. Apple's session ergonomics are nice-to-have, not the cost.
+
+The Apple seam isn't wasted, though: a thin **optional adapter** that wraps a
+`ModelClient` as a FoundationModels `LanguageModel` (custom executor) can be added
+*later, per-app*, for apps that want Apple's session/`@Generable` ergonomics — without
+the core depending on it. Deferred until an app actually wants it.
+
+### On-device stays the floor (Jon's second question)
+
+Yes — on-device is incorporated and stays first-class. `.onDevice`
+(`OnDeviceModelClient` over `SystemLanguageModel`) is the **always-available floor**:
+no key, no tokens, no network. It is therefore the natural *bottom of the fallback
+ladder* — the answer to "don't make the app unusable if I run out of Claude tokens"
+is that it degrades to on-device, never to nothing. **New opportunity:**
+`PrivateCloudComputeLanguageModel` can be added as a **no-BYO-key Apple-cloud middle
+tier** (more capable than on-device, still privacy-preserving, still no third-party
+key) — a rung between on-device and BYO-key frontier. Optional, additive; not required
+for the OpenAI work.
+
+### The decision
+
+1. **Generalize the router.** `TieredModelClient` today holds a single
+   `frontier: (any ModelClient)?` and routes *all* `.frontier(...)` to it regardless
+   of provider. Change it to a `[FrontierProvider: any ModelClient]` map, route
+   `.frontier(provider)` to the matching client, and report availability per provider
+   (`isAvailable(_ provider:)`). On-device remains the unconditional floor.
+2. **Add `FrontierProvider.openai`** (one enum case; `CaseIterable` so the switcher UI
+   gets the provider list for free) and an OpenAI key field in the AI settings surface
+   (Keychain storage already keyed by provider — no new storage code).
+3. **`OpenAIModelClient` + `OpenAIWire`** — a second `URLSession` backend mirroring the
+   Anthropic pair (`AnthropicModelClient`/`AnthropicWire`, ~340 lines together). OpenAI
+   differs: `Authorization: Bearer`, different request/response JSON, different SSE
+   deltas, different tool-call shape. Past Claude's cutoff → build against **current
+   OpenAI API docs**, not memory; keep the wire pure + unit-tested with fixtures
+   exactly as `AnthropicWireTests` does.
+4. **Model switcher.** A selected default provider/model in settings, plus a
+   **per-conversation** override on the chat panel (ADR-0017 already anticipated
+   per-conversation tier choice). This is what enables "develop the plan with Claude,
+   then open a chat on OpenAI and ask it to critique the plan." Persist the default;
+   the per-conversation choice is ephemeral like the chat itself.
+5. **Resilience — manual first, automatic optional.** Manual switching covers the
+   out-of-tokens case immediately. An **optional automatic cross-provider fallback**
+   (catch a quota/`429`/provider-down error in the router → retry the next configured
+   provider, then on-device) is a small, well-contained addition in the generalized
+   router. Keep it **explicit/surfaced**, never a silent swap that ships data to a
+   different provider without the user knowing (consistent with §3's privacy posture).
+6. **Web-search caveat.** The ADR-0018 discovery spike relies on Anthropic's
+   *server-side* `web_search` tool. OpenAI's web search is a different mechanism
+   (Responses API / its own tool), so *discovery-via-OpenAI* is provider-specific extra
+   work — **out of scope for the first multi-provider slice.** Plain chat and
+   plan-evaluation need no web search and come first.
+
+### Cross-app extraction posture
+
+This is the **portfolio-extraction trigger** (BACKLOG "Portfolio extraction seams";
+ADR-0006). `GalavantAI` is already the clean unit: it is **domain-free** — no
+`Idea`/`Trip` (those live in `GalavantPlaces`/`GalavantChat`); the `ModelClient`
+protocol + `ModelRequest`/`ModelResponse`/`ModelTool` value types are the portable
+core. Per "isolate now, extract later," **build the OpenAI provider in `GalavantAI`
+as it stands** (don't pre-extract — premature against a single consumer), keep it
+domain-clean, and **lift the whole module to a neutrally-named shared SPM package when
+a second real app is scaffolded** — a rename-and-move, not surgery. The base ADR's
+"Galavant-scoped name is fine because it's app-internal" (Relationship → ADR-0006)
+holds *until* that second consumer is real, at which point the neutral-name rule
+applies.
+
+**This is a house-level decision, not galavant-local.** The general substrate choice
+(portable `ModelClient`, multi-provider, on-device floor, BYO-key) and the extraction
+plan should also be recorded in `~/code/jon-platform` — to be written after reading
+its `AGENTS.md`/`docs` (CLAUDE.md rule: read jon-platform before proposing architecture
+there). This galavant amendment records how *galavant* adopts it.
+
+### Why this and not the alternatives (additions)
+
+| Option | Verdict |
+| --- | --- |
+| **Adopt Apple's `LanguageModel`/`LanguageModelExecutor` for the shared core** | Rejected for the core. Apple-only + iOS-26/27+ + first-beta-volatile — kills the cross-app/cross-platform portability that's the whole point, and doesn't remove the per-provider wire work. Keep as an *optional per-app adapter* over `ModelClient` later. |
+| **`PrivateCloudComputeLanguageModel` instead of BYO-key frontier** | Not a replacement (it's Apple-cloud, not Claude/GPT, and Apple-account-gated), but a good *additional* no-key tier between on-device and frontier. Additive, deferred. |
+| **Silent automatic provider fallback** | Rejected as the default. A swap that ships context to a different provider must be surfaced (§3). Automatic fallback is opt-in and visible. |
+| **Multi-provider behind our own `ModelClient` + per-provider Keychain + switcher (chosen)** | The substrate was built for it; cost is one wire mirror + a routing generalization; resilience + second-opinion both fall out; stays no-server and portable. |
+
+### Execution outline (for the build session, when greenlit)
+
+- **GalavantAI:** generalize `TieredModelClient` to a provider map + `isAvailable(_:)`;
+  add `FrontierProvider.openai`; `OpenAIModelClient` + `OpenAIWire` (+ `OpenAIWireTests`
+  mirroring `AnthropicWireTests`); optional router-level fallback with a test.
+- **App:** OpenAI key field in `AISettingsView`; a default-provider picker; a
+  per-conversation provider toggle on the chat panel.
+- **Skill checkpoints:** the `claude-api` skill is Anthropic-only — for OpenAI, use
+  **current OpenAI API docs** (web). `swiftui-specialist` for the switcher UI.
+- **Suggested executor: Opus** — a second past-cutoff frontier wire + a foundational
+  routing change.
+- **Verify:** `swift test` green (new wire + fallback tests); app `xcodebuild`
+  succeeds; `swiftlint --strict` clean. Frontier paths verified on device with real
+  keys for both providers (sim is fine for the request-assembly tests).
+
+### Sequencing note
+
+Independent of M6e (discovery). The high-value, low-risk first slice is **chat +
+plan-evaluation across providers (no web search)**; discovery-via-OpenAI is a later,
+provider-specific follow-on.
