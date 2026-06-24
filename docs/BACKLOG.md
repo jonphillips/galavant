@@ -3,38 +3,31 @@
 Not milestone-scoped (see ROADMAP.md for those). Running list of refinements
 noted in passing, with enough context to act on cold.
 
-## Guide-link enrichment rung + generalized in-app browser (ADR-0016 follow-on, 2026-06-24) — NEXT
+## Guide-link enrichment rung + generalized in-app browser (ADR-0016 follow-on, 2026-06-24)
 
-From first-use feedback: *"on the Michelin web page there is a link to
-guide.michelin.com/.../es-senz … would it ever find that and visit it to
-supplement?"* Today: **no.** Two-hopping (`PlaceEnricher.enrichIfNeeded`,
-`GalavantPlaces/PlaceEnricher.swift`) re-fetches the idea's **own** `websiteURL`
-(extracted at capture into `Idea.url`) — it never follows a link found in the page
-*body*. Jon approved building a "guide-link rung." Sized as a parser+recognizer+
-enricher milestone; deserves its own ADR (next is **ADR-0021**) and a fresh session.
+**Automated rung DONE (2026-06-24, ADR-0021, branch `feat/guide-link-enrichment-rung`).**
+The four pieces shipped, each tested:
 
-**The recognizer machinery already knows the guides.** `EvaluationRecognizers`
-(`GalavantCapture/EvaluationRecognizers.swift`) is host-keyed — it switches on
-`sourceURL.host()` and runs Michelin / Andrew Harper / Forbes / 50 Best recognizers.
-The gap is that `ParsedPage` (`GalavantCapture/ParsedPage.swift`) carries only
-`imageURLs` / `socialURLs` / `websiteURL` — **no general body links**, so nothing can
-even see the guide-detail link.
+1. **Link extraction** — `ParsedPage.links: [URL]` (absolute http(s), in document
+   order, de-duped, fragment-stripped, self-link excluded); `PageParser` harvests
+   anchors before the boilerplate strip; `ParseBuilder.addLink`.
+2. **`GuideLinkRecognizer`** (pure, `GalavantCapture`) — host ∈ a known guide **and**
+   a place-detail path shape: a known detail-path marker (Michelin `/restaurant//hotel/`
+   + a slug after it) **or** generic depth ≥ `minDetailDepth` (3, derived from
+   locale→region/category→place) with a hyphenated final slug that isn't a section
+   keyword. Host list lifted into a shared `GuideHosts` table that `EvaluationRecognizers`
+   now also consumes (one definition; the `name` doubles as the `IdeaEvaluation.sourceName`).
+3. **Enrichment hop** — `PlaceEnricher.followingGuideLink` follows **one** link via the
+   existing `pageFetcher`, parses it (host = guide → ★★★), and folds it in via the new
+   pure `ParsedPage.fillingBlanks(from:)` (fill-blanks scalars, append-dedup collections,
+   (source,kind,value)-dedup evaluations). The single write now also records the merged
+   page's evaluations (`IdeaEvaluation.record`, `.official`) — **first time the second
+   hop writes judgments**, not just facts/images.
+4. **Crawl-sprawl guards** — at most one link; skipped when the idea already carries
+   that guide's judgment; rides the `enrichedAt` once-gate; best-effort; no transitive
+   crawl (links on the guide page aren't followed).
 
-Four pieces, each tested:
-
-1. **Link extraction** — `PageParser` collects candidate anchor hrefs into a new
-   `ParsedPage` field (e.g. `links: [URL]`). Parser change + tests.
-2. **Guide-link recognizer** — pick links whose host is a known guide *and* whose
-   path looks like a place-detail page (depth/segment heuristic), reusing the host
-   list already in `EvaluationRecognizers`. New pure recognizer + tests.
-3. **Enrichment hop** — in `PlaceEnricher`, fetch **one** recognized guide link,
-   parse it, run the recognizers (host = guide → Michelin ★★★), merge evaluations +
-   blank facts. Dedup rides the existing idempotent `IdeaEvaluation.record`
-   (source/kind/value triad, ADR-0019 §3).
-4. **Crawl-sprawl guards** — at most one link followed; only when the idea lacks
-   that evaluation; gated like `enrichedAt` so it runs once; best-effort.
-
-**In-app browser is the human fallback rung of this same effort — not a separate
+**Still NEXT — the in-app browser is the human fallback rung of this same effort — not a separate
 track.** The automated hop above does a plain URLSession fetch (the enricher's
 `pageFetcher`), which fails on exactly the pages a rendered DOM fixes (JS-heavy,
 anti-bot, consent/paywall). A HITL `WKWebView` already ships, but hard-wired to

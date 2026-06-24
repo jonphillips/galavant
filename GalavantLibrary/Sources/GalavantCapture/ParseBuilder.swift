@@ -8,6 +8,7 @@ struct ParseBuilder {
   var votes = AttributeVotes()
   private(set) var images: [URL] = []
   private(set) var socialURLs: [URL] = []
+  private(set) var links: [URL] = []
   private(set) var openingHours: [String] = []
   private(set) var schemaTypes: [String] = []
   private(set) var evaluations: [ParsedEvaluation] = []
@@ -28,6 +29,36 @@ struct ParseBuilder {
   mutating func addSocial(_ rawValue: String?) {
     guard let url = resolvedURL(rawValue) else { return }
     if !socialURLs.contains(url) { socialURLs.append(url) }
+  }
+
+  /// Record an outbound anchor href. Keeps only absolute `http(s)` links (drops
+  /// `mailto:`/`tel:`/`javascript:`), strips the `#fragment` (so `/x` and `/x#section`
+  /// collapse to one entry and a same-page jump is dropped), and skips a self-link back
+  /// to `sourceURL` — leaving the raw set of *other* pages this one points at.
+  mutating func addLink(_ rawValue: String?) {
+    guard let resolved = resolvedURL(rawValue),
+      let scheme = resolved.scheme?.lowercased(), scheme == "http" || scheme == "https"
+    else { return }
+    var stripped = URLComponents(url: resolved, resolvingAgainstBaseURL: false)
+    stripped?.fragment = nil
+    guard let url = stripped?.url?.absoluteURL,
+      !isSelfLink(url),
+      !links.contains(url)
+    else { return }
+    links.append(url)
+  }
+
+  /// Whether `url` is the page's own URL, ignoring a trailing-slash difference so a
+  /// `https://site.com` home link doesn't slip past the self-link filter when the page
+  /// was fetched as `https://site.com/` (or vice versa).
+  private func isSelfLink(_ url: URL) -> Bool {
+    guard let sourceURL else { return false }
+    func key(_ u: URL) -> String {
+      var s = u.absoluteString
+      while s.hasSuffix("/") { s.removeLast() }
+      return s
+    }
+    return key(url) == key(sourceURL)
   }
 
   mutating func addOpeningHours(_ rawValue: String?) {
@@ -93,6 +124,7 @@ struct ParseBuilder {
       address: address,
       imageURLs: images,
       socialURLs: socialURLs,
+      links: links,
       schemaTypes: schemaTypes,
       openingHours: openingHours,
       capturedAt: capturedAt,

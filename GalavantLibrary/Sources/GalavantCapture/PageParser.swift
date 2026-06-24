@@ -37,6 +37,14 @@ public enum PageParser {
     // Vision recommender ranks (M4g). Hygiene filtering keeps logos/sprites out.
     BodyImageExtractor.extract(from: document, into: &builder)
 
+    // Outbound anchors — the raw link set a consumer narrows (guide-detail links worth
+    // a second hop, ADR-0021). Collected before the boilerplate strip below, which
+    // removes nav/link-dense blocks; a guide link can live in a footer or a nav region,
+    // so we harvest from the full document, not the cleaned body.
+    for anchor in (try? document.select("a[href]").array()) ?? [] {
+      builder.addLink(try? anchor.attr("href"))
+    }
+
     var page = builder.build(capturedAt: capturedAt)
     // Native source judgments (Michelin stars, a Harper score, an embedded aggregate
     // rating) — deterministic recognizers keyed on structure + host (ADR-0016 §1).

@@ -29,6 +29,12 @@ public struct ParsedPage: Equatable, Sendable {
   public var imageURLs: [URL]
   /// Social profile links (schema `sameAs`) — facebook/twitter/instagram etc.
   public var socialURLs: [URL]
+  /// Outbound body anchors — every absolute `http(s)` link the page points at, in
+  /// document order, de-duplicated, excluding the page's own URL. Deliberately the raw
+  /// set: which links *matter* (a guide-detail page worth a second hop, ADR-0021) is a
+  /// consumer's call via `GuideLinkRecognizer`, not the domain-free parser's. Empty on
+  /// a page with no outbound links.
+  public var links: [URL]
   /// schema.org `@type` / `itemtype` strings seen on the page (e.g. `Restaurant`,
   /// `Hotel`). Generic — the app maps these to its own kind vocabulary.
   public var schemaTypes: [String]
@@ -68,6 +74,7 @@ public struct ParsedPage: Equatable, Sendable {
     address: ParsedAddress = ParsedAddress(),
     imageURLs: [URL] = [],
     socialURLs: [URL] = [],
+    links: [URL] = [],
     schemaTypes: [String] = [],
     openingHours: [String] = [],
     capturedAt: Date = Date(),
@@ -86,6 +93,7 @@ public struct ParsedPage: Equatable, Sendable {
     self.address = address
     self.imageURLs = imageURLs
     self.socialURLs = socialURLs
+    self.links = links
     self.schemaTypes = schemaTypes
     self.openingHours = openingHours
     self.capturedAt = capturedAt

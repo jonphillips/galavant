@@ -172,11 +172,20 @@ extension IdeaEvaluation {
 
   /// The identity of a judgment for de-dup (ADR-0019 §3): two evaluations are "the
   /// same" when their source, kind, and native value agree — the same accolade,
-  /// however many times the page is captured.
+  /// however many times the page is captured. Source/value are compared
+  /// **case-insensitively**, matching `ParseBuilder.addEvaluation` and
+  /// `ParsedPage.fillingBlanks`: all three layers must agree on identity, or a "3 Stars"
+  /// vs "3 stars" pair the parser collapses would be written twice here.
   private struct EvaluationKey: Hashable {
     var source: String
     var kind: EvaluationKind
     var value: String
+
+    init(source: String, kind: EvaluationKind, value: String) {
+      self.source = source.lowercased()
+      self.kind = kind
+      self.value = value.lowercased()
+    }
   }
 
   /// Map the parser's vocabulary onto the schema's. The parser never emits
