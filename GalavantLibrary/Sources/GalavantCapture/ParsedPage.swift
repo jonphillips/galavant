@@ -48,6 +48,13 @@ public struct ParsedPage: Equatable, Sendable {
   /// describe the place even when the page carries no structured description, or only
   /// a marketing one worth rewriting. `nil` when the page had no meaningful text.
   public var textExcerpt: String?
+  /// The **full** cleaned plain-text rendering of the page (same boilerplate strip as
+  /// `textExcerpt`, no length cap — sizing input to a model is the model layer's job,
+  /// not the parser's). Facts the summarizer doesn't need — opening hours, ratings —
+  /// routinely live deep in the body or in a bottom-of-page contact/footer block, past
+  /// `textExcerpt`'s short summary lead, so fact extractors read this instead. `nil`
+  /// when the page had no meaningful text.
+  public var bodyText: String?
 
   public init(
     sourceURL: URL? = nil,
@@ -65,7 +72,8 @@ public struct ParsedPage: Equatable, Sendable {
     openingHours: [String] = [],
     capturedAt: Date = Date(),
     evaluations: [ParsedEvaluation] = [],
-    textExcerpt: String? = nil
+    textExcerpt: String? = nil,
+    bodyText: String? = nil
   ) {
     self.sourceURL = sourceURL
     self.title = title
@@ -83,6 +91,7 @@ public struct ParsedPage: Equatable, Sendable {
     self.capturedAt = capturedAt
     self.evaluations = evaluations
     self.textExcerpt = textExcerpt
+    self.bodyText = bodyText
   }
 
   /// True when nothing useful was found — the caller can fall back to manual entry

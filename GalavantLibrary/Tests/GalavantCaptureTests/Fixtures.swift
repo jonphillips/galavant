@@ -109,4 +109,30 @@ enum Fixtures {
     <meta property="og:title" content="Still Works">
     </head><body></body></html>
     """
+
+  /// A chrome-heavy site with **no semantic landmarks** (das-achental.com shape): the
+  /// whole nav is `<ul><li><a>` with no `<nav>`/`<header>`, and the only opening hours
+  /// are free text in a bottom-of-page contact block — past where the short summary
+  /// excerpt clips. Exercises link-density stripping + the fuller `bodyText` budget.
+  static let chromeHeavyFooterHours = """
+    <html><head><title>es:senz</title></head><body>
+    <ul class="topmenu">
+      <li><a href="/rooms">Rooms &amp; Suites</a></li>
+      <li><a href="/restaurants">Restaurants &amp; Bar</a></li>
+      <li><a href="/golf">Golf</a></li>
+      <li><a href="/wellness">Wellness &amp; SPA</a></li>
+      <li><a href="/store">Store &amp; Vouchers</a></li>
+      <li><a href="/contact">Contact</a></li>
+    </ul>
+    <div class="content">
+      <h1>es:senz — your Michelin starred restaurant on Lake Chiemsee</h1>
+      <p>\(String(repeating: "The pure taste of the Chiemgau, reimagined in surprising ways with only a few carefully selected regional components. ", count: 16))</p>
+      <div class="info">
+        <p>Chiemgau Pur - Fine Dining Wednesday - Saturday 6.30 -11 pm.</p>
+        <a href="tel:+498641401609">+49 8641 401609</a>
+        <a href="mailto:essenz@dasachental.com">essenz@dasachental.com</a>
+      </div>
+    </div>
+    </body></html>
+    """
 }

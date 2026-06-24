@@ -335,3 +335,39 @@ import Testing
     #expect(store.maskedKey(.openai) == "sk-p…wxyz · 24 chars")
   }
 }
+
+/// The on-device client fits a prompt to its context window so a whole-page extract
+/// or a long chat degrades to a shorter prompt instead of throwing
+/// `contextSizeExceeded`. The fit math is pure — covered here without a device/model.
+@Suite struct OnDeviceFitTests {
+  @Test("a prompt that already fits is returned untouched")
+  func fits() {
+    let prompt = String(repeating: "word ", count: 50)  // 250 chars, tiny vs 4096-token window
+    #expect(
+      OnDeviceModelClient.fit(prompt: prompt, reservingSystem: "", andOutput: 256, toWindow: 4096)
+        == prompt)
+  }
+
+  @Test("an over-long prompt clamps to the window budget, head kept, on a word boundary")
+  func clamps() {
+    let window = 300, output = 100  // budget = (300-100) tokens * 4 chars * 0.9 = 720 chars
+    let budgetChars = Int(Double((window - output) * 4) * 0.9)
+    let prompt = String(repeating: "alpha ", count: 400)  // 2400 chars
+    let fitted = OnDeviceModelClient.fit(
+      prompt: prompt, reservingSystem: "", andOutput: output, toWindow: window)
+    #expect(fitted.count <= budgetChars)
+    #expect(!fitted.hasSuffix(" "))    // trimmed at a word boundary
+    #expect(prompt.hasPrefix(fitted))  // it's the head of the prompt
+  }
+
+  @Test("reserving system text and output shrinks the budget")
+  func reservesSystemAndOutput() {
+    let prompt = String(repeating: "x ", count: 2000)  // 4000 chars
+    let lean = OnDeviceModelClient.fit(
+      prompt: prompt, reservingSystem: "", andOutput: 0, toWindow: 1000)
+    let heavy = OnDeviceModelClient.fit(
+      prompt: prompt, reservingSystem: String(repeating: "s", count: 800), andOutput: 500,
+      toWindow: 1000)
+    #expect(heavy.count < lean.count)
+  }
+}

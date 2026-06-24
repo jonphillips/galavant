@@ -32,7 +32,9 @@ public struct HoursExtractor: Sendable {
 extension HoursExtractor: DependencyKey {
   public static let liveValue = HoursExtractor { page in
     @Dependency(\.modelClient) var modelClient
-    guard let excerpt = page.textExcerpt, !excerpt.isEmpty else { return nil }
+    // Hours sit deep in the body or a bottom-of-page contact block — read the fuller
+    // `bodyText`, falling back to the short summary excerpt only when it's absent.
+    guard let excerpt = page.bodyText ?? page.textExcerpt, !excerpt.isEmpty else { return nil }
     let request = ModelRequest(
       tier: .onDevice,
       system: Self.instructions,
