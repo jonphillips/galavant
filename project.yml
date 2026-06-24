@@ -96,12 +96,12 @@ targets:
           NSExtensionPointIdentifier: com.apple.share-services
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
           # JS preprocessing hands over Safari's *rendered* DOM (post-JavaScript),
-          # which beats a raw URLSession fetch for JS-heavy pages. WebURL stays as
-          # the fallback for share sources that supply only a URL.
+          # which beats a raw URLSession fetch for JS-heavy pages. The activation rule
+          # is a predicate (ADR-0020) so it can also match a shared *location* — an
+          # Apple Maps map item or a vCard — which the dictionary form has no key for.
+          # The `public.url` arm keeps Safari/web shares; JS preprocessing rides along.
           NSExtensionAttributes:
-            NSExtensionActivationRule:
-              NSExtensionActivationSupportsWebPageWithMaxCount: 1
-              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+            NSExtensionActivationRule: 'SUBQUERY(extensionItems, $item, SUBQUERY($item.attachments, $att, ANY $att.registeredTypeIdentifiers UTI-CONFORMS-TO "public.url" || ANY $att.registeredTypeIdentifiers UTI-CONFORMS-TO "public.vcard" || ANY $att.registeredTypeIdentifiers UTI-CONFORMS-TO "com.apple.mapkit.map-item").@count > 0).@count > 0'
             NSExtensionJavaScriptPreprocessingFile: ExtensionPreProcessing
     settings:
       base:

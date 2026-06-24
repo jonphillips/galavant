@@ -25,12 +25,7 @@
 		<key>NSExtensionAttributes</key>
 		<dict>
 			<key>NSExtensionActivationRule</key>
-			<dict>
-				<key>NSExtensionActivationSupportsWebPageWithMaxCount</key>
-				<integer>1</integer>
-				<key>NSExtensionActivationSupportsWebURLWithMaxCount</key>
-				<integer>1</integer>
-			</dict>
+			<string>SUBQUERY(extensionItems, $item, SUBQUERY($item.attachments, $att, ANY $att.registeredTypeIdentifiers UTI-CONFORMS-TO "public.url" || ANY $att.registeredTypeIdentifiers UTI-CONFORMS-TO "public.vcard" || ANY $att.registeredTypeIdentifiers UTI-CONFORMS-TO "com.apple.mapkit.map-item").@count &gt; 0).@count &gt; 0</string>
 			<key>NSExtensionJavaScriptPreprocessingFile</key>
 			<string>ExtensionPreProcessing</string>
 		</dict>
