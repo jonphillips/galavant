@@ -2,6 +2,7 @@ import CoreGraphics
 import Dependencies
 import DependenciesTestSupport
 import Foundation
+import GalavantCapture
 import GalavantSchema
 import ImageIO
 import SQLiteData
@@ -261,6 +262,98 @@ import UniformTypeIdentifiers
       let idea = try #require(try await database.read { db in try Idea.find(ideaID).fetchOne(db) })
       #expect(idea.openingHours == originalHours)  // not clobbered by the re-parsed site
       #expect(idea.hoursProvenance == .manual)
+    }
+  }
+
+  // MARK: Guide-link rung (ADR-0021)
+
+  /// A restaurant's own site that links out to its Michelin guide page in the body.
+  nonisolated private static let siteLinkingToGuideHTML = """
+    <html><head><meta property="og:title" content="Es Senz"></head>
+    <body><p>Find us on the <a href="https://guide.michelin.com/en/madrid/restaurant/es-senz">MICHELIN Guide</a>.</p></body></html>
+    """
+
+  /// The Michelin guide detail page — its award text yields ★★★.
+  nonisolated private static let michelinGuideHTML = """
+    <html><head><script type="application/ld+json">{
+      "@context": "https://schema.org", "@type": "Restaurant", "name": "Es Senz",
+      "award": "Three MICHELIN Stars"
+    }</script></head>
+    <body><p>Three MICHELIN Stars · MICHELIN Guide 2024</p></body></html>
+    """
+
+  @Test("Enrich follows a recognized guide link and records its rating (ADR-0021)")
+  func enrichFollowsGuideLink() async throws {
+    let stamp = Date(timeIntervalSince1970: 1_700_000_000)
+    let ideaID = UUID()
+    let fetched = LockIsolated<[String]>([])
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.date = .constant(stamp)
+      $0.pageFetcher = PageFetcher { url in
+        fetched.withValue { $0.append(url.absoluteString) }
+        return url.host()?.contains("michelin") == true
+          ? Self.michelinGuideHTML : Self.siteLinkingToGuideHTML
+      }
+      $0.imageFetcher = .testValue
+      $0.imageRecommender = .testValue
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      try await database.write { db in
+        let party = try TravelParty.ensureDefault(in: db)
+        try Idea.insert {
+          Idea.Draft(id: ideaID, name: "Es Senz", url: "https://es-senz.com", travelPartyID: party.id)
+        }
+        .execute(db)
+      }
+
+      await PlaceEnricher().enrichIfNeeded(ideaID: ideaID)
+
+      let evals = try await database.read { db in try IdeaEvaluation.all.fetchAll(db) }
+      #expect(fetched.value.contains("https://guide.michelin.com/en/madrid/restaurant/es-senz"))
+      let michelin = try #require(evals.first { $0.sourceName == "Michelin Guide" })
+      #expect(michelin.nativeValueText == "3 stars")
+      #expect(michelin.confidence == .official)
+    }
+  }
+
+  @Test("The guide hop is idempotent: a rating the idea already carries isn't duplicated")
+  func enrichGuideHopIsIdempotent() async throws {
+    let ideaID = UUID()
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.date = .constant(Date(timeIntervalSince1970: 1_700_000_000))
+      $0.pageFetcher = PageFetcher { url in
+        url.host()?.contains("michelin") == true ? Self.michelinGuideHTML : Self.siteLinkingToGuideHTML
+      }
+      $0.imageFetcher = .testValue
+      $0.imageRecommender = .testValue
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      try await database.write { db in
+        let party = try TravelParty.ensureDefault(in: db)
+        try Idea.insert {
+          Idea.Draft(id: ideaID, name: "Es Senz", url: "https://es-senz.com", travelPartyID: party.id)
+        }
+        .execute(db)
+        // The idea already has the ★★★ (recorded with different casing, to exercise the
+        // case-insensitive de-dup identity shared across the parser, merge, and record).
+        try IdeaEvaluation.record(
+          ParsedEvaluation(
+            sourceName: "michelin guide", kind: .stars, valueText: "3 STARS", display: "★★★"),
+          ideaID: ideaID, travelPartyID: party.id, confidence: .official,
+          asOf: Date(timeIntervalSince1970: 1), in: db
+        )
+      }
+
+      await PlaceEnricher().enrichIfNeeded(ideaID: ideaID)
+
+      // The hop follows the link and re-detects ★★★, but the (source, kind, value)
+      // identity matches the existing row case-insensitively, so nothing is doubled.
+      let count = try await database.read { db in try IdeaEvaluation.all.fetchCount(db) }
+      #expect(count == 1)
     }
   }
 

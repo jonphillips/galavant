@@ -31,19 +31,23 @@ enum EvaluationRecognizers {
       }
     }
 
-    if host.contains("michelin"), let michelin = michelin(in: pageText, sourceURL: urlString, guideYear: year) {
-      builder.addEvaluation(michelin)
-    }
-    if host.contains("andrewharper"), let harper = harper(in: pageText, sourceURL: urlString) {
-      builder.addEvaluation(harper)
-    }
-    if host.contains("forbestravelguide"), let forbes = forbes(in: pageText, sourceURL: urlString) {
-      builder.addEvaluation(forbes)
-    }
-    if host.contains("theworlds50best") || host.contains("50best"),
-      let rank = fiftyBest(in: pageText, sourceURL: urlString, guideYear: year)
-    {
-      builder.addEvaluation(rank)
+    // Per-host recognizers, dispatched off the shared `GuideHosts` table so the host
+    // fragments live in exactly one place (and stay in lockstep with `GuideLinkRecognizer`).
+    switch GuideHosts.guide(forHost: host)?.name {
+    case GuideHosts.michelin.name?:
+      if let michelin = michelin(in: pageText, sourceURL: urlString, guideYear: year) {
+        builder.addEvaluation(michelin)
+      }
+    case GuideHosts.andrewHarper.name?:
+      if let harper = harper(in: pageText, sourceURL: urlString) { builder.addEvaluation(harper) }
+    case GuideHosts.forbes.name?:
+      if let forbes = forbes(in: pageText, sourceURL: urlString) { builder.addEvaluation(forbes) }
+    case GuideHosts.fiftyBest.name?:
+      if let rank = fiftyBest(in: pageText, sourceURL: urlString, guideYear: year) {
+        builder.addEvaluation(rank)
+      }
+    default:
+      break
     }
 
     return builder.evaluations
@@ -85,7 +89,7 @@ enum EvaluationRecognizers {
     }
     return raw.compactMap { award in
       if let stars = michelinStars(in: award) {
-        return starsEvaluation(stars, source: "Michelin Guide", sourceURL: sourceURL, guideYear: guideYear)
+        return starsEvaluation(stars, source: GuideHosts.michelin.name, sourceURL: sourceURL, guideYear: guideYear)
       }
       let badge = badgeKind(in: award)
       if let badge {
@@ -104,9 +108,9 @@ enum EvaluationRecognizers {
   /// the page text (the host's JSON-LD often omits the distinction).
   private static func michelin(in text: String, sourceURL: String?, guideYear: Int?) -> ParsedEvaluation? {
     if let stars = michelinStars(in: text) {
-      return starsEvaluation(stars, source: "Michelin Guide", sourceURL: sourceURL, guideYear: guideYear)
+      return starsEvaluation(stars, source: GuideHosts.michelin.name, sourceURL: sourceURL, guideYear: guideYear)
     }
-    if let badge = badgeKind(in: text), badge.source == "Michelin Guide" {
+    if let badge = badgeKind(in: text), badge.source == GuideHosts.michelin.name {
       return ParsedEvaluation(
         sourceName: badge.source, kind: .badge, valueText: badge.label,
         display: badge.label, guideYear: guideYear, sourceURL: sourceURL
@@ -116,7 +120,7 @@ enum EvaluationRecognizers {
       || text.range(of: "michelin recommended", options: .caseInsensitive) != nil
     {
       return ParsedEvaluation(
-        sourceName: "Michelin Guide", kind: .recommendation, valueText: "Recommended",
+        sourceName: GuideHosts.michelin.name, kind: .recommendation, valueText: "Recommended",
         display: "Recommended", guideYear: guideYear, sourceURL: sourceURL
       )
     }
@@ -128,7 +132,7 @@ enum EvaluationRecognizers {
     guard let score = score(outOf: 100, in: text) else { return nil }
     let valueText = formatted(score)
     return ParsedEvaluation(
-      sourceName: "Andrew Harper", kind: .numericScore, valueText: valueText,
+      sourceName: GuideHosts.andrewHarper.name, kind: .numericScore, valueText: valueText,
       valueNumber: score, valueMax: 100, display: "\(valueText)/100", sourceURL: sourceURL
     )
   }
@@ -136,11 +140,11 @@ enum EvaluationRecognizers {
   /// forbestravelguide.com — a Four-/Five-Star rating, else a Recommended listing.
   private static func forbes(in text: String, sourceURL: String?) -> ParsedEvaluation? {
     if let stars = spelledStars(in: text, suffix: "-star") {
-      return starsEvaluation(stars, source: "Forbes Travel Guide", sourceURL: sourceURL, guideYear: nil)
+      return starsEvaluation(stars, source: GuideHosts.forbes.name, sourceURL: sourceURL, guideYear: nil)
     }
     if text.range(of: "recommended", options: .caseInsensitive) != nil {
       return ParsedEvaluation(
-        sourceName: "Forbes Travel Guide", kind: .recommendation, valueText: "Recommended",
+        sourceName: GuideHosts.forbes.name, kind: .recommendation, valueText: "Recommended",
         display: "Recommended", sourceURL: sourceURL
       )
     }
@@ -151,7 +155,7 @@ enum EvaluationRecognizers {
   private static func fiftyBest(in text: String, sourceURL: String?, guideYear: Int?) -> ParsedEvaluation? {
     guard let rank = rank(in: text) else { return nil }
     return ParsedEvaluation(
-      sourceName: "World's 50 Best", kind: .rank, valueText: "No. \(rank)",
+      sourceName: GuideHosts.fiftyBest.name, kind: .rank, valueText: "No. \(rank)",
       valueNumber: Double(rank), display: "No. \(rank)", guideYear: guideYear, sourceURL: sourceURL
     )
   }
@@ -166,7 +170,7 @@ enum EvaluationRecognizers {
       kind: .stars,
       valueText: "\(count) star\(count == 1 ? "" : "s")",
       valueNumber: Double(count),
-      valueMax: source == "Michelin Guide" ? 3 : nil,
+      valueMax: source == GuideHosts.michelin.name ? 3 : nil,
       display: String(repeating: "★", count: count),
       guideYear: guideYear,
       sourceURL: sourceURL
@@ -240,8 +244,8 @@ enum EvaluationRecognizers {
   /// Map known badge phrases to a (source, label). `nil` when no badge is present.
   private static func badgeKind(in text: String) -> (source: String, label: String)? {
     let lower = text.lowercased()
-    if lower.contains("bib gourmand") { return ("Michelin Guide", "Bib Gourmand") }
-    if lower.contains("green star") { return ("Michelin Guide", "Green Star") }
+    if lower.contains("bib gourmand") { return (GuideHosts.michelin.name, "Bib Gourmand") }
+    if lower.contains("green star") { return (GuideHosts.michelin.name, "Green Star") }
     if lower.contains("relais & châteaux") || lower.contains("relais & chateaux") {
       return ("Relais & Châteaux", "Member")
     }

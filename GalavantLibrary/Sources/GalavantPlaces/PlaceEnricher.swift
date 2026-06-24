@@ -49,6 +49,18 @@ public final class PlaceEnricher {
       page = page.applying(refinement)
     }
 
+    // Follow at most one guide-detail link the page points at (ADR-0021), folding its
+    // rating + any blank facts back in before the single write below.
+    page = await followingGuideLink(from: page)
+
+    // Source judgments the parse/merge surfaced (the guide ★★★, an embedded aggregate
+    // rating) become `IdeaEvaluation`s — deterministic recognizers, so `.official`.
+    // Needs the owning party; idempotent on (source, kind, value), ADR-0019 §3.
+    let detections =
+      idea.travelPartyID == nil
+      ? []
+      : page.evaluations.map { DetectedEvaluation(id: uuid(), parsed: $0, confidence: .official) }
+
     let images = await rankedImages(page.imageURLs)
 
     // Backfill only fields the capture left blank (confirm-and-tweak — never clobber
@@ -81,26 +93,53 @@ public final class PlaceEnricher {
           verifiedAt: stamp, in: db
         )
       }
-
-      // Store the ranked candidates (idempotent on sourceURL — the M4f header
-      // re-stores cleanly), then make the top-ranked one the header. Enrichment runs
-      // once, so a later manual pick (M4h gallery) won't be clobbered.
-      var headerID: ImageAsset.ID?
-      for image in images {
-        let stored = try ImageAsset.store(
-          ideaID: ideaID,
-          display: image.display,
-          thumbnail: image.thumbnail,
-          sourceURL: image.sourceURL,
-          id: image.id,
-          in: db
+      if let travelPartyID = idea.travelPartyID, !detections.isEmpty {
+        try IdeaEvaluation.record(
+          detections, ideaID: ideaID, travelPartyID: travelPartyID, asOf: stamp, in: db
         )
-        if headerID == nil { headerID = stored.id }
       }
-      if let headerID {
-        try ImageAsset.setHeader(headerID, ideaID: ideaID, in: db)
-      }
+      try storeRankedImages(images, forIdea: ideaID, in: db)
     }
+  }
+
+  /// Store the ranked candidates (idempotent on sourceURL — the M4f header re-stores
+  /// cleanly), then make the top-ranked one the header. Enrichment runs once, so a later
+  /// manual pick (M4h gallery) won't be clobbered.
+  nonisolated private func storeRankedImages(
+    _ images: [RankedImage], forIdea ideaID: Idea.ID, in db: Database
+  ) throws {
+    var headerID: ImageAsset.ID?
+    for image in images {
+      let stored = try ImageAsset.store(
+        ideaID: ideaID,
+        display: image.display,
+        thumbnail: image.thumbnail,
+        sourceURL: image.sourceURL,
+        id: image.id,
+        in: db
+      )
+      if headerID == nil { headerID = stored.id }
+    }
+    if let headerID {
+      try ImageAsset.setHeader(headerID, ideaID: ideaID, in: db)
+    }
+  }
+
+  /// Follow at most one recognized guide-detail link on the page and fold its parse
+  /// (rating + blank facts) back in (ADR-0021). Bounded and best-effort: one link only,
+  /// and a no-op when nothing qualifies or the fetch fails. We deliberately *don't*
+  /// skip on "the idea already has a judgment from this guide" — that guard was
+  /// source-coarse and suppressed a genuinely-new *kind* (e.g. an idea carrying a
+  /// Michelin Green Star would never collect its ★★★). Re-following is cheap and safe:
+  /// the hop runs once per idea (the `enrichedAt` gate), and the rating rides
+  /// `IdeaEvaluation.record`'s (source, kind, value) idempotency (ADR-0019 §3), so a
+  /// place already carrying the exact rating isn't doubled. The guide page is parsed
+  /// with its own URL as `sourceURL`, so the host recognizers fire (host = guide → ★★★).
+  private func followingGuideLink(from page: ParsedPage) async -> ParsedPage {
+    guard let link = GuideLinkRecognizer.recognize(in: page).first,
+      let html = await pageFetcher(link.url)
+    else { return page }
+    return page.fillingBlanks(from: PageParser.parse(html: html, sourceURL: link.url))
   }
 
   /// Opening hours from an already-parsed page when the idea has none yet:
