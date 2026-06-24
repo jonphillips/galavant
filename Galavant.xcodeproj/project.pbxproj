@@ -19,9 +19,9 @@
 		1C3D2E2D9EEF8BC709447AE6 /* PoolMapUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17EBCBAEA0AF8C840A0DA921 /* PoolMapUITests.swift */; };
 		242EC6987A08C0DCEBF3BC64 /* GalavantPlaces in Frameworks */ = {isa = PBXBuildFile; productRef = 6527A596FFD56B45F77446D0 /* GalavantPlaces */; };
 		25A7842AF8875EEF8BFA2887 /* PrefersTabNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDA439EDEF5339154F3D8C08 /* PrefersTabNavigation.swift */; };
-		28CB0F1054F9EC0012E413AD /* CasePaths in Frameworks */ = {isa = PBXBuildFile; productRef = 26D83C2182F9FE47C3A1CA25 /* CasePaths */; };
+		28CB0F1054F9EC0012E413AD /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = 45E72731DDF6FA076EAEC92F /* Dependencies */; };
 		35E279FA22C85810158AF02C /* DayPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95C568B98EA55277C2DDA065 /* DayPalette.swift */; };
-		3B4EC7EE202BCED566C99202 /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = 45E72731DDF6FA076EAEC92F /* Dependencies */; };
+		3B4EC7EE202BCED566C99202 /* SwiftUINavigation in Frameworks */ = {isa = PBXBuildFile; productRef = A0C2774E35241633FE89B7A7 /* SwiftUINavigation */; };
 		3DF889FDCBE7A7C979E41F13 /* IdeasScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E13450922E6B719B55DC57BC /* IdeasScreen.swift */; };
 		41630279DF880FB556B178CF /* StopMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = B15DFF6883F3077AA8D6C591 /* StopMenu.swift */; };
 		4171E2BF905DAB98B77389EB /* CertaintyStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DD1C2B139D03095F082D99E /* CertaintyStyle.swift */; };
@@ -32,18 +32,17 @@
 		4A303DECCB8DFE842751E12F /* PoolFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 895F90CCD6B6EE453DBD785D /* PoolFlowUITests.swift */; };
 		4DAAA7D1E36518BAE6613248 /* TripFormModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20DAF6B7A5F203899F4C780 /* TripFormModel.swift */; };
 		4FA9D5986A89B2B51B88F5C2 /* AppScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82AECABDADDBF8957A5816F8 /* AppScreen.swift */; };
-		52949A4330FDF85D0EBF5AEA /* SwiftUINavigation in Frameworks */ = {isa = PBXBuildFile; productRef = A0C2774E35241633FE89B7A7 /* SwiftUINavigation */; };
+		52949A4330FDF85D0EBF5AEA /* SQLiteData in Frameworks */ = {isa = PBXBuildFile; productRef = A641D3ABA375BA009278F435 /* SQLiteData */; };
 		52FDF2960D787D40108B3780 /* Binding+Present.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4784A4E4DDB7356EEF63A970 /* Binding+Present.swift */; };
 		53262564E42B4E5C64231A96 /* IdeasFilterMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15F0079F14EE5923209192B1 /* IdeasFilterMenu.swift */; };
 		565E450BE96483372954E175 /* CaptureExtraction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43D5D11997CB5E747A590622 /* CaptureExtraction.swift */; };
 		5FC0A092CF36738BE434FB6D /* IdeaCoordinate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 409050F2DDFD762C631818CF /* IdeaCoordinate.swift */; };
 		626DB4453DDF7BA57BE9AF1C /* GalavantAI in Frameworks */ = {isa = PBXBuildFile; productRef = 7DEA217772737FC17F262759 /* GalavantAI */; };
-		666F98ED751CC0C6994CFED4 /* SQLiteData in Frameworks */ = {isa = PBXBuildFile; productRef = A641D3ABA375BA009278F435 /* SQLiteData */; };
+		666F98ED751CC0C6994CFED4 /* GalavantWeb in Frameworks */ = {isa = PBXBuildFile; productRef = D7170C555E9CFD0CFB17DBD3 /* GalavantWeb */; };
 		66E8ED4BF33E10641C5CA1D9 /* TripsListModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07FF30B2A97AE7158A524026 /* TripsListModel.swift */; };
 		686D8E04502200DBC618B751 /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF473C91775923ADF6F5FDEF /* AppRouter.swift */; };
 		6DFEFA57B8BACC403A250F18 /* ShareSeedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8885060D462E6E53320A2831 /* ShareSeedTests.swift */; };
 		79754521E12644FF3AA51458 /* SQLiteData in Frameworks */ = {isa = PBXBuildFile; productRef = EB30B546BC69ECE08A9C6766 /* SQLiteData */; };
-		7B5CD1B317D736E2B4EF5D6F /* HoursBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBC7AEA209B6D84D189928AB /* HoursBrowserView.swift */; };
 		7B999C65BDCCA5657877F9CD /* IdeasListModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E146770B6C9957BA19FC94EC /* IdeasListModel.swift */; };
 		7C7C4BB8F9D526D37F31BD66 /* TripPlanningView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08F3A8C38B6B2977E3D8153F /* TripPlanningView.swift */; };
 		7E07A0AB874D51E0DCAD3434 /* SequencePin.swift in Sources */ = {isa = PBXBuildFile; fileRef = E35BE6CD061373B731E38031 /* SequencePin.swift */; };
@@ -68,7 +67,7 @@
 		B5C9C13675D88912AC33E3D7 /* SettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F1C96A9E48EE73DC2B6D08 /* SettingsScreen.swift */; };
 		BA6DC33C006D131C9DDA042C /* DayChipBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAA9983C3B6D9D9B731F96F9 /* DayChipBar.swift */; };
 		BC89E64DDA8A0975A83107D5 /* StackedForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 371FEFD498525E0EA4709909 /* StackedForm.swift */; };
-		C00CC22E1860FAA90381B866 /* Sharing in Frameworks */ = {isa = PBXBuildFile; productRef = 5A93A34322120B8F1DC99E7B /* Sharing */; };
+		C00CC22E1860FAA90381B866 /* CasePaths in Frameworks */ = {isa = PBXBuildFile; productRef = 26D83C2182F9FE47C3A1CA25 /* CasePaths */; };
 		C0D128FB3AAE61FF0C72B45B /* AISettingsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C4838518F023973640A8AEE /* AISettingsModel.swift */; };
 		C26FCB90CCEB03C82F359643 /* TravelProfileEditModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ADB3989E3E45A67BB33FB7F /* TravelProfileEditModel.swift */; };
 		C4D03D83083C9022183ABEF2 /* TripPlanningModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8238F43F540641D1FD4267BA /* TripPlanningModel.swift */; };
@@ -86,6 +85,7 @@
 		F03422C3671BFFD56B78737A /* TripCanvasMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED4DA130D3A7069430825C31 /* TripCanvasMapView.swift */; };
 		F236D648886F9BA4EF2CCCCB /* GalavantPlaces in Frameworks */ = {isa = PBXBuildFile; productRef = C94234B5AEF12EA0F921B5B0 /* GalavantPlaces */; };
 		F41E8D178B9FE462E5E797F5 /* AppContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA2BBF3B289FD7D02957833B /* AppContainer.swift */; };
+		F569C91AF0E8633E066AA600 /* Sharing in Frameworks */ = {isa = PBXBuildFile; productRef = 5A93A34322120B8F1DC99E7B /* Sharing */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -175,7 +175,6 @@
 		C071E50FDA62E29FC448F993 /* GalavantLibrary */ = {isa = PBXFileReference; lastKnownFileType = folder; name = GalavantLibrary; path = GalavantLibrary; sourceTree = SOURCE_ROOT; };
 		C0A1B810182571FD874E4261 /* SyncSeedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncSeedTests.swift; sourceTree = "<group>"; };
 		C5AD27A1248EEA1D9B580277 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
-		CBC7AEA209B6D84D189928AB /* HoursBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoursBrowserView.swift; sourceTree = "<group>"; };
 		CC16D0C39AA361A09737B45F /* Galavant.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Galavant.entitlements; sourceTree = "<group>"; };
 		D180C34C8C9F3983F7CF9CFB /* ExtensionPreProcessing.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = ExtensionPreProcessing.js; sourceTree = "<group>"; };
 		D3BFE6AAFB0EDC36E3BB7755 /* GalavantShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GalavantShare.entitlements; sourceTree = "<group>"; };
@@ -204,11 +203,12 @@
 				F236D648886F9BA4EF2CCCCB /* GalavantPlaces in Frameworks */,
 				626DB4453DDF7BA57BE9AF1C /* GalavantAI in Frameworks */,
 				82FB0503EEB4041AC202479B /* GalavantChat in Frameworks */,
-				666F98ED751CC0C6994CFED4 /* SQLiteData in Frameworks */,
-				52949A4330FDF85D0EBF5AEA /* SwiftUINavigation in Frameworks */,
-				3B4EC7EE202BCED566C99202 /* Dependencies in Frameworks */,
-				28CB0F1054F9EC0012E413AD /* CasePaths in Frameworks */,
-				C00CC22E1860FAA90381B866 /* Sharing in Frameworks */,
+				666F98ED751CC0C6994CFED4 /* GalavantWeb in Frameworks */,
+				52949A4330FDF85D0EBF5AEA /* SQLiteData in Frameworks */,
+				3B4EC7EE202BCED566C99202 /* SwiftUINavigation in Frameworks */,
+				28CB0F1054F9EC0012E413AD /* Dependencies in Frameworks */,
+				C00CC22E1860FAA90381B866 /* CasePaths in Frameworks */,
+				F569C91AF0E8633E066AA600 /* Sharing in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -373,7 +373,6 @@
 		E74AA89EA770500888848A49 /* Ideas */ = {
 			isa = PBXGroup;
 			children = (
-				CBC7AEA209B6D84D189928AB /* HoursBrowserView.swift */,
 				409050F2DDFD762C631818CF /* IdeaCoordinate.swift */,
 				3F02C470667EF6E9AC8AC761 /* IdeaDetailView.swift */,
 				99EE3153CDA64E66C39149A9 /* IdeaFormModel.swift */,
@@ -416,6 +415,7 @@
 				C94234B5AEF12EA0F921B5B0 /* GalavantPlaces */,
 				7DEA217772737FC17F262759 /* GalavantAI */,
 				70E3AE87004F856771C63307 /* GalavantChat */,
+				D7170C555E9CFD0CFB17DBD3 /* GalavantWeb */,
 				A641D3ABA375BA009278F435 /* SQLiteData */,
 				A0C2774E35241633FE89B7A7 /* SwiftUINavigation */,
 				45E72731DDF6FA076EAEC92F /* Dependencies */,
@@ -570,7 +570,6 @@
 				9515962CEF69E6D64F9B0322 /* DemoFixtures.swift in Sources */,
 				466236484A344B3C7C6F3823 /* DirectionsClient.swift in Sources */,
 				DA333E1DC58A089ED9E9C3E1 /* GalavantApp.swift in Sources */,
-				7B5CD1B317D736E2B4EF5D6F /* HoursBrowserView.swift in Sources */,
 				1AF90BB39A9A3751AA9A22E2 /* Icon.swift in Sources */,
 				5FC0A092CF36738BE434FB6D /* IdeaCoordinate.swift in Sources */,
 				CFF79112580C0EBC8D933DE2 /* IdeaDetailView.swift in Sources */,
@@ -1014,6 +1013,10 @@
 		C94234B5AEF12EA0F921B5B0 /* GalavantPlaces */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = GalavantPlaces;
+		};
+		D7170C555E9CFD0CFB17DBD3 /* GalavantWeb */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = GalavantWeb;
 		};
 		EB30B546BC69ECE08A9C6766 /* SQLiteData */ = {
 			isa = XCSwiftPackageProductDependency;
