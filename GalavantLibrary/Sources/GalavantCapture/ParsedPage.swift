@@ -48,11 +48,12 @@ public struct ParsedPage: Equatable, Sendable {
   /// describe the place even when the page carries no structured description, or only
   /// a marketing one worth rewriting. `nil` when the page had no meaningful text.
   public var textExcerpt: String?
-  /// A cleaned but **fuller** plain-text rendering of the page (same boilerplate
-  /// strip as `textExcerpt`, a much larger budget). Facts the summarizer doesn't
-  /// need — opening hours, ratings — routinely live deep in the body or in a
-  /// bottom-of-page contact/footer block, past `textExcerpt`'s short summary cap, so
-  /// fact extractors read this instead. `nil` when the page had no meaningful text.
+  /// The **full** cleaned plain-text rendering of the page (same boilerplate strip as
+  /// `textExcerpt`, no length cap — sizing input to a model is the model layer's job,
+  /// not the parser's). Facts the summarizer doesn't need — opening hours, ratings —
+  /// routinely live deep in the body or in a bottom-of-page contact/footer block, past
+  /// `textExcerpt`'s short summary lead, so fact extractors read this instead. `nil`
+  /// when the page had no meaningful text.
   public var bodyText: String?
 
   public init(

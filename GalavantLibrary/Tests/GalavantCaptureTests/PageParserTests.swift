@@ -63,8 +63,8 @@ import Testing
   @Test("bottom-of-page hours survive in bodyText though the summary excerpt clips them")
   func bodyTextReachesFooterHours() {
     // The hours sit in a contact block below ~1700 chars of prose: past the summary
-    // excerpt's 1500-char cap, but within bodyText's budget — so the hours extractor
-    // (which reads bodyText) actually sees them. This is the das-achental regression.
+    // lead's 1500-char cap, but present in the full (uncapped) bodyText — so the hours
+    // extractor (which reads bodyText) actually sees them. The das-achental regression.
     let page = PageParser.parse(html: Fixtures.chromeHeavyFooterHours)
     let excerpt = try! #require(page.textExcerpt)
     let body = try! #require(page.bodyText)

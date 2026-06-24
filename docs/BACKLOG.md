@@ -46,12 +46,20 @@ still came up empty. Root cause was two compounding defects in
 2. **The 1500-char cap then clipped the real content.** The hours sat at char
    offset ~3700, well past the cap; the model only ever saw nav chrome.
 Fix: (a) `cleanedBodyText` now also strips by boilerplate class/id and by **link
-density** (a block whose visible text is mostly link text is nav, not prose); (b)
-the single excerpt was split — `textExcerpt` stays a short summary lead (1500, for
-the latency-sensitive summarizer), and a new fuller `ParsedPage.bodyText` (6000)
-feeds the fact extractors, since hours/ratings routinely live deep or in a footer.
-`HoursExtractor` now reads `bodyText`. 3 tests (`PageParserTests` link-density +
-footer-hours, `HoursExtractorTests` live-path-reads-bodyText). **Still structured-
+density** (a block whose visible text is mostly link text is nav, not prose; we
+deliberately *don't* strip `class*=menu` — that's a restaurant's food menu); (b) the
+single excerpt was split — `textExcerpt` stays a short summary lead (1500, a
+deliberate product budget for the summarizer), and a new **uncapped**
+`ParsedPage.bodyText` (the full cleaned page) feeds the fact extractors, since
+hours/ratings routinely live deep or in a footer. `HoursExtractor` now reads
+`bodyText`. (c) Sizing input to a model is the model layer's job, not the parser's:
+`OnDeviceModelClient` now **fits the prompt to its own context window**
+(`SystemLanguageModel.contextSize` ≈ 4096 tokens — read from the model, not pinned;
+reserve system + output, char-budget the rest with a safety margin), so a whole-page
+extract or a long chat degrades to a shorter prompt instead of throwing
+`contextSizeExceeded`. 6 tests (`PageParserTests` link-density + footer-hours,
+`HoursExtractorTests` live-path-reads-bodyText, `OnDeviceFitTests` fit math).
+**Still structured-
 data-blind only if a site renders hours purely client-side** (no hours in the
 fetched DOM at all) — that remains the HITL-browser's job.
 

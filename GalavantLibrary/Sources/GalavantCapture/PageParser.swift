@@ -43,23 +43,23 @@ public enum PageParser {
     // Run before the boilerplate strip below, which mutates the document.
     page.evaluations = EvaluationRecognizers.recognize(in: document, sourceURL: sourceURL)
     // Plain-text renderings for the on-device models (done last: stripping mutates
-    // the document, so it runs after the extractors and image sweep). One clean body
-    // string, two budgets: a short lead for the summarizer, a fuller cut for the fact
-    // extractors (hours/ratings live deep or in a bottom-of-page contact block).
+    // the document, so it runs after the extractors and image sweep). The parser owns
+    // *cleaning*, not model sizing: it emits the full cleaned body, plus a short lead
+    // for the summarizer. Whatever a model can actually swallow is the model layer's
+    // concern — `OnDeviceModelClient` fits the prompt to its own context window.
     if let cleaned = cleanedBodyText(from: document) {
-      page.textExcerpt = truncate(cleaned, to: summaryExcerptLength)
-      page.bodyText = truncate(cleaned, to: bodyTextLength)
+      page.bodyText = cleaned
+      page.textExcerpt = truncate(cleaned, to: summaryLeadLength)
     }
     return page
   }
 
-  /// The summary excerpt handed to the on-device summarizer — enough to describe the
-  /// place, bounded to keep the share extension's model latency/memory in check.
-  private static let summaryExcerptLength = 1500
-  /// The fuller cut fact extractors (hours, ratings) read. Larger because the facts
-  /// they want sit past the summary lead — often in a footer/contact block at the very
-  /// bottom — but still bounded to cap on-device model cost on long pages.
-  private static let bodyTextLength = 6000
+  /// How much of the page lead the on-device summarizer gets. A deliberate product
+  /// budget — a place's description sits up top, so the first ~1500 chars summarize
+  /// well without feeding the model the whole site. Not a model limit (that's the
+  /// `OnDeviceModelClient`'s context window); the *fact* extractors read the full
+  /// `bodyText` instead, since hours/ratings live deep or in a bottom-of-page block.
+  private static let summaryLeadLength = 1500
 
   /// Cleaned, whitespace-collapsed visible text of the page's main content, with
   /// boilerplate removed. `nil` when nothing meaningful remains.
