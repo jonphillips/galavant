@@ -468,6 +468,12 @@ extension DependencyValues {
       try #sql(#"ALTER TABLE "ideas" ADD COLUMN "hoursProvenance" TEXT"#).execute(db)
       try #sql(#"ALTER TABLE "ideas" ADD COLUMN "hoursVerifiedAt" TEXT"#).execute(db)
     }
+    migrator.registerMigration("Add MapKit identifier to ideas (ADR-0019)") { db in
+      // Apple Maps' persistent place identity, the capture dedup key. Plain nullable
+      // column, no UNIQUE constraint: dedup is an app-level lookup, and CloudKit can't
+      // enforce cross-device uniqueness (a legitimate offline twin must still sync).
+      try #sql(#"ALTER TABLE "ideas" ADD COLUMN "mapItemIdentifier" TEXT"#).execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if context == .live, startSyncEngine {

@@ -54,6 +54,11 @@ public final class CaptureModel {
   /// sheet so Jon vets them (confirm-and-tweak). Each is `included` by default;
   /// toggling it off drops it from the save. Saved as sibling `IdeaEvaluation`s.
   public var detectedEvaluations: [DetectedEvaluation] = []
+  /// An existing pool idea this capture resolves to by Apple Maps identity (ADR-0019),
+  /// when one exists — drives the confirm sheet's "already in your pool, will update"
+  /// banner so the supplement is never silent (M4c). Advisory: the save transaction
+  /// re-checks and is the source of truth, so a race can't double-insert.
+  public private(set) var existingMatch: Idea?
 
   public init(html: String, sourceURL: URL?) {
     self.html = html
@@ -78,6 +83,9 @@ public final class CaptureModel {
     if let match = await placeMatcher.match(page) {
       draft.latitude = match.coordinate.latitude
       draft.longitude = match.coordinate.longitude
+      // Apple Maps' persistent place identity — the ADR-0019 dedup key. The page
+      // can't carry one, so the match is its only source.
+      draft.mapItemIdentifier = match.mapItemIdentifier
       // Confirm-and-tweak: only fill what the page left blank (like search-first).
       // Apple Maps is a rich enrichment source, so take its name/address/region/
       // kind/phone/link too — but never clobber what the page already supplied.
@@ -103,8 +111,22 @@ public final class CaptureModel {
     self.captured = captured
     self.draft = draft
     self.detectedEvaluations = await resolveEvaluations(captured.evaluations, page: page)
+    await self.refreshExistingMatch()
     await self.loadTrips()
     self.phase = .ready
+  }
+
+  /// Look up whether this capture's resolved place is already in the pool (by Apple
+  /// Maps identity), so the confirm sheet can offer "update" rather than silently
+  /// duplicating (ADR-0019). A no-identity location never matches — nil clears it.
+  private func refreshExistingMatch() async {
+    guard let mid = draft.mapItemIdentifier else {
+      existingMatch = nil
+      return
+    }
+    existingMatch = try? await database.read { db in
+      try Idea.where { $0.mapItemIdentifier.eq(mid) }.fetchOne(db)
+    }
   }
 
   /// Turn the page's detected ratings into confirm-sheet rows. Deterministic
@@ -150,10 +172,14 @@ public final class CaptureModel {
     draft.longitude = place.longitude
     draft.address = place.address
     draft.regionName = place.regionName
+    // The chosen place is authoritative for identity too (ADR-0019 dedup key).
+    draft.mapItemIdentifier = place.mapItemIdentifier
     if draft.name.isEmpty { draft.name = place.name }
     if draft.kind == nil { draft.kind = place.kind }
     if draft.phone == nil { draft.phone = place.phone }
     if draft.url.isEmpty, let url = place.url { draft.url = url }
+    // The picked place may itself already be in the pool — re-check for the banner.
+    Task { await refreshExistingMatch() }
   }
 
   /// Drop the resolved location, leaving it for the user to re-search or fill in
@@ -163,6 +189,10 @@ public final class CaptureModel {
     draft.longitude = nil
     draft.address = nil
     draft.regionName = nil
+    // Identity belongs to the resolved place; drop it with the location (ADR-0019).
+    draft.mapItemIdentifier = nil
+    // No identity → nothing to supplement; clear the banner.
+    existingMatch = nil
   }
 
   /// The processed header image to store with this capture, or nil when there's no
@@ -222,6 +252,7 @@ public final class CaptureModel {
     let latitude = draft.latitude
     let longitude = draft.longitude
     let url = draft.url
+    let mapItemIdentifier = draft.mapItemIdentifier
     let tripID = selectedTripID
     let imageDisplay = headerImage?.display
     let imageThumbnail = headerImage?.thumbnail
@@ -235,46 +266,94 @@ public final class CaptureModel {
     let stamp = evaluations.isEmpty ? Date.distantPast : now.now
     try await database.write { db in
       let party = try TravelParty.ensureDefault(in: db)
-      try Idea.insert {
-        Idea.Draft(
-          id: id,
-          name: name,
-          notes: notes,
-          kind: kind,
-          regionName: regionName,
-          address: address,
-          phone: phone,
-          latitude: latitude,
-          longitude: longitude,
-          url: url,
-          travelPartyID: party.id
-        )
-      }
-      .execute(db)
+      let resolved = try Self.resolveIdea(
+        in: db, id: id, name: name, notes: notes, kind: kind, regionName: regionName,
+        address: address, phone: phone, latitude: latitude, longitude: longitude,
+        url: url, mapItemIdentifier: mapItemIdentifier, travelPartyID: party.id
+      )
+      guard let targetID = resolved.id else { return }
+
       // Pull onto the chosen trip (idempotent) so the capture lands as a
       // "considering" entry, not just in the eternal pool.
-      if let tripID, let id {
-        try TripIdea.pull(ideaID: id, into: tripID, in: db)
+      if let tripID {
+        try TripIdea.pull(ideaID: targetID, into: tripID, in: db)
       }
-      // Store the header image alongside the idea, in the same transaction.
-      if let id, let imageDisplay, let imageThumbnail, let imageID {
+      // Store the header image alongside the idea, in the same transaction. On a
+      // merge, don't force the header — `asHeader` only when this is a brand-new idea,
+      // so a re-share never displaces a chosen header (ImageAsset.store de-dups by
+      // sourceURL and keeps an existing header otherwise).
+      if let imageDisplay, let imageThumbnail, let imageID {
         try ImageAsset.store(
-          ideaID: id,
+          ideaID: targetID,
           display: imageDisplay,
           thumbnail: imageThumbnail,
           sourceURL: imageSourceURL,
-          asHeader: true,
+          asHeader: resolved.isNew,
           id: imageID,
           in: db
         )
       }
-      // Sibling source evaluations (Michelin ★★★, a Harper 96/100, …), born with
-      // the idea and riding the same travel party (ADR-0015/0016).
-      if let id {
-        try IdeaEvaluation.record(
-          evaluations, ideaID: id, travelPartyID: party.id, asOf: stamp, in: db
-        )
-      }
+      // Sibling source evaluations (Michelin ★★★, a Harper 96/100, …). On a re-share
+      // `record` de-dups on (source, kind, value), so a supplement adds only new
+      // judgments rather than doubling existing ones (ADR-0019 §3).
+      try IdeaEvaluation.record(
+        evaluations, ideaID: targetID, travelPartyID: party.id, asOf: stamp, in: db
+      )
     }
+  }
+
+  /// Insert the captured idea, or — when its Apple Maps identity is already in the
+  /// pool — supplement that existing idea instead of duplicating it (ADR-0019).
+  /// Returns the idea to attach siblings to and whether it was freshly inserted (so
+  /// the caller only forces a header image on a brand-new idea). Only a Maps identity
+  /// dedups — a geocoded/scraped location (nil id) never auto-merges, so a
+  /// name/coordinate guess can't trigger a false merge.
+  private nonisolated static func resolveIdea(
+    in db: Database,
+    id: Idea.ID?,
+    name: String,
+    notes: String,
+    kind: IdeaKind?,
+    regionName: String?,
+    address: String?,
+    phone: String?,
+    latitude: Double?,
+    longitude: Double?,
+    url: String,
+    mapItemIdentifier: String?,
+    travelPartyID: TravelParty.ID
+  ) throws -> (id: Idea.ID?, isNew: Bool) {
+    let existing: Idea? = mapItemIdentifier.flatMap { mid in
+      try? Idea.where { $0.mapItemIdentifier.eq(mid) }.fetchOne(db)
+    }
+    if let existing {
+      let merged = existing.supplemented(
+        name: name, kind: kind, regionName: regionName, address: address,
+        phone: phone, latitude: latitude, longitude: longitude, url: url,
+        mapItemIdentifier: mapItemIdentifier
+      )
+      // Full-record upsert: `merged` carries every existing column, so this updates
+      // the supplemented facts without dropping notes/visited/hours/etc.
+      try Idea.upsert { Idea.Draft(merged) }.execute(db)
+      return (existing.id, false)
+    }
+    try Idea.insert {
+      Idea.Draft(
+        id: id,
+        name: name,
+        notes: notes,
+        kind: kind,
+        regionName: regionName,
+        address: address,
+        phone: phone,
+        latitude: latitude,
+        longitude: longitude,
+        url: url,
+        mapItemIdentifier: mapItemIdentifier,
+        travelPartyID: travelPartyID
+      )
+    }
+    .execute(db)
+    return (id, true)
   }
 }

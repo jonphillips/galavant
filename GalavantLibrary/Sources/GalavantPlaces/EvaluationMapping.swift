@@ -69,6 +69,10 @@ extension IdeaEvaluation {
   /// Persist a batch of confirmed detections against an idea, each stamped with its
   /// own confidence (ADR-0016 §1) — the capture write's one-liner over the sheet's
   /// kept rows.
+  ///
+  /// Idempotent on the source-native triad (source, kind, value): a detection the
+  /// idea already carries is skipped, so re-sharing the same place doesn't double its
+  /// ratings (ADR-0019 §3). The same guard de-dups repeats *within* a single batch.
   public static func record(
     _ detections: [DetectedEvaluation],
     ideaID: Idea.ID,
@@ -76,12 +80,33 @@ extension IdeaEvaluation {
     asOf now: Date,
     in db: Database
   ) throws {
+    let existing = try IdeaEvaluation.where { $0.ideaID.eq(ideaID) }.fetchAll(db)
+    var seen = Set(
+      existing.map {
+        EvaluationKey(source: $0.sourceName, kind: $0.kind, value: $0.nativeValueText)
+      }
+    )
     for detected in detections {
+      let key = EvaluationKey(
+        source: detected.parsed.sourceName,
+        kind: kind(from: detected.parsed.kind),
+        value: detected.parsed.valueText
+      )
+      guard seen.insert(key).inserted else { continue }
       try record(
         detected.parsed, ideaID: ideaID, travelPartyID: travelPartyID,
         confidence: detected.confidence, asOf: now, in: db
       )
     }
+  }
+
+  /// The identity of a judgment for de-dup (ADR-0019 §3): two evaluations are "the
+  /// same" when their source, kind, and native value agree — the same accolade,
+  /// however many times the page is captured.
+  private struct EvaluationKey: Hashable {
+    var source: String
+    var kind: EvaluationKind
+    var value: String
   }
 
   /// Map the parser's vocabulary onto the schema's. The parser never emits
