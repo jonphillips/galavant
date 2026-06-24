@@ -36,6 +36,9 @@ public final class CaptureModel {
 
   private let html: String
   private let sourceURL: URL?
+  /// Set when the share was a *location* (Apple Maps / vCard, ADR-0020) rather than a
+  /// web page — `prepare()` seeds the pipeline from it instead of parsing HTML.
+  private let seedLocation: SharedLocation?
 
   public private(set) var phase: Phase = .preparing
   /// The editable idea the confirm sheet binds to (name/kind/notes/url/…).
@@ -63,11 +66,23 @@ public final class CaptureModel {
   public init(html: String, sourceURL: URL?) {
     self.html = html
     self.sourceURL = sourceURL
+    self.seedLocation = nil
+  }
+
+  /// Seed the capture from a shared location (Apple Maps place / vCard, ADR-0020)
+  /// rather than a web page. `prepare()` synthesizes a `ParsedPage` from it and runs
+  /// the same refine → match → dedup → save pipeline.
+  public init(location: SharedLocation) {
+    self.html = ""
+    self.sourceURL = nil
+    self.seedLocation = location
   }
 
   /// Parse the page and refine its location. Idempotent-ish — call once on appear.
   public func prepare() async {
-    var page = PageParser.parse(html: html, sourceURL: sourceURL)
+    // A location share seeds a synthesized page (ADR-0020); a web share parses HTML.
+    var page = seedLocation?.parsedPage(capturedAt: now.now)
+      ?? PageParser.parse(html: html, sourceURL: sourceURL)
     // On-device Apple Intelligence refines the parse before matching — a cleaned
     // name and a mined city feed both the draft and the Apple Maps query (so a
     // name-only page like koancph.dk can resolve). Confirm-and-tweak: it only
@@ -79,13 +94,18 @@ public final class CaptureModel {
     // Kind is domain (not on the domain-free ParsedPage): apply the model's
     // classification only when the structured `schema.org` type left it blank.
     if draft.kind == nil, let kind = refinement?.kind { draft.kind = kind }
+    // A Maps share may already carry Apple's persistent identity; seed it so the
+    // ADR-0019 dedup banner works even if the match below comes back empty (offline).
+    if let mid = seedLocation?.mapItemIdentifier { draft.mapItemIdentifier = mid }
 
     if let match = await placeMatcher.match(page) {
       draft.latitude = match.coordinate.latitude
       draft.longitude = match.coordinate.longitude
-      // Apple Maps' persistent place identity — the ADR-0019 dedup key. The page
-      // can't carry one, so the match is its only source.
-      draft.mapItemIdentifier = match.mapItemIdentifier
+      // Apple Maps' persistent place identity — the ADR-0019 dedup key. A web page
+      // can't carry one, so the match is its only source; but a Maps share already
+      // seeded the authoritative identity above, and a coordinate-first match resolves
+      // with none — so only adopt the match's when it actually has one.
+      if let mid = match.mapItemIdentifier { draft.mapItemIdentifier = mid }
       // Confirm-and-tweak: only fill what the page left blank (like search-first).
       // Apple Maps is a rich enrichment source, so take its name/address/region/
       // kind/phone/link too — but never clobber what the page already supplied.

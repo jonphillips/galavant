@@ -18,7 +18,9 @@ final class ShareViewController: UIViewController {
   @MainActor
   private func presentConfirm() async {
     let input = await CaptureExtraction.input(from: extensionContext)
-    let model = CaptureModel(html: input.html, sourceURL: input.url)
+    let model =
+      input.location.map(CaptureModel.init(location:))
+      ?? CaptureModel(html: input.html, sourceURL: input.url)
     let root = CaptureConfirmView(model: model) { [weak self] in self?.finish() }
 
     let host = UIHostingController(rootView: root)
