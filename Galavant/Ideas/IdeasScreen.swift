@@ -17,12 +17,7 @@ struct IdeasScreen: View {
   @State private var regionNameDraft = ""
   @State private var managingRegions = false
   @State private var managingTags = false
-  @State private var showingSettings = false
   @State private var showingChat = false
-  // DEV (M6e slice-0 spike, ADR-0018): throwaway discovery entry. Delete this line,
-  // the toolbar item below, the sheet, and DiscoverySpikeView.swift once the spike
-  // has served its purpose.
-  @State private var showingDiscoverySpike = false
 
   enum Mode: String, CaseIterable {
     case list, map
@@ -81,13 +76,6 @@ struct IdeasScreen: View {
       }
       ToolbarItem {
         Button {
-          Task { await model.shareTravelPartyButtonTapped() }
-        } label: {
-          Icon.travelParty.label("Share Travel Party")
-        }
-      }
-      ToolbarItem {
-        Button {
           model.addIdeaButtonTapped()
         } label: {
           Icon.add.label("Add Idea")
@@ -99,23 +87,6 @@ struct IdeasScreen: View {
           showingChat = true
         } label: {
           Icon.chat.label("Discuss")
-        }
-      }
-      // Stub entry point for the "You"/settings area (ADR-0014 slice 4): manage the
-      // device-local frontier API key. Lands here until the settings area is built.
-      ToolbarItem {
-        Button {
-          showingSettings = true
-        } label: {
-          Icon.settings.label("Settings")
-        }
-      }
-      // DEV (M6e slice-0 spike, ADR-0018): delete with the rest of the spike.
-      ToolbarItem {
-        Button {
-          showingDiscoverySpike = true
-        } label: {
-          Label("Discover (dev)", systemImage: "sparkle.magnifyingglass")
         }
       }
     }
@@ -161,17 +132,11 @@ struct IdeasScreen: View {
       IdentityView(model: model)
         .interactiveDismissDisabled()
     }
-    .sheet(item: $model.sharedRecord) { sharedRecord in
-      CloudSharingView(sharedRecord: sharedRecord)
-    }
     .sheet(isPresented: $managingRegions) {
       RegionManagerView(model: model)
     }
     .sheet(isPresented: $managingTags) {
       TagManagerView(model: model)
-    }
-    .sheet(isPresented: $showingSettings) {
-      AISettingsView()
     }
   }
 

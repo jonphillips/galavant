@@ -170,6 +170,11 @@ struct IdeaFormView: View {
         }
         .disabled(model.supplementingHours)
       }
+      if let status = model.hoursStatus {
+        Text(status)
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
     }
   }
 

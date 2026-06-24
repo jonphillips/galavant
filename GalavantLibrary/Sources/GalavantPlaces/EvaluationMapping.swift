@@ -26,6 +26,76 @@ public struct DetectedEvaluation: Identifiable, Equatable, Sendable {
   public var sourceName: String { parsed.sourceName }
   /// The native value, for display ("★★★", "96/100") — never normalized.
   public var nativeDisplay: String { parsed.display }
+
+  // MARK: - User correction (confirm sheet)
+  //
+  // The recognizers can misread a value; the confirm sheet lets Jon fix it before the
+  // save. A correction is the user asserting the *true* native value, so it stays
+  // within ADR-0015's native-fidelity rule (we're not normalizing — we're recording a
+  // human-verified native reading). Each setter keeps the value triad (number / text /
+  // display) coherent, since the de-dup key reads `valueText`.
+
+  /// How the confirm sheet should let the user correct this value — chosen so the UI
+  /// never has to name `GalavantCapture`'s `ParsedEvaluationKind`.
+  public enum CorrectionStyle: Equatable, Sendable {
+    /// A tiered star count: a 0...max stepper.
+    case stars
+    /// A bounded numeric score: a number field.
+    case score
+    /// Everything else (rank/badge/recommendation/mention/text): a free-text field.
+    case text
+  }
+
+  public var correctionStyle: CorrectionStyle {
+    switch parsed.kind {
+    case .stars: .stars
+    case .numericScore: .score
+    case .rank, .badge, .recommendation, .mention, .text: .text
+    }
+  }
+
+  /// The detected star count, for the stepper.
+  public var starCount: Int { Int(parsed.valueNumber ?? 0) }
+
+  /// The detected numeric score, for the number field.
+  public var scoreValue: Double { parsed.valueNumber ?? 0 }
+
+  /// The upper bound for the star stepper: the source's stated scale when known, else
+  /// 5 — the largest star scale Galavant recognizes (Forbes Five-Star). Michelin tops
+  /// out at 3, so its `valueMax` (3) caps it correctly when present.
+  public var starCap: Int { Int(parsed.valueMax ?? 5) }
+
+  /// Correct a tiered star count, regenerating the native text/number/display.
+  public mutating func correctStars(_ n: Int) {
+    let clamped = max(0, min(starCap, n))
+    parsed.valueNumber = Double(clamped)
+    parsed.valueText = "\(clamped) star\(clamped == 1 ? "" : "s")"
+    parsed.display = clamped == 0 ? "—" : String(repeating: "★", count: clamped)
+  }
+
+  /// Correct a bounded numeric score (e.g. 96/100), regenerating text/number/display.
+  public mutating func correctScore(_ value: Double) {
+    parsed.valueNumber = value
+    let n = Self.trimmed(value)
+    if let maxValue = parsed.valueMax {
+      parsed.valueText = "\(n)/\(Self.trimmed(maxValue))"
+    } else {
+      parsed.valueText = n
+    }
+    parsed.display = parsed.valueText
+  }
+
+  /// Correct the verbatim value for the unstructured kinds (rank/badge/recommendation/
+  /// mention/text), mirroring the edit into the de-dup key.
+  public mutating func correctText(_ text: String) {
+    parsed.valueText = text
+    parsed.display = text
+  }
+
+  /// "96" not "96.0"; "95.5" stays "95.5".
+  private static func trimmed(_ value: Double) -> String {
+    value.rounded() == value ? String(Int(value)) : String(value)
+  }
 }
 
 /// The domain bridge for source-aware capture (ADR-0016 §1): maps a domain-free

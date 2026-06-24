@@ -1,28 +1,21 @@
 import GalavantAI
 import SwiftUI
 
-/// The settings surface for the BYO-key frontier tier (ADR-0014 §4 + the
+/// The AI portion of Settings: the BYO-key frontier tier (ADR-0014 §4 + the
 /// multi-provider amendment). Enter or clear a key per provider (Claude, ChatGPT);
-/// the model switcher then offers each configured provider per conversation.
-/// Absent any key, the screen is explicit that on-device is the only tier.
-struct AISettingsView: View {
+/// the model switcher then offers each configured provider per conversation. Absent
+/// any key, the screen is explicit that on-device is the only tier.
+///
+/// Sections only — no `Form`/`NavigationStack` of its own, so it drops into the
+/// `SettingsScreen` form alongside the other settings sections.
+struct AISettingsSections: View {
   @State private var model = AISettingsModel()
-  @Environment(\.dismiss) private var dismiss
 
   var body: some View {
-    NavigationStack {
-      Form {
-        tierStatusSection
-        ForEach(model.providers) { provider in
-          keySection(for: provider)
-        }
-      }
-      .navigationTitle("AI")
-      .navigationBarTitleDisplayMode(.inline)
-      .toolbar {
-        ToolbarItem(placement: .confirmationAction) {
-          Button("Done") { dismiss() }
-        }
+    Group {
+      tierStatusSection
+      ForEach(model.providers) { provider in
+        keySection(for: provider)
       }
     }
     .onAppear { model.onAppear() }
@@ -110,8 +103,4 @@ struct AISettingsView: View {
     case .openai: "sk-…"
     }
   }
-}
-
-#Preview {
-  AISettingsView()
 }

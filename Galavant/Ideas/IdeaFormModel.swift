@@ -20,6 +20,9 @@ final class IdeaFormModel {
   /// Set to present the human-in-the-loop browser (rung 3) when the cheaper rungs
   /// can't find hours — the page the user drives to grab them from.
   var hoursBrowserURL: URL?
+  /// A short result line shown after a refresh-hours attempt so the action isn't
+  /// silent — a hit, an already-current no-op, or nothing found.
+  var hoursStatus: String?
   /// The idea's stored images, header first (M4g/M4h). The user can re-pick the
   /// cover from here; the header the enrichment chose (Vision-recommended) is the
   /// default. Empty for a new idea or one without images.
@@ -128,14 +131,21 @@ final class IdeaFormModel {
   func supplementHours() async {
     guard let id = draft.id else { return }
     supplementingHours = true
+    hoursStatus = nil
     defer { supplementingHours = false }
     let outcome = await FieldSupplement().supplementHours(ideaID: id)
     switch outcome {
-    case .filled, .alreadyPresent:
+    case .filled:
       await reloadHours()
+      hoursStatus = "Hours updated."
+    case .alreadyPresent:
+      hoursStatus = "Already up to date."
     case .notFound:
       if !draft.url.isEmpty, let url = URL(string: draft.url) {
+        hoursStatus = "No hours found — opening the page to check."
         hoursBrowserURL = url
+      } else {
+        hoursStatus = "No hours found, and no link to check."
       }
     }
   }

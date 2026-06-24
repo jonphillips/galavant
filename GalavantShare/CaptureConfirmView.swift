@@ -118,23 +118,32 @@ struct CaptureConfirmView: View {
       }
 
       if !model.detectedEvaluations.isEmpty {
-        Section("Ratings") {
+        Section {
           ForEach($model.detectedEvaluations) { $detected in
-            Toggle(isOn: $detected.included) {
-              HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                  Text(detected.sourceName)
-                  if detected.confidence != .official {
-                    Text(detected.confidence.label)
-                      .font(.caption)
-                      .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 8) {
+              Toggle(isOn: $detected.included) {
+                HStack {
+                  VStack(alignment: .leading, spacing: 2) {
+                    Text(detected.sourceName)
+                    if detected.confidence != .official {
+                      Text(detected.confidence.label)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
                   }
+                  Spacer()
+                  Text(detected.nativeDisplay).bold()
                 }
-                Spacer()
-                Text(detected.nativeDisplay).bold()
+              }
+              if detected.included {
+                ratingEditor($detected)
               }
             }
           }
+        } header: {
+          Text("Ratings")
+        } footer: {
+          Text("Tap to correct a misread rating before saving.")
         }
       }
 
@@ -163,6 +172,51 @@ struct CaptureConfirmView: View {
           Text(message).foregroundStyle(.red)
         }
       }
+    }
+  }
+
+  /// Correct a misread rating before saving — a stepper for stars, a number field for
+  /// a bounded score, a text field for everything else. Each edit regenerates the
+  /// native value triad on the bound `DetectedEvaluation` (`correctStyle` helpers).
+  @ViewBuilder
+  private func ratingEditor(_ detected: Binding<DetectedEvaluation>) -> some View {
+    switch detected.wrappedValue.correctionStyle {
+    case .stars:
+      Stepper(
+        value: Binding(
+          get: { detected.wrappedValue.starCount },
+          set: { detected.wrappedValue.correctStars($0) }
+        ),
+        in: 0...detected.wrappedValue.starCap
+      ) {
+        Text("Stars: \(detected.wrappedValue.starCount)")
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+      }
+    case .score:
+      HStack {
+        Text("Score").font(.subheadline).foregroundStyle(.secondary)
+        Spacer()
+        TextField(
+          "Score",
+          value: Binding(
+            get: { detected.wrappedValue.scoreValue },
+            set: { detected.wrappedValue.correctScore($0) }
+          ),
+          format: .number
+        )
+        .multilineTextAlignment(.trailing)
+        .keyboardType(.decimalPad)
+      }
+    case .text:
+      TextField(
+        "Value",
+        text: Binding(
+          get: { detected.wrappedValue.nativeDisplay },
+          set: { detected.wrappedValue.correctText($0) }
+        )
+      )
+      .font(.subheadline)
     }
   }
 

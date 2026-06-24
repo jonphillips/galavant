@@ -1,11 +1,9 @@
 import CasePaths
-import CloudKit
 import Dependencies
 import Foundation
 import GalavantPlaces
 import GalavantSchema
 import MapKit
-import os
 import SQLiteData
 import Sharing
 
@@ -13,7 +11,6 @@ import Sharing
 @Observable
 final class IdeasListModel {
   @ObservationIgnored @Dependency(\.defaultDatabase) var database
-  @ObservationIgnored @Dependency(\.defaultSyncEngine) var syncEngine
   @ObservationIgnored @Dependency(\.recentTripStore) var recentTripStore
   @ObservationIgnored @FetchAll(Idea.order(by: \.name)) var ideas
   @ObservationIgnored @FetchAll(Planner.all) var planners
@@ -32,7 +29,6 @@ final class IdeasListModel {
   ) var headerThumbs
   @ObservationIgnored @Shared(.appStorage("currentPlannerID")) var currentPlannerIDString = ""
   var destination: Destination?
-  var sharedRecord: SharedRecord?
 
   // Pool filters (the "Virginia case" scoping).
   var selectedRegionID: MapRegion.ID?
@@ -186,7 +182,11 @@ final class IdeasListModel {
     let matched = showMatchesOnly ? pooled.filter { standings[$0.id] == .match } : pooled
     switch sortMode {
     case .alphabetical:
-      return matched  // `ideas` is already fetched name-ordered
+      // `ideas` is fetched name-ordered, but SQLite's default BINARY collation is
+      // case-sensitive (Z before a). Re-sort case-insensitively for a human A–Z.
+      return matched.sorted {
+        $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+      }
     case .matchesFirst:
       return matched.sorted {
         ((standings[$0.id] ?? .neutral).sortKey, $0.name.lowercased())
@@ -417,20 +417,4 @@ final class IdeasListModel {
     }
   }
 
-  func shareTravelPartyButtonTapped() async {
-    await withErrorReporting {
-      let travelParty = try await database.write { db in
-        try TravelParty.ensureDefault(in: db)
-      }
-      sharedRecord = try await syncEngine.share(record: travelParty) {
-        $0[CKShare.SystemFieldKey.title] = "Galavant Travel Party"
-      }
-      #if DEBUG
-        if let url = sharedRecord?.share.url {
-          Logger(subsystem: "com.jonphillips.galavant", category: "Sharing")
-            .warning("TRAVEL PARTY SHARE URL: \(url.absoluteString, privacy: .public)")
-        }
-      #endif
-    }
-  }
 }
