@@ -3,3 +3,7 @@ xcuserdata/
 *.xcuserstate
 .build/
 DerivedData/
+
+# Machine-local Claude Code overrides (permissions, sim UUIDs, abs paths).
+# The shared SessionStart hook lives in the committed .claude/settings.json.
+.claude/settings.local.json
