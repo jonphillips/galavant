@@ -57,11 +57,7 @@ struct IdeaRow: View {
         }
       }
       Spacer()
-      tripAccessoryView
-      InterestMenu(current: myInterest, onSelect: onSetInterest) {
-        Image(systemName: myInterest == nil ? "heart" : "heart.fill")
-          .foregroundStyle(myInterest == nil ? Color.secondary : Color.red)
-      }
+      trailingAccessories
     }
     .padding(.vertical, 2)
   }
@@ -86,25 +82,40 @@ struct IdeaRow: View {
     }
   }
 
+  /// The trailing cluster. In the eternal pool: the derived trip badge, then the
+  /// rating heart. Once scoped to a trip the heart becomes the left-most icon,
+  /// followed by a vertical stack of the two pull toggles — a question mark
+  /// (considering) over a checkmark (shortlisted).
   @ViewBuilder
-  private var tripAccessoryView: some View {
+  private var trailingAccessories: some View {
     switch tripAccessory {
     case let .badge(badge):
       if let badge { TripBadgeView(badge: badge) }
+      interestHeart
     case let .pull(status, onConsidering, onShortlist):
-      HStack(spacing: 16) {
-        pullToggle(Icon.consider, on: status == .considering, action: onConsidering)
-        pullToggle(Icon.shortlist, on: status?.isOnShortlist == true, action: onShortlist)
+      interestHeart
+      VStack(spacing: 10) {
+        pullToggle("questionmark", on: status == .considering, action: onConsidering)
+        pullToggle("checkmark", on: status?.isOnShortlist == true, action: onShortlist)
       }
     }
   }
 
-  /// One quick pull-state icon (considering / shortlist), lit when in that state
-  /// — mirrors the Add-Ideas sheet's `addToggle`.
-  private func pullToggle(_ icon: Icon, on: Bool, action: @escaping () -> Void) -> some View {
+  private var interestHeart: some View {
+    InterestMenu(current: myInterest, onSelect: onSetInterest) {
+      Image(systemName: myInterest == nil ? "heart" : "heart.fill")
+        .foregroundStyle(myInterest == nil ? Color.secondary : Color.red)
+    }
+  }
+
+  /// One quick pull-state icon (considering / shortlist). These glyphs (a plain
+  /// `questionmark` / `checkmark`) have no `.fill` cousin, so the lit state reads
+  /// through tint + weight rather than a fill swap.
+  private func pullToggle(_ symbol: String, on: Bool, action: @escaping () -> Void) -> some View {
     Button(action: action) {
-      Image(systemName: on ? "\(icon.systemName).fill" : icon.systemName)
+      Image(systemName: symbol)
         .imageScale(.large)
+        .fontWeight(on ? .bold : .regular)
         .foregroundStyle(on ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
     }
     .buttonStyle(.borderless)

@@ -21,22 +21,6 @@ struct StopMenu: View {
     let placed = schedule.dayNumber != nil
     let day = schedule.dayNumber ?? 1
     Menu {
-      if let length = model.trip?.lengthInDays {
-        Menu(placed ? "Move to Day" : "Set Day") {
-          ForEach(1...length, id: \.self) { n in
-            Button {
-              model.setSchedule(schedule.onDay(n), for: stopID)
-            } label: {
-              let title = dayLabel(n, trip: model.trip)
-              if placed, n == day {
-                Label(title, systemImage: Icon.checkmark.systemName)
-              } else {
-                Text(title)
-              }
-            }
-          }
-        }
-      }
       if placed {
         Menu("Time of Day") {
           Button {
@@ -65,6 +49,22 @@ struct StopMenu: View {
         }
       }
       Divider()
+      if let length = model.trip?.lengthInDays {
+        Menu(placed ? "Move to Day" : "Set Day") {
+          ForEach(1...length, id: \.self) { n in
+            Button {
+              model.setSchedule(schedule.onDay(n), for: stopID)
+            } label: {
+              let title = dayLabel(n, trip: model.trip)
+              if placed, n == day {
+                Label(title, systemImage: Icon.checkmark.systemName)
+              } else {
+                Text(title)
+              }
+            }
+          }
+        }
+      }
       Button("Mark Skipped", systemImage: Icon.skip.systemName) { model.markSkipped(stopID) }
       if isFreeform {
         Button("Remove", systemImage: Icon.delete.systemName, role: .destructive) {
