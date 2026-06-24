@@ -16,6 +16,9 @@ final class AISettingsModel {
   var keyInputs: [FrontierProvider: String] = [:]
   /// Which providers currently have a stored key — drives the "enabled" copy.
   private(set) var storedProviders: Set<FrontierProvider> = []
+  /// A non-secret preview of each stored key (first/last few chars + length), so the
+  /// UI can confirm a paste actually landed. Refreshed alongside `storedProviders`.
+  private(set) var keyPreviews: [FrontierProvider: String] = [:]
 
   @ObservationIgnored @Dependency(\.apiKeyStore) private var keyStore
 
@@ -26,10 +29,19 @@ final class AISettingsModel {
 
   private func refresh() {
     storedProviders = Set(providers.filter { keyStore.key($0) != nil })
+    keyPreviews = Dictionary(
+      uniqueKeysWithValues: providers.compactMap { provider in
+        keyStore.maskedKey(provider).map { (provider, $0) }
+      })
   }
 
   func hasStoredKey(_ provider: FrontierProvider) -> Bool {
     storedProviders.contains(provider)
+  }
+
+  /// The masked preview of the stored key for `provider`, or nil when none is set.
+  func keyPreview(for provider: FrontierProvider) -> String? {
+    keyPreviews[provider]
   }
 
   func keyInput(for provider: FrontierProvider) -> String {

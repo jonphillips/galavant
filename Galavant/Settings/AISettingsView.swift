@@ -75,6 +75,11 @@ struct AISettingsView: View {
         .textContentType(.password)
         .autocorrectionDisabled()
         .textInputAutocapitalization(.never)
+      if let preview = model.keyPreview(for: provider) {
+        LabeledContent("Stored") {
+          Text(preview).monospaced().foregroundStyle(.secondary)
+        }
+      }
       Button("Save Key") { model.save(provider) }
         .disabled(!model.canSave(provider))
       if model.hasStoredKey(provider) {

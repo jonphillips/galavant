@@ -29,6 +29,23 @@ public struct APIKeyStore: Sendable {
     let trimmed = key?.trimmingCharacters(in: .whitespacesAndNewlines)
     write(provider, (trimmed?.isEmpty ?? true) ? nil : trimmed)
   }
+
+  /// A non-secret preview of a stored key — first/last few characters plus length —
+  /// so the settings UI can confirm a paste/entry actually took (the secret itself
+  /// is never shown). Pure, so it's unit-tested without the Keychain.
+  public static func masked(_ key: String) -> String {
+    let visible = 4
+    guard key.count > visible * 2 else {
+      // Too short to reveal ends without exposing most of it — just the length.
+      return "•••• · \(key.count) chars"
+    }
+    return "\(key.prefix(visible))…\(key.suffix(visible)) · \(key.count) chars"
+  }
+
+  /// The masked preview of the stored key for `provider`, or nil when none is set.
+  public func maskedKey(_ provider: FrontierProvider) -> String? {
+    read(provider).map(Self.masked)
+  }
 }
 
 extension APIKeyStore: DependencyKey {
@@ -67,7 +84,9 @@ private enum Keychain {
   static let service = "com.jonphillips.galavant.apikeys"
 
   static func read(account: String) -> String? {
-    var query = baseQuery(account: account)
+    // `kSecAttrSynchronizableAny` is valid here (a query) — match a key whether it
+    // was stored synchronizable or not.
+    var query = matchQuery(account: account)
     query[kSecReturnData as String] = true
     query[kSecMatchLimit as String] = kSecMatchLimitOne
     var item: CFTypeRef?
@@ -78,21 +97,46 @@ private enum Keychain {
     return key
   }
 
+  /// Store (or, with a nil key, clear) the credential. Replacing must be reliable —
+  /// the whole point of the settings screen — so this deletes any existing item
+  /// (synchronizable or not) and adds a fresh one with an **explicit** synchronizable
+  /// Boolean (`kSecAttrSynchronizableAny` is a query-only value and makes `SecItemAdd`
+  /// fail with `errSecParam` — the original clear/replace bug). On the off chance a
+  /// stray item survives the delete, fall back to an in-place update.
   static func write(_ key: String?, account: String) {
-    SecItemDelete(baseQuery(account: account) as CFDictionary)
+    SecItemDelete(matchQuery(account: account) as CFDictionary)
     guard let key, let data = key.data(using: .utf8) else { return }
-    var query = baseQuery(account: account)
-    query[kSecValueData as String] = data
-    query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-    SecItemAdd(query as CFDictionary, nil)
+    var attributes = identityQuery(account: account)
+    attributes[kSecAttrSynchronizable as String] = kCFBooleanTrue
+    attributes[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+    attributes[kSecValueData as String] = data
+    let status = SecItemAdd(attributes as CFDictionary, nil)
+    if status == errSecDuplicateItem {
+      SecItemUpdate(
+        identityQuery(account: account) as CFDictionary,
+        [kSecValueData as String: data] as CFDictionary)
+    }
   }
 
-  private static func baseQuery(account: String) -> [String: Any] {
+  /// Match query for read/delete: spans synchronizable *and* non-synchronizable
+  /// items so a re-save or clear catches a key stored either way (including legacy
+  /// ones written before the synchronizable Boolean was set explicitly).
+  private static func matchQuery(account: String) -> [String: Any] {
     [
       kSecClass as String: kSecClassGenericPassword,
       kSecAttrService as String: service,
       kSecAttrAccount as String: account,
       kSecAttrSynchronizable as String: kSecAttrSynchronizableAny,
+    ]
+  }
+
+  /// The item's identity (no synchronizable predicate) — the base for `SecItemAdd`
+  /// attributes and `SecItemUpdate` queries, where `…Any` is not permitted.
+  private static func identityQuery(account: String) -> [String: Any] {
+    [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: service,
+      kSecAttrAccount as String: account,
     ]
   }
 }

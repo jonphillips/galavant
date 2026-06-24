@@ -311,4 +311,27 @@ import Testing
     store.setKey("  sk-ant-xyz\n", for: .anthropic)
     #expect(store.key(.anthropic) == "sk-ant-xyz")
   }
+
+  @Test("saving a new key over an existing one replaces it")
+  func replaceExisting() {
+    let store = APIKeyStore.inMemory()
+    store.setKey("sk-bad-000", for: .openai)
+    store.setKey("sk-good-999", for: .openai)
+    #expect(store.key(.openai) == "sk-good-999")
+  }
+
+  @Test("masked preview shows the ends and length, never the middle")
+  func maskedRevealsEndsOnly() {
+    #expect(APIKeyStore.masked("sk-proj-abcdEFGH1234wxyz") == "sk-p…wxyz · 24 chars")
+    // A short value is never partly revealed — only its length.
+    #expect(APIKeyStore.masked("sk-12345") == "•••• · 8 chars")
+  }
+
+  @Test("maskedKey reflects what's stored, nil when absent")
+  func maskedKeyTracksStore() {
+    let store = APIKeyStore.inMemory()
+    #expect(store.maskedKey(.openai) == nil)
+    store.setKey("sk-proj-abcdEFGH1234wxyz", for: .openai)
+    #expect(store.maskedKey(.openai) == "sk-p…wxyz · 24 chars")
+  }
 }
