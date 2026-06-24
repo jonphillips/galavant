@@ -10,29 +10,44 @@ import SwiftUI
 struct ChatPanelView: View {
   @State private var model: ChatModel
   @State private var draft = ""
-  @Environment(\.dismiss) private var dismiss
+  /// The panel's own presentation binding (the same one `.chatPanel`/`.inspector`
+  /// keys off). Closing sets it directly rather than via `@Environment(\.dismiss)`:
+  /// on iPad the panel is an `.inspector`, whose toolbar SwiftUI silently drops
+  /// (Xcode 27 beta — see `docs/KNOWN-ISSUES.md`), so the switcher and close live in
+  /// an in-panel header, not a `.toolbar`, and close flips the binding we own.
+  @Binding var isPresented: Bool
   @FocusState private var inputFocused: Bool
 
-  init(context: ChatContext) {
+  init(isPresented: Binding<Bool>, context: ChatContext) {
+    _isPresented = isPresented
     _model = State(initialValue: ChatModel(context: context))
   }
 
   var body: some View {
-    NavigationStack {
-      VStack(spacing: 0) {
-        transcript
-        Divider()
-        composer
-      }
-      .navigationTitle("Discuss")
-      .navigationBarTitleDisplayMode(.inline)
-      .toolbar {
-        ToolbarItem(placement: .topBarLeading) { tierMenu }
-        ToolbarItem(placement: .confirmationAction) {
-          Button("Done") { dismiss() }
-        }
-      }
+    VStack(spacing: 0) {
+      header
+      Divider()
+      transcript
+      Divider()
+      composer
     }
+  }
+
+  // MARK: - Header
+
+  /// The in-panel title bar — model switcher, title, and close. Deliberately *not* a
+  /// `.toolbar`: an `.inspector` drops its wrapped toolbar on iPad (KNOWN-ISSUES), so
+  /// these controls would vanish there. An always-rendered header sidesteps that.
+  private var header: some View {
+    HStack(spacing: 12) {
+      tierMenu
+      Text("Discuss").font(.headline)
+      Spacer()
+      Button("Done") { isPresented = false }
+        .font(.body.weight(.semibold))
+    }
+    .padding(.horizontal)
+    .padding(.vertical, 10)
   }
 
   // MARK: - Transcript
@@ -152,8 +167,15 @@ struct ChatPanelView: View {
         .disabled(!model.availableProviders.contains(provider))
       }
     } label: {
-      (model.sendsToProvider ? Icon.aiFrontier : Icon.aiOnDevice).image
-        .foregroundStyle(model.sendsToProvider ? .blue : .green)
+      HStack(spacing: 4) {
+        (model.sendsToProvider ? Icon.aiFrontier : Icon.aiOnDevice).image
+          .foregroundStyle(model.sendsToProvider ? .blue : .green)
+        Text(model.sendsToProvider ? model.selectedProvider.displayName : "On-device")
+          .font(.subheadline)
+        Image(systemName: "chevron.up.chevron.down")
+          .font(.caption2)
+          .foregroundStyle(.secondary)
+      }
     }
   }
 
@@ -192,7 +214,7 @@ extension View {
     -> some View
   {
     inspector(isPresented: isPresented) {
-      ChatPanelView(context: context())
+      ChatPanelView(isPresented: isPresented, context: context())
         .inspectorColumnWidth(min: 320, ideal: 380, max: 520)
     }
   }
