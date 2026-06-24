@@ -348,6 +348,32 @@ import UniformTypeIdentifiers
     }
   }
 
+  @Test("prepare flags an existing pool idea when the place is already captured")
+  func prepareFlagsExistingMatch() async throws {
+    let place = Place(
+      id: UUID(), name: "Noma", latitude: 55.6839, longitude: 12.6109,
+      mapItemIdentifier: "maps:noma-cph"
+    )
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.placeMatcher = PlaceMatcher(geocode: { _ in nil }, search: { _ in [place] })
+    } operation: {
+      // First capture lands the idea; second prepare should recognize it.
+      let first = CaptureModel(html: Self.nameOnlyHTML, sourceURL: nil)
+      await first.prepare()
+      #expect(first.existingMatch == nil)  // nothing in the pool yet
+      await first.save()
+
+      let second = CaptureModel(html: Self.nameOnlyHTML, sourceURL: nil)
+      await second.prepare()
+      let matched = try #require(second.existingMatch)
+      #expect(matched.mapItemIdentifier == "maps:noma-cph")
+      // It points at the idea the first capture saved, not a fresh row.
+      #expect(matched.id == first.draft.id)
+    }
+  }
+
   @Test("A location with no Maps identity never auto-merges (no false dedup)")
   func nilIdentifierDoesNotMerge() async throws {
     // Scraped coordinates resolve a location but carry no Maps identity, so two such

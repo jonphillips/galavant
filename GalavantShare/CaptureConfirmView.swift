@@ -22,8 +22,10 @@ struct CaptureConfirmView: View {
             Button("Cancel", action: onClose)
           }
           ToolbarItem(placement: .confirmationAction) {
-            Button("Save") { Task { await model.save() } }
-              .disabled(!isSavable)
+            Button(model.existingMatch == nil ? "Save" : "Update") {
+              Task { await model.save() }
+            }
+            .disabled(!isSavable)
           }
         }
     }
@@ -50,6 +52,23 @@ struct CaptureConfirmView: View {
 
   private var form: some View {
     Form {
+      if let existing = model.existingMatch {
+        Section {
+          Label {
+            VStack(alignment: .leading, spacing: 2) {
+              Text("Already in your pool")
+              Text(
+                "Saving will update \(existingName(existing)) instead of adding a duplicate."
+              )
+              .font(.footnote)
+              .foregroundStyle(.secondary)
+            }
+          } icon: {
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+          }
+        }
+      }
+
       if !model.trips.isEmpty {
         Section("Trip") {
           Picker("Add to trip", selection: $model.selectedTripID) {
@@ -149,6 +168,12 @@ struct CaptureConfirmView: View {
 
   private func tripLabel(_ trip: Trip) -> String {
     trip.name.isEmpty ? "Untitled trip" : trip.name
+  }
+
+  /// The existing idea's name for the supplement banner, quoted, or a neutral
+  /// fallback when it's blank.
+  private func existingName(_ idea: Idea) -> String {
+    idea.name.isEmpty ? "the existing idea" : "“\(idea.name)”"
   }
 
   private var isSavable: Bool {

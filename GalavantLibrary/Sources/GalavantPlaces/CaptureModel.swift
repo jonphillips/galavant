@@ -54,6 +54,11 @@ public final class CaptureModel {
   /// sheet so Jon vets them (confirm-and-tweak). Each is `included` by default;
   /// toggling it off drops it from the save. Saved as sibling `IdeaEvaluation`s.
   public var detectedEvaluations: [DetectedEvaluation] = []
+  /// An existing pool idea this capture resolves to by Apple Maps identity (ADR-0019),
+  /// when one exists — drives the confirm sheet's "already in your pool, will update"
+  /// banner so the supplement is never silent (M4c). Advisory: the save transaction
+  /// re-checks and is the source of truth, so a race can't double-insert.
+  public private(set) var existingMatch: Idea?
 
   public init(html: String, sourceURL: URL?) {
     self.html = html
@@ -106,8 +111,22 @@ public final class CaptureModel {
     self.captured = captured
     self.draft = draft
     self.detectedEvaluations = await resolveEvaluations(captured.evaluations, page: page)
+    await self.refreshExistingMatch()
     await self.loadTrips()
     self.phase = .ready
+  }
+
+  /// Look up whether this capture's resolved place is already in the pool (by Apple
+  /// Maps identity), so the confirm sheet can offer "update" rather than silently
+  /// duplicating (ADR-0019). A no-identity location never matches — nil clears it.
+  private func refreshExistingMatch() async {
+    guard let mid = draft.mapItemIdentifier else {
+      existingMatch = nil
+      return
+    }
+    existingMatch = try? await database.read { db in
+      try Idea.where { $0.mapItemIdentifier.eq(mid) }.fetchOne(db)
+    }
   }
 
   /// Turn the page's detected ratings into confirm-sheet rows. Deterministic
@@ -159,6 +178,8 @@ public final class CaptureModel {
     if draft.kind == nil { draft.kind = place.kind }
     if draft.phone == nil { draft.phone = place.phone }
     if draft.url.isEmpty, let url = place.url { draft.url = url }
+    // The picked place may itself already be in the pool — re-check for the banner.
+    Task { await refreshExistingMatch() }
   }
 
   /// Drop the resolved location, leaving it for the user to re-search or fill in
@@ -170,6 +191,8 @@ public final class CaptureModel {
     draft.regionName = nil
     // Identity belongs to the resolved place; drop it with the location (ADR-0019).
     draft.mapItemIdentifier = nil
+    // No identity → nothing to supplement; clear the banner.
+    existingMatch = nil
   }
 
   /// The processed header image to store with this capture, or nil when there's no
