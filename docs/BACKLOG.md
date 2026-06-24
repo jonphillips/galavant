@@ -3,6 +3,56 @@
 Not milestone-scoped (see ROADMAP.md for those). Running list of refinements
 noted in passing, with enough context to act on cold.
 
+## Guide-link enrichment rung + generalized in-app browser (ADR-0016 follow-on, 2026-06-24) — NEXT
+
+From first-use feedback: *"on the Michelin web page there is a link to
+guide.michelin.com/.../es-senz … would it ever find that and visit it to
+supplement?"* Today: **no.** Two-hopping (`PlaceEnricher.enrichIfNeeded`,
+`GalavantPlaces/PlaceEnricher.swift`) re-fetches the idea's **own** `websiteURL`
+(extracted at capture into `Idea.url`) — it never follows a link found in the page
+*body*. Jon approved building a "guide-link rung." Sized as a parser+recognizer+
+enricher milestone; deserves its own ADR (next is **ADR-0021**) and a fresh session.
+
+**The recognizer machinery already knows the guides.** `EvaluationRecognizers`
+(`GalavantCapture/EvaluationRecognizers.swift`) is host-keyed — it switches on
+`sourceURL.host()` and runs Michelin / Andrew Harper / Forbes / 50 Best recognizers.
+The gap is that `ParsedPage` (`GalavantCapture/ParsedPage.swift`) carries only
+`imageURLs` / `socialURLs` / `websiteURL` — **no general body links**, so nothing can
+even see the guide-detail link.
+
+Four pieces, each tested:
+
+1. **Link extraction** — `PageParser` collects candidate anchor hrefs into a new
+   `ParsedPage` field (e.g. `links: [URL]`). Parser change + tests.
+2. **Guide-link recognizer** — pick links whose host is a known guide *and* whose
+   path looks like a place-detail page (depth/segment heuristic), reusing the host
+   list already in `EvaluationRecognizers`. New pure recognizer + tests.
+3. **Enrichment hop** — in `PlaceEnricher`, fetch **one** recognized guide link,
+   parse it, run the recognizers (host = guide → Michelin ★★★), merge evaluations +
+   blank facts. Dedup rides the existing idempotent `IdeaEvaluation.record`
+   (source/kind/value triad, ADR-0019 §3).
+4. **Crawl-sprawl guards** — at most one link followed; only when the idea lacks
+   that evaluation; gated like `enrichedAt` so it runs once; best-effort.
+
+**In-app browser is the human fallback rung of this same effort — not a separate
+track.** The automated hop above does a plain URLSession fetch (the enricher's
+`pageFetcher`), which fails on exactly the pages a rendered DOM fixes (JS-heavy,
+anti-bot, consent/paywall). A HITL `WKWebView` already ships, but hard-wired to
+hours rung-3: `HoursBrowserView.swift` ("Find Hours", `onGrabHours`, stamps
+`.unverified`) — it renders JS, holds a session, clears consent walls, scrapes
+`document.documentElement.outerHTML`, runs the parser. The recurring theme across
+all surfaces is "raw fetch < rendered DOM": the **share extension** gets the
+rendered DOM free via Safari JS preprocessing; **hours rung-3** via that WKWebView;
+the **app-side enricher** (where this lives) has no rendering — that's the gap.
+
+Sequencing: ship the automated guide-link rung first (handles most static guide
+pages, and surfaces which pages actually need rendering), **then** generalize
+`HoursBrowserView` into a reusable "load URL → hand back rendered HTML → caller runs
+any extractor" component, with hours as one consumer and the guide-link fallback as
+the next. Refactor with a real driver, not a speculative general browser. (Bigger
+someday vision — "browse to any place, tap capture" as a general entry point — is
+out of scope here; keep it to the extraction-fallback role.)
+
 ## Hours extraction misses unstructured-markup sites (ADR-0016, 2026-06-23) — DONE
 
 **On-demand ladder DONE (2026-06-23, branch `m6-hours-extractor`).** Shipped the
