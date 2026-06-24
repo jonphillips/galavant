@@ -5,8 +5,7 @@ extension Idea {
   /// never overwrite a value already present — a deliberate edit or a verified fact
   /// stands — and back-fill the Apple Maps identity if it was missing (so a re-share
   /// stamps the dedup key onto a pre-ADR-0019 idea). Facts only; judgments
-  /// (`IdeaEvaluation`) and the header image are handled by their own siblings, and
-  /// `openingHours`/provenance are left to the supplement ladder (ADR-0016).
+  /// (`IdeaEvaluation`) and the header image are handled by their own siblings.
   ///
   /// Pure — the capture merge path's whole fact-merge in one place, unit-testable
   /// without a database.
@@ -19,7 +18,10 @@ extension Idea {
     latitude: Double?,
     longitude: Double?,
     url: String,
-    mapItemIdentifier: String?
+    mapItemIdentifier: String?,
+    openingHours: String? = nil,
+    hoursProvenance: FactProvenance? = nil,
+    hoursVerifiedAt: Date? = nil
   ) -> Idea {
     var merged = self
     if merged.name.isEmpty, !name.isEmpty { merged.name = name }
@@ -31,6 +33,11 @@ extension Idea {
     if merged.longitude == nil { merged.longitude = longitude }
     if merged.url.isEmpty, !url.isEmpty { merged.url = url }
     if merged.mapItemIdentifier == nil { merged.mapItemIdentifier = mapItemIdentifier }
+    if merged.openingHours == nil, let openingHours {
+      merged.openingHours = openingHours
+      merged.hoursProvenance = hoursProvenance
+      merged.hoursVerifiedAt = hoursVerifiedAt
+    }
     return merged
   }
 }

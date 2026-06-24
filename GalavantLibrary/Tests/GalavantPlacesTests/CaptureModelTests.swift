@@ -12,6 +12,18 @@ import UniformTypeIdentifiers
 
 @MainActor
 @Suite struct CaptureModelTests {
+  /// A restaurant page with structured opening hours in JSON-LD.
+  private static let restaurantWithHoursHTML = """
+    <html><head>
+    <script type="application/ld+json">{
+      "@context": "https://schema.org",
+      "@type": "Restaurant",
+      "name": "Spot",
+      "openingHours": "Tu-Sa 17:00-23:00"
+    }</script>
+    </head><body></body></html>
+    """
+
   private static let restaurantHTML = """
     <html><head>
     <script type="application/ld+json">{
@@ -430,6 +442,92 @@ import UniformTypeIdentifiers
       #expect(header.sourceURL == "https://noma.dk/hero.jpg")
       #expect(!header.display.isEmpty)
       #expect(!header.thumbnail.isEmpty)
+    }
+  }
+
+  @Test("save persists structured opening hours from the page, stamped official")
+  func savePersistsStructuredHours() async throws {
+    let stamp = Date(timeIntervalSince1970: 1_780_000_000)
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.date = .constant(stamp)
+      $0.placeMatcher = .testValue
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      let model = CaptureModel(html: Self.restaurantWithHoursHTML, sourceURL: nil)
+      await model.prepare()
+      await model.save()
+
+      #expect(model.phase == .saved)
+      let ideaID = try #require(model.draft.id)
+      let idea = try #require(try await database.read { db in try Idea.find(ideaID).fetchOne(db) })
+      #expect(idea.openingHours == "Tu-Sa 17:00-23:00")
+      #expect(idea.hoursProvenance == .official)
+      #expect(idea.hoursVerifiedAt == stamp)
+    }
+  }
+
+  @Test("save does not set hours when the page has none")
+  func saveSkipsHoursWhenPageHasNone() async throws {
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.placeMatcher = .testValue
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      // restaurantHTML has no openingHours in its JSON-LD.
+      let model = CaptureModel(html: Self.restaurantHTML, sourceURL: nil)
+      await model.prepare()
+      await model.save()
+
+      let ideaID = try #require(model.draft.id)
+      let idea = try #require(try await database.read { db in try Idea.find(ideaID).fetchOne(db) })
+      #expect(idea.openingHours == nil)
+    }
+  }
+
+  @Test("re-share fill-blanks-only: existing hours are preserved")
+  func reSharePreservesExistingHours() async throws {
+    let place = Place(
+      id: UUID(), name: "Spot", latitude: 55.6839, longitude: 12.6109,
+      mapItemIdentifier: "maps:spot-cph"
+    )
+    let originalHours = "Mo-Fr 10:00-18:00"
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.date = .constant(Date(timeIntervalSince1970: 1_780_000_000))
+      $0.placeMatcher = PlaceMatcher(geocode: { _ in nil }, search: { _ in [place] })
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+
+      // Seed an existing idea with hours already set.
+      try await database.write { db in
+        let party = try TravelParty.ensureDefault(in: db)
+        try Idea.insert {
+          Idea.Draft(
+            id: place.id, name: "Spot", latitude: 55.6839, longitude: 12.6109,
+            mapItemIdentifier: "maps:spot-cph", travelPartyID: party.id
+          )
+        }
+        .execute(db)
+        try Idea.setOpeningHours(
+          ideaID: place.id, hours: originalHours, provenance: .manual,
+          verifiedAt: Date(timeIntervalSince1970: 1), in: db
+        )
+      }
+
+      // Re-share a page with different hours — the existing hours must survive.
+      let model = CaptureModel(html: Self.restaurantWithHoursHTML, sourceURL: nil)
+      await model.prepare()
+      await model.save()
+
+      let ideas = try await database.read { db in try Idea.all.fetchAll(db) }
+      #expect(ideas.count == 1)  // deduped
+      let idea = try #require(ideas.first)
+      #expect(idea.openingHours == originalHours)  // original untouched
+      #expect(idea.hoursProvenance == .manual)
     }
   }
 

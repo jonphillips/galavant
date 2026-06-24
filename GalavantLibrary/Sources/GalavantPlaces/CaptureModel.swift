@@ -261,15 +261,23 @@ public final class CaptureModel {
     // Detected ratings Jon kept — written as sibling evaluations in the same
     // transaction as the idea (ADR-0016 §1). `DetectedEvaluation` is Sendable.
     let evaluations = detectedEvaluations.filter(\.included)
-    // Only consult the clock when there's an evaluation to stamp (keeps the
-    // no-rating capture path free of the `date` dependency).
-    let stamp = evaluations.isEmpty ? Date.distantPast : now.now
+    // Opening hours from the parsed page — persist them at capture when the parser
+    // found structured hours (JSON-LD/microdata). The LLM fallback for unstructured
+    // sites runs later in the app-side PlaceEnricher, where the model budget isn't
+    // a concern (docs/BACKLOG.md "Unstructured-hours capture fallback").
+    let openingHoursString: String? = captured.flatMap {
+      $0.openingHours.isEmpty ? nil : $0.openingHours.joined(separator: "\n")
+    }
+    // Only consult the clock when something needs stamping (evaluations or hours).
+    let stamp = (!evaluations.isEmpty || openingHoursString != nil) ? now.now : Date.distantPast
     try await database.write { db in
       let party = try TravelParty.ensureDefault(in: db)
       let resolved = try Self.resolveIdea(
         in: db, id: id, name: name, notes: notes, kind: kind, regionName: regionName,
         address: address, phone: phone, latitude: latitude, longitude: longitude,
-        url: url, mapItemIdentifier: mapItemIdentifier, travelPartyID: party.id
+        url: url, mapItemIdentifier: mapItemIdentifier, travelPartyID: party.id,
+        openingHours: openingHoursString, hoursProvenance: openingHoursString != nil ? .official : nil,
+        hoursVerifiedAt: openingHoursString != nil ? stamp : nil
       )
       guard let targetID = resolved.id else { return }
 
@@ -321,7 +329,10 @@ public final class CaptureModel {
     longitude: Double?,
     url: String,
     mapItemIdentifier: String?,
-    travelPartyID: TravelParty.ID
+    travelPartyID: TravelParty.ID,
+    openingHours: String?,
+    hoursProvenance: FactProvenance?,
+    hoursVerifiedAt: Date?
   ) throws -> (id: Idea.ID?, isNew: Bool) {
     let existing: Idea? = mapItemIdentifier.flatMap { mid in
       try? Idea.where { $0.mapItemIdentifier.eq(mid) }.fetchOne(db)
@@ -330,7 +341,8 @@ public final class CaptureModel {
       let merged = existing.supplemented(
         name: name, kind: kind, regionName: regionName, address: address,
         phone: phone, latitude: latitude, longitude: longitude, url: url,
-        mapItemIdentifier: mapItemIdentifier
+        mapItemIdentifier: mapItemIdentifier, openingHours: openingHours,
+        hoursProvenance: hoursProvenance, hoursVerifiedAt: hoursVerifiedAt
       )
       // Full-record upsert: `merged` carries every existing column, so this updates
       // the supplemented facts without dropping notes/visited/hours/etc.
@@ -349,6 +361,9 @@ public final class CaptureModel {
         latitude: latitude,
         longitude: longitude,
         url: url,
+        openingHours: openingHours,
+        hoursProvenance: hoursProvenance,
+        hoursVerifiedAt: hoursVerifiedAt,
         mapItemIdentifier: mapItemIdentifier,
         travelPartyID: travelPartyID
       )

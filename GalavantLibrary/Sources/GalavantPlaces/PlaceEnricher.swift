@@ -22,6 +22,7 @@ public final class PlaceEnricher {
   @Dependency(\.imageFetcher) private var imageFetcher
   @Dependency(\.imageRecommender) private var imageRecommender
   @Dependency(\.placeIntelligence) private var placeIntelligence
+  @Dependency(\.hoursExtractor) private var hoursExtractor
   @Dependency(\.uuid) private var uuid
   @Dependency(\.date) private var now
 
@@ -59,6 +60,8 @@ public final class PlaceEnricher {
     let pageAddress = page.address.oneLine
     let address = idea.address ?? (pageAddress.isEmpty ? nil : pageAddress)
     let kind = idea.kind ?? IdeaKind(schemaOrgTypes: page.schemaTypes)
+
+    let resolvedHours = idea.openingHours == nil ? await hoursIfAbsent(page: page) : nil
     let stamp = now.now
 
     try? await database.write { db -> Void in
@@ -72,6 +75,12 @@ public final class PlaceEnricher {
           $0.enrichedAt = #bind(stamp)
         }
         .execute(db)
+      if let resolvedHours {
+        try Idea.setOpeningHours(
+          ideaID: ideaID, hours: resolvedHours, provenance: .official,
+          verifiedAt: stamp, in: db
+        )
+      }
 
       // Store the ranked candidates (idempotent on sourceURL — the M4f header
       // re-stores cleanly), then make the top-ranked one the header. Enrichment runs
@@ -92,6 +101,17 @@ public final class PlaceEnricher {
         try ImageAsset.setHeader(headerID, ideaID: ideaID, in: db)
       }
     }
+  }
+
+  /// Opening hours from an already-parsed page when the idea has none yet:
+  /// deterministic JSON-LD/microdata first, then the on-device LLM extract-only pass
+  /// for unstructured-markup sites (Squarespace/Wix; docs/BACKLOG.md). Mirrors the
+  /// FieldSupplement.resolvedHours helper. `nil` when neither yields anything.
+  private func hoursIfAbsent(page: ParsedPage) async -> String? {
+    if let deterministic = FieldSupplement.hours(from: page) { return deterministic }
+    guard let extracted = await hoursExtractor(page) else { return nil }
+    let trimmed = extracted.trimmingCharacters(in: .whitespacesAndNewlines)
+    return trimmed.isEmpty ? nil : trimmed
   }
 
   /// A processed image ready to store, in recommended (best-first) order.

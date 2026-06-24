@@ -25,6 +25,27 @@ import UniformTypeIdentifiers
     </head><body></body></html>
     """
 
+  /// A restaurant site with structured opening hours — the deterministic parser finds them.
+  nonisolated private static let siteWithHoursHTML = """
+    <html><head>
+    <script type="application/ld+json">{
+      "@context": "https://schema.org", "@type": "Restaurant", "name": "Spot",
+      "openingHours": "Tu-Sa 17:00-23:00"
+    }</script>
+    </head><body></body></html>
+    """
+
+  /// A Squarespace-shaped site (brewerybhavana.com miss): styled hours widget, no schema.org markup.
+  nonisolated private static let unstructuredSiteHTML = """
+    <html><head>
+    <script type="application/ld+json">{
+      "@context": "https://schema.org", "@type": "Organization", "name": "Brewery Bhavana"
+    }</script>
+    </head><body>
+    <div class="module--hours"><p class="hours-entry">Wed–Sun</p><p class="hours-entry">5pm–10pm</p></div>
+    </body></html>
+    """
+
   @Test("Enrich takes the second hop: backfills blanks, stores ranked images, stamps enrichedAt")
   func enrichBackfillsAndStores() async throws {
     let stamp = Date(timeIntervalSince1970: 1_700_000_000)
@@ -146,6 +167,100 @@ import UniformTypeIdentifiers
       await PlaceEnricher().enrichIfNeeded(ideaID: ideaID)
       let idea = try await database.read { db in try Idea.find(ideaID).fetchOne(db) }
       #expect(idea?.enrichedAt == nil)  // unstamped → retryable
+    }
+  }
+
+  @Test("Enrich backfills hours from the place's own site via the deterministic parser")
+  func enrichBackfillsStructuredHours() async throws {
+    let stamp = Date(timeIntervalSince1970: 1_700_000_000)
+    let ideaID = UUID()
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.date = .constant(stamp)
+      $0.pageFetcher = PageFetcher { _ in Self.siteWithHoursHTML }
+      $0.imageFetcher = .testValue
+      $0.imageRecommender = .testValue
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      try await database.write { db in
+        let party = try TravelParty.ensureDefault(in: db)
+        try Idea.insert {
+          Idea.Draft(id: ideaID, name: "Spot", url: "https://spot.example", travelPartyID: party.id)
+        }
+        .execute(db)
+      }
+
+      await PlaceEnricher().enrichIfNeeded(ideaID: ideaID)
+
+      let idea = try #require(try await database.read { db in try Idea.find(ideaID).fetchOne(db) })
+      #expect(idea.openingHours == "Tu-Sa 17:00-23:00")
+      #expect(idea.hoursProvenance == .official)
+      #expect(idea.hoursVerifiedAt == stamp)
+    }
+  }
+
+  @Test("Enrich backfills hours via LLM fallback for an unstructured-markup site")
+  func enrichBackfillsHoursViaLLMFallback() async throws {
+    let stamp = Date(timeIntervalSince1970: 1_700_000_000)
+    let ideaID = UUID()
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.date = .constant(stamp)
+      $0.pageFetcher = PageFetcher { _ in Self.unstructuredSiteHTML }
+      $0.imageFetcher = .testValue
+      $0.imageRecommender = .testValue
+      $0.hoursExtractor = HoursExtractor { _ in "Wed–Sun 5:00 PM–10:00 PM" }
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      try await database.write { db in
+        let party = try TravelParty.ensureDefault(in: db)
+        try Idea.insert {
+          Idea.Draft(id: ideaID, name: "Brewery Bhavana", url: "https://brewerybhavana.com", travelPartyID: party.id)
+        }
+        .execute(db)
+      }
+
+      await PlaceEnricher().enrichIfNeeded(ideaID: ideaID)
+
+      let idea = try #require(try await database.read { db in try Idea.find(ideaID).fetchOne(db) })
+      #expect(idea.openingHours == "Wed–Sun 5:00 PM–10:00 PM")
+      #expect(idea.hoursProvenance == .official)
+      #expect(idea.hoursVerifiedAt == stamp)
+    }
+  }
+
+  @Test("Enrich does not overwrite existing hours (fill-blanks-only)")
+  func enrichPreservesExistingHours() async throws {
+    let ideaID = UUID()
+    let originalHours = "Mo-Fr 10:00-18:00"
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.date = .constant(Date(timeIntervalSince1970: 1_700_000_000))
+      $0.pageFetcher = PageFetcher { _ in Self.siteWithHoursHTML }
+      $0.imageFetcher = .testValue
+      $0.imageRecommender = .testValue
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      try await database.write { db in
+        let party = try TravelParty.ensureDefault(in: db)
+        try Idea.insert {
+          Idea.Draft(id: ideaID, name: "Spot", url: "https://spot.example", travelPartyID: party.id)
+        }
+        .execute(db)
+        try Idea.setOpeningHours(
+          ideaID: ideaID, hours: originalHours, provenance: .manual,
+          verifiedAt: Date(timeIntervalSince1970: 1), in: db
+        )
+      }
+
+      await PlaceEnricher().enrichIfNeeded(ideaID: ideaID)
+
+      let idea = try #require(try await database.read { db in try Idea.find(ideaID).fetchOne(db) })
+      #expect(idea.openingHours == originalHours)  // not clobbered by the re-parsed site
+      #expect(idea.hoursProvenance == .manual)
     }
   }
 
