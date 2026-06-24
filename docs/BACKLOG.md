@@ -34,6 +34,27 @@ change.
    has hours from capture). Stamped `.official`. 5 new tests across
    `CaptureModelTests` + `PlaceEnricherTests`.
 
+**Follow-up — the LLM fallback was reaching the model with the wrong text (DONE
+2026-06-23, branch `fix/unstructured-hours-excerpt`).** Surfaced on
+**das-achental.com/en/es-senz.html**: hours present as free text ("Wednesday –
+Saturday 6.30 –11 pm") in a bottom-of-page contact block, but `HoursExtractor`
+still came up empty. Root cause was two compounding defects in
+`PageParser.textExcerpt`, not the model:
+1. **Boilerplate strip was tag-only** (`nav/header/footer/aside`). The site ships
+   **zero** semantic landmarks — its whole menu is `<ul><li><a class="single-menu">` —
+   so the strip removed nothing and the menu filled the excerpt.
+2. **The 1500-char cap then clipped the real content.** The hours sat at char
+   offset ~3700, well past the cap; the model only ever saw nav chrome.
+Fix: (a) `cleanedBodyText` now also strips by boilerplate class/id and by **link
+density** (a block whose visible text is mostly link text is nav, not prose); (b)
+the single excerpt was split — `textExcerpt` stays a short summary lead (1500, for
+the latency-sensitive summarizer), and a new fuller `ParsedPage.bodyText` (6000)
+feeds the fact extractors, since hours/ratings routinely live deep or in a footer.
+`HoursExtractor` now reads `bodyText`. 3 tests (`PageParserTests` link-density +
+footer-hours, `HoursExtractorTests` live-path-reads-bodyText). **Still structured-
+data-blind only if a site renders hours purely client-side** (no hours in the
+fetched DOM at all) — that remains the HITL-browser's job.
+
 ## Capture never persists opening hours at all (found 2026-06-23) — DONE
 
 Fixed as part of the "Unstructured-hours capture fallback" above (2026-06-23).

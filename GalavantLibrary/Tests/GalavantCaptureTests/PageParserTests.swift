@@ -49,6 +49,31 @@ import Testing
     #expect(!unwrapped.contains("tracking"))
   }
 
+  @Test("link-dense nav is stripped even without semantic tags")
+  func stripsNonSemanticNav() {
+    // The menu is a bare <ul><li><a> with no <nav>/<header> — the tag-only strip
+    // misses it, so link-density must catch it (das-achental.com shape).
+    let page = PageParser.parse(html: Fixtures.chromeHeavyFooterHours)
+    let body = try! #require(page.bodyText)
+    #expect(body.contains("Michelin starred restaurant"))
+    #expect(!body.contains("Golf"))
+    #expect(!body.contains("Wellness"))
+  }
+
+  @Test("bottom-of-page hours survive in bodyText though the summary excerpt clips them")
+  func bodyTextReachesFooterHours() {
+    // The hours sit in a contact block below ~1700 chars of prose: past the summary
+    // excerpt's 1500-char cap, but within bodyText's budget — so the hours extractor
+    // (which reads bodyText) actually sees them. This is the das-achental regression.
+    let page = PageParser.parse(html: Fixtures.chromeHeavyFooterHours)
+    let excerpt = try! #require(page.textExcerpt)
+    let body = try! #require(page.bodyText)
+
+    #expect(excerpt.count <= 1500)
+    #expect(!excerpt.contains("Wednesday - Saturday"))  // clipped from the short lead
+    #expect(body.contains("Wednesday - Saturday 6.30 -11 pm"))  // reaches the model
+  }
+
   @Test("websiteURL surfaces the business's own site, distinct from the shared page")
   func twoHopSignal() {
     let page = PageParser.parse(

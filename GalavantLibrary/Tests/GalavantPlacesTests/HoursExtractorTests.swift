@@ -1,4 +1,7 @@
+import Dependencies
 import Foundation
+import GalavantAI
+import GalavantCapture
 import Testing
 
 @testable import GalavantPlaces
@@ -30,5 +33,27 @@ import Testing
     #expect(HoursExtractor.parse("no json here") == nil)
     #expect(HoursExtractor.parse("{not valid json}") == nil)
     #expect(HoursExtractor.parse("") == nil)
+  }
+
+  @Test("Live extraction feeds the model bodyText, where bottom-of-page hours live")
+  func liveReadsBodyText() async {
+    // The summary excerpt clips before a footer's hours; the model only sees them
+    // because the extractor reads the fuller bodyText (the das-achental fix).
+    let page = ParsedPage(
+      title: "es:senz",
+      textExcerpt: "A Michelin-starred restaurant on Lake Chiemsee.",
+      bodyText: "A Michelin-starred restaurant on Lake Chiemsee. "
+        + "Chiemgau Pur - Fine Dining Wednesday - Saturday 6.30 -11 pm."
+    )
+    let hours = await withDependencies {
+      $0.modelClient = StubModelClient { request in
+        let prompt = request.messages.last?.text ?? ""
+        #expect(prompt.contains("Wednesday - Saturday 6.30 -11 pm"))
+        return ModelResponse(text: #"{"hours": "Wednesday - Saturday 6.30 -11 pm"}"#)
+      }
+    } operation: {
+      await HoursExtractor.liveValue(page)
+    }
+    #expect(hours == "Wednesday - Saturday 6.30 -11 pm")
   }
 }

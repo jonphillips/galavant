@@ -42,31 +42,76 @@ public enum PageParser {
     // rating) — deterministic recognizers keyed on structure + host (ADR-0016 §1).
     // Run before the boilerplate strip below, which mutates the document.
     page.evaluations = EvaluationRecognizers.recognize(in: document, sourceURL: sourceURL)
-    // A plain-text excerpt for the on-device summarizer (done last: it strips
-    // boilerplate from the document, after the extractors and image sweep have run).
-    page.textExcerpt = textExcerpt(from: document)
+    // Plain-text renderings for the on-device models (done last: stripping mutates
+    // the document, so it runs after the extractors and image sweep). One clean body
+    // string, two budgets: a short lead for the summarizer, a fuller cut for the fact
+    // extractors (hours/ratings live deep or in a bottom-of-page contact block).
+    if let cleaned = cleanedBodyText(from: document) {
+      page.textExcerpt = truncate(cleaned, to: summaryExcerptLength)
+      page.bodyText = truncate(cleaned, to: bodyTextLength)
+    }
     return page
   }
 
-  /// The maximum excerpt length handed to the summarizer — enough to describe the
+  /// The summary excerpt handed to the on-device summarizer — enough to describe the
   /// place, bounded to keep the share extension's model latency/memory in check.
-  private static let maxExcerptLength = 1500
+  private static let summaryExcerptLength = 1500
+  /// The fuller cut fact extractors (hours, ratings) read. Larger because the facts
+  /// they want sit past the summary lead — often in a footer/contact block at the very
+  /// bottom — but still bounded to cap on-device model cost on long pages.
+  private static let bodyTextLength = 6000
 
-  /// Cleaned, truncated visible text of the page's main content. Strips obvious
-  /// boilerplate (script/style/nav/header/footer/aside), collapses whitespace, and
-  /// truncates on a word boundary. Best-effort — `nil` when nothing meaningful.
-  private static func textExcerpt(from document: Document) -> String? {
-    for selector in ["script", "style", "noscript", "nav", "header", "footer", "aside"] {
+  /// Cleaned, whitespace-collapsed visible text of the page's main content, with
+  /// boilerplate removed. `nil` when nothing meaningful remains.
+  ///
+  /// Boilerplate is stripped two ways, because many real sites ship no semantic
+  /// landmarks (das-achental.com renders its whole menu as `<ul><li><a>` with **no**
+  /// `<nav>`/`<header>`): semantic tags plus a few unambiguous chrome classes
+  /// (cookie/consent/breadcrumb) first, then by **link density** — a block whose
+  /// visible text is mostly link text is navigation, not prose. The link-density pass
+  /// is what catches a class-less nav; we deliberately *don't* strip `class*=menu`,
+  /// since on a restaurant site that's the food menu — real content, and link-density
+  /// already removes the actual navigation. Without it a chrome-heavy menu fills the
+  /// budget and the real content (including hours) never reaches the model.
+  private static func cleanedBodyText(from document: Document) -> String? {
+    for selector in [
+      "script", "style", "noscript", "nav", "header", "footer", "aside",
+      "[class*=cookie]", "[class*=consent]", "[class*=breadcrumb]",
+    ] {
       _ = try? document.select(selector).remove()
     }
+    removeLinkDenseBlocks(in: document)
     guard let raw = try? document.body()?.text(), !raw.isEmpty else { return nil }
     let collapsed = raw.components(separatedBy: .whitespacesAndNewlines)
       .filter { !$0.isEmpty }
       .joined(separator: " ")
-    guard !collapsed.isEmpty else { return nil }
-    guard collapsed.count > maxExcerptLength else { return collapsed }
-    let clipped = collapsed.prefix(maxExcerptLength)
-    // Back up to the last space so we don't cut a word in half.
+    return collapsed.isEmpty ? nil : collapsed
+  }
+
+  /// Remove list/container blocks whose visible text is dominated by link text — the
+  /// readability signal for a nav menu or link farm that carries no real content.
+  /// Outermost match wins (removing a parent takes its children), and a block needs a
+  /// handful of links before it qualifies, so a single in-prose link is never culled.
+  private static func removeLinkDenseBlocks(in document: Document) {
+    guard let candidates = try? document.select("ul, ol, div") else { return }
+    for element in candidates.array() {
+      // Skip if an ancestor already got removed this pass (no parent ⇒ detached).
+      guard element.parent() != nil else { continue }
+      guard
+        let links = try? element.select("a"), links.size() >= 4,
+        let total = try? element.text(), !total.isEmpty
+      else { continue }
+      let linkText = links.array().compactMap { try? $0.text() }.joined()
+      if Double(linkText.count) / Double(total.count) > 0.6 {
+        try? element.remove()
+      }
+    }
+  }
+
+  /// Truncate to a budget on a word boundary so we never cut a word in half.
+  private static func truncate(_ text: String, to limit: Int) -> String {
+    guard text.count > limit else { return text }
+    let clipped = text.prefix(limit)
     if let lastSpace = clipped.lastIndex(of: " ") {
       return String(clipped[..<lastSpace])
     }
