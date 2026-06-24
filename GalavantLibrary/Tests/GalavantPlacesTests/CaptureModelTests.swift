@@ -299,6 +299,76 @@ import UniformTypeIdentifiers
     }
   }
 
+  @Test("Re-sharing the same Maps place supplements the existing idea, not a duplicate")
+  func reShareDedupsOnMapIdentifier() async throws {
+    // First share resolves a bare Maps hit (name + coordinate, no region/phone).
+    let placeFirst = Place(
+      id: UUID(), name: "Noma", latitude: 55.6839, longitude: 12.6109,
+      mapItemIdentifier: "maps:noma-cph"
+    )
+    // Second share of the same place carries the richer detail the first lacked.
+    let placeSecond = Place(
+      id: UUID(), name: "Noma", latitude: 55.6839, longitude: 12.6109,
+      regionName: "Copenhagen", phone: "+45 32 96 32 97",
+      mapItemIdentifier: "maps:noma-cph"
+    )
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+
+      try await withDependencies {
+        $0.placeMatcher = PlaceMatcher(geocode: { _ in nil }, search: { _ in [placeFirst] })
+      } operation: {
+        let first = CaptureModel(html: Self.nameOnlyHTML, sourceURL: nil)
+        await first.prepare()
+        #expect(first.draft.mapItemIdentifier == "maps:noma-cph")
+        await first.save()
+        #expect(first.phase == .saved)
+      }
+
+      try await withDependencies {
+        $0.placeMatcher = PlaceMatcher(geocode: { _ in nil }, search: { _ in [placeSecond] })
+      } operation: {
+        let second = CaptureModel(html: Self.nameOnlyHTML, sourceURL: nil)
+        await second.prepare()
+        await second.save()
+        #expect(second.phase == .saved)
+      }
+
+      // One idea, not two — the second share recognized the place and supplemented it.
+      let ideas = try await database.read { db in try Idea.all.fetchAll(db) }
+      #expect(ideas.count == 1)
+      let idea = try #require(ideas.first)
+      #expect(idea.mapItemIdentifier == "maps:noma-cph")
+      // The blanks the first share left are now filled by the second.
+      #expect(idea.regionName == "Copenhagen")
+      #expect(idea.phone == "+45 32 96 32 97")
+    }
+  }
+
+  @Test("A location with no Maps identity never auto-merges (no false dedup)")
+  func nilIdentifierDoesNotMerge() async throws {
+    // Scraped coordinates resolve a location but carry no Maps identity, so two such
+    // captures must stay two ideas — we never guess that they're the same place.
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.placeMatcher = .testValue  // scraped coordinates win; no identifier
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      for _ in 0..<2 {
+        let model = CaptureModel(html: Self.restaurantHTML, sourceURL: nil)
+        await model.prepare()
+        #expect(model.draft.mapItemIdentifier == nil)
+        await model.save()
+      }
+      let count = try await database.read { db in try Idea.all.fetchCount(db) }
+      #expect(count == 2)
+    }
+  }
+
   private static let imageHTML = """
     <html><head>
     <meta property="og:title" content="Noma">

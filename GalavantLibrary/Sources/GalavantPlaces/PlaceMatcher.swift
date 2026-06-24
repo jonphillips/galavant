@@ -16,6 +16,10 @@ public struct LocationMatch: Equatable, Sendable {
   public var kind: IdeaKind?
   public var phone: String?
   public var url: String?
+  /// Apple Maps' persistent place identity (`MKMapItem.identifier.rawValue`), carried
+  /// from the matched `Place` so capture can stamp it as the ADR-0019 dedup key. `nil`
+  /// for a coordinate-only or geocoded match with no POI identity.
+  public var mapItemIdentifier: String?
 
   public init(
     coordinate: ParsedCoordinate,
@@ -24,7 +28,8 @@ public struct LocationMatch: Equatable, Sendable {
     regionName: String? = nil,
     kind: IdeaKind? = nil,
     phone: String? = nil,
-    url: String? = nil
+    url: String? = nil,
+    mapItemIdentifier: String? = nil
   ) {
     self.coordinate = coordinate
     self.name = name
@@ -33,6 +38,7 @@ public struct LocationMatch: Equatable, Sendable {
     self.kind = kind
     self.phone = phone
     self.url = url
+    self.mapItemIdentifier = mapItemIdentifier
   }
 }
 
@@ -161,7 +167,8 @@ extension LocationMatch {
       regionName: place.regionName,
       kind: place.kind,
       phone: place.phone,
-      url: place.url
+      url: place.url,
+      mapItemIdentifier: place.mapItemIdentifier
     )
   }
 }

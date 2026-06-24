@@ -17,6 +17,10 @@ public struct Place: Identifiable, Equatable, Sendable {
   public var url: String?
   public var phone: String?
   public var address: String?
+  /// Apple Maps' persistent place identity (`MKMapItem.identifier.rawValue`), carried
+  /// so a captured idea can store it as the ADR-0019 dedup key. `nil` for a
+  /// geocoded-address or scraped-coordinate result MapKit gave no POI identity to.
+  public var mapItemIdentifier: String?
 
   public init(
     id: UUID,
@@ -27,7 +31,8 @@ public struct Place: Identifiable, Equatable, Sendable {
     kind: IdeaKind? = nil,
     url: String? = nil,
     phone: String? = nil,
-    address: String? = nil
+    address: String? = nil,
+    mapItemIdentifier: String? = nil
   ) {
     self.id = id
     self.name = name
@@ -38,6 +43,7 @@ public struct Place: Identifiable, Equatable, Sendable {
     self.url = url
     self.phone = phone
     self.address = address
+    self.mapItemIdentifier = mapItemIdentifier
   }
 
   /// One-line secondary text for a result row: the street address, else the city.
@@ -96,7 +102,10 @@ extension Place {
       },
       url: item.url?.absoluteString,
       phone: item.phoneNumber,
-      address: item.address?.fullAddress
+      address: item.address?.fullAddress,
+      // The persistent POI identity (iOS 18+), the ADR-0019 dedup key; nil for a
+      // geocoded address or other non-POI hit.
+      mapItemIdentifier: item.identifier?.rawValue
     )
   }
 }
