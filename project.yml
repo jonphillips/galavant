@@ -57,6 +57,8 @@ targets:
         product: GalavantAI
       - package: GalavantLibrary
         product: GalavantChat
+      - package: GalavantLibrary
+        product: GalavantWeb
       - package: sqlite-data
         product: SQLiteData
       - package: swift-navigation

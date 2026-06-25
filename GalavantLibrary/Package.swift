@@ -11,6 +11,7 @@ let package = Package(
     .library(name: "GalavantImaging", targets: ["GalavantImaging"]),
     .library(name: "GalavantAI", targets: ["GalavantAI"]),
     .library(name: "GalavantChat", targets: ["GalavantChat"]),
+    .library(name: "GalavantWeb", targets: ["GalavantWeb"]),
   ],
   dependencies: [
     .package(url: "https://github.com/pointfreeco/sqlite-data", from: "1.0.0"),
@@ -117,6 +118,19 @@ let package = Package(
         "GalavantAI",
         .product(name: "DependenciesTestSupport", package: "swift-dependencies"),
       ]
+    ),
+    // App-agnostic in-app browser (ADR-0022): a SwiftUI `WKWebView` host that loads a
+    // URL, lets the user navigate (JS, consent walls, links), and hands the rendered
+    // DOM to an injected extractor plugin. Knows nothing about Idea/Trip/hours/guide —
+    // the plugin seam keeps domain logic on the caller's side, so the module lifts
+    // cleanly into another app. SwiftUI + WebKit only; multiplatform (UIKit on iOS,
+    // AppKit on macOS), so it builds on the macOS test host too.
+    .target(
+      name: "GalavantWeb"
+    ),
+    .testTarget(
+      name: "GalavantWebTests",
+      dependencies: ["GalavantWeb"]
     ),
   ]
 )

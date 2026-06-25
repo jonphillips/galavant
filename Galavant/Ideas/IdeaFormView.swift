@@ -1,5 +1,6 @@
 import GalavantPlaces
 import GalavantSchema
+import GalavantWeb
 import MapKit
 import SwiftUI
 import UIKit
@@ -117,8 +118,15 @@ struct IdeaFormView: View {
         )
       ) {
         if let url = model.hoursBrowserURL {
-          HoursBrowserView(startURL: url) { html, sourceURL in
+          // The human-in-the-loop rung of the field-supplement ladder (ADR-0016 §2):
+          // Jon drives the in-app browser to a page with hours, then "Use This Page"
+          // runs the parser over the rendered DOM. The browser is the app-agnostic
+          // GalavantWeb component (ADR-0022); the hours plugin lives here.
+          WebExtractorBrowser(startURL: url, title: "Find Hours", confirmLabel: "Use This Page") {
+            html, sourceURL in
             await model.applyBrowsedHours(html: html, sourceURL: sourceURL)
+              ? .extracted
+              : .notFound(message: "No hours found on this page. Navigate to the hours and try again.")
           }
         }
       }
