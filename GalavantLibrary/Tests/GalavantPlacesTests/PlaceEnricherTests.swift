@@ -265,6 +265,71 @@ import UniformTypeIdentifiers
     }
   }
 
+  // MARK: Render-on-miss (ADR-0024)
+
+  /// A JS-app shell the raw GET returns: an empty container that parses to nothing.
+  nonisolated private static let shellHTML = """
+    <html><head></head><body><div id="root"></div></body></html>
+    """
+
+  @Test("Render-on-miss: an empty static parse escalates to the rendered DOM, which backfills")
+  func enrichRendersOnEmptyStaticParse() async throws {
+    let stamp = Date(timeIntervalSince1970: 1_700_000_000)
+    let ideaID = UUID()
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.date = .constant(stamp)
+      $0.pageFetcher = PageFetcher { _ in Self.shellHTML }  // raw GET: empty shell
+      $0.renderedPageFetcher = RenderedPageFetcher { _ in Self.websiteHTML }  // rendered: rich
+      $0.imageFetcher = ImageFetcher { url in Self.png(for: url) }
+      $0.imageRecommender = .testValue
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      try await database.write { db in
+        let party = try TravelParty.ensureDefault(in: db)
+        try Idea.insert {
+          Idea.Draft(id: ideaID, name: "Koan", url: "https://koancph.dk", travelPartyID: party.id)
+        }
+        .execute(db)
+      }
+
+      await PlaceEnricher().enrichIfNeeded(ideaID: ideaID)
+
+      let idea = try #require(try await database.read { db in try Idea.find(ideaID).fetchOne(db) })
+      #expect(idea.notes == "A Korean-Nordic tasting menu in Copenhagen.")  // from the rendered DOM
+      #expect(idea.regionName == "Copenhagen")
+      #expect(idea.enrichedAt == stamp)
+    }
+  }
+
+  @Test("The rendered fetch is skipped when the cheap GET already parses to something usable")
+  func renderedFetchSkippedOnUsableStaticParse() async throws {
+    let ideaID = UUID()
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.date = .constant(Date(timeIntervalSince1970: 1_700_000_000))
+      $0.pageFetcher = PageFetcher { _ in Self.websiteHTML }  // already usable
+      $0.renderedPageFetcher = RenderedPageFetcher { _ in
+        Issue.record("the heavy rendered fetch must not run when the GET parsed fine")
+        return nil
+      }
+      $0.imageFetcher = .testValue
+      $0.imageRecommender = .testValue
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      try await database.write { db in
+        let party = try TravelParty.ensureDefault(in: db)
+        try Idea.insert {
+          Idea.Draft(id: ideaID, name: "Koan", url: "https://koancph.dk", travelPartyID: party.id)
+        }
+        .execute(db)
+      }
+      await PlaceEnricher().enrichIfNeeded(ideaID: ideaID)
+    }
+  }
+
   // MARK: Guide-link rung (ADR-0021)
 
   /// A restaurant's own site that links out to its Michelin guide page in the body.

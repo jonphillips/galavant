@@ -32,6 +32,12 @@ import Testing
     </body></html>
     """
 
+  /// A JS-app shell: the raw GET returns an empty container, no hours anywhere — the
+  /// rendered DOM (`siteHTML`) is where the hours actually live (ADR-0024).
+  nonisolated private static let shellHTML = """
+    <html><head></head><body><div id="root"></div></body></html>
+    """
+
   nonisolated private func seedIdea(url: String = "https://spot.example", in db: Database) throws -> Idea.ID {
     let party = try TravelParty.ensureDefault(in: db)
     let id = UUID()
@@ -220,6 +226,60 @@ import Testing
       let idea = try #require(try await database.read { db in try Idea.find(ideaID).fetchOne(db) })
       #expect(idea.openingHours == "Daily 11:00–23:00")
       #expect(idea.hoursProvenance == .unverified)
+    }
+  }
+
+  @Test("Rung 2 render-on-miss: a JS-shell page renders, then fills hours, stamped official")
+  func renderOnMissFillsHours() async throws {
+    let stamp = Date(timeIntervalSince1970: 1_780_000_000)
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.date = .constant(stamp)
+      $0.pageFetcher = PageFetcher { _ in Self.shellHTML }  // raw GET: no hours
+      $0.renderedPageFetcher = RenderedPageFetcher { _ in Self.siteHTML }  // rendered: hours
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      let ideaID = try await database.write { db in try self.seedIdea(in: db) }
+
+      let outcome = await FieldSupplement().supplementHours(ideaID: ideaID)
+      #expect(outcome == .filled(.official))
+
+      let idea = try #require(try await database.read { db in try Idea.find(ideaID).fetchOne(db) })
+      #expect(idea.openingHours == "Tu-Sa 17:00-23:00")
+      #expect(idea.hoursProvenance == .official)
+    }
+  }
+
+  @Test("The rendered fetch is skipped when the cheap GET already yields hours")
+  func renderedFetchSkippedOnStaticHit() async throws {
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.date = .constant(Date(timeIntervalSince1970: 1_780_000_000))
+      $0.pageFetcher = PageFetcher { _ in Self.siteHTML }  // hours already here
+      $0.renderedPageFetcher = RenderedPageFetcher { _ in
+        Issue.record("the heavy rendered fetch must not run when the GET found hours")
+        return nil
+      }
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      let ideaID = try await database.write { db in try self.seedIdea(in: db) }
+      let outcome = await FieldSupplement().supplementHours(ideaID: ideaID)
+      #expect(outcome == .filled(.official))
+    }
+  }
+
+  @Test("Both the GET and the render come up empty → notFound")
+  func renderOnMissStillEmptyFallsThrough() async throws {
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.date = .constant(Date(timeIntervalSince1970: 1_780_000_000))
+      $0.pageFetcher = PageFetcher { _ in Self.shellHTML }
+      $0.renderedPageFetcher = RenderedPageFetcher { _ in Self.shellHTML }
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      let ideaID = try await database.write { db in try self.seedIdea(in: db) }
+      let outcome = await FieldSupplement().supplementHours(ideaID: ideaID)
+      #expect(outcome == .notFound)
     }
   }
 

@@ -1,5 +1,6 @@
 import Dependencies
 import Foundation
+import GalavantWeb
 
 /// A Safari-like User-Agent — many travel sites serve a fuller, more parseable page
 /// to a browser than to a bare client. Shared by the page and image fetchers.
@@ -46,5 +47,41 @@ extension DependencyValues {
   public var pageFetcher: PageFetcher {
     get { self[PageFetcher.self] }
     set { self[PageFetcher.self] = newValue }
+  }
+}
+
+/// The **rendered-DOM** counterpart to `PageFetcher` (ADR-0024): same shape and
+/// best-effort contract, but the live value loads the URL in a headless WebKit
+/// `WebPage` so client-side JavaScript runs before the HTML is read. Used as a
+/// *render-on-miss* fallback — the enrichment paths try the cheap `PageFetcher` GET
+/// first and reach for this only when the static parse came back empty, which is
+/// exactly the JS-shell / SPA / anti-bot pages a rendered DOM fixes. Injectable so the
+/// escalation logic is testable with fixtures and no WebKit.
+public struct RenderedPageFetcher: Sendable {
+  var fetch: @Sendable (_ url: URL) async -> String?
+
+  public init(fetch: @escaping @Sendable (_ url: URL) async -> String?) {
+    self.fetch = fetch
+  }
+
+  /// The rendered page HTML, or nil on any failure (best-effort, like `PageFetcher`).
+  public func callAsFunction(_ url: URL) async -> String? {
+    await fetch(url)
+  }
+}
+
+extension RenderedPageFetcher: DependencyKey {
+  public static let liveValue = RenderedPageFetcher { url in
+    await RenderedDOMFetcher.renderedHTML(of: url)
+  }
+
+  /// No WebKit in tests/previews — the escalation logic is exercised with fixtures.
+  public static let testValue = RenderedPageFetcher { _ in nil }
+}
+
+extension DependencyValues {
+  public var renderedPageFetcher: RenderedPageFetcher {
+    get { self[RenderedPageFetcher.self] }
+    set { self[RenderedPageFetcher.self] = newValue }
   }
 }

@@ -19,6 +19,7 @@ import SQLiteData
 public final class PlaceEnricher {
   @Dependency(\.defaultDatabase) private var database
   @Dependency(\.pageFetcher) private var pageFetcher
+  @Dependency(\.renderedPageFetcher) private var renderedPageFetcher
   @Dependency(\.imageFetcher) private var imageFetcher
   @Dependency(\.imageRecommender) private var imageRecommender
   @Dependency(\.placeIntelligence) private var placeIntelligence
@@ -41,10 +42,9 @@ public final class PlaceEnricher {
       idea.enrichedAt == nil,
       !idea.url.isEmpty,
       let url = URL(string: idea.url),
-      let html = await pageFetcher(url)
+      var page = await parsedPage(at: url)
     else { return }
 
-    var page = PageParser.parse(html: html, sourceURL: url)
     if let refinement = await placeIntelligence(page) {
       page = page.applying(refinement)
     }
@@ -137,9 +137,26 @@ public final class PlaceEnricher {
   /// with its own URL as `sourceURL`, so the host recognizers fire (host = guide → ★★★).
   private func followingGuideLink(from page: ParsedPage) async -> ParsedPage {
     guard let link = GuideLinkRecognizer.recognize(in: page).first,
-      let html = await pageFetcher(link.url)
+      let guidePage = await parsedPage(at: link.url)
     else { return page }
-    return page.fillingBlanks(from: PageParser.parse(html: html, sourceURL: link.url))
+    return page.fillingBlanks(from: guidePage)
+  }
+
+  /// Fetch and parse a page, escalating to a headless WebKit **rendered-DOM** re-fetch
+  /// when the cheap `URLSession` GET parses to nothing (render-on-miss, ADR-0024) — the
+  /// JS-shell / SPA / anti-bot pages where a raw fetch returns an empty container. Returns
+  /// the richest parse obtained; `nil` only when *no* fetch returned anything (a true
+  /// failure — leave the idea unenriched so the `enrichedAt` gate lets it retry). A page
+  /// that fetches but parses empty is still returned, preserving the "fetched once → done"
+  /// gate semantics.
+  private func parsedPage(at url: URL) async -> ParsedPage? {
+    let staticPage = await pageFetcher(url).map { PageParser.parse(html: $0, sourceURL: url) }
+    if let staticPage, !staticPage.isEmpty { return staticPage }
+    if let rendered = await renderedPageFetcher(url) {
+      let renderedPage = PageParser.parse(html: rendered, sourceURL: url)
+      if !renderedPage.isEmpty { return renderedPage }
+    }
+    return staticPage  // nil iff the static fetch also failed → retry later
   }
 
   /// Opening hours from an already-parsed page when the idea has none yet:
