@@ -59,6 +59,8 @@ targets:
         product: GalavantChat
       - package: GalavantLibrary
         product: GalavantWeb
+      - package: GalavantLibrary
+        product: GalavantCaptureUI
       - package: sqlite-data
         product: SQLiteData
       - package: swift-navigation
@@ -84,6 +86,8 @@ targets:
         product: GalavantPlaces
       - package: GalavantLibrary
         product: GalavantSchema
+      - package: GalavantLibrary
+        product: GalavantCaptureUI
       - package: sqlite-data
         product: SQLiteData
       - package: swift-dependencies

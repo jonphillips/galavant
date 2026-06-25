@@ -12,6 +12,7 @@ let package = Package(
     .library(name: "GalavantAI", targets: ["GalavantAI"]),
     .library(name: "GalavantChat", targets: ["GalavantChat"]),
     .library(name: "GalavantWeb", targets: ["GalavantWeb"]),
+    .library(name: "GalavantCaptureUI", targets: ["GalavantCaptureUI"]),
   ],
   dependencies: [
     .package(url: "https://github.com/pointfreeco/sqlite-data", from: "1.0.0"),
@@ -131,6 +132,16 @@ let package = Package(
     .testTarget(
       name: "GalavantWebTests",
       dependencies: ["GalavantWeb"]
+    ),
+    // The shared capture confirm-and-tweak UI (ADR-0023): the sheet shown after a page
+    // is captured — from the share extension *or* the app's in-app browser. Lifted out
+    // of the extension target so both hosts present the same vet-at-source sheet
+    // (ADR-0019 dedup included). The package's second UI module after GalavantWeb;
+    // unlike that one it deliberately carries domain UI (CaptureModel/Idea), so it's the
+    // app's, not a cross-app lift.
+    .target(
+      name: "GalavantCaptureUI",
+      dependencies: ["GalavantPlaces", "GalavantSchema"]
     ),
   ]
 )

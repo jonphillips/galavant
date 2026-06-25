@@ -1,4 +1,5 @@
 import Dependencies
+import GalavantCaptureUI
 import GalavantPlaces
 import GalavantSchema
 import SwiftUI

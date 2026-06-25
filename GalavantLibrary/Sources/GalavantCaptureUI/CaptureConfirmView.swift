@@ -3,20 +3,34 @@ import GalavantSchema
 import MapKit
 import SwiftUI
 
-/// The confirm-and-tweak sheet shown when you share a page (Jon's choice: vet
-/// captures at the source). The `CaptureModel` does the parse + Apple Maps match;
-/// this view just binds its editable draft and saves. A focused form — not the
-/// app's full `IdeaFormView` (that lives in the app target, unreachable here).
-struct CaptureConfirmView: View {
+/// The confirm-and-tweak sheet shown when a page is captured — from the share
+/// extension *or* the in-app browser (Jon's choice: vet captures at the source). The
+/// `CaptureModel` does the parse + Apple Maps match (including the ADR-0019 "already in
+/// your pool" dedup); this view just binds its editable draft and saves.
+///
+/// Lives in `GalavantCaptureUI` (the package's second UI module after `GalavantWeb`, per
+/// ADR-0023) rather than the extension target, so both the share extension and the app's
+/// capture-from-browser flow present the *same* confirm sheet. iOS-only SwiftUI modifiers
+/// are `#if os(iOS)`-guarded so the module still compiles on the macOS `swift test` host,
+/// like `GalavantWeb`.
+public struct CaptureConfirmView: View {
   @Bindable var model: CaptureModel
-  /// Called to tear the extension down (after save, or on cancel).
+  /// Called when the flow is done (after save, or on cancel) — the host tears down (the
+  /// extension completes its request; the app dismisses the sheet).
   let onClose: () -> Void
 
-  var body: some View {
+  public init(model: CaptureModel, onClose: @escaping () -> Void) {
+    self.model = model
+    self.onClose = onClose
+  }
+
+  public var body: some View {
     NavigationStack {
       content
         .navigationTitle("Add to Galavant")
-        .navigationBarTitleDisplayMode(.inline)
+        #if os(iOS)
+          .navigationBarTitleDisplayMode(.inline)
+        #endif
         .toolbar {
           ToolbarItem(placement: .cancellationAction) {
             Button("Cancel", action: onClose)
@@ -33,7 +47,8 @@ struct CaptureConfirmView: View {
     .onChange(of: model.phase) { _, phase in
       if phase == .saved {
         // Signal the (possibly running) app to re-read — its @FetchAll observation
-        // can't see this separate process's write.
+        // can't see a separate process's write (the extension); in-app it's a no-op
+        // beyond the observation it already drives.
         DatabaseChange.post()
         onClose()
       }
@@ -206,7 +221,9 @@ struct CaptureConfirmView: View {
           format: .number
         )
         .multilineTextAlignment(.trailing)
-        .keyboardType(.decimalPad)
+        #if os(iOS)
+          .keyboardType(.decimalPad)
+        #endif
       }
     case .text:
       TextField(

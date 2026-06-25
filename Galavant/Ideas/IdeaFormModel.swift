@@ -23,6 +23,14 @@ final class IdeaFormModel {
   /// A short result line shown after a refresh-hours attempt so the action isn't
   /// silent — a hit, an already-current no-op, or nothing found.
   var hoursStatus: String?
+  /// True while the guide-rating fallback is running (ADR-0023).
+  var findingGuideRating = false
+  /// Set to present the in-app browser pointed at a guide-detail page whose plain
+  /// fetch came back empty (the JS-heavy case) — the user renders it, then "Use This
+  /// Page" reads the rating off the DOM (ADR-0023, the ADR-0021 HITL fallback).
+  var guideBrowserURL: URL?
+  /// A short result line for the guide-rating affordance, so it's never silent.
+  var guideRatingStatus: String?
   /// The idea's stored images, header first (M4g/M4h). The user can re-pick the
   /// cover from here; the header the enrichment chose (Vision-recommended) is the
   /// default. Empty for a new idea or one without images.
@@ -158,6 +166,52 @@ final class IdeaFormModel {
     let filled = await FieldSupplement().applyBrowsedHours(html: html, sourceURL: sourceURL, ideaID: id)
     if filled { await reloadHours() }
     return filled
+  }
+
+  /// Whether the guide-rating affordance applies — a saved idea (it writes by id) with
+  /// a link to start the guide-link search from.
+  var canFindGuideRating: Bool {
+    !isNew && !draft.url.isEmpty
+  }
+
+  /// Re-run the automated guide-link rung on demand (ADR-0021/0023). On a hit the rating
+  /// is recorded as a sibling `IdeaEvaluation`; when the guide page won't render to a
+  /// plain fetch, open the in-app browser pointed straight at it.
+  func supplementGuideRating() async {
+    guard let id = draft.id else { return }
+    findingGuideRating = true
+    guideRatingStatus = nil
+    defer { findingGuideRating = false }
+    switch await GuideRatingSupplement().supplement(ideaID: id) {
+    case .recorded(let count):
+      guideRatingStatus =
+        count > 0 ? Self.ratingCountMessage(count) : "No new ratings — already up to date."
+    case .needsBrowser(let url):
+      guideRatingStatus = "Couldn't read the guide page — opening it to check."
+      guideBrowserURL = url
+    case .noGuideLink:
+      guideRatingStatus = "No guide link found on this page."
+    case .notReady:
+      guideRatingStatus = "Nothing to check — add a link first."
+    }
+  }
+
+  /// Apply a rating read from the DOM the user rendered in the in-app browser (rung 3,
+  /// stamped `.official` — a deterministic recognizer on the guide's own page; ADR-0023).
+  /// Returns whether the page yielded any rating, mapping the browser's outcome.
+  @discardableResult
+  func applyBrowsedGuide(html: String, sourceURL: URL?) async -> Bool {
+    guard let id = draft.id else { return false }
+    let recorded = await GuideRatingSupplement()
+      .applyBrowsedGuide(html: html, sourceURL: sourceURL, ideaID: id)
+    guard let recorded else { return false }
+    guideRatingStatus =
+      recorded > 0 ? Self.ratingCountMessage(recorded) : "Found a rating you already had."
+    return true
+  }
+
+  private static func ratingCountMessage(_ count: Int) -> String {
+    "Recorded \(count) rating\(count == 1 ? "" : "s")."
   }
 
   /// Pull the persisted hours fields back into the draft after a supplement write.

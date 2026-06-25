@@ -5,6 +5,7 @@ import SwiftUI
 enum AppScreen: Codable, Hashable, Identifiable, CaseIterable {
   case ideas
   case trips
+  case browser
   case settings
 
   var id: Self { self }
@@ -14,6 +15,7 @@ enum AppScreen: Codable, Hashable, Identifiable, CaseIterable {
     switch self {
     case .ideas: Icon.ideas.label("Ideas")
     case .trips: Icon.trips.label("Trips")
+    case .browser: Icon.browser.label("Browser")
     case .settings: Icon.settings.label("Settings")
     }
   }
@@ -23,6 +25,7 @@ enum AppScreen: Codable, Hashable, Identifiable, CaseIterable {
     switch self {
     case .ideas: IdeasScreen()
     case .trips: TripsScreen()
+    case .browser: BrowserScreen()
     case .settings: SettingsScreen()
     }
   }
