@@ -6,7 +6,8 @@ import SwiftUI
 /// or, for pages with only a bare name (koancph.dk), come up empty — so the user
 /// needs a way to search and pick the right place. Reuses the package's debounced
 /// `PlaceSearchModel`/`PlaceSearchClient`; tapping a result applies it to the
-/// capture draft and pops back.
+/// capture draft and pops back. Internal to `GalavantCaptureUI` — `CaptureConfirmView`
+/// pushes it.
 struct LocationSearchView: View {
   @Bindable var model: CaptureModel
   @State private var search = PlaceSearchModel()
@@ -30,7 +31,9 @@ struct LocationSearchView: View {
       .buttonStyle(.plain)
     }
     .navigationTitle("Location")
-    .navigationBarTitleDisplayMode(.inline)
+    #if os(iOS)
+      .navigationBarTitleDisplayMode(.inline)
+    #endif
     .searchable(text: $search.query, prompt: "Search for the place")
     .overlay {
       if search.results.isEmpty {

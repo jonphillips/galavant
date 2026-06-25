@@ -24,6 +24,7 @@ enum Icon {
   case info           // open a read-only detail
   case sidebar
   case settings       // app settings / "You" area
+  case browser        // the in-app web browser section (ADR-0023)
   case aiOnDevice     // on-device (private) AI tier
   case aiFrontier     // frontier (networked, BYO-key) AI tier
   case chat           // open the context-aware chat panel (ADR-0017)
@@ -73,6 +74,7 @@ enum Icon {
     case .info: "info.circle"
     case .sidebar: "sidebar.left"
     case .settings: "gearshape"
+    case .browser: "globe"
     case .aiOnDevice: "lock.iphone"
     case .aiFrontier: "cloud"
     case .calendar: "calendar"

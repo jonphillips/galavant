@@ -107,6 +107,9 @@ struct IdeaFormView: View {
         if !model.isNew {
           hoursSection
         }
+        if model.canFindGuideRating {
+          guideRatingSection
+        }
         Section {
           StackedTextEditor(title: "Notes", text: $model.draft.notes, minHeight: 120)
         }
@@ -127,6 +130,25 @@ struct IdeaFormView: View {
             await model.applyBrowsedHours(html: html, sourceURL: sourceURL)
               ? .extracted
               : .notFound(message: "No hours found on this page. Navigate to the hours and try again.")
+          }
+        }
+      }
+      .sheet(
+        isPresented: Binding(
+          get: { model.guideBrowserURL != nil },
+          set: { if !$0 { model.guideBrowserURL = nil } }
+        )
+      ) {
+        if let url = model.guideBrowserURL {
+          // The HITL guide-link fallback (ADR-0023, the ADR-0021 next rung): Jon drives
+          // the in-app browser to a guide-detail page the automated plain fetch couldn't
+          // render, then "Use This Page" reads the rating off the DOM. Same GalavantWeb
+          // component (ADR-0022); the guide-rating plugin lives here.
+          WebExtractorBrowser(startURL: url, title: "Find Rating", confirmLabel: "Use This Page") {
+            html, sourceURL in
+            await model.applyBrowsedGuide(html: html, sourceURL: sourceURL)
+              ? .extracted
+              : .notFound(message: "No rating found on this page. Navigate to the guide listing and try again.")
           }
         }
       }
@@ -179,6 +201,31 @@ struct IdeaFormView: View {
         .disabled(model.supplementingHours)
       }
       if let status = model.hoursStatus {
+        Text(status)
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
+    }
+  }
+
+  /// The guide-rating fallback (ADR-0023, the ADR-0021 HITL rung): when an idea's page
+  /// links to a guide-detail page whose plain fetch can't be read, follow it on demand —
+  /// recording the rating directly when it renders, or opening the in-app browser when it
+  /// doesn't. A *judgment* (sibling `IdeaEvaluation`), so it lives apart from the hours
+  /// *fact* section above.
+  @ViewBuilder private var guideRatingSection: some View {
+    Section("Guide rating") {
+      Button {
+        Task { await model.supplementGuideRating() }
+      } label: {
+        if model.findingGuideRating {
+          Label { Text("Checking guide…") } icon: { ProgressView() }
+        } else {
+          Label("Check guide page", systemImage: "rosette")
+        }
+      }
+      .disabled(model.findingGuideRating)
+      if let status = model.guideRatingStatus {
         Text(status)
           .font(.caption)
           .foregroundStyle(.secondary)
