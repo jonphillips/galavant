@@ -96,7 +96,8 @@ path for free.)
   *automated* fetch paths (`PlaceEnricher`'s `pageFetcher`, the share extension) — turn
   a raw `URLSession` fetch into a rendered-DOM fetch with no UI — closing the
   "raw fetch < rendered DOM" gap for the unattended case. Deferred; noted so the next
-  rung knows the tool exists.
+  rung knows the tool exists. **Resolved by ADR-0024** (render-on-miss for the
+  `PlaceEnricher` / `FieldSupplement` paths; the share extension stays raw, by design).
 
 ## Relationship to prior decisions
 

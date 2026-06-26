@@ -47,8 +47,10 @@ extension DependencyValues {
 ///    re-parse. First the deterministic `ParsedPage.openingHours` (JSON-LD/microdata);
 ///    then, when that's empty, an on-device **LLM extract-only** pass over the same
 ///    page text (`hoursExtractor`) reaches the unstructured-markup sites the parser
-///    can't (Squarespace/Wix; docs/BACKLOG.md). Either way the source is the place's
-///    own site, so provenance `.official`.
+///    can't (Squarespace/Wix; docs/BACKLOG.md). When the cheap GET yields no hours, a
+///    headless WebKit **rendered-DOM** re-fetch (`renderedPageFetcher`, ADR-0024) runs
+///    once more for JS-injected hours. Either way the source is the place's own site,
+///    so provenance `.official`.
 /// 3. **HITL `WKWebView`** — the app's interactive fallback when 1–2 come up empty;
 ///    it hands the loaded DOM to `applyBrowsedHours` (deterministic then the same LLM
 ///    fallback; provenance `.unverified` — an arbitrary page the user drove).
@@ -60,6 +62,7 @@ extension DependencyValues {
 public final class FieldSupplement {
   @Dependency(\.defaultDatabase) private var database
   @Dependency(\.pageFetcher) private var pageFetcher
+  @Dependency(\.renderedPageFetcher) private var renderedPageFetcher
   @Dependency(\.mapItemHoursProbe) private var hoursProbe
   @Dependency(\.hoursExtractor) private var hoursExtractor
   @Dependency(\.date) private var now
@@ -92,14 +95,19 @@ public final class FieldSupplement {
       return .filled(.official)
     }
 
-    // Rung 2: the place's own official site — fetch + parse once, then try the
-    // deterministic hours and, failing that, the on-device LLM extract-only pass over
-    // the same page text. Both draw from the place's own site → `.official`.
-    if !idea.url.isEmpty, let url = URL(string: idea.url), let html = await pageFetcher(url),
-      let hours = await resolvedHours(from: PageParser.parse(html: html, sourceURL: url))
-    {
-      await write(hours, provenance: .official, ideaID: ideaID)
-      return .filled(.official)
+    // Rung 2: the place's own official site — fetch + parse, then try the deterministic
+    // hours and, failing that, the on-device LLM extract-only pass over the page text.
+    // Render-on-miss (ADR-0024): the cheap `URLSession` GET first; only if *that* yields
+    // no hours do we re-fetch with a headless WebKit render — a page can parse rich yet
+    // inject its hours via JS, and the rendered DOM carries the text both the parser and
+    // the LLM need. Either source is the place's own site → `.official`.
+    if !idea.url.isEmpty, let url = URL(string: idea.url) {
+      var hours = await hoursFromSite(url, fetch: pageFetcher.callAsFunction)
+      if hours == nil { hours = await hoursFromSite(url, fetch: renderedPageFetcher.callAsFunction) }
+      if let hours {
+        await write(hours, provenance: .official, ideaID: ideaID)
+        return .filled(.official)
+      }
     }
 
     return .notFound  // rung 3 (the HITL browser) is the app's fallback
@@ -115,6 +123,16 @@ public final class FieldSupplement {
     guard let hours = await resolvedHours(from: page) else { return false }
     await write(hours, provenance: .unverified, ideaID: ideaID)
     return true
+  }
+
+  /// Fetch the site with `fetch`, parse it, and resolve hours — `nil` when the fetch
+  /// failed or the page carried none. The unit a render-on-miss escalation retries with
+  /// a heavier fetcher (ADR-0024).
+  private func hoursFromSite(
+    _ url: URL, fetch: (URL) async -> String?
+  ) async -> String? {
+    guard let html = await fetch(url) else { return nil }
+    return await resolvedHours(from: PageParser.parse(html: html, sourceURL: url))
   }
 
   /// Hours from an already-parsed page: the deterministic `openingHours` first, and

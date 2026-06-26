@@ -41,6 +41,7 @@ let package = Package(
         "GalavantCapture",
         "GalavantImaging",
         "GalavantAI",
+        "GalavantWeb",
         .product(name: "SQLiteData", package: "sqlite-data"),
         .product(name: "Dependencies", package: "swift-dependencies"),
       ]
