@@ -117,8 +117,16 @@ public struct PlaceMatcher: Sendable {
   /// filling only the fields the page (and the resolving step) left blank, gated on
   /// a name match so a wrong nearby POI can't hijack the record. Skipped when the
   /// match already carries the enrichable fields, or the page has no name to search.
+  ///
+  /// Crucially this is the **only** route to a `mapItemIdentifier` (the ADR-0019
+  /// dedup key) for a match resolved by scraped coordinates or by geocoding an
+  /// address — both yield a point with no POI identity (forward geocoding returns an
+  /// address-level map item, not a business). So a hotel whose pin resolves fine via
+  /// JSON-LD `geo`/`address` (Forestis, Das Achental) still needs this pass to adopt
+  /// the nearby POI's identity, or its capture lands undeduplicatable.
   private func enriched(_ match: LocationMatch, for page: ParsedPage) async -> LocationMatch {
-    guard match.kind == nil || match.phone == nil || match.url == nil,
+    guard match.kind == nil || match.phone == nil || match.url == nil
+      || match.mapItemIdentifier == nil,
       let name = page.title, !name.isEmpty
     else { return match }
     let candidates = await lookupNear(name, match.coordinate)
@@ -130,6 +138,9 @@ public struct PlaceMatcher: Sendable {
     if match.kind == nil { match.kind = poi.kind }
     if match.phone == nil { match.phone = poi.phone }
     if match.url == nil { match.url = poi.url }
+    // Adopt the POI's persistent identity when the resolving step gave none — a
+    // coordinate- or geocode-first match has no dedup key otherwise (ADR-0019).
+    if match.mapItemIdentifier == nil { match.mapItemIdentifier = poi.mapItemIdentifier }
     return match
   }
 

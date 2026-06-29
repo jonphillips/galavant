@@ -5,8 +5,14 @@ import Testing
 @testable import GalavantPlaces
 
 @Suite struct PlaceMatcherTests {
-  private func place(_ name: String, _ lat: Double, _ lon: Double, address: String? = nil) -> Place {
-    Place(id: UUID(), name: name, latitude: lat, longitude: lon, address: address)
+  private func place(
+    _ name: String, _ lat: Double, _ lon: Double, address: String? = nil,
+    mapItemIdentifier: String? = nil
+  ) -> Place {
+    Place(
+      id: UUID(), name: name, latitude: lat, longitude: lon, address: address,
+      mapItemIdentifier: mapItemIdentifier
+    )
   }
 
   @Test("Scraped coordinates are authoritative — no geocode or search")
@@ -80,6 +86,57 @@ import Testing
     #expect(match?.kind == .food)
     #expect(match?.phone == "+45 32 96 32 97")
     #expect(match?.regionName == "Copenhagen")
+  }
+
+  @Test("Geocode-first match adopts the nearby POI's identity (Forestis regression)")
+  func enrichmentAdoptsMapItemIdentifier() async {
+    // A JSON-LD `Hotel` page (forestis.it, das-achental.com) resolves via its
+    // scraped address: forward geocoding returns an address-level point with no
+    // POI identity, so the match has no `mapItemIdentifier`. The nearby-POI pass is
+    // the only place to recover it — without that, capture lands undeduplicatable.
+    let matcher = PlaceMatcher(
+      geocode: { _ in self.place("Forestis", 46.706, 11.667, address: "Palmschoß 22, Brixen") },
+      search: { _ in Issue.record("geocode succeeded; no search"); return [] },
+      lookupNear: { _, _ in
+        [
+          Place(
+            id: UUID(), name: "Forestis Dolomites", latitude: 46.706, longitude: 11.667,
+            regionName: "Brixen", kind: .stay, url: "https://forestis.it",
+            phone: "+39 0472 521008", address: "Palmschoß 22, Brixen",
+            mapItemIdentifier: "I1234567890ABCDEF"
+          )
+        ]
+      }
+    )
+    let page = ParsedPage(
+      title: "FORESTIS", address: ParsedAddress(street: "Palmschoß 22", locality: "Brixen")
+    )
+    let match = await matcher.match(page)
+    #expect(match?.mapItemIdentifier == "I1234567890ABCDEF")
+  }
+
+  @Test("Enrichment runs to recover identity even when kind/phone/url are filled")
+  func enrichmentRecoversIdentityWhenOtherwiseComplete() async {
+    // The resolving step (here a rich geocode) filled kind/phone/url but carried no
+    // POI identity. Enrichment must still run on the missing `mapItemIdentifier`.
+    let matcher = PlaceMatcher(
+      geocode: { _ in
+        Place(
+          id: UUID(), name: "Forestis", latitude: 46.706, longitude: 11.667,
+          regionName: "Brixen", kind: .stay, url: "https://forestis.it",
+          phone: "+39 0472 521008", address: "Palmschoß 22, Brixen"
+        )
+      },
+      search: { _ in Issue.record("geocode succeeded; no search"); return [] },
+      lookupNear: { _, _ in
+        [self.place("Forestis", 46.706, 11.667, mapItemIdentifier: "IFEEDFACE")]
+      }
+    )
+    let page = ParsedPage(
+      title: "Forestis", address: ParsedAddress(street: "Palmschoß 22", locality: "Brixen")
+    )
+    let match = await matcher.match(page)
+    #expect(match?.mapItemIdentifier == "IFEEDFACE")
   }
 
   @Test("Enrichment ignores a nearby POI whose name doesn't match")

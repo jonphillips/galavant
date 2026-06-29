@@ -27,6 +27,9 @@ public final class CaptureModel {
 
   @ObservationIgnored @Dependency(\.defaultDatabase) private var database
   @ObservationIgnored @Dependency(\.placeMatcher) private var placeMatcher
+  #if DEBUG
+    @ObservationIgnored @Dependency(\.placeSearch) private var placeSearch
+  #endif
   @ObservationIgnored @Dependency(\.placeIntelligence) private var placeIntelligence
   @ObservationIgnored @Dependency(\.imageFetcher) private var imageFetcher
   @ObservationIgnored @Dependency(\.recentTripStore) private var recentTripStore
@@ -63,6 +66,16 @@ public final class CaptureModel {
   /// re-checks and is the source of truth, so a race can't double-insert.
   public private(set) var existingMatch: Idea?
 
+  #if DEBUG
+    /// A read-only trace of the last `prepare()`'s location-match attempt, surfaced
+    /// in the confirm sheet so a failed/empty match can be diagnosed on-device
+    /// (which parse the page yielded, what the on-device AI refinement changed, the
+    /// exact Apple Maps query, and the raw candidates + their scores — separating
+    /// "found but scored too low" from "search returned nothing / threw / throttled").
+    /// DEBUG-only: it never influences the match decision, only reports it.
+    public private(set) var diagnostics: CaptureDiagnostics?
+  #endif
+
   public init(html: String, sourceURL: URL?) {
     self.html = html
     self.sourceURL = sourceURL
@@ -98,7 +111,8 @@ public final class CaptureModel {
     // ADR-0019 dedup banner works even if the match below comes back empty (offline).
     if let mid = seedLocation?.mapItemIdentifier { draft.mapItemIdentifier = mid }
 
-    if let match = await placeMatcher.match(page) {
+    let locationMatch = await placeMatcher.match(page)
+    if let match = locationMatch {
       draft.latitude = match.coordinate.latitude
       draft.longitude = match.coordinate.longitude
       // Apple Maps' persistent place identity — the ADR-0019 dedup key. A web page
@@ -133,8 +147,66 @@ public final class CaptureModel {
     self.detectedEvaluations = await resolveEvaluations(captured.evaluations, page: page)
     await self.refreshExistingMatch()
     await self.loadTrips()
+    #if DEBUG
+      self.diagnostics = await collectDiagnostics(page: page, refinement: refinement, match: locationMatch)
+    #endif
     self.phase = .ready
   }
+
+  #if DEBUG
+    /// Build the match trace for the confirm sheet's DEBUG readout. Re-runs the
+    /// *same* search query the matcher used (over the injected `placeSearch`, so it's
+    /// the live Apple Maps client on-device and a fixture in tests) and scores each
+    /// hit with the very `PlaceMatching.score` gate the matcher applies — so the
+    /// readout shows whether a page failed because the search came back empty / threw
+    /// (throttle), or because its hits were all scored below the acceptance floor.
+    private func collectDiagnostics(
+      page: ParsedPage, refinement: PlaceRefinement?, match: LocationMatch?
+    ) async -> CaptureDiagnostics {
+      let query = PlaceMatching.searchQuery(for: page)
+      var threw: String?
+      var candidates: [CaptureDiagnostics.ScoredCandidate] = []
+      if !query.isEmpty {
+        do {
+          let hits = try await placeSearch.search(query)
+          candidates = hits.map { place in
+            CaptureDiagnostics.ScoredCandidate(
+              name: place.name,
+              address: place.address,
+              score: PlaceMatching.score(
+                candidateName: place.name,
+                candidateStreet: place.address ?? "",
+                scrapedName: page.title ?? "",
+                scrapedStreet: page.address.oneLine
+              ),
+              hasIdentifier: place.mapItemIdentifier != nil
+            )
+          }
+        } catch {
+          threw = "\(error)"
+        }
+      }
+      return CaptureDiagnostics(
+        parsedTitle: page.title,
+        titleIsStructured: page.titleIsStructured,
+        parsedLocality: page.address.locality,
+        parsedRegion: page.address.region,
+        parsedAddress: page.address.isEmpty ? nil : page.address.oneLine,
+        parsedCoordinate: page.coordinate.map { "\($0.latitude), \($0.longitude)" },
+        refinementRan: refinement != nil,
+        refinedName: refinement?.name,
+        refinedLocality: refinement?.locality,
+        refinedRegion: refinement?.region,
+        query: query,
+        ladder: PlaceMatching.ladder(for: page).map { "\($0)" },
+        searchThrew: threw,
+        candidates: candidates,
+        resolved: match != nil,
+        resolvedName: match?.name,
+        resolvedHasIdentifier: match?.mapItemIdentifier != nil
+      )
+    }
+  #endif
 
   /// Look up whether this capture's resolved place is already in the pool (by Apple
   /// Maps identity), so the confirm sheet can offer "update" rather than silently
@@ -392,3 +464,51 @@ public final class CaptureModel {
     return (id, true)
   }
 }
+
+#if DEBUG
+  /// A read-only trace of one location-match attempt, for the confirm sheet's DEBUG
+  /// readout. Captures the inputs the match actually ran on — the parsed page, the
+  /// on-device AI refinement, the query, the ladder — and the search outcome (raw
+  /// candidates with the matcher's own score, plus whether the search threw). Lets a
+  /// failed match be diagnosed on-device without a debugger: an empty `candidates`
+  /// with a non-nil `searchThrew` is a throttle/network miss; populated candidates
+  /// whose top `score` is 0 is a name-overlap (query) miss, not an Apple Maps miss.
+  public struct CaptureDiagnostics: Sendable, Equatable {
+    public struct ScoredCandidate: Sendable, Equatable, Identifiable {
+      public let id = UUID()
+      public var name: String
+      public var address: String?
+      public var score: Int
+      public var hasIdentifier: Bool
+    }
+
+    /// What the parser yielded (after the AI refinement merge).
+    public var parsedTitle: String?
+    public var titleIsStructured: Bool
+    public var parsedLocality: String?
+    public var parsedRegion: String?
+    public var parsedAddress: String?
+    public var parsedCoordinate: String?
+
+    /// What the on-device AI refinement returned — the only source of a city token
+    /// for a page with no structured address, and so the usual swing factor.
+    public var refinementRan: Bool
+    public var refinedName: String?
+    public var refinedLocality: String?
+    public var refinedRegion: String?
+
+    /// The Apple Maps text-search query and the full resolution ladder.
+    public var query: String
+    public var ladder: [String]
+
+    /// The search probe over `query`: the error description when it threw (throttle /
+    /// network — distinct from a genuine empty result), and the scored candidates.
+    public var searchThrew: String?
+    public var candidates: [ScoredCandidate]
+
+    /// The production match outcome.
+    public var resolved: Bool
+    public var resolvedName: String?
+    public var resolvedHasIdentifier: Bool
+  }
+#endif

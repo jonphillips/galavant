@@ -187,8 +187,83 @@ public struct CaptureConfirmView: View {
           Text(message).foregroundStyle(.red)
         }
       }
+
+      #if DEBUG
+        if let diagnostics = model.diagnostics {
+          matchDiagnostics(diagnostics)
+        }
+      #endif
     }
   }
+
+  #if DEBUG
+    /// A collapsed, DEBUG-only readout of why the Apple Maps match did (or didn't)
+    /// land — so a failed capture can be diagnosed on-device without a debugger. Read
+    /// it top-down: the parsed/refined fields feed the query; the candidates show what
+    /// Apple Maps returned for that query and how each scored against the name gate.
+    @ViewBuilder
+    private func matchDiagnostics(_ d: CaptureDiagnostics) -> some View {
+      Section {
+        diagRow("Resolved", d.resolved ? "yes" : "NO", warn: !d.resolved)
+        diagRow("Map identity", d.resolvedHasIdentifier ? "yes" : "none", warn: !d.resolvedHasIdentifier)
+        diagRow("Title", d.parsedTitle ?? "—")
+        diagRow("Title source", d.titleIsStructured ? "structured" : "chrome/og")
+        diagRow("Locality", d.parsedLocality ?? "—", warn: d.parsedLocality == nil)
+        diagRow("Region", d.parsedRegion ?? "—")
+        diagRow("Address", d.parsedAddress ?? "—")
+        diagRow("Coordinate", d.parsedCoordinate ?? "—")
+        diagRow("AI refinement", d.refinementRan ? "ran" : "did not run")
+        if d.refinementRan {
+          diagRow("AI name", d.refinedName ?? "—")
+          diagRow("AI locality", d.refinedLocality ?? "—", warn: d.refinedLocality == nil)
+          diagRow("AI region", d.refinedRegion ?? "—")
+        }
+        diagRow("Query", d.query.isEmpty ? "(empty)" : d.query, warn: d.query.isEmpty)
+        if let threw = d.searchThrew {
+          diagRow("Search error", threw, warn: true)
+        } else {
+          diagRow("Candidates", "\(d.candidates.count)", warn: d.candidates.isEmpty)
+        }
+        ForEach(d.candidates) { c in
+          HStack {
+            Text("score \(c.score)")
+              .font(.caption.monospaced())
+              .foregroundStyle(c.score > 0 ? .green : .secondary)
+            VStack(alignment: .leading, spacing: 1) {
+              Text(c.name).font(.caption)
+              if let address = c.address {
+                Text(address).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+              }
+            }
+          }
+        }
+        DisclosureGroup("Ladder (\(d.ladder.count))") {
+          ForEach(Array(d.ladder.enumerated()), id: \.offset) { _, step in
+            Text(step).font(.caption2.monospaced()).foregroundStyle(.secondary)
+          }
+        }
+      } header: {
+        Text("Match diagnostics (DEBUG)")
+      } footer: {
+        Text(
+          "Empty candidates + a search error = throttle/network. "
+            + "Candidates present but top score 0 = name/query miss, not an Apple Maps miss."
+        )
+      }
+    }
+
+    @ViewBuilder
+    private func diagRow(_ label: String, _ value: String, warn: Bool = false) -> some View {
+      HStack(alignment: .firstTextBaseline) {
+        Text(label).font(.caption).foregroundStyle(.secondary)
+        Spacer()
+        Text(value)
+          .font(.caption.monospaced())
+          .multilineTextAlignment(.trailing)
+          .foregroundStyle(warn ? AnyShapeStyle(.orange) : AnyShapeStyle(.primary))
+      }
+    }
+  #endif
 
   /// Correct a misread rating before saving — a stepper for stars, a number field for
   /// a bounded score, a text field for everything else. Each edit regenerates the
