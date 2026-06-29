@@ -11,19 +11,17 @@ public enum WebExtractionOutcome: Equatable, Sendable {
   case notFound(message: String)
 }
 
-/// An app-agnostic in-app browser. It owns the **act of browsing** — load a URL,
-/// render JavaScript, hold a real session, and let the user navigate and clear consent
-/// walls — and when the user taps the confirm button it hands the page's **rendered
-/// DOM** (`outerHTML`) plus the current URL to an injected `onExtract` plugin.
+/// An app-agnostic in-app browser presented as a **modal extraction session**: load a
+/// start URL, let the user navigate / clear consent, and on confirm hand the page's
+/// **rendered DOM** (`outerHTML`) plus the current URL to an injected `onExtract` plugin
+/// (ADR-0022). The persistent, full-chrome counterpart is `WebBrowserView`; this stays
+/// the focused "go fetch one thing and come back" surface its in-form consumers want.
 ///
-/// It deliberately knows nothing about any app's domain: the plugin (which lives on the
-/// caller's side and *may* import whatever domain types it likes) turns the HTML into
-/// whatever the app needs and reports back a `WebExtractionOutcome`. That one-way seam —
-/// the browser depends on nothing, the caller wires it to its own extractor — is what
-/// lets this module drop into another app unchanged.
-///
-/// Multiplatform by construction: `WKWebView` is unified across iOS and macOS; only the
-/// representable wrapper is `#if`-split (UIKit / AppKit).
+/// Built on `WebPage` + SwiftUI `WebView` (ADR-0025) — the same engine the headless
+/// `RenderedDOMFetcher` drives viewless. The plugin (on the caller's side, free to import
+/// any domain type) turns the HTML into whatever the app needs and reports back a
+/// `WebExtractionOutcome`. That one-way seam lets this module drop into another app
+/// unchanged.
 public struct WebExtractorBrowser: View {
   let startURL: URL
   let title: String
@@ -45,13 +43,13 @@ public struct WebExtractorBrowser: View {
   }
 
   @Environment(\.dismiss) private var dismiss
-  @State private var webView = WKWebView()
+  @State private var page = WebPage.browser()
   @State private var working = false
   @State private var notice: String?
 
   public var body: some View {
     NavigationStack {
-      WebContent(webView: webView, url: startURL)
+      WebView(page)
         .ignoresSafeArea(edges: .bottom)
         .navigationTitle(title)
         #if os(iOS)
@@ -76,6 +74,14 @@ public struct WebExtractorBrowser: View {
               .background(.bar)
           }
         }
+        .task {
+          // Drive the start-URL load to completion; the view reflects progress via the
+          // observable `WebPage`. Best-effort — a load failure leaves the user on a blank
+          // page they can navigate from.
+          do {
+            for try await _ in page.load(URLRequest(url: startURL)) {}
+          } catch {}
+        }
     }
   }
 
@@ -86,12 +92,11 @@ public struct WebExtractorBrowser: View {
     working = true
     notice = nil
     defer { working = false }
-    let html = (try? await webView.evaluateJavaScript("document.documentElement.outerHTML")) as? String
-    guard let html, !html.isEmpty else {
+    guard let html = await page.currentDOM(), !html.isEmpty else {
       notice = "Couldn't read this page — try again once it's loaded."
       return
     }
-    switch await onExtract(html, webView.url) {
+    switch await onExtract(html, page.url) {
     case .extracted:
       dismiss()
     case .notFound(let message):
@@ -99,29 +104,3 @@ public struct WebExtractorBrowser: View {
     }
   }
 }
-
-/// A thin `WKWebView` host. The `webView` is owned by the SwiftUI view so its DOM can be
-/// queried after load; navigation (tapping links, consent) is the user's. The
-/// representable conformance is the only platform-split: `WKWebView` itself is unified.
-private struct WebContent {
-  let webView: WKWebView
-  let url: URL
-}
-
-#if canImport(UIKit)
-  extension WebContent: UIViewRepresentable {
-    func makeUIView(context: Context) -> WKWebView {
-      webView.load(URLRequest(url: url))
-      return webView
-    }
-    func updateUIView(_ webView: WKWebView, context: Context) {}
-  }
-#elseif canImport(AppKit)
-  extension WebContent: NSViewRepresentable {
-    func makeNSView(context: Context) -> WKWebView {
-      webView.load(URLRequest(url: url))
-      return webView
-    }
-    func updateNSView(_ webView: WKWebView, context: Context) {}
-  }
-#endif

@@ -23,9 +23,9 @@ public enum RenderedDOMFetcher {
       for try await event in page.load(URLRequest(url: url)) {
         if event == .finished { break }
       }
-      // `callJavaScript` runs a function *body*, so the expression needs `return`.
-      return try await page.callJavaScript("return document.documentElement.outerHTML")
-        as? String
+      // The shared `outerHTML` capture primitive (ADR-0025) — the same one the
+      // interactive browser uses, here over the viewless page.
+      return await page.currentDOM()
     } catch {
       return nil
     }
