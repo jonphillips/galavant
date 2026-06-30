@@ -111,3 +111,39 @@ never enable validation, and real hardware renders maps fine.
   reloads the scheme (or reopen the project) so the change takes effect.
 - **Action:** re-verify on each new beta and on a real device; remove the scheme
   override once MapKit/simulator stop tripping the validator.
+
+## Hardware Return doesn't submit the in-app browser's address bar on iPad (Xcode 27 beta) — PUNTED
+
+*Observed 2026-06-30, iOS 27 iPad **device**, Xcode 27 beta. Browser feedback Stage D-6.*
+
+With text typed in the in-app browser's address bar, pressing Return on a **hardware**
+keyboard flashes the `NavigationSplitView` sidebar's "Browser" item but does **not**
+submit/navigate. The key event routes to the sidebar's selection-bound `List` instead of
+the focused address `TextField`'s `onSubmit`. The on-screen keyboard's "Go" works fine —
+only the hardware Return is affected.
+
+- **Tried (didn't help):** catching the key at the field with
+  `.onKeyPress(.return) { submitAddress(); return .handled }` to consume it before it can
+  bubble to the split view — the field's key handler never wins on this beta. Backed out
+  (was branch `feat/browser-stage-d`, commit `9b27865`, not merged).
+- **Decision (Jon, 2026-06-30):** chalk up to an iOS 27 **beta** focus-routing bug; punt.
+- **Re-check on later betas.** Fallback if it persists: focus-scope the detail column, or
+  drop the sidebar `List`'s selection participation while the address field is focused.
+- **Code:** `GalavantLibrary/Sources/GalavantWeb/WebBrowserView.swift` (`addressBar`),
+  host `Galavant/Navigation/AppContainer.swift` (sidebar `List(selection:)`).
+
+## In-app browser clips some sites' fixed top navigation — PUNTED (per-site quirk)
+
+*Observed 2026-06-30, iOS 27 iPad **device**, Xcode 27 beta. jan-hartwig.com. Stage D-5.*
+
+The site's fixed top menu bar renders **above** the visible `WebView` area and can't be
+scrolled into view (it's `position: fixed`). Confirmed the **same in both `.desktop` and
+`.recommended`** content modes, so it is *not* the desktop-viewport layout — the page's
+fixed header sits outside WebKit's visible viewport top in our embedded `WebView`.
+
+- **Decision (Jon, 2026-06-30):** punt — per-site quirk, low value to chase. **Capture
+  still works**: `page.currentDOM()` reads the full DOM regardless of what's scrolled into
+  view, so the clipped header is cosmetic, not a data loss.
+- **Re-check on later betas.** Only one site so far; if it turns out general, revisit
+  top content-inset / safe-area handling on the `WebView`.
+- **Code:** `GalavantLibrary/Sources/GalavantWeb/WebBrowserView.swift` (body `WebView(page)`).

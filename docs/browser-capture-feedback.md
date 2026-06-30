@@ -15,8 +15,8 @@ triaged into stages. Stages A and B are shipped; this doc carries the rest so an
 | 2 | Update dropped notes / notes should be additive / notes-as-subhead | B | ✅ shipped (ADR-0026: `description` vs `notes`, additive notes) |
 | 4 | Navigation/access note ("Apple Maps → wrong entrance") as a field | B | ✅ decided — lives in `notes`, no separate field (Jon's call) |
 | 1 | Browser resets to Google when leaving & returning to the section | C | ⏭️ Codex next (brief below) |
-| 6 | Hardware Return in the Google box flashes the sidebar, doesn't submit | D | 📝 documented below |
-| 5 | jan-hartwig.com cut off at the top of the screen | D | 📝 documented below |
+| 6 | Hardware Return in the Google box flashes the sidebar, doesn't submit | D | 🅿️ punted — iOS 27 beta focus-routing bug (see KNOWN-ISSUES) |
+| 5 | jan-hartwig.com cut off at the top of the screen | D | 🅿️ punted — per-site fixed-header quirk (see KNOWN-ISSUES) |
 | 3 | das-achental `/en/` vs `/en/getting-here.html` capture different locations | E | 📝 investigation below |
 | 11 | Some Michelin ratings are images, not text — capture via on-device LLM/Vision | F | 🔜 backlog (bigger) |
 
@@ -96,6 +96,13 @@ differs from the on-screen keyboard.
 **Acceptance:** type a query, press hardware Return → the browser navigates; the sidebar
 selection does not change.
 
+**OUTCOME (2026-06-30) — PUNTED.** Verified on an iPad device (Xcode 27 beta). The
+`.onKeyPress(.return) { submitAddress(); return .handled }` candidate did **not** help —
+the field's key handler never wins; the Return still routes to the sidebar `List`.
+Soft-keyboard "Go" works. Chalked up to an iOS 27 beta focus-routing bug and backed out
+(branch `feat/browser-stage-d`, commit `9b27865`, deleted). Recorded in
+`docs/KNOWN-ISSUES.md` with the focus-scoping fallback; re-check on later betas.
+
 ### D-5 — jan-hartwig.com clipped at the top of the screen
 
 **Symptom:** the desktop-rendered page's fixed top nav is cut off above the visible area
@@ -112,6 +119,13 @@ decide whether it's worth a general fix or accept it.
 
 **Acceptance:** jan-hartwig.com's top nav is fully visible (or a clear decision that the
 desktop trade-off is acceptable, documented here).
+
+**OUTCOME (2026-06-30) — PUNTED.** Verified on an iPad device (Xcode 27 beta). The clip is
+the **same in `.desktop` and `.recommended`**, so it is *not* the desktop-viewport layout —
+the page's `position: fixed` header sits above WebKit's visible viewport top and scrolling
+can't reveal it. Decided it's a low-value per-site quirk; capture is unaffected
+(`currentDOM()` reads the full DOM regardless). Recorded in `docs/KNOWN-ISSUES.md`; revisit
+top content-inset handling only if it turns out general.
 
 ---
 
