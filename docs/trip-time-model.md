@@ -48,6 +48,20 @@ Pieces this needs:
   opening days × candidate start date) — a STYLE.md functional-core showcase,
   trivially testable.
 
+**Capture gap — to discuss (2026-06-30, Jon).** Today the captured `openingHours`
+(both the browser tap-to-fill chip and the schema.org `openingHours` scrape) is a
+**free-form string**. The solver above needs **structured weekday-level opening
+days** — open/closed per weekday — to evaluate "which start weekdays keep day 6
+off a Monday." So there's a parse/representation step missing between capture and
+the solver: turn `"Tue–Sun 12:00–14:00, 19:00–22:00; closed Mon"` into something
+the pure function can read, while keeping the free-form string as the captured
+source-of-truth (don't discard the original). Open questions for a **dedicated
+session**: the weekday model (a `Weekday` open-set vs. per-day intervals); where
+the structuring happens (on-device LLM at capture time vs. a typed structured
+field vs. a derive-on-demand parse); and how it interacts with the staleness rule
+below. Not scoped yet — flagged so the free-form field doesn't ossify before the
+solver lands.
+
 ## Status of the third recalled requirement
 
 Stops needing "exact time **or** daypart, not everything scheduled exactly" is
