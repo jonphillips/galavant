@@ -11,13 +11,15 @@ let package = Package(
     .library(name: "GalavantImaging", targets: ["GalavantImaging"]),
     .library(name: "GalavantAI", targets: ["GalavantAI"]),
     .library(name: "GalavantChat", targets: ["GalavantChat"]),
-    .library(name: "GalavantWeb", targets: ["GalavantWeb"]),
     .library(name: "GalavantCaptureUI", targets: ["GalavantCaptureUI"]),
   ],
   dependencies: [
     .package(url: "https://github.com/pointfreeco/sqlite-data", from: "1.0.0"),
     .package(url: "https://github.com/pointfreeco/swift-dependencies", from: "1.0.0"),
     .package(url: "https://github.com/scinfu/SwiftSoup", from: "2.7.0"),
+    // The app-agnostic in-app browser, lifted out to jon-platform as a shared
+    // package (jon-platform ADR-0002); consumed by local path.
+    .package(path: "../../../jon-platform/packages/WebExtractorKit"),
   ],
   targets: [
     .target(
@@ -41,7 +43,7 @@ let package = Package(
         "GalavantCapture",
         "GalavantImaging",
         "GalavantAI",
-        "GalavantWeb",
+        .product(name: "WebExtractorKit", package: "WebExtractorKit"),
         .product(name: "SQLiteData", package: "sqlite-data"),
         .product(name: "Dependencies", package: "swift-dependencies"),
       ]
@@ -121,25 +123,15 @@ let package = Package(
         .product(name: "DependenciesTestSupport", package: "swift-dependencies"),
       ]
     ),
-    // App-agnostic in-app browser (ADR-0022): a SwiftUI `WKWebView` host that loads a
-    // URL, lets the user navigate (JS, consent walls, links), and hands the rendered
-    // DOM to an injected extractor plugin. Knows nothing about Idea/Trip/hours/guide —
-    // the plugin seam keeps domain logic on the caller's side, so the module lifts
-    // cleanly into another app. SwiftUI + WebKit only; multiplatform (UIKit on iOS,
-    // AppKit on macOS), so it builds on the macOS test host too.
-    .target(
-      name: "GalavantWeb"
-    ),
-    .testTarget(
-      name: "GalavantWebTests",
-      dependencies: ["GalavantWeb"]
-    ),
+    // The app-agnostic in-app browser (ADR-0022) was lifted out of this package into
+    // jon-platform's shared `WebExtractorKit` (jon-platform ADR-0002) once Yes Chef
+    // became a second consumer; GalavantPlaces and the app target now depend on it by
+    // local path. See galavant ADR-0027.
     // The shared capture confirm-and-tweak UI (ADR-0023): the sheet shown after a page
     // is captured — from the share extension *or* the app's in-app browser. Lifted out
     // of the extension target so both hosts present the same vet-at-source sheet
-    // (ADR-0019 dedup included). The package's second UI module after GalavantWeb;
-    // unlike that one it deliberately carries domain UI (CaptureModel/Idea), so it's the
-    // app's, not a cross-app lift.
+    // (ADR-0019 dedup included). Unlike WebExtractorKit it deliberately carries domain
+    // UI (CaptureModel/Idea), so it's the app's, not a cross-app lift.
     .target(
       name: "GalavantCaptureUI",
       dependencies: ["GalavantPlaces", "GalavantSchema"]

@@ -1,6 +1,6 @@
 import Foundation
 import GalavantPlaces
-import GalavantWeb
+import WebExtractorKit
 import Sharing
 import WebKit
 

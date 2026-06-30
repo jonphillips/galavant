@@ -1,5 +1,5 @@
 import GalavantCaptureUI
-import GalavantWeb
+import WebExtractorKit
 import SwiftUI
 
 /// The top-level **Browser** section (ADR-0025): a persistent, full-chrome browser in the

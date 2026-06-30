@@ -17,6 +17,8 @@ settings:
 packages:
   GalavantLibrary:
     path: GalavantLibrary
+  WebExtractorKit:
+    path: ../../jon-platform/packages/WebExtractorKit
   sqlite-data:
     url: https://github.com/pointfreeco/sqlite-data
     from: 1.0.0
@@ -57,8 +59,8 @@ targets:
         product: GalavantAI
       - package: GalavantLibrary
         product: GalavantChat
-      - package: GalavantLibrary
-        product: GalavantWeb
+      - package: WebExtractorKit
+        product: WebExtractorKit
       - package: GalavantLibrary
         product: GalavantCaptureUI
       - package: sqlite-data
