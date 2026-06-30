@@ -65,6 +65,11 @@ public struct DetectedEvaluation: Identifiable, Equatable, Sendable {
   /// out at 3, so its `valueMax` (3) caps it correctly when present.
   public var starCap: Int { Int(parsed.valueMax ?? 5) }
 
+  /// Correct the judging source's name (e.g. a generic "Guide" → "Michelin").
+  public mutating func correctSource(_ name: String) {
+    parsed.sourceName = name
+  }
+
   /// Correct a tiered star count, regenerating the native text/number/display.
   public mutating func correctStars(_ n: Int) {
     let clamped = max(0, min(starCap, n))

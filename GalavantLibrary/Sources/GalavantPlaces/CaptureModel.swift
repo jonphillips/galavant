@@ -70,6 +70,15 @@ public final class CaptureModel {
   /// re-checks and is the source of truth, so a race can't double-insert.
   public private(set) var existingMatch: Idea?
 
+  /// The opening-hours string this capture will save — the tap-to-fill override if set,
+  /// else the page parser's result. nil when neither produced hours. Surfaced so the
+  /// confirm sheet can show what will be saved.
+  public var openingHoursDisplay: String? {
+    if let override = draftOverrides?.openingHours, !override.isEmpty { return override }
+    guard let captured, !captured.openingHours.isEmpty else { return nil }
+    return captured.openingHours.joined(separator: "\n")
+  }
+
   #if DEBUG
     /// A read-only trace of the last `prepare()`'s location-match attempt, surfaced
     /// in the confirm sheet so a failed/empty match can be diagnosed on-device
@@ -342,6 +351,7 @@ public final class CaptureModel {
     let headerImage = await prepareHeaderImage()
     let id = draft.id
     let name = draft.name
+    let description = draft.description
     let notes = draft.notes
     let kind = draft.kind
     let regionName = draft.regionName
@@ -363,14 +373,14 @@ public final class CaptureModel {
     // result is the fallback for sites with structured JSON-LD/microdata hours; the LLM
     // fallback for unstructured sites runs later in PlaceEnricher
     // (docs/BACKLOG.md "Unstructured-hours capture fallback").
-    let openingHoursString: String? = draftOverrides?.openingHours
-      ?? captured.flatMap { $0.openingHours.isEmpty ? nil : $0.openingHours.joined(separator: "\n") }
+    let openingHoursString = openingHoursDisplay
     // Only consult the clock when something needs stamping (evaluations or hours).
     let stamp = (!evaluations.isEmpty || openingHoursString != nil) ? now.now : Date.distantPast
     try await database.write { db in
       let party = try TravelParty.ensureDefault(in: db)
       let resolved = try Self.resolveIdea(
-        in: db, id: id, name: name, notes: notes, kind: kind, regionName: regionName,
+        in: db, id: id, name: name, description: description, notes: notes, kind: kind,
+        regionName: regionName,
         address: address, phone: phone, latitude: latitude, longitude: longitude,
         url: url, mapItemIdentifier: mapItemIdentifier, travelPartyID: party.id,
         openingHours: openingHoursString, hoursProvenance: openingHoursString != nil ? .official : nil,
@@ -417,6 +427,7 @@ public final class CaptureModel {
     in db: Database,
     id: Idea.ID?,
     name: String,
+    description: String,
     notes: String,
     kind: IdeaKind?,
     regionName: String?,
@@ -436,13 +447,15 @@ public final class CaptureModel {
     }
     if let existing {
       let merged = existing.supplemented(
-        name: name, kind: kind, regionName: regionName, address: address,
+        name: name, description: description, notes: notes, kind: kind,
+        regionName: regionName, address: address,
         phone: phone, latitude: latitude, longitude: longitude, url: url,
         mapItemIdentifier: mapItemIdentifier, openingHours: openingHours,
         hoursProvenance: hoursProvenance, hoursVerifiedAt: hoursVerifiedAt
       )
       // Full-record upsert: `merged` carries every existing column, so this updates
-      // the supplemented facts without dropping notes/visited/hours/etc.
+      // the supplemented facts (description fill-blanks, notes appended) without
+      // dropping visited/hours/etc.
       try Idea.upsert { Idea.Draft(merged) }.execute(db)
       return (existing.id, false)
     }
@@ -450,6 +463,7 @@ public final class CaptureModel {
       Idea.Draft(
         id: id,
         name: name,
+        description: description,
         notes: notes,
         kind: kind,
         regionName: regionName,

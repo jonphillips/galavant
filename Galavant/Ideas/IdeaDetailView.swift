@@ -65,6 +65,10 @@ struct IdeaDetailView: View {
 
       Section { header }
 
+      if !idea.description.isEmpty {
+        Section("Description") { Text(idea.description) }
+      }
+
       if let stopContext {
         Section("On the Itinerary") { placement(stopContext) }
       }

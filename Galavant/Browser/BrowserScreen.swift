@@ -25,6 +25,8 @@ struct BrowserScreen: View {
   var body: some View {
     WebBrowserView(
       initialURL: Self.startPage,
+      // Explicit browser navigation starts a new capture context; link taps are handled later.
+      onNavigate: { _ in model.chipDraft = ChipDraft() },
       accessory: { page in
         Button {
           Task { await model.capture(from: page) }

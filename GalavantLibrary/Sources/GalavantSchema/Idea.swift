@@ -5,6 +5,15 @@ import SQLiteData
 public struct Idea: Identifiable, Equatable, Sendable {
   public let id: UUID
   public var name = ""
+  /// A short descriptor of the place — the page's JSON-LD / `og:description` summary,
+  /// de-marketed (ADR-0026). A *fact* derived from the source: fill-blanks-only on a
+  /// re-capture, like the other page-derived facts. Distinct from `notes`, which is the
+  /// user's own free space. Empty when the page carried no description.
+  public var description = ""
+  /// The user's own free-text notes — theirs to grow. **Additive** on re-capture
+  /// (ADR-0026): a fresh capture appends rather than replacing, so a hand-written note
+  /// (e.g. "Apple Maps sends you to the service entrance — real door is round back")
+  /// survives. Distinct from the page-derived `description`.
   public var notes = ""
   public var kind: IdeaKind?
   public var regionName: String?
@@ -39,6 +48,7 @@ public struct Idea: Identifiable, Equatable, Sendable {
   public init(
     id: UUID,
     name: String = "",
+    description: String = "",
     notes: String = "",
     kind: IdeaKind? = nil,
     regionName: String? = nil,
@@ -57,6 +67,7 @@ public struct Idea: Identifiable, Equatable, Sendable {
   ) {
     self.id = id
     self.name = name
+    self.description = description
     self.notes = notes
     self.kind = kind
     self.regionName = regionName

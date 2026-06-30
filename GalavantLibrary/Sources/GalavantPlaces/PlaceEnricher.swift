@@ -66,7 +66,10 @@ public final class PlaceEnricher {
     // Backfill only fields the capture left blank (confirm-and-tweak — never clobber
     // a fact the user or the original capture already established). Pre-resolved to
     // final values so the update is straight assignment (a no-op where already set).
-    let notes = idea.notes.isEmpty ? (TextCleaning.demarketed(page.summary) ?? idea.notes) : idea.notes
+    // The page descriptor backfills `description` (a fact), not `notes` — notes is the
+    // user's own space (ADR-0026), never touched by enrichment.
+    let description = idea.description.isEmpty
+      ? (TextCleaning.demarketed(page.summary) ?? idea.description) : idea.description
     let regionName = idea.regionName ?? page.address.locality ?? page.address.region
     let phone = idea.phone ?? page.phone
     let pageAddress = page.address.oneLine
@@ -79,7 +82,7 @@ public final class PlaceEnricher {
     try? await database.write { db -> Void in
       try Idea.find(ideaID)
         .update {
-          $0.notes = #bind(notes)
+          $0.description = #bind(description)
           $0.regionName = #bind(regionName)
           $0.phone = #bind(phone)
           $0.address = #bind(address)

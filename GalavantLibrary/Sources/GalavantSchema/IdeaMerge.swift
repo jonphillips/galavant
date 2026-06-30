@@ -11,6 +11,8 @@ extension Idea {
   /// without a database.
   public func supplemented(
     name: String,
+    description: String = "",
+    notes: String = "",
     kind: IdeaKind?,
     regionName: String?,
     address: String?,
@@ -25,6 +27,11 @@ extension Idea {
   ) -> Idea {
     var merged = self
     if merged.name.isEmpty, !name.isEmpty { merged.name = name }
+    // `description` is a page-derived fact — fill-blanks-only, like the rest below.
+    if merged.description.isEmpty, !description.isEmpty { merged.description = description }
+    // `notes` is the user's space — additive (ADR-0026), the one field that grows on a
+    // re-capture rather than standing pat.
+    merged.notes = Self.appendingNotes(existing: merged.notes, addition: notes)
     if merged.kind == nil { merged.kind = kind }
     if merged.regionName == nil { merged.regionName = regionName }
     if merged.address == nil { merged.address = address }
@@ -39,5 +46,19 @@ extension Idea {
       merged.hoursVerifiedAt = hoursVerifiedAt
     }
     return merged
+  }
+
+  /// Append captured notes to existing notes, additively (ADR-0026): notes are the
+  /// user's to grow, so a re-capture adds to them rather than replacing. A blank
+  /// addition is a no-op; an addition already present verbatim isn't duplicated; a new
+  /// note is separated from the existing block by a blank line. Pure — unit-testable
+  /// without a database.
+  public static func appendingNotes(existing: String, addition: String) -> String {
+    let add = addition.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !add.isEmpty else { return existing }
+    let base = existing.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !base.isEmpty else { return add }
+    guard base.range(of: add) == nil else { return base }
+    return base + "\n\n" + add
   }
 }

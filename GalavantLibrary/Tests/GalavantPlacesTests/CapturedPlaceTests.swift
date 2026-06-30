@@ -38,7 +38,9 @@ import Testing
 
     #expect(draft.id == id)
     #expect(draft.name == "Noma")
-    #expect(draft.notes == "Three-Michelin-star Nordic restaurant.")
+    // The page descriptor maps to `description`; `notes` is the user's own space (ADR-0026).
+    #expect(draft.description == "Three-Michelin-star Nordic restaurant.")
+    #expect(draft.notes == "")
     #expect(draft.kind == .food)  // Restaurant wins over generic LocalBusiness
     #expect(draft.phone == "+45 32 96 32 97")
     #expect(draft.url == "https://noma.dk")  // the place's own site

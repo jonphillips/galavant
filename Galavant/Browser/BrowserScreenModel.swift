@@ -106,7 +106,6 @@ final class BrowserScreenModel {
     let model = CaptureModel(html: html, sourceURL: page.url)
     if chipDraft.hasAnyFill { model.draftOverrides = chipDraft.toOverride() }
     capture = BrowserCapture(model: model, sourceURL: page.url)
-    chipDraft = ChipDraft()
   }
 
   /// Tear down the confirm sheet (saved or cancelled). On a *save*, record the place in
@@ -114,6 +113,7 @@ final class BrowserScreenModel {
   func captureFinished() {
     if let capture, capture.model.phase == .saved {
       record(name: capture.model.draft.name, url: capture.sourceURL)
+      chipDraft = ChipDraft()
     }
     capture = nil
   }

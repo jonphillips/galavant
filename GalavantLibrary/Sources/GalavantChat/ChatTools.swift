@@ -118,7 +118,7 @@ public struct PoolToolExecutor: ChatToolExecutor {
       if let region, !(idea.regionName?.lowercased().contains(region) ?? false) { return false }
       if !includeVisited, idea.visited { return false }
       if let query, !query.isEmpty {
-        let haystack = (idea.name + " " + idea.notes).lowercased()
+        let haystack = (idea.name + " " + idea.description + " " + idea.notes).lowercased()
         if !haystack.contains(query) { return false }
       }
       return true

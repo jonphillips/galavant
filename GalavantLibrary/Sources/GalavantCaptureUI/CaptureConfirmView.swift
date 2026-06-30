@@ -162,9 +162,24 @@ public struct CaptureConfirmView: View {
         }
       }
 
+      Section {
+        TextField("Description", text: $model.draft.description, axis: .vertical)
+          .lineLimit(1...5)
+      } header: {
+        Text("Description")
+      } footer: {
+        Text("From the page. Notes below are your own — they're added to, never overwritten.")
+      }
+
       Section("Notes") {
         TextField("Notes", text: $model.draft.notes, axis: .vertical)
           .lineLimit(1...5)
+      }
+
+      if let hours = model.openingHoursDisplay {
+        Section("Hours") {
+          Text(hours).foregroundStyle(.secondary)
+        }
       }
 
       if let phone = model.draft.phone, !phone.isEmpty {
@@ -270,6 +285,15 @@ public struct CaptureConfirmView: View {
   /// native value triad on the bound `DetectedEvaluation` (`correctStyle` helpers).
   @ViewBuilder
   private func ratingEditor(_ detected: Binding<DetectedEvaluation>) -> some View {
+    TextField(
+      "Source",
+      text: Binding(
+        get: { detected.wrappedValue.sourceName },
+        set: { detected.wrappedValue.correctSource($0) }
+      )
+    )
+    .font(.subheadline)
+
     switch detected.wrappedValue.correctionStyle {
     case .stars:
       Stepper(

@@ -111,6 +111,9 @@ struct IdeaFormView: View {
           guideRatingSection
         }
         Section {
+          StackedTextEditor(title: "Description", text: $model.draft.description, minHeight: 80)
+        }
+        Section {
           StackedTextEditor(title: "Notes", text: $model.draft.notes, minHeight: 120)
         }
       }

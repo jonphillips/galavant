@@ -149,6 +149,7 @@ public struct WebBrowserView<Accessory: View, Home: View, FieldBar: View>: View 
       } else {
         Text(displayAddress)
           .lineLimit(1)
+          .truncationMode(.middle)
           .foregroundStyle(page.url == nil ? .secondary : .primary)
           .frame(maxWidth: .infinity, alignment: .leading)
           .contentShape(Rectangle())
@@ -197,7 +198,7 @@ public struct WebBrowserView<Accessory: View, Home: View, FieldBar: View>: View 
 
   private var displayAddress: String {
     guard let url = page.url else { return "Search or enter address" }
-    return url.host() ?? url.absoluteString
+    return url.absoluteString
   }
 
   private func beginEditing() {

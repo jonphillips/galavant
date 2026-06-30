@@ -76,6 +76,7 @@ public struct ResolvedIdeaContext: Sendable, Equatable {
     if let hours = idea.openingHours, !hours.isEmpty {
       lines.append("- Opening hours: \(hours.replacingOccurrences(of: "\n", with: "; "))")
     }
+    if !idea.description.isEmpty { lines.append("- Description: \(idea.description)") }
     if !idea.notes.isEmpty { lines.append("- Notes: \(idea.notes)") }
     if !evaluations.isEmpty {
       lines.append("- Source evaluations (shown exactly as the source rated it):")

@@ -81,8 +81,8 @@ import UniformTypeIdentifiers
           ImageAsset.images(forIdea: ideaID, in: db)
         )
       }
-      // Backfilled blanks from the re-parsed website.
-      #expect(idea?.notes == "A Korean-Nordic tasting menu in Copenhagen.")
+      // Backfilled blanks from the re-parsed website (descriptor → description, ADR-0026).
+      #expect(idea?.description == "A Korean-Nordic tasting menu in Copenhagen.")
       #expect(idea?.regionName == "Copenhagen")
       #expect(idea?.kind == .food)  // schema.org Restaurant
       #expect(idea?.enrichedAt == stamp)  // stamped, so it won't run again
@@ -297,7 +297,7 @@ import UniformTypeIdentifiers
       await PlaceEnricher().enrichIfNeeded(ideaID: ideaID)
 
       let idea = try #require(try await database.read { db in try Idea.find(ideaID).fetchOne(db) })
-      #expect(idea.notes == "A Korean-Nordic tasting menu in Copenhagen.")  // from the rendered DOM
+      #expect(idea.description == "A Korean-Nordic tasting menu in Copenhagen.")  // from the rendered DOM
       #expect(idea.regionName == "Copenhagen")
       #expect(idea.enrichedAt == stamp)
     }

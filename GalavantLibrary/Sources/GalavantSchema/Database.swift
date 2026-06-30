@@ -474,6 +474,13 @@ extension DependencyValues {
       // enforce cross-device uniqueness (a legitimate offline twin must still sync).
       try #sql(#"ALTER TABLE "ideas" ADD COLUMN "mapItemIdentifier" TEXT"#).execute(db)
     }
+    migrator.registerMigration("Add description to ideas (ADR-0026)") { db in
+      // A page-derived short descriptor (JSON-LD / og:description), split out of `notes`
+      // so notes can be the user's own free space (ADR-0026). NOT NULL DEFAULT '' to
+      // match the schema's non-optional `description: String` column; existing rows
+      // back-fill to empty.
+      try #sql(#"ALTER TABLE "ideas" ADD COLUMN "description" TEXT NOT NULL DEFAULT ''"#).execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if context == .live, startSyncEngine {

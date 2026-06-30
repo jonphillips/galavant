@@ -77,4 +77,34 @@ struct IdeaTests {
     )
     #expect(merged.mapItemIdentifier == "maps:original")
   }
+
+  @Test("supplemented fills a blank description but appends to notes (ADR-0026)")
+  func supplementedDescriptionFillBlankNotesAdditive() {
+    // description is a fact (fill-blanks); notes is the user's space (additive).
+    let blank = Idea(id: UUID(), name: "Noma")
+    let filled = blank.supplemented(
+      name: "Noma", description: "Nordic tasting menu.", notes: "Ask for the corner table.",
+      kind: nil, regionName: nil, address: nil, phone: nil, latitude: nil, longitude: nil,
+      url: "", mapItemIdentifier: nil
+    )
+    #expect(filled.description == "Nordic tasting menu.")
+    #expect(filled.notes == "Ask for the corner table.")
+
+    // A second capture: description stands (already set), notes grow.
+    let again = filled.supplemented(
+      name: "Noma", description: "A different page blurb.", notes: "Service entrance is wrong.",
+      kind: nil, regionName: nil, address: nil, phone: nil, latitude: nil, longitude: nil,
+      url: "", mapItemIdentifier: nil
+    )
+    #expect(again.description == "Nordic tasting menu.")  // fact preserved, not clobbered
+    #expect(again.notes == "Ask for the corner table.\n\nService entrance is wrong.")
+  }
+
+  @Test("appendingNotes: blank no-ops, dupes don't repeat, new notes stack")
+  func appendingNotesRules() {
+    #expect(Idea.appendingNotes(existing: "Keep me", addition: "   ") == "Keep me")
+    #expect(Idea.appendingNotes(existing: "", addition: "First") == "First")
+    #expect(Idea.appendingNotes(existing: "First", addition: "First") == "First")  // verbatim dupe
+    #expect(Idea.appendingNotes(existing: "First", addition: "Second") == "First\n\nSecond")
+  }
 }

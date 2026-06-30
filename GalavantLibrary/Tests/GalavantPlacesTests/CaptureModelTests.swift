@@ -55,7 +55,8 @@ import UniformTypeIdentifiers
 
       #expect(model.phase == .ready)
       #expect(model.draft.name == "Noma")
-      #expect(model.draft.notes == "Nordic tasting menu.")
+      #expect(model.draft.description == "Nordic tasting menu.")  // descriptor → description (ADR-0026)
+      #expect(model.draft.notes == "")
       #expect(model.draft.kind == .food)
       #expect(model.draft.url == "https://noma.dk")
       #expect(model.draft.latitude == 55.6839)
