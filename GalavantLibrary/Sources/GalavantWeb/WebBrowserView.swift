@@ -36,7 +36,7 @@ public struct WebBrowserView<Accessory: View, Home: View, FieldBar: View>: View 
   /// `EmptyView` when the host supplies no field bar (the no-arg overload below).
   private let fieldBar: (WebPage) -> FieldBar
 
-  @State private var page = WebPage.browser(contentMode: .desktop)
+  private let page: WebPage
   @State private var addressText = ""
   @State private var editing = false
   /// Show the `home` surface over the loaded page — the toolbar home button sets it;
@@ -48,6 +48,7 @@ public struct WebBrowserView<Accessory: View, Home: View, FieldBar: View>: View 
   /// Full initializer — host supplies a field-capture bar in addition to the action
   /// accessory and home surface.
   public init(
+    page: WebPage,
     initialURL: URL? = nil,
     searchURL: @escaping (String) -> URL? = WebAddress.duckDuckGo,
     onNavigate: @escaping (URL) -> Void = { _ in },
@@ -55,6 +56,7 @@ public struct WebBrowserView<Accessory: View, Home: View, FieldBar: View>: View 
     @ViewBuilder fieldBar: @escaping (WebPage) -> FieldBar,
     @ViewBuilder home: @escaping (_ open: @escaping (URL) -> Void) -> Home
   ) {
+    self.page = page
     self.initialURL = initialURL
     self.searchURL = searchURL
     self.onNavigate = onNavigate
@@ -65,12 +67,14 @@ public struct WebBrowserView<Accessory: View, Home: View, FieldBar: View>: View 
 
   /// Convenience initializer — no field-capture bar. Existing callers compile unchanged.
   public init(
+    page: WebPage,
     initialURL: URL? = nil,
     searchURL: @escaping (String) -> URL? = WebAddress.duckDuckGo,
     onNavigate: @escaping (URL) -> Void = { _ in },
     @ViewBuilder accessory: @escaping (WebPage) -> Accessory,
     @ViewBuilder home: @escaping (_ open: @escaping (URL) -> Void) -> Home
   ) where FieldBar == EmptyView {
+    self.page = page
     self.initialURL = initialURL
     self.searchURL = searchURL
     self.onNavigate = onNavigate

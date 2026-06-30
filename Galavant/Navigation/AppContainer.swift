@@ -4,6 +4,7 @@ import SwiftUI
 /// on iPad and Mac. Each section gets its own navigation stack.
 struct AppContainer: View {
   @State private var router = AppRouter()
+  @State private var browserModel = BrowserScreenModel()
   @Environment(\.prefersTabNavigation) private var prefersTabNavigation
 
   var body: some View {
@@ -43,5 +44,6 @@ struct AppContainer: View {
       }
     }
     .environment(router)
+    .environment(browserModel)
   }
 }

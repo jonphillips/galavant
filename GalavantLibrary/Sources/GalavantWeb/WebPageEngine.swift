@@ -10,7 +10,7 @@ extension WebPage {
   /// **default persistent** website data store. Persistence is the point — a login
   /// (paywalled source) survives across launches because cookies live in the default
   /// store; never swap in a non-persistent store (ADR-0025 §4).
-  static func browser(
+  public static func browser(
     contentMode: WebPage.NavigationPreferences.ContentMode = .recommended
   ) -> WebPage {
     var configuration = WebPage.Configuration()

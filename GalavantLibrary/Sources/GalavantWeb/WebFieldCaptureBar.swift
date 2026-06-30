@@ -17,10 +17,12 @@ import WebKit
 public struct WebFieldCaptureBar: View {
   let page: WebPage
   let fields: [WebCaptureField]
+  let onClear: (() -> Void)?
 
-  public init(page: WebPage, fields: [WebCaptureField]) {
+  public init(page: WebPage, fields: [WebCaptureField], onClear: (() -> Void)? = nil) {
     self.page = page
     self.fields = fields
+    self.onClear = onClear
   }
 
   public var body: some View {
@@ -28,6 +30,8 @@ public struct WebFieldCaptureBar: View {
       HStack(spacing: 8) {
         ForEach(fields) { field in
           chip(for: field)
+        }
+        if let onClear { Divider().frame(height: 20); Button(action: onClear){ Image(systemName: "xmark.circle") }.buttonStyle(.plain).foregroundStyle(.secondary)
         }
       }
       .padding(.horizontal)

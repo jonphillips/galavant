@@ -15,7 +15,7 @@ import SwiftUI
 /// one (nesting another traps the iPad split view), and `WebBrowserView` renders its chrome
 /// as plain bars, not a second navigation bar.
 struct BrowserScreen: View {
-  @State private var model = BrowserScreenModel()
+  @Environment(BrowserScreenModel.self) private var model
 
   /// The page a fresh browser session lands on (Jon's choice). The address bar's
   /// no-URL *search* still uses the module default (DuckDuckGo, ADR-0001) — this is only
@@ -23,10 +23,10 @@ struct BrowserScreen: View {
   private static let startPage = URL(string: "https://www.google.com")
 
   var body: some View {
+    @Bindable var model = model
     WebBrowserView(
+      page: model.page,
       initialURL: Self.startPage,
-      // Explicit browser navigation starts a new capture context; link taps are handled later.
-      onNavigate: { _ in model.chipDraft = ChipDraft() },
       accessory: { page in
         Button {
           Task { await model.capture(from: page) }
@@ -38,7 +38,11 @@ struct BrowserScreen: View {
         .disabled(page.url == nil)
       },
       fieldBar: { page in
-        WebFieldCaptureBar(page: page, fields: model.captureFields)
+        WebFieldCaptureBar(
+          page: page,
+          fields: model.captureFields,
+          onClear: model.chipDraft.hasAnyFill ? { model.chipDraft = ChipDraft() } : nil
+        )
       },
       home: { open in
         BrowserHome(recentCaptures: model.recentCaptures, open: open)
@@ -48,7 +52,9 @@ struct BrowserScreen: View {
     #if os(iOS)
       .navigationBarTitleDisplayMode(.inline)
     #endif
-    .sheet(item: $model.capture) { payload in
+      .onChange(of: model.page.url) { old, new in
+        if browsingSite(old) != browsingSite(new) { model.chipDraft = ChipDraft() }
+      }    .sheet(item: $model.capture) { payload in
       CaptureConfirmView(model: payload.model) {
         model.captureFinished()
       }
@@ -94,4 +100,12 @@ private struct BrowserHome: View {
       }
     }
   }
+}
+
+/// The "site" used to decide when a capture draft belongs to a new place: the host
+/// with a leading "www." stripped, lowercased. Deliberately not eTLD+1 — a simple,
+/// predictable rule; a rare cross-subdomain place costs one re-tap.
+private func browsingSite(_ url: URL?) -> String? {
+  guard let host = url?.host()?.lowercased() else { return nil }
+  return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
 }

@@ -18,6 +18,12 @@ struct ChipDraft {
   func toOverride() -> CaptureDraftOverride {
     CaptureDraftOverride(name: name, address: address, notes: notes, openingHours: openingHours)
   }
+
+  mutating func appendNotes(_ s: String) {
+    let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return }
+    notes = notes.map { $0 + "\n" + trimmed } ?? trimmed
+  }
 }
 
 /// A place captured from the in-app browser, awaiting confirm-and-tweak. Holds the
@@ -52,6 +58,11 @@ struct RecentCapture: Identifiable, Codable, Hashable {
 @MainActor
 @Observable
 final class BrowserScreenModel {
+  /// The single, long-lived web page for the Browser section. Owned here (not in
+  /// `WebBrowserView`'s `@State`) so navigation state survives switching sections — the
+  /// detail column reinstantiates the screen view, but this model outlives it.
+  let page = WebPage.browser(contentMode: .desktop)
+
   /// Set to present the capture confirm sheet after a grab.
   var capture: BrowserCapture?
 
@@ -77,7 +88,7 @@ final class BrowserScreenModel {
       WebCaptureField(
         id: "notes", label: "Notes", systemImage: "note.text",
         isFilled: chipDraft.notes != nil
-      ) { [weak self] s in self?.chipDraft.notes = s },
+      ) { [weak self] s in self?.chipDraft.appendNotes(s) },
     ]
   }
 
