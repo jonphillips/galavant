@@ -4,6 +4,22 @@ import GalavantWeb
 import Sharing
 import WebKit
 
+/// Accumulated field values from the browser's tap-to-fill chip bar (ADR-0025 §5).
+/// Each property is set by tapping the corresponding chip after selecting text on the page.
+/// Carried into `CaptureModel.draftOverrides` when "Capture" is tapped, then reset.
+struct ChipDraft {
+  var name: String?
+  var address: String?
+  var notes: String?
+  var openingHours: String?
+
+  var hasAnyFill: Bool { name != nil || address != nil || notes != nil || openingHours != nil }
+
+  func toOverride() -> CaptureDraftOverride {
+    CaptureDraftOverride(name: name, address: address, notes: notes, openingHours: openingHours)
+  }
+}
+
 /// A place captured from the in-app browser, awaiting confirm-and-tweak. Holds the
 /// `CaptureModel` so the screen can read the (possibly user-edited) final draft back out
 /// after a save — that's how a saved capture lands in **Recent Captures**. Identifiable so
@@ -39,6 +55,32 @@ final class BrowserScreenModel {
   /// Set to present the capture confirm sheet after a grab.
   var capture: BrowserCapture?
 
+  /// Accumulated tap-to-fill values from the chip bar. Reset when "Capture" fires.
+  var chipDraft = ChipDraft()
+
+  /// Field-chip descriptors wired to `chipDraft`. Recomputed whenever `chipDraft`
+  /// changes (the model is `@Observable`), so the bar's `isFilled` state stays live.
+  var captureFields: [WebCaptureField] {
+    [
+      WebCaptureField(
+        id: "name", label: "Name", systemImage: "textformat",
+        isFilled: chipDraft.name != nil
+      ) { [weak self] s in self?.chipDraft.name = s },
+      WebCaptureField(
+        id: "hours", label: "Hours", systemImage: "clock",
+        isFilled: chipDraft.openingHours != nil
+      ) { [weak self] s in self?.chipDraft.openingHours = s },
+      WebCaptureField(
+        id: "address", label: "Address", systemImage: "mappin",
+        isFilled: chipDraft.address != nil
+      ) { [weak self] s in self?.chipDraft.address = s },
+      WebCaptureField(
+        id: "notes", label: "Notes", systemImage: "note.text",
+        isFilled: chipDraft.notes != nil
+      ) { [weak self] s in self?.chipDraft.notes = s },
+    ]
+  }
+
   /// The recently *captured* places, newest first, persisted across launches as a JSON
   /// blob (a richer payload than the app's scalar `@Shared` strings — name + URL per row).
   @ObservationIgnored @Shared(.appStorage("browserRecentCaptures")) private var recentCapturesRaw = ""
@@ -56,12 +98,15 @@ final class BrowserScreenModel {
   /// Grab the browser's rendered DOM and present the confirm sheet over it. A blank grab
   /// (page not yet loaded) is a no-op. The confirm sheet runs the same capture pipeline
   /// the share extension uses — vet-at-source + ADR-0019 dedup.
+  ///
+  /// If the chip bar has any pre-filled fields they are carried into `CaptureModel` as
+  /// `draftOverrides` so they win over the auto-parser at the end of `prepare()`.
   func capture(from page: WebPage) async {
     guard let html = await page.currentDOM(), !html.isEmpty else { return }
-    capture = BrowserCapture(
-      model: CaptureModel(html: html, sourceURL: page.url),
-      sourceURL: page.url
-    )
+    let model = CaptureModel(html: html, sourceURL: page.url)
+    if chipDraft.hasAnyFill { model.draftOverrides = chipDraft.toOverride() }
+    capture = BrowserCapture(model: model, sourceURL: page.url)
+    chipDraft = ChipDraft()
   }
 
   /// Tear down the confirm sheet (saved or cancelled). On a *save*, record the place in

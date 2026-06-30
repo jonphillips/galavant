@@ -7,10 +7,13 @@ import WebKit
 /// panel is wide; the desktop layout is richer for capture) and holds a real session, so
 /// a login to a paywalled source persists across launches via the default data store.
 ///
-/// It knows no app domain. The host plugs in two slots:
+/// It knows no app domain. The host plugs in three slots:
 /// - `accessory`: bottom-bar affordances built over the live `WebPage` — the "Capture"
-///   action today, a field-capture bar later. The host reads the rendered DOM with
-///   `page.currentDOM()`.
+///   action. The host reads the rendered DOM with `page.currentDOM()`.
+/// - `fieldBar`: a full-width bar between the web content and the bottom nav toolbar —
+///   the tap-to-fill field-capture bar (ADR-0025 §5). Receives the live `WebPage` so
+///   chips can call `page.currentSelection()`. Omit (or use the convenience init) to
+///   get `EmptyView` here.
 /// - `home`: a start surface shown when nothing is loaded yet (e.g. recent destinations);
 ///   it navigates by calling the supplied `open`.
 ///
@@ -22,12 +25,16 @@ import WebKit
 /// loaded** — a fresh session lands on a useful page (the host's choice), while a
 /// browser that already holds a page (a held session across tab switches) is left
 /// untouched. The `home` surface is reachable any time via the toolbar's home button.
-public struct WebBrowserView<Accessory: View, Home: View>: View {
+public struct WebBrowserView<Accessory: View, Home: View, FieldBar: View>: View {
   private let initialURL: URL?
   private let searchURL: (String) -> URL?
   private let onNavigate: (URL) -> Void
   private let accessory: (WebPage) -> Accessory
   private let home: (@escaping (URL) -> Void) -> Home
+  /// Full-width bar rendered between the web content and the bottom nav toolbar.
+  /// Receives the live `WebPage` so it can call `page.currentSelection()` on chip tap.
+  /// `EmptyView` when the host supplies no field bar (the no-arg overload below).
+  private let fieldBar: (WebPage) -> FieldBar
 
   @State private var page = WebPage.browser(contentMode: .desktop)
   @State private var addressText = ""
@@ -38,17 +45,37 @@ public struct WebBrowserView<Accessory: View, Home: View>: View {
   @State private var showingHome = false
   @FocusState private var addressFocused: Bool
 
+  /// Full initializer — host supplies a field-capture bar in addition to the action
+  /// accessory and home surface.
   public init(
     initialURL: URL? = nil,
     searchURL: @escaping (String) -> URL? = WebAddress.duckDuckGo,
     onNavigate: @escaping (URL) -> Void = { _ in },
     @ViewBuilder accessory: @escaping (WebPage) -> Accessory,
+    @ViewBuilder fieldBar: @escaping (WebPage) -> FieldBar,
     @ViewBuilder home: @escaping (_ open: @escaping (URL) -> Void) -> Home
   ) {
     self.initialURL = initialURL
     self.searchURL = searchURL
     self.onNavigate = onNavigate
     self.accessory = accessory
+    self.fieldBar = fieldBar
+    self.home = home
+  }
+
+  /// Convenience initializer — no field-capture bar. Existing callers compile unchanged.
+  public init(
+    initialURL: URL? = nil,
+    searchURL: @escaping (String) -> URL? = WebAddress.duckDuckGo,
+    onNavigate: @escaping (URL) -> Void = { _ in },
+    @ViewBuilder accessory: @escaping (WebPage) -> Accessory,
+    @ViewBuilder home: @escaping (_ open: @escaping (URL) -> Void) -> Home
+  ) where FieldBar == EmptyView {
+    self.initialURL = initialURL
+    self.searchURL = searchURL
+    self.onNavigate = onNavigate
+    self.accessory = accessory
+    self.fieldBar = { _ in EmptyView() }
     self.home = home
   }
 
@@ -72,6 +99,13 @@ public struct WebBrowserView<Accessory: View, Home: View>: View {
         if isHome {
           home(open)
         }
+      }
+
+      // Field-capture bar: full-width, only shown over a loaded page (not on the home
+      // surface). The host returns EmptyView when it supplies no bar.
+      if !isHome {
+        fieldBar(page)
+          .background(.bar)
       }
 
       Divider()

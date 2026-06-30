@@ -35,6 +35,9 @@ struct BrowserScreen: View {
         }
         .disabled(page.url == nil)
       },
+      fieldBar: { page in
+        WebFieldCaptureBar(page: page, fields: model.captureFields)
+      },
       home: { open in
         BrowserHome(recentCaptures: model.recentCaptures, open: open)
       }

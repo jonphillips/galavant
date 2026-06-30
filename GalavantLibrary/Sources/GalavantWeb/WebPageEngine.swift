@@ -25,4 +25,11 @@ extension WebPage {
   public func currentDOM() async -> String? {
     (try? await callJavaScript("return document.documentElement.outerHTML")) as? String
   }
+
+  /// The user's current on-page text selection, or an empty string when nothing is
+  /// selected or the script fails. Used by the field-capture bar to fill a chip field
+  /// from a selection the user made before tapping the chip.
+  public func currentSelection() async -> String {
+    (try? await callJavaScript("return window.getSelection().toString()")) as? String ?? ""
+  }
 }

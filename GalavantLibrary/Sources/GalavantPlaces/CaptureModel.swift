@@ -46,6 +46,10 @@ public final class CaptureModel {
   public private(set) var phase: Phase = .preparing
   /// The editable idea the confirm sheet binds to (name/kind/notes/url/…).
   public var draft = Idea.Draft()
+  /// Explicit field values set by the browser's tap-to-fill chip bar (ADR-0025 §5).
+  /// Set before `prepare()` runs; applied at the end of `prepare()` so user selections
+  /// win over auto-parsed values. `nil` = no overrides (the common path).
+  public var draftOverrides: CaptureDraftOverride?
   /// The active trips the capture can be pulled onto, the most-recently-used one
   /// first (and pre-selected); the rest in lifecycle/chronological order. Empty
   /// when there are no active trips — the sheet then offers the pool only.
@@ -150,6 +154,8 @@ public final class CaptureModel {
     #if DEBUG
       self.diagnostics = await collectDiagnostics(page: page, refinement: refinement, match: locationMatch)
     #endif
+    // Apply explicit tap-to-fill overrides last — user selection wins over the parser.
+    if let o = draftOverrides { o.apply(to: &self.draft) }
     self.phase = .ready
   }
 
@@ -353,13 +359,12 @@ public final class CaptureModel {
     // Detected ratings Jon kept — written as sibling evaluations in the same
     // transaction as the idea (ADR-0016 §1). `DetectedEvaluation` is Sendable.
     let evaluations = detectedEvaluations.filter(\.included)
-    // Opening hours from the parsed page — persist them at capture when the parser
-    // found structured hours (JSON-LD/microdata). The LLM fallback for unstructured
-    // sites runs later in the app-side PlaceEnricher, where the model budget isn't
-    // a concern (docs/BACKLOG.md "Unstructured-hours capture fallback").
-    let openingHoursString: String? = captured.flatMap {
-      $0.openingHours.isEmpty ? nil : $0.openingHours.joined(separator: "\n")
-    }
+    // Opening hours: explicit tap-to-fill override wins over the page parser. Parser
+    // result is the fallback for sites with structured JSON-LD/microdata hours; the LLM
+    // fallback for unstructured sites runs later in PlaceEnricher
+    // (docs/BACKLOG.md "Unstructured-hours capture fallback").
+    let openingHoursString: String? = draftOverrides?.openingHours
+      ?? captured.flatMap { $0.openingHours.isEmpty ? nil : $0.openingHours.joined(separator: "\n") }
     // Only consult the clock when something needs stamping (evaluations or hours).
     let stamp = (!evaluations.isEmpty || openingHoursString != nil) ? now.now : Date.distantPast
     try await database.write { db in
