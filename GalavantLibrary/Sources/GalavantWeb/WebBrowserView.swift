@@ -17,7 +17,13 @@ import WebKit
 /// `onNavigate` fires on every *explicit* navigation (address-bar submit or a `home`
 /// `open`), so the host can record recents without the module knowing what a "recent" is.
 /// That one-way seam is what lets the whole browser drop into another app unchanged.
+///
+/// `initialURL` is loaded once on first appearance **only when nothing is already
+/// loaded** — a fresh session lands on a useful page (the host's choice), while a
+/// browser that already holds a page (a held session across tab switches) is left
+/// untouched. The `home` surface is reachable any time via the toolbar's home button.
 public struct WebBrowserView<Accessory: View, Home: View>: View {
+  private let initialURL: URL?
   private let searchURL: (String) -> URL?
   private let onNavigate: (URL) -> Void
   private let accessory: (WebPage) -> Accessory
@@ -26,14 +32,20 @@ public struct WebBrowserView<Accessory: View, Home: View>: View {
   @State private var page = WebPage.browser(contentMode: .desktop)
   @State private var addressText = ""
   @State private var editing = false
+  /// Show the `home` surface over the loaded page — the toolbar home button sets it;
+  /// any explicit navigation clears it. Distinct from "no page loaded yet" so home is
+  /// reachable even while a page (e.g. the auto-loaded `initialURL`) is showing.
+  @State private var showingHome = false
   @FocusState private var addressFocused: Bool
 
   public init(
+    initialURL: URL? = nil,
     searchURL: @escaping (String) -> URL? = WebAddress.duckDuckGo,
     onNavigate: @escaping (URL) -> Void = { _ in },
     @ViewBuilder accessory: @escaping (WebPage) -> Accessory,
     @ViewBuilder home: @escaping (_ open: @escaping (URL) -> Void) -> Home
   ) {
+    self.initialURL = initialURL
     self.searchURL = searchURL
     self.onNavigate = onNavigate
     self.accessory = accessory
@@ -56,8 +68,8 @@ public struct WebBrowserView<Accessory: View, Home: View>: View {
       ZStack {
         WebView(page)
           .ignoresSafeArea(edges: .bottom)
-          .opacity(page.url == nil ? 0 : 1)
-        if page.url == nil {
+          .opacity(isHome ? 0 : 1)
+        if isHome {
           home(open)
         }
       }
@@ -68,7 +80,19 @@ public struct WebBrowserView<Accessory: View, Home: View>: View {
         .padding(.vertical, 6)
         .background(.bar)
     }
+    .task {
+      // Land a fresh session on the host's start page — but never override a page the
+      // held session already has (Jon: "unless there is already a URL value there").
+      if page.url == nil, let initialURL {
+        showingHome = false
+        await drive(page.load(URLRequest(url: initialURL)))
+      }
+    }
   }
+
+  /// The home surface shows before anything loads *and* whenever the home button is
+  /// tapped over a loaded page.
+  private var isHome: Bool { page.url == nil || showingHome }
 
   // MARK: Chrome
 
@@ -123,6 +147,11 @@ public struct WebBrowserView<Accessory: View, Home: View>: View {
         .disabled(page.url == nil)
       }
 
+      Button { showingHome = true } label: {
+        Image(systemName: "house")
+      }
+      .disabled(isHome)
+
       Spacer()
       accessory(page)
     }
@@ -153,6 +182,7 @@ public struct WebBrowserView<Accessory: View, Home: View>: View {
   /// Record (recents) and navigate. The single explicit-navigation path: address-bar
   /// submit and the `home` slot's `open` both land here.
   private func open(_ url: URL) {
+    showingHome = false
     onNavigate(url)
     Task { @MainActor in await drive(page.load(URLRequest(url: url))) }
   }

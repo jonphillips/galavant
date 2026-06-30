@@ -1,15 +1,15 @@
 import GalavantCaptureUI
-import GalavantPlaces
 import GalavantWeb
 import SwiftUI
 
 /// The top-level **Browser** section (ADR-0025): a persistent, full-chrome browser in the
 /// detail panel — address bar, back / forward / refresh / stop, desktop-width rendering,
 /// and a held session that reaches paywalled sources. It hosts the app-agnostic
-/// `WebBrowserView` (GalavantWeb) and wires the app-specific bits: recents (the home
-/// surface + `onNavigate` recording) and a "Capture" action that grabs the rendered DOM
-/// and runs the *same* capture confirm sheet the share extension uses — so capture inherits
-/// vet-at-source and the ADR-0019 dedup banner.
+/// `WebBrowserView` (GalavantWeb) and wires the app-specific bits: the start page
+/// (google.com), the **Recent Captures** home surface, and a "Capture" action that grabs
+/// the rendered DOM and runs the *same* capture confirm sheet the share extension uses —
+/// so capture inherits vet-at-source and the ADR-0019 dedup banner. A saved capture is
+/// recorded into Recent Captures (places added, not URLs typed).
 ///
 /// No `NavigationStack` of its own — the `AppContainer` detail/tab column already provides
 /// one (nesting another traps the iPad split view), and `WebBrowserView` renders its chrome
@@ -17,9 +17,14 @@ import SwiftUI
 struct BrowserScreen: View {
   @State private var model = BrowserScreenModel()
 
+  /// The page a fresh browser session lands on (Jon's choice). The address bar's
+  /// no-URL *search* still uses the module default (DuckDuckGo, ADR-0001) — this is only
+  /// the start page, not the search engine.
+  private static let startPage = URL(string: "https://www.google.com")
+
   var body: some View {
     WebBrowserView(
-      onNavigate: { model.remember($0) },
+      initialURL: Self.startPage,
       accessory: { page in
         Button {
           Task { await model.capture(from: page) }
@@ -31,7 +36,7 @@ struct BrowserScreen: View {
         .disabled(page.url == nil)
       },
       home: { open in
-        BrowserHome(recents: model.recents, open: open)
+        BrowserHome(recentCaptures: model.recentCaptures, open: open)
       }
     )
     .navigationTitle("Browser")
@@ -39,40 +44,46 @@ struct BrowserScreen: View {
       .navigationBarTitleDisplayMode(.inline)
     #endif
     .sheet(item: $model.capture) { payload in
-      CaptureConfirmView(
-        model: CaptureModel(html: payload.html, sourceURL: payload.sourceURL)
-      ) {
+      CaptureConfirmView(model: payload.model) {
         model.captureFinished()
       }
     }
   }
 }
 
-/// The browser's start surface, shown before anything is loaded: a hint and the recent
-/// destinations. Tapping a recent navigates through the browser's `open` (which records it
-/// and loads it); the address bar is the other way in.
+/// The browser's home surface, reachable via the toolbar home button: the places you
+/// recently *captured* (not URLs you typed — two different things). Tapping one reopens
+/// the page it came from through the browser's `open`; the address bar is the other way in.
 private struct BrowserHome: View {
-  let recents: [URL]
+  let recentCaptures: [RecentCapture]
   let open: (URL) -> Void
 
   var body: some View {
-    if recents.isEmpty {
+    if recentCaptures.isEmpty {
       ContentUnavailableView(
-        "Browse to a place",
-        systemImage: "globe",
-        description: Text("Enter an address or search above, then tap Capture to add a place to your pool.")
+        "No captures yet",
+        systemImage: "bookmark",
+        description: Text("Browse to a place and tap Capture to add it to your pool.")
       )
     } else {
       List {
-        Section("Recent") {
-          ForEach(recents, id: \.self) { url in
+        Section("Recent Captures") {
+          ForEach(recentCaptures) { capture in
             Button {
-              open(url)
+              if let url = capture.url { open(url) }
             } label: {
-              Label(url.host() ?? url.absoluteString, systemImage: "clock.arrow.circlepath")
-                .lineLimit(1)
-                .foregroundStyle(.primary)
+              Label {
+                VStack(alignment: .leading, spacing: 2) {
+                  Text(capture.name).foregroundStyle(.primary).lineLimit(1)
+                  if let host = capture.url?.host() {
+                    Text(host).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                  }
+                }
+              } icon: {
+                Image(systemName: "bookmark")
+              }
             }
+            .disabled(capture.url == nil)
           }
         }
       }

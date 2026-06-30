@@ -92,10 +92,17 @@ the literal fulfillment of ADR-0024's broadened "rendered-DOM acquisition, inter
 The app's `BrowserScreen` drops the modal launcher and renders `WebBrowserView` directly
 in the detail column:
 
-- **Home / start state:** the existing lightweight recents (`@Shared(.appStorage)`,
-  capped) plus a search prompt, shown when no page is loaded; the URL bar navigates away
-  from it. No bookmarks model (the captured ideas are the real record — recents are a
-  convenience, per ADR-0023). Recents persistence is unchanged.
+- **Start page:** a fresh session auto-loads a host-supplied start page (the app uses
+  **google.com**) — but only when nothing is already loaded, so a held session across
+  tab switches is never overridden. The start page is the host's choice via
+  `WebBrowserView(initialURL:)`; it is *not* the search engine (the address bar's no-URL
+  search stays DuckDuckGo, ADR-0001).
+- **Home / Recent Captures:** the home surface is reachable any time via a toolbar home
+  button (not only when no page is loaded). It lists **Recent Captures** — the places you
+  *saved* from the browser (name + source page), recorded on save, **not** the URLs you
+  typed (two different things). Capped, `@Shared(.appStorage)`, device-local — the
+  captured ideas remain the synced record (no bookmarks model, per ADR-0023). Tapping a
+  recent capture reopens its source page.
 - **Capture:** a bottom-bar action pulls the rendered DOM
   (`page.callJavaScript("return document.documentElement.outerHTML")`) and presents the
   **same** `CaptureConfirmView` over `CaptureModel(html:sourceURL:)` the share extension
