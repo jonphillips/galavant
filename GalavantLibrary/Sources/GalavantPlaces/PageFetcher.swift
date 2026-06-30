@@ -1,6 +1,6 @@
 import Dependencies
 import Foundation
-import GalavantWeb
+import WebExtractorKit
 
 /// A Safari-like User-Agent — many travel sites serve a fuller, more parseable page
 /// to a browser than to a bare client. Shared by the page and image fetchers.

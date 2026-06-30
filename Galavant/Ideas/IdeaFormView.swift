@@ -1,6 +1,6 @@
 import GalavantPlaces
 import GalavantSchema
-import GalavantWeb
+import WebExtractorKit
 import MapKit
 import SwiftUI
 import UIKit

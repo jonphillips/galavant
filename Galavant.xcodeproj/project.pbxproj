@@ -40,7 +40,7 @@
 		565E450BE96483372954E175 /* CaptureExtraction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43D5D11997CB5E747A590622 /* CaptureExtraction.swift */; };
 		5FC0A092CF36738BE434FB6D /* IdeaCoordinate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 409050F2DDFD762C631818CF /* IdeaCoordinate.swift */; };
 		626DB4453DDF7BA57BE9AF1C /* GalavantAI in Frameworks */ = {isa = PBXBuildFile; productRef = 7DEA217772737FC17F262759 /* GalavantAI */; };
-		666F98ED751CC0C6994CFED4 /* GalavantWeb in Frameworks */ = {isa = PBXBuildFile; productRef = D7170C555E9CFD0CFB17DBD3 /* GalavantWeb */; };
+		666F98ED751CC0C6994CFED4 /* WebExtractorKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4D543244A7EA1E4F10D196DF /* WebExtractorKit */; };
 		66E8ED4BF33E10641C5CA1D9 /* TripsListModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07FF30B2A97AE7158A524026 /* TripsListModel.swift */; };
 		686D8E04502200DBC618B751 /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF473C91775923ADF6F5FDEF /* AppRouter.swift */; };
 		6DFEFA57B8BACC403A250F18 /* ShareSeedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8885060D462E6E53320A2831 /* ShareSeedTests.swift */; };
@@ -140,6 +140,7 @@
 		2CD37357C07AFC3DAE3CDAE7 /* DemoFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoFixtures.swift; sourceTree = "<group>"; };
 		371FEFD498525E0EA4709909 /* StackedForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StackedForm.swift; sourceTree = "<group>"; };
 		386282278C0DEBD19BF1925E /* DirectionsClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectionsClient.swift; sourceTree = "<group>"; };
+		3B4B4DEA7489F67D7E16FD7D /* WebExtractorKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WebExtractorKit; path = "../../jon-platform/packages/WebExtractorKit"; sourceTree = SOURCE_ROOT; };
 		3C4838518F023973640A8AEE /* AISettingsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AISettingsModel.swift; sourceTree = "<group>"; };
 		3DD1C2B139D03095F082D99E /* CertaintyStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CertaintyStyle.swift; sourceTree = "<group>"; };
 		3F02C470667EF6E9AC8AC761 /* IdeaDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaDetailView.swift; sourceTree = "<group>"; };
@@ -150,7 +151,7 @@
 		51B1DF18254B63AD4237897B /* IdeaPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaPersistenceTests.swift; sourceTree = "<group>"; };
 		549199D3FB7222F5D893194E /* TravelProfileEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelProfileEditView.swift; sourceTree = "<group>"; };
 		56F1C96A9E48EE73DC2B6D08 /* SettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScreen.swift; sourceTree = "<group>"; };
-		5F046B49AE38F92268A2FA12 /* GalavantShare.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GalavantShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		5F046B49AE38F92268A2FA12 /* GalavantShare.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = GalavantShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		6839D17655A85296477C1D5D /* TripItineraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripItineraryView.swift; sourceTree = "<group>"; };
 		72A6C6AEFAD6483C0E0AF70C /* TripPlanningModel+Scheduling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripPlanningModel+Scheduling.swift"; sourceTree = "<group>"; };
 		74F16970DCFE2E14E475DB66 /* TripPlanningSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripPlanningSheets.swift; sourceTree = "<group>"; };
@@ -167,13 +168,13 @@
 		99EE3153CDA64E66C39149A9 /* IdeaFormModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaFormModel.swift; sourceTree = "<group>"; };
 		9C956244AC0CCEFCA45A4128 /* IdeaFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaFormView.swift; sourceTree = "<group>"; };
 		A20DAF6B7A5F203899F4C780 /* TripFormModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripFormModel.swift; sourceTree = "<group>"; };
-		AD3E24952C44337E688A4D00 /* Galavant.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Galavant.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AD3E24952C44337E688A4D00 /* Galavant.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Galavant.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B15DFF6883F3077AA8D6C591 /* StopMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StopMenu.swift; sourceTree = "<group>"; };
 		BA0BD75B2D9BBEA758A6A8DA /* TripIdeasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripIdeasView.swift; sourceTree = "<group>"; };
 		BAA9983C3B6D9D9B731F96F9 /* DayChipBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayChipBar.swift; sourceTree = "<group>"; };
 		BC5C21FC298AEA29CFE09DC6 /* TripsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripsScreen.swift; sourceTree = "<group>"; };
 		C01187279655F718B34FA9DC /* ChatPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatPanelView.swift; sourceTree = "<group>"; };
-		C071E50FDA62E29FC448F993 /* GalavantLibrary */ = {isa = PBXFileReference; lastKnownFileType = folder; path = GalavantLibrary; sourceTree = SOURCE_ROOT; };
+		C071E50FDA62E29FC448F993 /* GalavantLibrary */ = {isa = PBXFileReference; lastKnownFileType = folder; name = GalavantLibrary; path = GalavantLibrary; sourceTree = SOURCE_ROOT; };
 		C0A1B810182571FD874E4261 /* SyncSeedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncSeedTests.swift; sourceTree = "<group>"; };
 		C5AD27A1248EEA1D9B580277 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		CC16D0C39AA361A09737B45F /* Galavant.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Galavant.entitlements; sourceTree = "<group>"; };
@@ -205,7 +206,7 @@
 				F236D648886F9BA4EF2CCCCB /* GalavantPlaces in Frameworks */,
 				626DB4453DDF7BA57BE9AF1C /* GalavantAI in Frameworks */,
 				82FB0503EEB4041AC202479B /* GalavantChat in Frameworks */,
-				666F98ED751CC0C6994CFED4 /* GalavantWeb in Frameworks */,
+				666F98ED751CC0C6994CFED4 /* WebExtractorKit in Frameworks */,
 				52949A4330FDF85D0EBF5AEA /* GalavantCaptureUI in Frameworks */,
 				3B4EC7EE202BCED566C99202 /* SQLiteData in Frameworks */,
 				28CB0F1054F9EC0012E413AD /* SwiftUINavigation in Frameworks */,
@@ -346,6 +347,7 @@
 			isa = PBXGroup;
 			children = (
 				C071E50FDA62E29FC448F993 /* GalavantLibrary */,
+				3B4B4DEA7489F67D7E16FD7D /* WebExtractorKit */,
 			);
 			name = Packages;
 			sourceTree = "<group>";
@@ -427,7 +429,7 @@
 				C94234B5AEF12EA0F921B5B0 /* GalavantPlaces */,
 				7DEA217772737FC17F262759 /* GalavantAI */,
 				70E3AE87004F856771C63307 /* GalavantChat */,
-				D7170C555E9CFD0CFB17DBD3 /* GalavantWeb */,
+				4D543244A7EA1E4F10D196DF /* WebExtractorKit */,
 				9D033329AC22FDEA57CBC830 /* GalavantCaptureUI */,
 				A641D3ABA375BA009278F435 /* SQLiteData */,
 				A0C2774E35241633FE89B7A7 /* SwiftUINavigation */,
@@ -491,9 +493,11 @@
 				LastUpgradeCheck = 2700;
 				TargetAttributes = {
 					2A483A405202F2FF5C8B5D34 = {
+						DevelopmentTeam = XZWX2M8H8V;
 						ProvisioningStyle = Automatic;
 					};
 					6CECB534761064AC5A66DA2C = {
+						DevelopmentTeam = XZWX2M8H8V;
 						ProvisioningStyle = Automatic;
 					};
 					CC0067D58A6E0F559D50EAD5 = {
@@ -519,6 +523,7 @@
 				E0CE6503B137FDB710DCCCFE /* XCRemoteSwiftPackageReference "swift-navigation" */,
 				13970F0E37C9FD2AC7DDBCFD /* XCRemoteSwiftPackageReference "swift-sharing" */,
 				5228AC59CF5F59825B063F97 /* XCLocalSwiftPackageReference "GalavantLibrary" */,
+				347467AB13949BE7FF8F2DDB /* XCLocalSwiftPackageReference "../../jon-platform/packages/WebExtractorKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 06CC7970885A2A93954BDEB4 /* Products */;
@@ -758,7 +763,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = GalavantShare/GalavantShare.entitlements;
-				DEVELOPMENT_TEAM = 7MQEE539G9;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = GalavantShare/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -776,7 +780,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = GalavantShare/GalavantShare.entitlements;
-				DEVELOPMENT_TEAM = 7MQEE539G9;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = GalavantShare/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -796,7 +799,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Galavant/Galavant.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = 7MQEE539G9;
 				INFOPLIST_FILE = Galavant/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -876,7 +878,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Galavant/Galavant.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = 7MQEE539G9;
 				INFOPLIST_FILE = Galavant/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -930,6 +931,10 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
+		347467AB13949BE7FF8F2DDB /* XCLocalSwiftPackageReference "../../jon-platform/packages/WebExtractorKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../../jon-platform/packages/WebExtractorKit";
+		};
 		5228AC59CF5F59825B063F97 /* XCLocalSwiftPackageReference "GalavantLibrary" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = GalavantLibrary;
@@ -994,6 +999,10 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = GalavantCaptureUI;
 		};
+		4D543244A7EA1E4F10D196DF /* WebExtractorKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WebExtractorKit;
+		};
 		5A93A34322120B8F1DC99E7B /* Sharing */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 13970F0E37C9FD2AC7DDBCFD /* XCRemoteSwiftPackageReference "swift-sharing" */;
@@ -1037,10 +1046,6 @@
 		C94234B5AEF12EA0F921B5B0 /* GalavantPlaces */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = GalavantPlaces;
-		};
-		D7170C555E9CFD0CFB17DBD3 /* GalavantWeb */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = GalavantWeb;
 		};
 		EB30B546BC69ECE08A9C6766 /* SQLiteData */ = {
 			isa = XCSwiftPackageProductDependency;
