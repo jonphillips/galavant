@@ -1,114 +1,89 @@
-import Dependencies
 import Foundation
+import GalavantPlaces
 import GalavantWeb
 import Sharing
+import WebKit
 
-/// A page grabbed from the in-app browser, awaiting confirm-and-tweak. Identifiable so a
-/// `.sheet(item:)` can present the capture confirm sheet over it (ADR-0023).
+/// A place captured from the in-app browser, awaiting confirm-and-tweak. Holds the
+/// `CaptureModel` so the screen can read the (possibly user-edited) final draft back out
+/// after a save — that's how a saved capture lands in **Recent Captures**. Identifiable so
+/// a `.sheet(item:)` can present the confirm sheet over it (ADR-0023).
 struct BrowserCapture: Identifiable {
   let id = UUID()
-  let html: String
+  let model: CaptureModel
   let sourceURL: URL?
 }
 
-/// Drives the top-level Browser section (ADR-0023): a small launcher (address/search
-/// field + recent destinations) that opens `WebExtractorBrowser` modally, and the
-/// hand-off from a "Capture" grab to the shared capture confirm sheet.
+/// One entry in the browser's **Recent Captures** home surface: the captured place's name
+/// and the page it came from. Recorded when a capture is *saved* (not on navigation) — the
+/// recents are "places I added," not "URLs I typed," which are two different things.
+/// Persisted locally (`@Shared(.appStorage)`); the captured ideas themselves are the synced
+/// record, so this convenience list stays device-local.
+struct RecentCapture: Identifiable, Codable, Hashable {
+  var name: String
+  var url: URL?
+  var id: String { (url?.absoluteString ?? "") + "\u{1F}" + name }
+}
+
+/// Drives the top-level Browser section (ADR-0025): the persistent, full-chrome
+/// `WebBrowserView` lives in the detail panel; this model owns only the app-side state
+/// around it — the **Recent Captures** its home surface lists, and the hand-off from a
+/// "Capture" grab to the shared capture confirm sheet.
 ///
-/// The browser is the app-agnostic `GalavantWeb` component (ADR-0022) presented as a
-/// modal extractor — the deliberate v1 surface (ADR-0023): no in-browser address bar, so
-/// a new destination means returning here. The grab → confirm hand-off runs through
-/// `onDismiss` so the confirm sheet presents only after the browser has fully dismissed
-/// (two sheets presenting at once is dropped by SwiftUI).
+/// Navigation, address bar, and back/forward live in `WebBrowserView`; this model is no
+/// longer a launcher. Capture presents `CaptureConfirmView` directly (the browser is
+/// persistent, not a sheet, so there is no two-sheets-racing dance anymore).
 @MainActor
 @Observable
 final class BrowserScreenModel {
-  var address = ""
-  /// Set to present the modal browser at this URL; cleared on dismiss.
-  var browseURL: URL?
-  /// Set (via `browserDismissed`) to present the capture confirm sheet after a grab.
+  /// Set to present the capture confirm sheet after a grab.
   var capture: BrowserCapture?
 
-  /// The recently-opened destinations, newest first, persisted across launches as a
-  /// newline-joined string (mirrors the app's other `@Shared(.appStorage)` scalars).
-  @ObservationIgnored @Shared(.appStorage("browserRecents")) private var recentsRaw = ""
+  /// The recently *captured* places, newest first, persisted across launches as a JSON
+  /// blob (a richer payload than the app's scalar `@Shared` strings — name + URL per row).
+  @ObservationIgnored @Shared(.appStorage("browserRecentCaptures")) private var recentCapturesRaw = ""
 
-  /// Stashed between the grab and the browser's full dismissal, so the confirm sheet
-  /// presents in `onDismiss` rather than racing the browser's own dismiss.
-  @ObservationIgnored private var pending: BrowserCapture?
-
-  /// Turn a non-URL query into a web search. **DuckDuckGo** — no account, no tracking
-  /// cookie, no result personalization; the engine whose posture matches the app's
-  /// no-server / privacy stance (ADR-0001). One named constant, so swapping the engine
-  /// is a one-line edit, not a hunt through string literals.
-  static let webSearchPrefix = "https://duckduckgo.com/?q="
-
-  /// Cap on the recent-destinations list. **8** — the launcher shows recents inline
-  /// under the address field; ~8 rows is a phone screenful without scrolling, and the
-  /// list is a convenience, not a history (the captured ideas are the real record). A UI
-  /// list length, not a data limit.
+  /// Cap on the Recent Captures list. **8** — the home surface shows it; ~8 rows is a
+  /// screenful, and it's a convenience, not a history (the captured ideas are the real,
+  /// synced record). A UI list length, not a data limit.
   static let maxRecents = 8
 
-  /// The recent destinations as URLs, newest first.
-  var recents: [URL] {
-    recentsRaw.split(separator: "\n").compactMap { URL(string: String($0)) }
+  /// The recent captures as values, newest first.
+  var recentCaptures: [RecentCapture] {
+    (try? JSONDecoder().decode([RecentCapture].self, from: Data(recentCapturesRaw.utf8))) ?? []
   }
 
-  /// Open the browser at the resolved address (a URL, a bare domain, or a search).
-  func go() {
-    guard let url = Self.resolve(address) else { return }
-    open(url)
+  /// Grab the browser's rendered DOM and present the confirm sheet over it. A blank grab
+  /// (page not yet loaded) is a no-op. The confirm sheet runs the same capture pipeline
+  /// the share extension uses — vet-at-source + ADR-0019 dedup.
+  func capture(from page: WebPage) async {
+    guard let html = await page.currentDOM(), !html.isEmpty else { return }
+    capture = BrowserCapture(
+      model: CaptureModel(html: html, sourceURL: page.url),
+      sourceURL: page.url
+    )
   }
 
-  /// Open the browser directly at a known URL (a recents tap).
-  func open(_ url: URL) {
-    remember(url)
-    browseURL = url
-  }
-
-  /// `WebExtractorBrowser`'s plugin: stash the grabbed page and dismiss the browser. The
-  /// confirm sheet is presented from `browserDismissed`, not here, so it doesn't race the
-  /// dismissal. Always `.extracted` — a capture always succeeds at grabbing the DOM; the
-  /// user vets it in the confirm sheet next.
-  func captured(html: String, sourceURL: URL?) -> WebExtractionOutcome {
-    pending = BrowserCapture(html: html, sourceURL: sourceURL)
-    return .extracted
-  }
-
-  /// Promote a stashed grab into the presented confirm sheet, once the browser sheet has
-  /// finished dismissing. A plain Cancel (no grab) leaves `pending` nil — a no-op.
-  func browserDismissed() {
-    guard let pending else { return }
-    capture = pending
-    self.pending = nil
-  }
-
-  /// Tear down the confirm sheet (saved or cancelled).
+  /// Tear down the confirm sheet (saved or cancelled). On a *save*, record the place in
+  /// Recent Captures from the final (possibly edited) draft — cancels record nothing.
   func captureFinished() {
+    if let capture, capture.model.phase == .saved {
+      record(name: capture.model.draft.name, url: capture.sourceURL)
+    }
     capture = nil
   }
 
-  /// Resolve typed text to a destination URL: an explicit scheme is honored; a bare
-  /// single-token domain (`michelin.com/…`) gets `https://`; anything else (spaces, no
-  /// dot) becomes a web search. `nil` only for empty input.
-  static func resolve(_ text: String) -> URL? {
-    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !trimmed.isEmpty else { return nil }
-    if let url = URL(string: trimmed), url.scheme != nil { return url }
-    if !trimmed.contains(" "), trimmed.contains("."),
-      let url = URL(string: "https://\(trimmed)")
-    {
-      return url
+  /// Add a saved capture to the front of Recent Captures, de-duplicated and capped. A
+  /// blank name (nothing worth listing) is skipped.
+  private func record(name: String, url: URL?) {
+    let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !clean.isEmpty else { return }
+    let entry = RecentCapture(name: clean, url: url)
+    var items = recentCaptures.filter { $0.id != entry.id }
+    items.insert(entry, at: 0)
+    let capped = Array(items.prefix(Self.maxRecents))
+    if let data = try? JSONEncoder().encode(capped) {
+      $recentCapturesRaw.withLock { $0 = String(decoding: data, as: UTF8.self) }
     }
-    let query = trimmed.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? trimmed
-    return URL(string: "\(webSearchPrefix)\(query)")
-  }
-
-  /// Record a destination at the front of the recents list, de-duplicated and capped.
-  private func remember(_ url: URL) {
-    var urls = recents.filter { $0 != url }
-    urls.insert(url, at: 0)
-    let capped = urls.prefix(Self.maxRecents).map(\.absoluteString)
-    $recentsRaw.withLock { $0 = capped.joined(separator: "\n") }
   }
 }
