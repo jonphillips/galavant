@@ -22,14 +22,37 @@ public enum GalavantStorage {
 }
 
 extension DependencyValues {
-  public mutating func bootstrapDatabase(startSyncEngine: Bool = true) throws {
+  /// The main app: live shared store, engine constructed **stopped**. The app starts
+  /// it separately via `GalavantCloudSync.startIfManuallyEnabled()` so the enablement
+  /// gate + iCloud account-status check run before any networking.
+  public mutating func bootstrapDatabase() throws {
+    @Dependency(\.context) var context
+    let syncMode: GalavantCloudSync.BootstrapMode =
+      context == .live ? .configured(startImmediately: false) : .disabled
+    try bootstrapDatabase(syncMode: syncMode)
+  }
+
+  /// The share extension: same live shared store, engine constructed **stopped**
+  /// ("construct, don't run"). Constructing it installs SQLiteData's sync triggers so
+  /// the extension's writes get `SyncMetadata` + a pending-change row the app later
+  /// drains — without this the captured idea never leaves the device. It must never
+  /// `start()` or network. Per CloudKit law 6 the extension target must therefore carry
+  /// the iCloud container entitlement.
+  public mutating func bootstrapDatabaseForShareExtension() throws {
+    @Dependency(\.context) var context
+    let syncMode: GalavantCloudSync.BootstrapMode =
+      context == .live ? .configured(startImmediately: false) : .disabled
+    try bootstrapDatabase(syncMode: syncMode)
+  }
+
+  public mutating func bootstrapDatabase(syncMode: GalavantCloudSync.BootstrapMode) throws {
     @Dependency(\.context) var context
     var configuration = Configuration()
     configuration.prepareDatabase { db in
       // The sync metadatabase needs a CloudKit container; skip it (local-only)
       // when unavailable rather than failing every database connection.
       do {
-        try db.attachMetadatabase()
+        try db.attachMetadatabase(containerIdentifier: GalavantCloudSync.containerIdentifier)
       } catch {
         reportIssue("Sync metadatabase unavailable; running local-only: \(error)")
       }
@@ -483,17 +506,13 @@ extension DependencyValues {
     }
     try migrator.migrate(database)
     defaultDatabase = database
-    if context == .live, startSyncEngine {
+    if case let .configured(startImmediately) = syncMode {
       // Degrade to local-only if CloudKit is unavailable (no entitlement in an
       // unsigned dev build, or the user isn't signed into iCloud) rather than
       // crashing the app.
       do {
-        defaultSyncEngine = try SyncEngine(
-          for: database,
-          tables: TravelParty.self, Idea.self, Planner.self, IdeaInterest.self,
-          MapRegion.self, Tag.self, IdeaTag.self, Trip.self, TripIdea.self,
-          TripRegion.self, ImageAsset.self, TripStay.self, TripDayRegion.self,
-          IdeaEvaluation.self, TravelProfile.self
+        defaultSyncEngine = try GalavantCloudSync.makeSyncEngine(
+          for: database, startImmediately: startImmediately
         )
       } catch {
         reportIssue("CloudKit sync unavailable; running local-only: \(error)")

@@ -5,14 +5,16 @@ import GalavantSchema
 import SwiftUI
 import UIKit
 
-/// Hosts the SwiftUI capture-confirm sheet. Bootstraps the shared app-group
-/// database **local-only** (no SyncEngine in an extension — the main app owns
-/// sync and will push the new idea up on its next run), extracts the shared page,
-/// and hands a `CaptureModel` to the confirm view.
+/// Hosts the SwiftUI capture-confirm sheet. Bootstraps the shared app-group database
+/// with a **stopped** SyncEngine ("construct, don't run"): constructing it installs
+/// SQLiteData's sync triggers so the captured idea gets `SyncMetadata` + a pending
+/// record-zone change the main app later drains — without it the capture never leaves
+/// the device. The extension never `start()`s or networks; it only waits for its
+/// pending change to persist before completing (see `CaptureModel.save`).
 final class ShareViewController: UIViewController {
   override func viewDidLoad() {
     super.viewDidLoad()
-    try? prepareDependencies { try $0.bootstrapDatabase(startSyncEngine: false) }
+    try? prepareDependencies { try $0.bootstrapDatabaseForShareExtension() }
     Task { await presentConfirm() }
   }
 
