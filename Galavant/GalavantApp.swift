@@ -12,6 +12,13 @@ struct GalavantApp: App {
     try! prepareDependencies {
       try $0.bootstrapDatabase()
     }
+    // Mirror the dev launch-arg into persistent defaults so the gate survives an icon
+    // relaunch or a hand-back from the share extension (the "enablement trap").
+    GalavantCloudSync.persistManualEnablementFromLaunchEnvironment()
+    // The engine was constructed stopped; start it only if the gate is on and iCloud
+    // is available. Cold-launch `start()` also drains any pending changes a share
+    // extension left behind while the app wasn't running.
+    Task { _ = await GalavantCloudSync.startIfManuallyEnabled() }
     #if DEBUG
       DemoFixtures.seedIfRequested()
     #endif

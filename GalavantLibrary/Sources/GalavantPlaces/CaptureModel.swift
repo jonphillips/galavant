@@ -330,7 +330,20 @@ public final class CaptureModel {
   public func save() async {
     phase = .saving
     do {
+      // Snapshot the pending record-zone change count *before* the write. In the share
+      // extension the engine is stopped, so SQLiteData defers persisting the pending
+      // change to a fire-and-forget Task; the host tears the process down the instant
+      // we complete the request, which would lose it. After the write we wait until the
+      // pending count grows (bounded), guaranteeing the change is durable before the
+      // caller calls `completeRequest`. Harmless in-app (running engine → grows
+      // synchronously → returns immediately). Best-effort: never blocks the save.
+      let pendingBefore = try? await GalavantCloudSync.pendingRecordZoneChangeCount(in: database)
       try await persistCapture()
+      if let pendingBefore {
+        _ = try? await GalavantCloudSync.waitForPendingRecordZoneChanges(
+          in: database, exceeding: pendingBefore
+        )
+      }
       // Remember the trip so the next capture defaults to the same one.
       if let tripID = selectedTripID { recentTripStore.record(tripID) }
       phase = .saved
