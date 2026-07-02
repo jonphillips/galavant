@@ -1,6 +1,6 @@
 import Dependencies
 import Foundation
-import GalavantAI
+import LLMClientKit
 import Testing
 
 @testable import GalavantPlaces

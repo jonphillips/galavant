@@ -34,13 +34,13 @@
 		4A303DECCB8DFE842751E12F /* PoolFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 895F90CCD6B6EE453DBD785D /* PoolFlowUITests.swift */; };
 		4DAAA7D1E36518BAE6613248 /* TripFormModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20DAF6B7A5F203899F4C780 /* TripFormModel.swift */; };
 		4FA9D5986A89B2B51B88F5C2 /* AppScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82AECABDADDBF8957A5816F8 /* AppScreen.swift */; };
-		52949A4330FDF85D0EBF5AEA /* GalavantCaptureUI in Frameworks */ = {isa = PBXBuildFile; productRef = 9D033329AC22FDEA57CBC830 /* GalavantCaptureUI */; };
+		52949A4330FDF85D0EBF5AEA /* WebExtractorKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4D543244A7EA1E4F10D196DF /* WebExtractorKit */; };
 		52FDF2960D787D40108B3780 /* Binding+Present.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4784A4E4DDB7356EEF63A970 /* Binding+Present.swift */; };
 		53262564E42B4E5C64231A96 /* IdeasFilterMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15F0079F14EE5923209192B1 /* IdeasFilterMenu.swift */; };
 		565E450BE96483372954E175 /* CaptureExtraction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43D5D11997CB5E747A590622 /* CaptureExtraction.swift */; };
 		5FC0A092CF36738BE434FB6D /* IdeaCoordinate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 409050F2DDFD762C631818CF /* IdeaCoordinate.swift */; };
-		626DB4453DDF7BA57BE9AF1C /* GalavantAI in Frameworks */ = {isa = PBXBuildFile; productRef = 7DEA217772737FC17F262759 /* GalavantAI */; };
-		666F98ED751CC0C6994CFED4 /* WebExtractorKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4D543244A7EA1E4F10D196DF /* WebExtractorKit */; };
+		626DB4453DDF7BA57BE9AF1C /* GalavantChat in Frameworks */ = {isa = PBXBuildFile; productRef = 70E3AE87004F856771C63307 /* GalavantChat */; };
+		666F98ED751CC0C6994CFED4 /* GalavantCaptureUI in Frameworks */ = {isa = PBXBuildFile; productRef = 9D033329AC22FDEA57CBC830 /* GalavantCaptureUI */; };
 		66E8ED4BF33E10641C5CA1D9 /* TripsListModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07FF30B2A97AE7158A524026 /* TripsListModel.swift */; };
 		686D8E04502200DBC618B751 /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF473C91775923ADF6F5FDEF /* AppRouter.swift */; };
 		6DFEFA57B8BACC403A250F18 /* ShareSeedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8885060D462E6E53320A2831 /* ShareSeedTests.swift */; };
@@ -49,7 +49,7 @@
 		7B999C65BDCCA5657877F9CD /* IdeasListModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E146770B6C9957BA19FC94EC /* IdeasListModel.swift */; };
 		7C7C4BB8F9D526D37F31BD66 /* TripPlanningView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08F3A8C38B6B2977E3D8153F /* TripPlanningView.swift */; };
 		7E07A0AB874D51E0DCAD3434 /* SequencePin.swift in Sources */ = {isa = PBXBuildFile; fileRef = E35BE6CD061373B731E38031 /* SequencePin.swift */; };
-		82FB0503EEB4041AC202479B /* GalavantChat in Frameworks */ = {isa = PBXBuildFile; productRef = 70E3AE87004F856771C63307 /* GalavantChat */; };
+		82FB0503EEB4041AC202479B /* LLMClientKit in Frameworks */ = {isa = PBXBuildFile; productRef = BEC45E8A60608009E9EFFDCC /* LLMClientKit */; };
 		8522CC9B663EBC7844792507 /* StructuredHoursEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 891C5DF7F4A25741DE3421FD /* StructuredHoursEditor.swift */; };
 		8B65E5CA383B4D16F3685A39 /* TripPlanningModel+Scheduling.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72A6C6AEFAD6483C0E0AF70C /* TripPlanningModel+Scheduling.swift */; };
 		8C1110FDA05FA4D83DCF9A4F /* IdeasListModel+Taxonomy.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8D1F8D207FE25FE14CCFED7 /* IdeasListModel+Taxonomy.swift */; };
@@ -157,6 +157,7 @@
 		5F046B49AE38F92268A2FA12 /* GalavantShare.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = GalavantShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		6839D17655A85296477C1D5D /* TripItineraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripItineraryView.swift; sourceTree = "<group>"; };
 		72A6C6AEFAD6483C0E0AF70C /* TripPlanningModel+Scheduling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripPlanningModel+Scheduling.swift"; sourceTree = "<group>"; };
+		73160C3B106A29D6005A8859 /* LLMClientKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = LLMClientKit; path = "../../jon-platform/packages/LLMClientKit"; sourceTree = SOURCE_ROOT; };
 		74F16970DCFE2E14E475DB66 /* TripPlanningSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripPlanningSheets.swift; sourceTree = "<group>"; };
 		7ADB3989E3E45A67BB33FB7F /* TravelProfileEditModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelProfileEditModel.swift; sourceTree = "<group>"; };
 		803A41898CEB755AAE0E4A68 /* TripFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripFormView.swift; sourceTree = "<group>"; };
@@ -208,10 +209,10 @@
 			files = (
 				0BB238241FF15660518799F8 /* GalavantSchema in Frameworks */,
 				F236D648886F9BA4EF2CCCCB /* GalavantPlaces in Frameworks */,
-				626DB4453DDF7BA57BE9AF1C /* GalavantAI in Frameworks */,
-				82FB0503EEB4041AC202479B /* GalavantChat in Frameworks */,
-				666F98ED751CC0C6994CFED4 /* WebExtractorKit in Frameworks */,
-				52949A4330FDF85D0EBF5AEA /* GalavantCaptureUI in Frameworks */,
+				626DB4453DDF7BA57BE9AF1C /* GalavantChat in Frameworks */,
+				82FB0503EEB4041AC202479B /* LLMClientKit in Frameworks */,
+				666F98ED751CC0C6994CFED4 /* GalavantCaptureUI in Frameworks */,
+				52949A4330FDF85D0EBF5AEA /* WebExtractorKit in Frameworks */,
 				3B4EC7EE202BCED566C99202 /* SQLiteData in Frameworks */,
 				28CB0F1054F9EC0012E413AD /* SwiftUINavigation in Frameworks */,
 				C00CC22E1860FAA90381B866 /* Dependencies in Frameworks */,
@@ -352,6 +353,7 @@
 			isa = PBXGroup;
 			children = (
 				C071E50FDA62E29FC448F993 /* GalavantLibrary */,
+				73160C3B106A29D6005A8859 /* LLMClientKit */,
 				3B4B4DEA7489F67D7E16FD7D /* WebExtractorKit */,
 			);
 			name = Packages;
@@ -433,10 +435,10 @@
 			packageProductDependencies = (
 				9CF31E175F7DCB4D59EAF394 /* GalavantSchema */,
 				C94234B5AEF12EA0F921B5B0 /* GalavantPlaces */,
-				7DEA217772737FC17F262759 /* GalavantAI */,
 				70E3AE87004F856771C63307 /* GalavantChat */,
-				4D543244A7EA1E4F10D196DF /* WebExtractorKit */,
+				BEC45E8A60608009E9EFFDCC /* LLMClientKit */,
 				9D033329AC22FDEA57CBC830 /* GalavantCaptureUI */,
+				4D543244A7EA1E4F10D196DF /* WebExtractorKit */,
 				A641D3ABA375BA009278F435 /* SQLiteData */,
 				A0C2774E35241633FE89B7A7 /* SwiftUINavigation */,
 				45E72731DDF6FA076EAEC92F /* Dependencies */,
@@ -529,6 +531,7 @@
 				E0CE6503B137FDB710DCCCFE /* XCRemoteSwiftPackageReference "swift-navigation" */,
 				13970F0E37C9FD2AC7DDBCFD /* XCRemoteSwiftPackageReference "swift-sharing" */,
 				5228AC59CF5F59825B063F97 /* XCLocalSwiftPackageReference "GalavantLibrary" */,
+				DF7739A2EC8B02E90D5186F9 /* XCLocalSwiftPackageReference "../../jon-platform/packages/LLMClientKit" */,
 				347467AB13949BE7FF8F2DDB /* XCLocalSwiftPackageReference "../../jon-platform/packages/WebExtractorKit" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -947,6 +950,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = GalavantLibrary;
 		};
+		DF7739A2EC8B02E90D5186F9 /* XCLocalSwiftPackageReference "../../jon-platform/packages/LLMClientKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../../jon-platform/packages/LLMClientKit";
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
@@ -1024,10 +1031,6 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = GalavantChat;
 		};
-		7DEA217772737FC17F262759 /* GalavantAI */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = GalavantAI;
-		};
 		9CF31E175F7DCB4D59EAF394 /* GalavantSchema */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = GalavantSchema;
@@ -1045,6 +1048,10 @@
 			isa = XCSwiftPackageProductDependency;
 			package = C5B07CA52890645ABF015544 /* XCRemoteSwiftPackageReference "sqlite-data" */;
 			productName = SQLiteData;
+		};
+		BEC45E8A60608009E9EFFDCC /* LLMClientKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = LLMClientKit;
 		};
 		C6C18315C28F69E95AB54F85 /* Dependencies */ = {
 			isa = XCSwiftPackageProductDependency;

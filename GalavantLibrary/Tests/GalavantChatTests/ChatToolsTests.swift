@@ -1,7 +1,7 @@
 import Dependencies
 import DependenciesTestSupport
 import Foundation
-import GalavantAI
+import LLMClientKit
 import GalavantSchema
 import SQLiteData
 import Testing

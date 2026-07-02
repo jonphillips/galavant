@@ -1,6 +1,6 @@
 import Dependencies
 import Foundation
-import GalavantAI
+import LLMClientKit
 import GalavantCapture
 
 /// The **extract-only** LLM fallback for source-aware capture (ADR-0016 §1): when

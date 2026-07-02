@@ -1,4 +1,4 @@
-import GalavantAI
+import LLMClientKit
 import GalavantChat
 import Sharing
 import SwiftUI
