@@ -44,6 +44,7 @@ public final class ChatModel {
 
   @ObservationIgnored @Dependency(\.modelClient) private var modelClient
   @ObservationIgnored @Dependency(\.apiKeyStore) private var apiKeyStore
+  @ObservationIgnored @Dependency(\.chatInstructions) private var chatInstructions
   @ObservationIgnored private let tools: ChatToolExecutor
 
   /// Hard cap on tool-loop turns per message, so a misbehaving model can't spin.
@@ -101,6 +102,14 @@ public final class ChatModel {
     }
   }
 
+  /// Server-side web search for grounded chat answers (ADR-0031 §6). Frontier-tier
+  /// only — the on-device tier can't search, and the OpenAI backend currently ignores
+  /// it (web-search is wired for Anthropic only). `nil` on-device so no field is sent.
+  private var webSearchMaxUses: Int? {
+    if case .frontier = activeTier { return 5 }
+    return nil
+  }
+
   // MARK: - Tiers
 
   /// On-device (or degraded) path: stream text into a fresh assistant message.
@@ -131,7 +140,7 @@ public final class ChatModel {
     for _ in 0..<maxToolTurns {
       let request = ModelRequest(
         tier: activeTier, system: systemPrompt(), messages: working,
-        tools: toolDefs, maxTokens: 2048)
+        tools: toolDefs, maxTokens: 2048, webSearchMaxUses: webSearchMaxUses)
       let response: ModelResponse
       do {
         response = try await modelClient.complete(request)
@@ -161,17 +170,30 @@ public final class ChatModel {
   /// profile (ADR-0015) is the `ModelClient` boundary's job to inject, not the
   /// panel's (ADR-0017 §2) — so it isn't re-plumbed here.
   func systemPrompt() -> String {
-    """
-    You are a concise, helpful travel-planning assistant inside a private app for \
-    two people planning trips together. Discuss what the user is looking at, \
-    described below. For questions about the wider idea pool, use the queryPool \
-    tool rather than guessing. Only use createIdea when the user clearly asks to \
-    add or save a place — it lands a candidate, and the user still decides what to \
-    pull onto a trip. You propose and explain; you never claim to have scheduled \
-    or pulled anything yourself.
+    let base = """
+      You are a concise, helpful travel-planning assistant inside a private app for \
+      two people planning trips together. Discuss what the user is looking at, \
+      described below. For questions about the wider idea pool, use the queryPool \
+      tool rather than guessing. Only use createIdea when the user clearly asks to \
+      add or save a place — it lands a candidate, and the user still decides what to \
+      pull onto a trip. You propose and explain; you never claim to have scheduled \
+      or pulled anything yourself.
 
-    \(context.serialized())
-    """
+      Answer in short plain-prose paragraphs. Use Markdown links — [name](url) — for \
+      any place or reference you name so the user can tap through. Do not use headings, \
+      tables, horizontal rules, or bold section labels; the panel is narrow.
+
+      \(context.serialized())
+      """
+    let custom = chatInstructions.current().trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !custom.isEmpty else { return base }
+    return """
+      \(base)
+
+      Additional standing instructions from the user (honor these unless they conflict \
+      with the rules above):
+      \(custom)
+      """
   }
 
   /// The conversation so far as model messages — the display turns, text only.

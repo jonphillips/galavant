@@ -85,6 +85,49 @@ import Testing
     }
   }
 
+  @Test("custom chat instructions are appended to the system prompt")
+  func customInstructionsInSystemPrompt() {
+    withDependencies {
+      $0.apiKeyStore = .testValue
+      $0.chatInstructions = ChatInstructions { "Always include a booking link." }
+    } operation: {
+      let prompt = ChatModel(context: ideaContext, tools: ToolRecorder()).systemPrompt()
+      #expect(prompt.contains("Always include a booking link."))
+      #expect(prompt.contains("standing instructions"))
+    }
+  }
+
+  @Test("empty instructions leave the system prompt at its base")
+  func emptyInstructionsOmitted() {
+    withDependencies {
+      $0.apiKeyStore = .testValue
+      $0.chatInstructions = ChatInstructions { "   " }
+    } operation: {
+      let prompt = ChatModel(context: ideaContext, tools: ToolRecorder()).systemPrompt()
+      #expect(!prompt.contains("standing instructions"))
+    }
+  }
+
+  @Test("frontier chat enables server-side web search; on-device does not")
+  func frontierEnablesWebSearch() async {
+    let captured = Mutex<Int?>(nil)
+    await withDependencies {
+      $0.apiKeyStore = .testValue
+      $0.apiKeyStore.setKey("sk-ant-test", for: .anthropic)
+      $0.modelClient = TieredModelClient(
+        onDevice: StubModelClient.echo,
+        frontier: StubModelClient { request in
+          captured.withLock { $0 = request.webSearchMaxUses }
+          return ModelResponse(text: "ok", stopReason: "end_turn")
+        })
+    } operation: {
+      let model = ChatModel(context: ideaContext, tools: ToolRecorder())
+      model.useFrontier = true
+      await model.send("What's a good coffee spot near here?")
+      #expect(captured.withLock { $0 } == 5)  // web search on for the frontier turn
+    }
+  }
+
   @Test("blank input is ignored")
   func blankInputIgnored() async {
     await withDependencies {
