@@ -193,7 +193,8 @@ private struct ChatBubble: View {
   var body: some View {
     HStack {
       if message.role == .user { Spacer(minLength: 32) }
-      Text(message.text)
+      Text(rendered)
+        .tint(message.role == .user ? Color.white : Color.accentColor)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(
@@ -204,6 +205,18 @@ private struct ChatBubble: View {
         .frame(maxWidth: .infinity, alignment: message.role == .user ? .trailing : .leading)
       if message.role == .assistant { Spacer(minLength: 32) }
     }
+  }
+
+  /// Inline Markdown so **bold**, _italics_, and — the point — tappable
+  /// `[label](url)` links render instead of printing raw. `inlineOnlyPreservingWhitespace`
+  /// keeps the model's paragraph breaks while parsing inline syntax; a parse failure
+  /// falls back to the plain string (ADR-0031 §6).
+  private var rendered: AttributedString {
+    (try? AttributedString(
+      markdown: message.text,
+      options: AttributedString.MarkdownParsingOptions(
+        interpretedSyntax: .inlineOnlyPreservingWhitespace)))
+      ?? AttributedString(message.text)
   }
 }
 

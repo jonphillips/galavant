@@ -1,4 +1,6 @@
 import GalavantAI
+import GalavantChat
+import Sharing
 import SwiftUI
 
 /// The AI portion of Settings: the BYO-key frontier tier (ADR-0014 §4 + the
@@ -10,6 +12,9 @@ import SwiftUI
 /// `SettingsScreen` form alongside the other settings sections.
 struct AISettingsSections: View {
   @State private var model = AISettingsModel()
+  /// The editable chat pre-prompt (ADR-0031 §6). Persisted to the same shared-defaults
+  /// key `ChatModel` reads live, so an edit here shapes the next conversation.
+  @Shared(.appStorage(chatCustomInstructionsKey)) private var chatInstructions = ""
 
   var body: some View {
     Group {
@@ -17,8 +22,32 @@ struct AISettingsSections: View {
       ForEach(model.providers) { provider in
         keySection(for: provider)
       }
+      instructionsSection
     }
     .onAppear { model.onAppear() }
+  }
+
+  /// A free-text pre-prompt spliced into every chat's system prompt — Jon's "let me
+  /// tune the assistant" surface. Standing guidance ("always suggest links and images
+  /// when available"), not a per-message ask.
+  private var instructionsSection: some View {
+    Section {
+      TextField(
+        "e.g. Always include a link for each suggestion, and prefer walkable clusters.",
+        text: Binding($chatInstructions),
+        axis: .vertical
+      )
+      .lineLimit(3...8)
+      if !chatInstructions.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        Button("Clear", role: .destructive) { $chatInstructions.withLock { $0 = "" } }
+      }
+    } header: {
+      Text("Chat instructions")
+    } footer: {
+      Text(
+        "Added to every Discuss conversation as standing guidance. Leave blank for the "
+          + "default. Applies on the next conversation you open.")
+    }
   }
 
   private var tierStatusSection: some View {
