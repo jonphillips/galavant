@@ -1,6 +1,6 @@
 import Dependencies
 import Foundation
-import GalavantAI
+import LLMClientKit
 import Observation
 
 /// One displayed chat turn. Ephemeral (ADR-0017 §4) — held in memory for the

@@ -1,6 +1,6 @@
 import Dependencies
 import Foundation
-import GalavantAI
+import LLMClientKit
 
 /// A place the discovery pass surfaced (ADR-0018, M6e slice 0). Domain-light and
 /// flat — the model finds and structures, the app owns resolution/dedup/persistence

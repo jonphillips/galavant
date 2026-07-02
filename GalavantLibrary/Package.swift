@@ -9,7 +9,6 @@ let package = Package(
     .library(name: "GalavantPlaces", targets: ["GalavantPlaces"]),
     .library(name: "GalavantCapture", targets: ["GalavantCapture"]),
     .library(name: "GalavantImaging", targets: ["GalavantImaging"]),
-    .library(name: "GalavantAI", targets: ["GalavantAI"]),
     .library(name: "GalavantChat", targets: ["GalavantChat"]),
     .library(name: "GalavantCaptureUI", targets: ["GalavantCaptureUI"]),
   ],
@@ -20,6 +19,9 @@ let package = Package(
     // The app-agnostic in-app browser, lifted out to jon-platform as a shared
     // package (jon-platform ADR-0002); consumed by local path.
     .package(path: "../../../jon-platform/packages/WebExtractorKit"),
+    // The app-agnostic model-access boundary, lifted out to jon-platform as a
+    // shared package; consumed by local path.
+    .package(path: "../../../jon-platform/packages/LLMClientKit"),
   ],
   targets: [
     .target(
@@ -42,7 +44,7 @@ let package = Package(
         "GalavantSchema",
         "GalavantCapture",
         "GalavantImaging",
-        "GalavantAI",
+        .product(name: "LLMClientKit", package: "LLMClientKit"),
         .product(name: "WebExtractorKit", package: "WebExtractorKit"),
         .product(name: "SQLiteData", package: "sqlite-data"),
         .product(name: "Dependencies", package: "swift-dependencies"),
@@ -54,7 +56,7 @@ let package = Package(
         "GalavantPlaces",
         "GalavantSchema",
         "GalavantCapture",
-        "GalavantAI",
+        .product(name: "LLMClientKit", package: "LLMClientKit"),
         .product(name: "DependenciesTestSupport", package: "swift-dependencies"),
       ]
     ),
@@ -82,24 +84,6 @@ let package = Package(
       name: "GalavantImagingTests",
       dependencies: ["GalavantImaging"]
     ),
-    // The tiered model-access boundary (ADR-0014): one injectable `ModelClient`
-    // every AI feature calls through, with an on-device tier (FoundationModels)
-    // and a BYO-key frontier tier (Anthropic over URLSession). App-internal, so a
-    // Galavant-scoped name is fine (ADR-0006). No SwiftUI, no CloudKit; the API
-    // key is device-local Keychain state, never a synced record (ADR-0014 §1).
-    .target(
-      name: "GalavantAI",
-      dependencies: [
-        .product(name: "Dependencies", package: "swift-dependencies"),
-      ]
-    ),
-    .testTarget(
-      name: "GalavantAITests",
-      dependencies: [
-        "GalavantAI",
-        .product(name: "DependenciesTestSupport", package: "swift-dependencies"),
-      ]
-    ),
     // The context-aware chat (ADR-0017): an `@Observable` `ChatModel` over the
     // tiered `ModelClient`, seeded with a per-screen `ChatContext`, with pool
     // verbs as tools over the tested `GalavantSchema` core. App-internal name
@@ -109,7 +93,7 @@ let package = Package(
       name: "GalavantChat",
       dependencies: [
         "GalavantSchema",
-        "GalavantAI",
+        .product(name: "LLMClientKit", package: "LLMClientKit"),
         .product(name: "SQLiteData", package: "sqlite-data"),
         .product(name: "Dependencies", package: "swift-dependencies"),
       ]
@@ -119,7 +103,7 @@ let package = Package(
       dependencies: [
         "GalavantChat",
         "GalavantSchema",
-        "GalavantAI",
+        .product(name: "LLMClientKit", package: "LLMClientKit"),
         .product(name: "DependenciesTestSupport", package: "swift-dependencies"),
       ]
     ),

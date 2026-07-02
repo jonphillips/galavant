@@ -1,11 +1,11 @@
 import Dependencies
-import GalavantAI
+import LLMClientKit
 import Observation
 
 /// Drives the AI settings surface: enter or clear the device-local frontier key
 /// for each provider (ADR-0014 §1 + the multi-provider amendment). The substantive
 /// logic — Keychain storage and tier degradation — lives and is tested in
-/// `GalavantAI`; this model is the thin shell that loads current state and writes
+/// `LLMClientKit`; this model is the thin shell that loads current state and writes
 /// edits. Lives in the app's untestable target deliberately: it only orchestrates
 /// the already-tested `APIKeyStore`.
 @MainActor
