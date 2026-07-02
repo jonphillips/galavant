@@ -273,3 +273,121 @@ if missing → `xcodegen generate`; **no new SPM target expected**). Tests in th
 on-device with Jon's key; dedup classifies new/dup/near-match correctly; discovered
 places land as candidate pins auto-bucketed by region; no candidate is ever auto-pulled
 onto a trip.
+
+---
+
+## M6f — structured weekday hours + the start-day solver · **Opus** *(solver core Sonnet-tractable)*
+
+**Goal:** give `Idea` **structured weekday hours** — with meal service (lunch/dinner) as a
+first-class question — and a pure **start-day solver** that, because the itinerary is
+day-relative, slides the start weekday and reports which starts keep every keyed stop open
+*for its intended meal*. **AI-free core;** the LLM only structures the hours at capture.
+Closes `docs/trip-time-model.md` §3. **Independent of discovery quality and the two-device
+beta — the safe first build of the three 2026-07-02 threads; do it while the M6e spike runs.**
+
+**ADR:** `docs/decisions/0029-structured-weekday-hours-and-start-day-solver.md` (read in
+full). Direction confirmed 2026-07-02.
+
+**Reuse:** `HoursExtractor` (on-device `ModelClient`, extract-only — M6c/ADR-0016);
+`hoursProvenance` / `hoursVerifiedAt` staleness stamps (M6c); the `Schedule` facade +
+`TripIdea.itinerary(_:lengthInDays:)` → `[ItineraryDay]` + `Trip.date(forDay:)` (M3c); the
+additive-column + SyncEngine-registration pattern (ADR-0009).
+
+**Model (GalavantSchema, pure):** `WeeklyHours` = 7 `DayHours`; a day is
+`.closed`/`.unknown`/`.open([ServicePeriod])` where `ServicePeriod{meal: Meal?, interval:
+OpenInterval?}` (≥1 present). Faithful to schema.org intervals (`meal: nil`, derived) **and**
+prose meals ("dinner only" → `meal: .dinner, interval: nil`). `serves(_ meal:) -> Bool?`
+derives on read; `.unknown → nil` (no conflict asserted, ≠ closed). One additive
+`Codable`-encoded `structuredHours` column (never queried in SQL); `hoursProvenance` gains
+`.manual` (wins over re-enrichment).
+
+**Solver (GalavantSchema, pure — the payoff):** `StartDaySolver` over (day numbers × keyed
+stops' `WeeklyHours` × 7 candidate start weekdays) → per-start `[HoursConflict(stop,
+dayNumber, weekday, reason)]`, `reason` = `.closed` / `.notServingMeal(Meal)`. **Meal-aware:**
+a food stop's schedule implies an intended meal (evening daypart/clock → dinner; midday →
+lunch); conflict when `serves(meal) == false`. No intended meal → plain open/closed.
+Meal-service ≠ scheduling — `DayPart`/`Schedule` stay the scheduling primitive, the solver is
+the only bridge.
+
+**Slices:**
+1. **Model + storage:** `WeeklyHours` (incl. `ServicePeriod`/`Meal`/`serves(_:)`) + a
+   schema.org-token → `WeeklyHours` parser + the additive column/migration/SyncEngine reg;
+   the deterministic capture path in `PlaceEnricher` (structured markup → hours, no model
+   call); tests.
+2. **The meal-aware `StartDaySolver`** pure core + tests — open/closed **and** intended-meal
+   (a lunch-only weekday vs a wanted-dinner stop; `.unknown` never conflicts). The payoff, no
+   UI.
+3. **LLM fallback:** `HoursExtractor` emits `WeeklyHours` (on-device guided generation) from
+   `bodyText`/the free-form string, setting `meal` directly when the prose states it; wired
+   into `PlaceEnricher` fill-blanks-only (skipped when hours already present), never
+   clobbering a `.manual` override. Fixture tests (free-text hours → structured; "dinner
+   only").
+4. **The editor:** a 7-row weekday grid in the Idea form (closed / open + meal + interval),
+   stamps `.manual`. `swiftui-specialist` checkpoint.
+5. **The solver panel** on a dated-or-datable trip (M5 band): 7 weekday options, conflict
+   count + offending stops, each with its `hoursVerifiedAt` (staleness advisory); degrades
+   gracefully when stops carry `.unknown` hours. Then docs.
+
+**Skill checkpoints (past cutoff):** **`pfw-sqlite-data`** for the migration + `@Table`
+column; the on-device `HoursExtractor` structuring uses `FoundationModels` guided generation
+— verify the `@Generable` shape against current docs; **`pfw-testing`** for the solver suite.
+
+**Targets/tests/verify:** GalavantSchema (model + solver + migration), GalavantPlaces
+(`HoursExtractor` + `PlaceEnricher`), app (editor + panel). No new SPM target. `swift test`
+green · app `xcodebuild` succeeds · `swiftlint --strict` clean.
+
+**Done when:** a captured restaurant carries structured weekday hours (split lunch/dinner
+visible, meal labels present); the solver reports, for a real multi-day trip, which start
+weekdays keep every keyed food stop open *for its intended meal* ("Start Mon: Day 6 →
+Restaurant X no dinner"); a hand edit sticks and survives re-enrichment.
+
+---
+
+## M6g — itinerary-aware suggestions · **Opus** *(synthesis; sequence last)*
+
+**Goal:** "what could we do Tuesday" — discuss a trip day and get **structured,
+one-tap-addable** stop suggestions that know the day, its region, what's already scheduled,
+and our taste. ADR-0017's context-aware chat leveled up + ADR-0018's discovery engine,
+trip-scoped. **ADR-0004-clean: the model proposes, the tap writes.**
+
+**ADR:** `docs/decisions/0030-itinerary-aware-suggestions.md` (read in full). Extends
+ADR-0017 + ADR-0018; **depends on M6e discovery quality and (for "open that day") M6f hours.**
+Sequence **last** of the three 2026-07-02 threads.
+
+**Reuse:** ADR-0018's grounded `complete()` + `web_search` wire +
+`PlaceMatcher`/`DiscoveryDedup`; ADR-0017's `ChatContext`/`ChatModel` + the Trip `.inspector`;
+the `focusedDay`/`DayChipBar` lens (M3d); the `TripRegion` lens + `TravelProfile` (ADR-0015);
+the tested `TripIdea`/pool ops (pull, `scheduleStop`); M6f `WeeklyHours.serves(_:)` to filter
+to open-that-day.
+
+**Architecture (ADR-0030):** a per-day `SuggestionContext` (day # + weekday + region +
+already-scheduled kinds/locations + taste) composes the discovery query; **generation is a
+grounded `complete()`** (ADR-0018-style batch — the model never writes) returning structured
+suggestions (`name`/`kind`/`locality`/`note`/`whyItFits`/`sourceURL`), resolved + deduped
+against the pool. **Commit is a pure app action** on the card's Add button: `createIdea`
+(candidate) ∘ pull onto this trip ∘ `scheduleStop` on the target day (day-relative). The
+`findPlaces`/`createIdea`/`scheduleStop` App-Intent verbs are the later Siri/composability
+payoff — in v1 the button calls the ops directly; the model does not invoke the write.
+
+**Slices:**
+0. **Piggyback the M6e spike:** once discovery quality holds, confirm a day-scoped query
+   ("open Tuesday near <day-region>, not already scheduled") returns useful suggestions.
+1. **Context + generation:** `SuggestionContext` (extends `ChatContext`) + a
+   `PlaceSuggestionClient` (grounded `complete()` + structured decode); stub-backend tests.
+2. **The commit action:** `createIdea ∘ pull ∘ scheduleStop` over tested ops; in-memory DB
+   tests (Add creates a candidate, pulls, schedules day-relative; undo = unschedule/remove).
+3. **The UI:** suggestion cards in the Trip `.inspector` + a "Suggest for <day>" entry tied
+   to `focusedDay`; Add → live itinerary via `@FetchAll`. `swiftui-specialist` checkpoint.
+4. **Docs:** flip ADR-0030 to accepted; ROADMAP/BACKLOG/this file.
+
+**Skill checkpoints (past cutoff):** **`claude-api`** for the grounded `complete()` +
+structured-output shape (reuses M6e's `web_search` block); **`swiftui-specialist`** for the
+suggestion-card/inspector UI; **`pfw-sqlite-data`** for the pull+schedule ops.
+
+**Targets/tests/verify:** GalavantChat (`SuggestionContext` + `PlaceSuggestionClient` + the
+commit action), app (cards + entry). GalavantAI needs nothing beyond M6e's `web_search` wire.
+No new SPM target. `swift test` green · app `xcodebuild` succeeds · `swiftlint --strict` clean.
+
+**Done when:** on a trip's focused day, "Suggest for Tuesday" returns places open that day in
+that region we haven't scheduled, aware of the day's existing stops; one tap creates the
+candidate, pulls it, and places it on that day; nothing is ever added without the tap.

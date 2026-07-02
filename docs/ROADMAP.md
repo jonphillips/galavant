@@ -276,6 +276,13 @@ Per-slice hand-off prompts (precedents to clone, skill checkpoints, done-criteri
 live in `docs/M6-EXECUTION.md` — paste one into a fresh session of the suggested
 model.
 
+**Re-sequenced 2026-07-02:** a design pass split the remaining AI work into three
+threads — *discovery* (M6e / ADR-0018), *itinerary-aware suggestions* (M6g / ADR-0030),
+and *structured hours + the start-day solver* (M6f / ADR-0029). Despite the lettering,
+**build order is M6f → the M6e spike → M6g**: M6f is independent of discovery quality
+and the two-device beta and feeds M6g's "open that day" filter, so it's the safe first
+build; M6g is the synthesis and wants both M6e quality and M6f hours.
+
 - ✅ **M6a — model-access substrate (ADR-0014, accepted 2026-06-22):** one
   injectable `ModelClient` boundary, two tiers — on-device `FoundationModels`
   (generalizing M4d's `PlaceIntelligence`) + frontier Anthropic/OpenAI authenticated
@@ -325,6 +332,26 @@ model.
   `docs/M6-EXECUTION.md`. **Suggested executor: Opus** — the `web_search` wire change
   (`AnthropicWire`) is past-cutoff (needs `claude-api`) and the discovery-quality call
   is judgment-heavy.
+- ⏳ **M6f — structured weekday hours + the start-day solver (ADR-0029, proposed
+  2026-07-02):** `WeeklyHours` on `Idea` — a day is `[ServicePeriod{meal?, interval?}]`,
+  so **meal service (lunch/dinner) is a first-class question**, not a clock range you
+  re-derive — plus the pure **meal-aware `StartDaySolver`**: because the itinerary is
+  day-relative, slide the start weekday and report which starts keep every keyed stop
+  open *for its intended meal* ("Day 6 → Restaurant X no dinner"). LLM-at-capture
+  structures the hours (extend `HoursExtractor`), a hand-editable override wins, the
+  free-form string stays source of truth. Closes the `docs/trip-time-model.md` §3
+  capture-gap flag. **Independent of discovery quality and the two-device beta — the
+  safe first build of the three; do it while the M6e spike runs.** **Suggested executor:
+  Opus** for the value-type design + the on-device guided-generation structuring rung;
+  the pure solver is a functional-core showcase (Sonnet-tractable once the model lands).
+- ⏳ **M6g — itinerary-aware suggestions (ADR-0030, proposed 2026-07-02):** "what could
+  we do Tuesday" — ADR-0017's context-aware chat leveled up: a per-day `SuggestionContext`
+  (the day + its region + what's already scheduled + taste) drives ADR-0018's discovery
+  engine, filtered to places **open that day** (M6f), returning **structured suggestion
+  cards** in the Trip inspector with **one-tap pull+schedule**. ADR-0004-clean: the model
+  proposes, the **tap** writes (`createIdea ∘ pull ∘ scheduleStop`, a pure app action — no
+  model tool-write in v1). **The synthesis — sequence last; wants both M6e discovery
+  quality and M6f hours. Suggested executor: Opus.**
 - Adjacent long-term bet (own slice when it ripens): **match *prediction*** — extend
   the his/hers `Interest.standing` projection from a lagging tally to a *predicted*
   match for unrated ideas, seeded by the taste profile. The most differentiated
@@ -332,4 +359,6 @@ model.
   modeling judgment + the taste signal.
 - ✅ Done when: shared Michelin/Harper pages land faithful ratings on pool ideas, a
   tap supplements a stop's opening hours, and the chat window answers a real
-  pool/trip question on-device or with Jon's key.
+  pool/trip question on-device or with Jon's key; the start-day solver flags which trip
+  start weekdays keep our restaurants open *for the meals we want*; and a day's "what
+  could we do" suggestions add to the itinerary in one tap.
