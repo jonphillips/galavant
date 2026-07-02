@@ -1,6 +1,7 @@
 # ADR-0029: Structured weekday hours on `Idea` + the start-day solver
 
-*Status: proposed — 2026-07-02. Closes the "capture gap — dedicated session" flag in
+*Status: accepted — 2026-07-02 (implemented on `feat/m6f-structured-hours-solver`).
+Closes the "capture gap — dedicated session" flag in
 `docs/trip-time-model.md` §3. Two coupled parts: **C1** the structured-hours model +
 capture, **C2** the pure solver over it. Independent of discovery quality (ADR-0018) and
 of the two-device beta — the high-confidence M6e slice.*

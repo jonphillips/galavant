@@ -28,10 +28,18 @@ public struct Idea: Identifiable, Equatable, Sendable {
   /// supplement ladder or hand-edited; `nil` = unknown, the supplement trigger.
   public var openingHours: String?
   /// How `openingHours` was sourced — stamped so a HITL-scraped or hand-edited value
-  /// never reads as authoritative (ADR-0016 §2). `nil` when there are no hours.
+  /// never reads as authoritative (ADR-0016 §2). `nil` when there are no hours. Also
+  /// governs `structuredHours`: a `.manual` edit wins over re-enrichment (ADR-0029 §2).
   public var hoursProvenance: FactProvenance?
   /// When `openingHours` was last filled/verified — hours rot, so they're dated.
   public var hoursVerifiedAt: Date?
+  /// The derived, structured weekday hours the start-day solver reads: a
+  /// `Codable`-encoded `WeeklyHours` (ADR-0029 §2), one additive column, CloudKit-legal
+  /// because it's a string. Read/write the value type via `weeklyHours`; never queried
+  /// in SQL (loaded and handed to the pure solver), so it stays one encoded column
+  /// rather than seven flat ones. `nil` = no structured hours yet. The free-form
+  /// `openingHours` string stays the faithful captured source of truth alongside it.
+  public var structuredHours: String?
   /// When the app last took the second enrichment hop for this idea (re-fetched its
   /// website for images + facts; M4g). `nil` = not yet enriched — the trigger for a
   /// one-time enrichment pass. Synced so a second device doesn't redo the work.
@@ -61,6 +69,7 @@ public struct Idea: Identifiable, Equatable, Sendable {
     openingHours: String? = nil,
     hoursProvenance: FactProvenance? = nil,
     hoursVerifiedAt: Date? = nil,
+    structuredHours: String? = nil,
     enrichedAt: Date? = nil,
     mapItemIdentifier: String? = nil,
     travelPartyID: TravelParty.ID? = nil
@@ -80,6 +89,7 @@ public struct Idea: Identifiable, Equatable, Sendable {
     self.openingHours = openingHours
     self.hoursProvenance = hoursProvenance
     self.hoursVerifiedAt = hoursVerifiedAt
+    self.structuredHours = structuredHours
     self.enrichedAt = enrichedAt
     self.mapItemIdentifier = mapItemIdentifier
     self.travelPartyID = travelPartyID

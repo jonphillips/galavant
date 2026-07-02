@@ -76,7 +76,17 @@ public final class PlaceEnricher {
     let address = idea.address ?? (pageAddress.isEmpty ? nil : pageAddress)
     let kind = idea.kind ?? IdeaKind(schemaOrgTypes: page.schemaTypes)
 
-    let resolvedHours = idea.openingHours == nil ? await hoursIfAbsent(page: page) : nil
+    // Hours are fill-blanks-only and frozen by a `.manual` stamp (ADR-0016/0029): the
+    // free-form string and structured hours share one `hoursProvenance`, so a manual
+    // edit to either wins over re-enrichment of both.
+    let hoursAreManual = idea.hoursProvenance == .manual
+    let resolvedHours =
+      idea.openingHours == nil && !hoursAreManual ? await hoursIfAbsent(page: page) : nil
+    // Structured weekday hours (ADR-0029). Independent of the string above — a page can
+    // carry structured markup but no string we didn't already have, or vice versa.
+    let resolvedStructured =
+      idea.structuredHours == nil && !hoursAreManual
+      ? await structuredHoursIfAbsent(page: page) : nil
     let stamp = now.now
 
     try? await database.write { db -> Void in
@@ -93,6 +103,12 @@ public final class PlaceEnricher {
       if let resolvedHours {
         try Idea.setOpeningHours(
           ideaID: ideaID, hours: resolvedHours, provenance: .official,
+          verifiedAt: stamp, in: db
+        )
+      }
+      if let resolvedStructured {
+        try Idea.setStructuredHours(
+          ideaID: ideaID, hours: resolvedStructured, provenance: .official,
           verifiedAt: stamp, in: db
         )
       }
@@ -171,6 +187,15 @@ public final class PlaceEnricher {
     guard let extracted = await hoursExtractor(page) else { return nil }
     let trimmed = extracted.trimmingCharacters(in: .whitespacesAndNewlines)
     return trimmed.isEmpty ? nil : trimmed
+  }
+
+  /// Structured weekday hours (ADR-0029) from an already-parsed page when the idea
+  /// has none: deterministic schema.org-token parse first, then the on-device LLM
+  /// structuring pass for unstructured-markup sites (mirrors `hoursIfAbsent`). `nil`
+  /// when neither yields an assertion.
+  private func structuredHoursIfAbsent(page: ParsedPage) async -> WeeklyHours? {
+    if let deterministic = WeeklyHoursParser.parse(page.openingHours) { return deterministic }
+    return await hoursExtractor.structured(page)
   }
 
   /// A processed image ready to store, in recommended (best-first) order.

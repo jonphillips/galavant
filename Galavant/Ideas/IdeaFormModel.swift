@@ -10,10 +10,15 @@ import SQLiteData
 @Observable
 final class IdeaFormModel {
   @ObservationIgnored @Dependency(\.defaultDatabase) var database
+  @ObservationIgnored @Dependency(\.date) var now
   @ObservationIgnored @FetchAll(Tag.order(by: \.name)) var allTags
 
   var draft: Idea.Draft
   var tagNames: [String] = []
+  /// The hand-editable structured weekday hours (ADR-0029 §5), decoded from the draft.
+  /// The editor mutates this; `structuredHoursEdited()` writes it back to the draft
+  /// and stamps `.manual` so the edit wins over re-enrichment.
+  var weeklyHours: WeeklyHours = .unknown
   var newTag = ""
   /// True while the field-supplement ladder is running (ADR-0016 §2).
   var supplementingHours = false
@@ -38,6 +43,7 @@ final class IdeaFormModel {
 
   init(draft: Idea.Draft) {
     self.draft = draft
+    self.weeklyHours = draft.weeklyHours ?? .unknown
   }
 
   var isNew: Bool { draft.id == nil }
@@ -222,8 +228,19 @@ final class IdeaFormModel {
         draft.openingHours = idea.openingHours
         draft.hoursProvenance = idea.hoursProvenance
         draft.hoursVerifiedAt = idea.hoursVerifiedAt
+        draft.structuredHours = idea.structuredHours
+        weeklyHours = idea.weeklyHours ?? .unknown
       }
     }
+  }
+
+  /// Commit a hand edit of the structured weekday hours (ADR-0029 §5): encode into the
+  /// draft and stamp `hoursProvenance = .manual` + a fresh verified-at, so the edit wins
+  /// over re-enrichment. Called by the editor on every change; `Idea.save` persists it.
+  func structuredHoursEdited() {
+    draft.weeklyHours = weeklyHours.hasAnyAssertion ? weeklyHours : nil
+    draft.hoursProvenance = .manual
+    draft.hoursVerifiedAt = now.now
   }
 
   func saveButtonTapped() {

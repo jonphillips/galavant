@@ -48,19 +48,20 @@ Pieces this needs:
   opening days × candidate start date) — a STYLE.md functional-core showcase,
   trivially testable.
 
-**Capture gap — to discuss (2026-06-30, Jon).** Today the captured `openingHours`
-(both the browser tap-to-fill chip and the schema.org `openingHours` scrape) is a
-**free-form string**. The solver above needs **structured weekday-level opening
-days** — open/closed per weekday — to evaluate "which start weekdays keep day 6
-off a Monday." So there's a parse/representation step missing between capture and
-the solver: turn `"Tue–Sun 12:00–14:00, 19:00–22:00; closed Mon"` into something
-the pure function can read, while keeping the free-form string as the captured
-source-of-truth (don't discard the original). Open questions for a **dedicated
-session**: the weekday model (a `Weekday` open-set vs. per-day intervals); where
-the structuring happens (on-device LLM at capture time vs. a typed structured
-field vs. a derive-on-demand parse); and how it interacts with the staleness rule
-below. Not scoped yet — flagged so the free-form field doesn't ossify before the
-solver lands.
+**Capture gap — CLOSED (ADR-0029, M6f, 2026-07-02).** The dedicated session
+resolved every open question here. The representation is a pure `WeeklyHours`
+value type in `GalavantSchema` — seven `DayHours` (`.closed` / `.unknown` /
+`.open([ServicePeriod])`), where a `ServicePeriod` carries an optional `Meal`
+label **and** an optional clock interval, so meal service (lunch vs. dinner) is
+first-class, not re-derived. Structuring happens **at capture**: deterministic
+schema.org-token parse first, on-device LLM fallback second, with a hand-editable
+structured field as the `.manual` override that wins over re-enrichment; the
+free-form string stays the captured source-of-truth alongside it (`Idea` keeps
+`openingHours` and gains one additive encoded `structuredHours` column).
+`.unknown` is kept distinct from `.closed` so a silent weekday never raises a false
+alarm, and the staleness rule below rides the existing `hoursVerifiedAt` stamp.
+The solver itself — `StartDaySolver`, pure and meal-aware — is implemented and
+tested; the advisory panel lives on the trip. See ADR-0029.
 
 ## Status of the third recalled requirement
 

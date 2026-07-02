@@ -332,18 +332,19 @@ build; M6g is the synthesis and wants both M6e quality and M6f hours.
   `docs/M6-EXECUTION.md`. **Suggested executor: Opus** — the `web_search` wire change
   (`AnthropicWire`) is past-cutoff (needs `claude-api`) and the discovery-quality call
   is judgment-heavy.
-- ⏳ **M6f — structured weekday hours + the start-day solver (ADR-0029, proposed
-  2026-07-02):** `WeeklyHours` on `Idea` — a day is `[ServicePeriod{meal?, interval?}]`,
+- ✅ **M6f — structured weekday hours + the start-day solver (ADR-0029, shipped
+  2026-07-02, branch `feat/m6f-structured-hours-solver`):** `WeeklyHours` on `Idea` — a day is `[ServicePeriod{meal?, interval?}]`,
   so **meal service (lunch/dinner) is a first-class question**, not a clock range you
   re-derive — plus the pure **meal-aware `StartDaySolver`**: because the itinerary is
   day-relative, slide the start weekday and report which starts keep every keyed stop
   open *for its intended meal* ("Day 6 → Restaurant X no dinner"). LLM-at-capture
   structures the hours (extend `HoursExtractor`), a hand-editable override wins, the
   free-form string stays source of truth. Closes the `docs/trip-time-model.md` §3
-  capture-gap flag. **Independent of discovery quality and the two-device beta — the
-  safe first build of the three; do it while the M6e spike runs.** **Suggested executor:
-  Opus** for the value-type design + the on-device guided-generation structuring rung;
-  the pure solver is a functional-core showcase (Sonnet-tractable once the model lands).
+  capture-gap flag. **Was independent of discovery quality and the two-device beta — the
+  safe first build of the three.** Shipped: the `WeeklyHours`/`StartDaySolver` pure core
+  + tests in `GalavantSchema`, deterministic + on-device-LLM structuring in
+  `GalavantPlaces` (fill-blanks-only, `.manual` wins), the 7-row hours editor in the Idea
+  form, and the advisory start-day panel on the trip.
 - ⏳ **M6g — itinerary-aware suggestions (ADR-0030, proposed 2026-07-02):** "what could
   we do Tuesday" — ADR-0017's context-aware chat leveled up: a per-day `SuggestionContext`
   (the day + its region + what's already scheduled + taste) drives ADR-0018's discovery

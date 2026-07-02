@@ -159,6 +159,39 @@ final class TripPlanningModel {
       dayRegions: dayRegions, regionsByID: regionByID)
   }
 
+  // MARK: - Start-day solver (ADR-0029 §5)
+
+  /// The keyed stops that constrain the start weekday — scheduled, day-placed stops
+  /// whose pool idea carries structured hours. Empty until hours coverage lands, which
+  /// is exactly when the solver has nothing to say.
+  var startDaySolverStops: [SolverStop] {
+    StartDaySolver.stops(entries: entries, ideasByID: ideaByID)
+  }
+
+  /// The solver's per-start-weekday verdicts, ranked cleanest-first for the panel.
+  /// Advisory only — nothing here moves a stop or changes the start (ADR-0004).
+  var startDayOptions: [StartDayOption] {
+    StartDaySolver.solve(stops: startDaySolverStops)
+      .sorted { $0.conflicts.count < $1.conflicts.count }
+  }
+
+  /// The weekday the trip currently starts on, when it's dated — the panel marks it.
+  var currentStartWeekday: Weekday? {
+    trip?.startDate.flatMap { Weekday.from($0) }
+  }
+
+  /// When each stop's hours were last verified — the panel shows this next to a
+  /// conflict so "closed Mondays" reads as "…as of when we saved it" (ADR-0029 §5).
+  var stopHoursVerifiedAt: [TripIdea.ID: Date] {
+    Dictionary(
+      uniqueKeysWithValues: entries.compactMap { entry in
+        guard let ideaID = entry.ideaID, let date = ideaByID[ideaID]?.hoursVerifiedAt
+        else { return nil }
+        return (entry.id, date)
+      }
+    )
+  }
+
   // MARK: - Canvas mode (the map is the trip's home, M3d)
 
   /// The map regions this trip is scoped to — the camera's fallback frame when no

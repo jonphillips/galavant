@@ -504,6 +504,12 @@ extension DependencyValues {
       // back-fill to empty.
       try #sql(#"ALTER TABLE "ideas" ADD COLUMN "description" TEXT NOT NULL DEFAULT ''"#).execute(db)
     }
+    migrator.registerMigration("Add structuredHours to ideas (ADR-0029)") { db in
+      // The derived, structured weekday hours behind the WeeklyHours facade — one
+      // additive encoded (Codable→JSON string) column, CloudKit-legal. Never queried
+      // in SQL; loaded and handed to the pure start-day solver.
+      try #sql(#"ALTER TABLE "ideas" ADD COLUMN "structuredHours" TEXT"#).execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if case let .configured(startImmediately) = syncMode {
