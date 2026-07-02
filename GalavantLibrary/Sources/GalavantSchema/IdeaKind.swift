@@ -158,4 +158,10 @@ public enum IdeaKind: String, QueryBindable, CaseIterable, Sendable {
     }
     self = matched
   }
+
+  /// Whether this kind runs *meal service* — the signal the start-day solver uses to
+  /// decide a scheduled stop implies an intended meal (ADR-0029 §4). Restaurants do;
+  /// everything else (including bars/`.drink`, whose "dinner" isn't a service sitting)
+  /// is checked plain open/closed, so a museum's Evening stop is never "dinner."
+  public var servesMeals: Bool { self == .food }
 }

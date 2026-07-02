@@ -58,6 +58,55 @@ extension Idea {
   }
 }
 
+extension Idea {
+  /// The structured weekday hours behind the encoded `structuredHours` column
+  /// (ADR-0029 §2). Reading decodes the JSON (malformed → `nil`); writing encodes it,
+  /// clearing the column when nothing is asserted.
+  public var weeklyHours: WeeklyHours? {
+    get { WeeklyHours.decode(structuredHours) }
+    set { structuredHours = newValue?.encoded() }
+  }
+}
+
+extension Idea.Draft {
+  /// The structured weekday hours behind the draft's encoded column — the Idea form
+  /// edits this, and `Idea.save` persists it (the form stamps `.manual` on a hand
+  /// edit). Mirrors `Idea.weeklyHours`.
+  public var weeklyHours: WeeklyHours? {
+    get { WeeklyHours.decode(structuredHours) }
+    set { structuredHours = newValue?.encoded() }
+  }
+}
+
+extension Idea {
+  /// Write structured weekday hours onto an idea with their provenance + a
+  /// verified-at stamp — the structured analogue of `setOpeningHours`. Enrichment
+  /// calls this fill-blanks-only; the editor calls it with `.manual`, which then wins
+  /// over re-enrichment (ADR-0029 §2/§3). An all-unknown value clears the column.
+  /// No-op on a missing idea.
+  public static func setStructuredHours(
+    ideaID: Idea.ID,
+    hours: WeeklyHours?,
+    provenance: FactProvenance,
+    verifiedAt: Date,
+    in db: Database
+  ) throws {
+    guard try Idea.find(ideaID).fetchOne(db) != nil else { return }
+    let encoded = hours?.encoded()
+    try Idea.find(ideaID)
+      .update {
+        $0.structuredHours = #bind(encoded)
+        // Structured + free-form hours share the one provenance/stamp pair (§2). Only
+        // stamp when we actually stored something, so clearing doesn't forge a date.
+        if encoded != nil {
+          $0.hoursProvenance = #bind(provenance)
+          $0.hoursVerifiedAt = #bind(verifiedAt)
+        }
+      }
+      .execute(db)
+  }
+}
+
 extension Planner {
   /// Create a planner attached to the default travel party and return it.
   public static func create(displayName: String, in db: Database) throws -> Planner {

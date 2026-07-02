@@ -120,6 +120,14 @@ struct IdeaDetailView: View {
         }
       }
 
+      if let weekly = idea.weeklyHours, weekly.hasAnyAssertion {
+        Section("Weekly hours") {
+          ForEach(Weekday.allCases, id: \.self) { weekday in
+            WeeklyHoursSummaryRow(weekday: weekday, day: weekly[weekday])
+          }
+        }
+      }
+
       if !idea.notes.isEmpty {
         Section("Notes") { Text(idea.notes) }
       }
@@ -183,6 +191,30 @@ struct IdeaDetailView: View {
     } else {
       LabeledContent("Day", value: context.dayLabel)
       LabeledContent("Time", value: context.schedule.display)
+    }
+  }
+}
+
+/// One read-only weekday row of structured hours (ADR-0029): the weekday and its
+/// compact status/sittings, with closed/unknown days de-emphasized.
+private struct WeeklyHoursSummaryRow: View {
+  let weekday: Weekday
+  let day: DayHours
+
+  var body: some View {
+    HStack {
+      Text(weekday.label)
+      Spacer()
+      Text(day.display)
+        .foregroundStyle(isMuted ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
+    }
+    .font(.callout)
+  }
+
+  private var isMuted: Bool {
+    switch day {
+    case .closed, .unknown: true
+    case .open: false
     }
   }
 }

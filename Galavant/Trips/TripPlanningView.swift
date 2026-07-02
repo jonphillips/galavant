@@ -26,6 +26,7 @@ struct TripPlanningView: View {
   private var model: TripPlanningModel { router.planningModel(for: trip) }
   @State private var showDetailSheet = false
   @State private var showingChat = false
+  @State private var showingStartDay = false
   @State private var sheetDetent: PresentationDetent = .medium
   /// Measured heights of the full-bleed map and the bottom sheet over it — their
   /// ratio is the southern slice of the map the sheet hides, fed to the canvas so
@@ -69,6 +70,17 @@ struct TripPlanningView: View {
             showingChat = true
           } label: {
             Icon.chat.label("Discuss")
+          }
+        }
+        // Start-day check: which start weekdays keep every keyed stop open (ADR-0029).
+        // Shown only once some stop carries structured hours to constrain the start.
+        if !model.startDaySolverStops.isEmpty {
+          ToolbarItem {
+            Button {
+              showingStartDay = true
+            } label: {
+              Label("Start Day", systemImage: "calendar.badge.clock")
+            }
           }
         }
       }
@@ -118,6 +130,9 @@ struct TripPlanningView: View {
       }
       .sheet(item: $model.destination.stay, id: \.id) { draft in
         StaySheet(model: model, draft: draft)
+      }
+      .sheet(isPresented: $showingStartDay) {
+        StartDayPanel(model: model)
       }
   }
 

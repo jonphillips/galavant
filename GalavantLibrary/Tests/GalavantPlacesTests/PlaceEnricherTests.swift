@@ -198,6 +198,89 @@ import UniformTypeIdentifiers
       #expect(idea.openingHours == "Tu-Sa 17:00-23:00")
       #expect(idea.hoursProvenance == .official)
       #expect(idea.hoursVerifiedAt == stamp)
+      // ADR-0029: the same deterministic pass also structures the weekday hours.
+      let structured = try #require(idea.weeklyHours)
+      #expect(structured[.tuesday] == .open([ServicePeriod(interval: OpenInterval(open: 1020, close: 1380))]))
+      #expect(structured[.saturday].serves(.dinner) == true)
+      #expect(structured[.monday] == .unknown)
+    }
+  }
+
+  @Test("Enrich structures hours via the LLM fallback when markup carries none")
+  func enrichStructuresHoursViaLLMFallback() async throws {
+    let stamp = Date(timeIntervalSince1970: 1_700_000_000)
+    let ideaID = UUID()
+    let modelHours: WeeklyHours = {
+      var hours = WeeklyHours.unknown
+      hours[.friday] = .open([ServicePeriod(meal: .dinner)])
+      return hours
+    }()
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.date = .constant(stamp)
+      $0.pageFetcher = PageFetcher { _ in Self.unstructuredSiteHTML }
+      $0.imageFetcher = .testValue
+      $0.imageRecommender = .testValue
+      // No structured markup → the string rung fills the free-form field, the
+      // structured rung emits WeeklyHours with a prose-stated meal.
+      $0.hoursExtractor = HoursExtractor(
+        extract: { _ in "Fri dinner only" },
+        structured: { _ in modelHours }
+      )
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      try await database.write { db in
+        let party = try TravelParty.ensureDefault(in: db)
+        try Idea.insert {
+          Idea.Draft(id: ideaID, name: "Bhavana", url: "https://brewerybhavana.com", travelPartyID: party.id)
+        }
+        .execute(db)
+      }
+
+      await PlaceEnricher().enrichIfNeeded(ideaID: ideaID)
+
+      let idea = try #require(try await database.read { db in try Idea.find(ideaID).fetchOne(db) })
+      let structured = try #require(idea.weeklyHours)
+      #expect(structured[.friday] == .open([ServicePeriod(meal: .dinner)]))
+      #expect(idea.hoursProvenance == .official)
+    }
+  }
+
+  @Test("Enrich never clobbers a manual structured-hours override")
+  func enrichPreservesManualStructuredHours() async throws {
+    let ideaID = UUID()
+    let manual: WeeklyHours = {
+      var hours = WeeklyHours.unknown
+      hours[.monday] = .closed
+      return hours
+    }()
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.date = .constant(Date(timeIntervalSince1970: 1_700_000_000))
+      $0.pageFetcher = PageFetcher { _ in Self.siteWithHoursHTML }
+      $0.imageFetcher = .testValue
+      $0.imageRecommender = .testValue
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      try await database.write { db in
+        let party = try TravelParty.ensureDefault(in: db)
+        try Idea.insert {
+          Idea.Draft(
+            id: ideaID, name: "Spot", url: "https://spot.example",
+            hoursProvenance: .manual, structuredHours: manual.encoded(), travelPartyID: party.id
+          )
+        }
+        .execute(db)
+      }
+
+      await PlaceEnricher().enrichIfNeeded(ideaID: ideaID)
+
+      let idea = try #require(try await database.read { db in try Idea.find(ideaID).fetchOne(db) })
+      // The manual override survives — enrichment left the structured hours untouched.
+      #expect(idea.weeklyHours == manual)
+      #expect(idea.hoursProvenance == .manual)
     }
   }
 

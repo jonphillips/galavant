@@ -276,7 +276,7 @@ onto a trip.
 
 ---
 
-## M6f — structured weekday hours + the start-day solver · **Opus** *(solver core Sonnet-tractable)*
+## M6f — structured weekday hours + the start-day solver · **Opus** *(solver core Sonnet-tractable)* — ✅ **SHIPPED 2026-07-02** (branch `feat/m6f-structured-hours-solver`; all five slices)
 
 **Goal:** give `Idea` **structured weekday hours** — with meal service (lunch/dinner) as a
 first-class question — and a pure **start-day solver** that, because the itinerary is

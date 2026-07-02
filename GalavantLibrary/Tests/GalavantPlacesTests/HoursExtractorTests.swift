@@ -2,6 +2,7 @@ import Dependencies
 import Foundation
 import GalavantAI
 import GalavantCapture
+import GalavantSchema
 import Testing
 
 @testable import GalavantPlaces
@@ -55,5 +56,59 @@ import Testing
       await HoursExtractor.liveValue(page)
     }
     #expect(hours == "Wednesday - Saturday 6.30 -11 pm")
+  }
+
+  // MARK: Structured parse (ADR-0029 §3.2)
+
+  @Test("Structured parse decodes a weekly schedule with a labeled meal")
+  func structuredWithMeal() throws {
+    let json = """
+      {"week":[
+        {"day":"tuesday","status":"open","periods":[{"meal":"dinner","open":"18:00","close":"22:00"}]},
+        {"day":"monday","status":"closed"}
+      ]}
+      """
+    let hours = try #require(HoursExtractor.parseStructured(json))
+    #expect(hours[.tuesday].serves(.dinner) == true)
+    #expect(hours[.tuesday] == .open([ServicePeriod(meal: .dinner, interval: OpenInterval(open: 1080, close: 1320))]))
+    #expect(hours[.monday] == .closed)
+    // A day the model didn't mention stays unknown, never closed.
+    #expect(hours[.wednesday] == .unknown)
+  }
+
+  @Test("Prose-only meal (dinner only, no times) keeps meal, no fabricated clock")
+  func structuredDinnerOnly() throws {
+    let json = #"{"week":[{"day":"friday","status":"open","periods":[{"meal":"dinner"}]}]}"#
+    let hours = try #require(HoursExtractor.parseStructured(json))
+    #expect(hours[.friday] == .open([ServicePeriod(meal: .dinner)]))
+    #expect(hours[.friday].serves(.dinner) == true)
+    #expect(hours[.friday].serves(.lunch) == false)
+  }
+
+  @Test("Split lunch/dinner becomes two periods")
+  func structuredSplitService() throws {
+    let json = """
+      {"week":[{"day":"saturday","status":"open","periods":[
+        {"open":"12:00","close":"14:00"},{"open":"19:00","close":"22:00"}]}]}
+      """
+    let hours = try #require(HoursExtractor.parseStructured(json))
+    #expect(hours[.saturday].serves(.lunch) == true)
+    #expect(hours[.saturday].serves(.dinner) == true)
+  }
+
+  @Test("late night wording normalizes to the lateNight meal")
+  func structuredLateNight() throws {
+    let json = #"{"week":[{"day":"friday","status":"open","periods":[{"meal":"late night"}]}]}"#
+    let hours = try #require(HoursExtractor.parseStructured(json))
+    #expect(hours[.friday] == .open([ServicePeriod(meal: .lateNight)]))
+  }
+
+  @Test("Malformed or empty structured output degrades to nil")
+  func structuredMalformed() {
+    #expect(HoursExtractor.parseStructured("no json") == nil)
+    #expect(HoursExtractor.parseStructured(#"{"week": "nope"}"#) == nil)
+    // A week that asserts nothing (all unknown / unrecognized) → nil, not an empty blob.
+    #expect(HoursExtractor.parseStructured(#"{"week":[{"day":"funday","status":"open"}]}"#) == nil)
+    #expect(HoursExtractor.parseStructured(#"{"week":[{"day":"monday","status":"unknown"}]}"#) == nil)
   }
 }

@@ -107,6 +107,7 @@ struct IdeaFormView: View {
         if !model.isNew {
           hoursSection
         }
+        StructuredHoursEditor(model: model)
         if model.canFindGuideRating {
           guideRatingSection
         }
