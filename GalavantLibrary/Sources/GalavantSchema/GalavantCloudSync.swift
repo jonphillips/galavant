@@ -63,6 +63,17 @@ public enum GalavantCloudSync {
       || arguments.contains(enabledLaunchArgument)
   }
 
+  /// Set the persistent enablement gate from the UI (the Settings sync-health row
+  /// when sync is off is the enable affordance — docs/M5-EXECUTION.md → M5-sync).
+  /// Writes the same defaults key the launch-env mirror uses, so a later relaunch
+  /// still sees the engine as enabled.
+  public static func setManuallyEnabled(
+    _ enabled: Bool,
+    defaults: UserDefaults = .standard
+  ) {
+    defaults.set(enabled, forKey: enabledDefaultsKey)
+  }
+
   /// Mirrors the dev-only launch flag into the persistent defaults domain.
   ///
   /// The launch argument/environment lives only in the volatile `NSArgumentDomain`, so
@@ -229,6 +240,21 @@ public enum GalavantCloudSync {
         return false
       }
       try await Task.sleep(for: pollInterval)
+    }
+  }
+}
+
+extension SyncAccountStatus {
+  /// Map CloudKit's account status into the domain-free mirror the `SyncHealth`
+  /// reducer consumes, keeping CloudKit knowledge on this side of the boundary.
+  public init(_ status: CKAccountStatus) {
+    switch status {
+    case .available: self = .available
+    case .noAccount: self = .noAccount
+    case .restricted: self = .restricted
+    case .couldNotDetermine: self = .couldNotDetermine
+    case .temporarilyUnavailable: self = .temporarilyUnavailable
+    @unknown default: self = .unknown
     }
   }
 }
