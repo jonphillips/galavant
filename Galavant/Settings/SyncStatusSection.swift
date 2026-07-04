@@ -1,4 +1,4 @@
-import GalavantSchema
+import CloudSyncKit
 import SwiftUI
 
 /// The sync-health row at the top of Settings (docs/M5-EXECUTION.md → M5-sync, slice

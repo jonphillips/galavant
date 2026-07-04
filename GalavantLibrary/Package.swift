@@ -22,11 +22,16 @@ let package = Package(
     // The app-agnostic model-access boundary, lifted out to jon-platform as a
     // shared package; consumed by local path.
     .package(path: "../../../jon-platform/packages/LLMClientKit"),
+    // The app-agnostic CloudKit sync-control surface (gate, start, redrain, pending
+    // poll, SyncHealth reducer), lifted to jon-platform per ADR-0003; consumed by
+    // local path. GalavantCloudSync is now a thin facade over it.
+    .package(path: "../../../jon-platform/packages/CloudSyncKit"),
   ],
   targets: [
     .target(
       name: "GalavantSchema",
       dependencies: [
+        .product(name: "CloudSyncKit", package: "CloudSyncKit"),
         .product(name: "SQLiteData", package: "sqlite-data"),
         .product(name: "Dependencies", package: "swift-dependencies"),
       ]
