@@ -13,6 +13,9 @@ import SwiftUI
 /// above either layout.
 struct TripDetailContent: View {
   let model: TripPlanningModel
+  /// Open the "romance" header-photo picker (ADR-0032). Hoisted to the host so the
+  /// sheet stacks above either layout, like the other trip sheets.
+  var onChooseHeader: () -> Void = {}
 
   var body: some View {
     // The read-only detail drills down *within this panel* (the iPhone bottom
@@ -69,6 +72,12 @@ struct TripDetailContent: View {
     }
     .safeAreaInset(edge: .top, spacing: 0) {
       VStack(spacing: 0) {
+        // The trip's "romance" header photo, when one is chosen (ADR-0032) — the
+        // band that makes the trip feel like its place. Absent → the toolbar strip
+        // sits at the top as before; the photo is added from the trip's nav bar.
+        if let header = model.trip?.headerImage {
+          TripHeaderImageView(image: header, onChange: onChooseHeader)
+        }
         // The "toolbar" strip: just the context-sensitive Add (Edit lives in the
         // trip's nav bar).
         HStack {

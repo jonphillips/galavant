@@ -22,6 +22,7 @@
 		242EC6987A08C0DCEBF3BC64 /* GalavantPlaces in Frameworks */ = {isa = PBXBuildFile; productRef = 6527A596FFD56B45F77446D0 /* GalavantPlaces */; };
 		25A7842AF8875EEF8BFA2887 /* PrefersTabNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDA439EDEF5339154F3D8C08 /* PrefersTabNavigation.swift */; };
 		28CB0F1054F9EC0012E413AD /* SwiftUINavigation in Frameworks */ = {isa = PBXBuildFile; productRef = A0C2774E35241633FE89B7A7 /* SwiftUINavigation */; };
+		2BCD153BD1286735123E24B7 /* TripHeaderImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E5E2C9449BAC2E031A8745F /* TripHeaderImageView.swift */; };
 		35E279FA22C85810158AF02C /* DayPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95C568B98EA55277C2DDA065 /* DayPalette.swift */; };
 		3B4EC7EE202BCED566C99202 /* SQLiteData in Frameworks */ = {isa = PBXBuildFile; productRef = A641D3ABA375BA009278F435 /* SQLiteData */; };
 		3DF889FDCBE7A7C979E41F13 /* IdeasScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E13450922E6B719B55DC57BC /* IdeasScreen.swift */; };
@@ -38,6 +39,7 @@
 		52FDF2960D787D40108B3780 /* Binding+Present.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4784A4E4DDB7356EEF63A970 /* Binding+Present.swift */; };
 		53262564E42B4E5C64231A96 /* IdeasFilterMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15F0079F14EE5923209192B1 /* IdeasFilterMenu.swift */; };
 		565E450BE96483372954E175 /* CaptureExtraction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43D5D11997CB5E747A590622 /* CaptureExtraction.swift */; };
+		57928FB375F27A957BC3FE09 /* TripHeaderPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEEC45147F36D138F0ABA934 /* TripHeaderPickerSheet.swift */; };
 		5FC0A092CF36738BE434FB6D /* IdeaCoordinate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 409050F2DDFD762C631818CF /* IdeaCoordinate.swift */; };
 		626DB4453DDF7BA57BE9AF1C /* GalavantChat in Frameworks */ = {isa = PBXBuildFile; productRef = 70E3AE87004F856771C63307 /* GalavantChat */; };
 		666F98ED751CC0C6994CFED4 /* GalavantCaptureUI in Frameworks */ = {isa = PBXBuildFile; productRef = 9D033329AC22FDEA57CBC830 /* GalavantCaptureUI */; };
@@ -133,6 +135,7 @@
 		08F3A8C38B6B2977E3D8153F /* TripPlanningView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripPlanningView.swift; sourceTree = "<group>"; };
 		0A8181602270C693F3DBB397 /* BrowserScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserScreen.swift; sourceTree = "<group>"; };
 		0CA9E000AA9AEEE1E3D68F79 /* GalavantUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = GalavantUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		0E5E2C9449BAC2E031A8745F /* TripHeaderImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripHeaderImageView.swift; sourceTree = "<group>"; };
 		15F0079F14EE5923209192B1 /* IdeasFilterMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeasFilterMenu.swift; sourceTree = "<group>"; };
 		1791F203077D8B7907351B9F /* PoolMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoolMapView.swift; sourceTree = "<group>"; };
 		17EBCBAEA0AF8C840A0DA921 /* PoolMapUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoolMapUITests.swift; sourceTree = "<group>"; };
@@ -189,6 +192,7 @@
 		D180C34C8C9F3983F7CF9CFB /* ExtensionPreProcessing.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = ExtensionPreProcessing.js; sourceTree = "<group>"; };
 		D3BFE6AAFB0EDC36E3BB7755 /* GalavantShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GalavantShare.entitlements; sourceTree = "<group>"; };
 		D8A01FBA56D01193ABBE48E6 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		DEEC45147F36D138F0ABA934 /* TripHeaderPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripHeaderPickerSheet.swift; sourceTree = "<group>"; };
 		E00FB978F8AEB5F20B8B8C5D /* SyncHealthModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncHealthModel.swift; sourceTree = "<group>"; };
 		E049286F9F226AF86DA12541 /* IdentityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityView.swift; sourceTree = "<group>"; };
 		E0587DE2E1AA61B9BD3D0073 /* RegionManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegionManagerView.swift; sourceTree = "<group>"; };
@@ -309,6 +313,8 @@
 				07A4BE5288975EEF3DA91B16 /* TripDetailContent.swift */,
 				A20DAF6B7A5F203899F4C780 /* TripFormModel.swift */,
 				803A41898CEB755AAE0E4A68 /* TripFormView.swift */,
+				0E5E2C9449BAC2E031A8745F /* TripHeaderImageView.swift */,
+				DEEC45147F36D138F0ABA934 /* TripHeaderPickerSheet.swift */,
 				BA0BD75B2D9BBEA758A6A8DA /* TripIdeasView.swift */,
 				6839D17655A85296477C1D5D /* TripItineraryView.swift */,
 				8238F43F540641D1FD4267BA /* TripPlanningModel.swift */,
@@ -638,6 +644,8 @@
 				A9D8F7500DA570A20F8DE8B1 /* TripDetailContent.swift in Sources */,
 				4DAAA7D1E36518BAE6613248 /* TripFormModel.swift in Sources */,
 				DA85FF15D14C272FA8D11E03 /* TripFormView.swift in Sources */,
+				2BCD153BD1286735123E24B7 /* TripHeaderImageView.swift in Sources */,
+				57928FB375F27A957BC3FE09 /* TripHeaderPickerSheet.swift in Sources */,
 				9946E181AD4D8380729C5D0E /* TripIdeasView.swift in Sources */,
 				43267C623EF3B32592F6BCF0 /* TripItineraryView.swift in Sources */,
 				8B65E5CA383B4D16F3685A39 /* TripPlanningModel+Scheduling.swift in Sources */,
@@ -826,6 +834,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.jonphillips.galavant;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				UNSPLASH_ACCESS_KEY = REDACTED_UNSPLASH_ACCESS_KEY;
 			};
 			name = Debug;
 		};
@@ -905,6 +914,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.jonphillips.galavant;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				UNSPLASH_ACCESS_KEY = REDACTED_UNSPLASH_ACCESS_KEY;
 			};
 			name = Release;
 		};

@@ -344,6 +344,14 @@ the "reservable-from" booking-window work. Full rationale + decision in
 
 ## Trip header image — "romance" (from Jon, 2026-06-14)
 
+**Being implemented under [ADR-0032](decisions/0032-trip-header-image.md) on branch
+`feat/trip-header-image`** (verified the V1/V2 Unsplash key still authenticates,
+2026-07-04). Decisions there: store a *hotlinked reference* (four flat columns on
+`Trip`), not bytes — no new table, no FK, so it sidesteps ADR-0007 and needs no sync
+registration; injectable `UnsplashClient` in `GalavantPlaces`; `registerDownload` +
+attribution per ToS. Placement is the open review call — currently a hero band atop
+the detail panel (the map-first canvas has no title area).
+
 The trip screen looks stale; Jon wants a **selectable header image** so a trip
 *feels* like its place ("feel like Copenhagen"). Worth the vertical space.
 Precedent: V1/V2 GalavantLibrary `UnsplashSearch` (already a tested SPM module —

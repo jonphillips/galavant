@@ -27,6 +27,7 @@ struct TripPlanningView: View {
   @State private var showDetailSheet = false
   @State private var showingChat = false
   @State private var showingStartDay = false
+  @State private var showingHeaderPicker = false
   @State private var sheetDetent: PresentationDetent = .medium
   /// Measured heights of the full-bleed map and the bottom sheet over it — their
   /// ratio is the southern slice of the map the sheet hides, fed to the canvas so
@@ -63,6 +64,14 @@ struct TripPlanningView: View {
       .toolbar {
         ToolbarItem(placement: .primaryAction) {
           Button("Edit") { model.editButtonTapped() }
+        }
+        // Choose/change the trip's "romance" header photo (ADR-0032).
+        ToolbarItem {
+          Button {
+            showingHeaderPicker = true
+          } label: {
+            Icon.headerImage.label("Header Photo")
+          }
         }
         // Discuss this trip's itinerary with the model (ADR-0017).
         ToolbarItem {
@@ -134,6 +143,16 @@ struct TripPlanningView: View {
       .sheet(isPresented: $showingStartDay) {
         StartDayPanel(model: model)
       }
+      .sheet(isPresented: $showingHeaderPicker) {
+        if let trip = model.trip {
+          TripHeaderPickerSheet(
+            tripID: trip.id,
+            tripName: trip.name,
+            primaryRegionName: model.tripRegions.first?.name,
+            hasHeader: trip.headerImage != nil
+          )
+        }
+      }
   }
 
   @ViewBuilder private var layout: some View {
@@ -150,7 +169,7 @@ struct TripPlanningView: View {
     HStack(spacing: 0) {
       canvas
       Divider()
-      TripDetailContent(model: model)
+      TripDetailContent(model: model, onChooseHeader: { showingHeaderPicker = true })
         .frame(width: Self.columnWidth)
         .background(.background)
     }
@@ -163,7 +182,7 @@ struct TripPlanningView: View {
       .ignoresSafeArea(.container, edges: .bottom)
       .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { mapHeight = $0 }
       .sheet(isPresented: $showDetailSheet) {
-        TripDetailContent(model: model)
+        TripDetailContent(model: model, onChooseHeader: { showingHeaderPicker = true })
           .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { sheetHeight = $0 }
           .presentationDetents([Self.peek, .medium, .large], selection: $sheetDetent)
           .presentationBackgroundInteraction(.enabled(upThrough: .medium))

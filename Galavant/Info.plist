@@ -28,5 +28,7 @@
 	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
+	<key>UNSPLASH_ACCESS_KEY</key>
+	<string>$(UNSPLASH_ACCESS_KEY)</string>
 </dict>
 </plist>
