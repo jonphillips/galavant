@@ -21,6 +21,8 @@ packages:
     path: ../../jon-platform/packages/WebExtractorKit
   LLMClientKit:
     path: ../../jon-platform/packages/LLMClientKit
+  CloudSyncKit:
+    path: ../../jon-platform/packages/CloudSyncKit
   sqlite-data:
     url: https://github.com/pointfreeco/sqlite-data
     from: 1.0.0
@@ -61,6 +63,8 @@ targets:
         product: GalavantChat
       - package: LLMClientKit
         product: LLMClientKit
+      - package: CloudSyncKit
+        product: CloudSyncKit
       - package: GalavantLibrary
         product: GalavantCaptureUI
       - package: WebExtractorKit
