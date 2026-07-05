@@ -39,15 +39,15 @@ struct TripHeaderImageView: View {
   /// "Photo by {name} on Unsplash" — real links, UTM-tagged per Unsplash's ToS. Built
   /// as a markdown `AttributedString` (the strings are runtime values, so a plain
   /// `Text` wouldn't parse the links). Only shown when there's a photographer to credit.
+  /// Kept as small and unobtrusive as possible (Jon's ask; this is a private app) — a
+  /// tiny shadowed caption with no pill, just legible enough over the photo.
   @ViewBuilder private var attribution: some View {
     if let text = attributionText {
       Text(text)
-        .font(.caption2)
+        .font(.system(size: 9))
         .tint(.white)
-        .foregroundStyle(.white)
-        .shadow(radius: 2)
-        .padding(6)
-        .background(.black.opacity(0.28), in: .rect(cornerRadius: 6))
+        .foregroundStyle(.white.opacity(0.9))
+        .shadow(color: .black.opacity(0.6), radius: 2)
         .padding(8)
     }
   }
