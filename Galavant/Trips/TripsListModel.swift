@@ -28,7 +28,16 @@ final class TripsListModel {
   }
 
   func deleteTrips(_ trips: [Trip], at offsets: IndexSet) {
-    let ids = offsets.map { trips[$0].id }
+    delete(ids: offsets.map { trips[$0].id })
+  }
+
+  /// Delete a single trip (the collection view's per-card context-menu action —
+  /// the grid has no swipe-to-delete edit mode like the old `List` did).
+  func deleteTrip(_ trip: Trip) {
+    delete(ids: [trip.id])
+  }
+
+  private func delete(ids: [Trip.ID]) {
     withErrorReporting {
       try database.write { db in
         try Trip.where { $0.id.in(ids) }.delete().execute(db)

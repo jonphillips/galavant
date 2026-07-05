@@ -39,16 +39,18 @@ struct TripsScreen: View {
     }
   }
 
+  /// Two-up on iPhone, wider trips get more columns as space allows — the grid
+  /// stays photo-forward without the cards ever getting tiny.
+  private let columns = [GridItem(.adaptive(minimum: 165), spacing: 16)]
+
   private var tripsList: some View {
-    List {
-      certaintySection(model.sections.dated, "Dated")
-      certaintySection(model.sections.targeted, "Targeted")
-      somedaySection
-    }
-    .reorderContainer(for: Trip.self) { difference in
-      var someday = model.sections.someday
-      difference.apply(to: &someday)
-      model.reorderSomeday(someday.map(\.id))
+    ScrollView {
+      LazyVStack(alignment: .leading, spacing: 28) {
+        certaintySection(model.sections.dated, "Dated")
+        certaintySection(model.sections.targeted, "Targeted")
+        somedaySection
+      }
+      .padding(16)
     }
     .overlay {
       if model.trips.isEmpty {
@@ -74,16 +76,24 @@ struct TripsScreen: View {
     }
   }
 
+  /// Someday is the reorderable backlog: drag-to-reorder the grid, persisting the
+  /// new order (ADR-0032 grid keeps the old `List`'s manual ordering).
   @ViewBuilder
   private var somedaySection: some View {
     let someday = model.sections.someday
     if !someday.isEmpty {
-      Section("Someday") {
-        ForEach(someday) { trip in
-          tripButton(trip)
+      section("Someday") {
+        LazyVGrid(columns: columns, spacing: 16) {
+          ForEach(someday) { trip in
+            tripCard(trip)
+          }
+          .reorderable()
         }
-        .onDelete { model.deleteTrips(someday, at: $0) }
-        .reorderable()
+        .reorderContainer(for: Trip.self) { difference in
+          var order = model.sections.someday
+          difference.apply(to: &order)
+          model.reorderSomeday(order.map(\.id))
+        }
       }
     }
   }
@@ -91,23 +101,41 @@ struct TripsScreen: View {
   @ViewBuilder
   private func certaintySection(_ trips: [Trip], _ title: String) -> some View {
     if !trips.isEmpty {
-      Section(title) {
-        ForEach(trips) { trip in
-          tripButton(trip)
+      section(title) {
+        LazyVGrid(columns: columns, spacing: 16) {
+          ForEach(trips) { trip in
+            tripCard(trip)
+          }
         }
-        .onDelete { model.deleteTrips(trips, at: $0) }
       }
     }
   }
 
-  private func tripButton(_ trip: Trip) -> some View {
+  private func section(
+    _ title: String,
+    @ViewBuilder content: () -> some View
+  ) -> some View {
+    VStack(alignment: .leading, spacing: 12) {
+      Text(title)
+        .font(.title3.weight(.semibold))
+      content()
+    }
+  }
+
+  private func tripCard(_ trip: Trip) -> some View {
     Button {
       router.openTrip = trip
     } label: {
-      TripRow(trip: trip)
+      TripCard(trip: trip)
     }
     .buttonStyle(.plain)
-    .contentShape(Rectangle())
+    .contextMenu {
+      Button(role: .destructive) {
+        model.deleteTrip(trip)
+      } label: {
+        Label("Delete", systemImage: "trash")
+      }
+    }
   }
 }
 

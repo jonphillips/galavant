@@ -510,6 +510,16 @@ extension DependencyValues {
       // in SQL; loaded and handed to the pure start-day solver.
       try #sql(#"ALTER TABLE "ideas" ADD COLUMN "structuredHours" TEXT"#).execute(db)
     }
+    migrator.registerMigration("Add header-image reference columns to trips (ADR-0032)") { db in
+      // The trip "romance" header is a *reference* to an Unsplash photo, not stored
+      // bytes — four small additive nullable columns, CloudKit-legal, riding trips'
+      // existing share edge. No FK (it's a hotlink, not a relationship), so the
+      // single-FK sharing rule (ADR-0007) doesn't apply.
+      try #sql(#"ALTER TABLE "trips" ADD COLUMN "headerImageURL" TEXT"#).execute(db)
+      try #sql(#"ALTER TABLE "trips" ADD COLUMN "headerImageColor" TEXT"#).execute(db)
+      try #sql(#"ALTER TABLE "trips" ADD COLUMN "headerPhotographerName" TEXT"#).execute(db)
+      try #sql(#"ALTER TABLE "trips" ADD COLUMN "headerPhotographerUsername" TEXT"#).execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if case let .configured(startImmediately) = syncMode {

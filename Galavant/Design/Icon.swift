@@ -46,6 +46,7 @@ enum Icon {
   // Places
   case map
   case location       // a stop/idea that has coordinates
+  case headerImage    // choose/change a trip's "romance" header photo (ADR-0032)
 
   // Domains / sections
   case trips
@@ -89,6 +90,7 @@ enum Icon {
     case .walk: "figure.walk"
     case .map: "map"
     case .location: "mappin.circle.fill"
+    case .headerImage: "photo"
     case .trips: "suitcase"
     case .ideas: "lightbulb"
     case .shortlist: "star"

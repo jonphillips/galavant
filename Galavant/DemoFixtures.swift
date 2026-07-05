@@ -132,6 +132,26 @@
         }
       }
 
+      // Romance headers (ADR-0032) on a few trips so the Trips collection view has
+      // real photos to show off; the rest fall back to the seeded gradient card.
+      let demoHeaders: [(Trip, String, String)] = [
+        (tokyo, "photo-1513639776629-7b61b0ac49cb", "#1B1B2F"),
+        (paris, "photo-1540959733332-eab4deabeeaf", "#26262C"),
+        (copenhagen, "photo-1533929736458-ca588d08c8be", "#0C3B5B"),
+      ]
+      for (trip, photo, color) in demoHeaders {
+        try Trip.setHeaderImage(
+          TripHeaderImage(
+            url: "https://images.unsplash.com/\(photo)?w=800&q=80",
+            color: color,
+            photographerName: "Unsplash",
+            photographerUsername: nil
+          ),
+          tripID: trip.id,
+          in: db
+        )
+      }
+
       // A worked itinerary on the Tokyo trip so the map canvas has stops to draw:
       // real-ish located POIs over two days, each day a multi-stop sequence
       // (numbered, day-coloured pins + a per-day polyline). The other trips stay

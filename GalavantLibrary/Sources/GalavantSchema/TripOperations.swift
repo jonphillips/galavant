@@ -61,6 +61,26 @@ extension Trip {
     }
   }
 
+  /// Set (or, with `nil`, clear) the trip's Unsplash header-image reference
+  /// (ADR-0032). The four columns move together — a chosen photo writes all four,
+  /// clearing (passing `nil`) wipes all four — so the header is always
+  /// all-present or all-absent. The caller is responsible for the ToS
+  /// `registerDownload` ping before persisting a selection (`TripHeaderPicker`).
+  public static func setHeaderImage(
+    _ image: TripHeaderImage?,
+    tripID: Trip.ID,
+    in db: Database
+  ) throws {
+    try Trip.find(tripID)
+      .update {
+        $0.headerImageURL = #bind(image?.url)
+        $0.headerImageColor = #bind(image?.color)
+        $0.headerPhotographerName = #bind(image?.photographerName)
+        $0.headerPhotographerUsername = #bind(image?.photographerUsername)
+      }
+      .execute(db)
+  }
+
   // MARK: - Pure sectioning (functional core)
 
   /// Split trips into the three certainty sections, each in its own natural
