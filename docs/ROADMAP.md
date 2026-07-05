@@ -256,6 +256,12 @@ opening a fresh Opus session is worth it.
   sync still to be verified on two real devices — ADR-0009 §4.)*
 
 ## M5 — Polish & distribution
+
+Execution briefs for the "good daily two-person use" band — **sync health surface,
+pinned reservations, calendar export** — live in `docs/M5-EXECUTION.md` (paste one
+into a fresh session). They ride alongside the TestFlight / two-device push and are
+independent of the paused M6 AI thread.
+
 - iPad/Mac split-view layouts properly done
 - Weather chips on itinerary days: climate normals when far out/undated, WeatherKit forecast inside 10 days (docs/trip-canvas.md)
 - Unsplash header images (port GalavantLibrary's UnsplashSearch) if still wanted
