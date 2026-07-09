@@ -418,6 +418,17 @@ extension TripIdea {
     }
   }
 
+  /// Persist a new intra-day order (ADR-0033): each stop's `dayRank` becomes its
+  /// index in `orderedIDs` — the day's stops top to bottom as the user dragged
+  /// them. Call after a drag-to-reorder within a single day. Distinct from
+  /// `reorderShortlist`, which orders the shortlist pile; this orders one day's
+  /// stops, letting an untimed stop sit between timed ones.
+  public static func reorderDayStops(_ orderedIDs: [TripIdea.ID], in db: Database) throws {
+    for (index, id) in orderedIDs.enumerated() {
+      try TripIdea.find(id).update { $0.dayRank = Double(index) }.execute(db)
+    }
+  }
+
   // MARK: - Pure partitioning (functional core)
 
   /// This trip's shortlist — entries that earned a place (shortlisted onward),
@@ -444,7 +455,7 @@ extension TripIdea {
   /// Lay the `scheduled` stops out across days 1…`lengthInDays`. Every day is
   /// present (empty days included, so the view can offer them as drop targets);
   /// each day's stops are ordered by their schedule's intra-day key, then
-  /// `shortlistRank` as a stable tiebreak. Stops whose day falls outside
+  /// `dayRank` as the manual intra-day tiebreak (ADR-0033). Stops whose day falls outside
   /// 1…`lengthInDays` (e.g. the trip was shortened) collapse onto the last day
   /// so nothing silently vanishes. Pure — the densely-tested core.
   public static func itinerary(_ entries: [TripIdea], lengthInDays: Int) -> [ItineraryDay] {
@@ -457,8 +468,8 @@ extension TripIdea {
           return Swift.min(Swift.max(day, 1), days) == number
         }
         .sorted {
-          ($0.schedule.intraDaySort, $0.shortlistRank)
-            < ($1.schedule.intraDaySort, $1.shortlistRank)
+          ($0.schedule.intraDaySort, $0.dayRank)
+            < ($1.schedule.intraDaySort, $1.dayRank)
         }
       return ItineraryDay(number: number, stops: stops)
     }

@@ -19,9 +19,12 @@ import Testing
     idea: Idea.ID,
     status: TripIdeaStatus,
     rank: Int = 0,
+    dayRank: Double? = nil,
     schedule: Schedule = .unscheduled
   ) -> TripIdea {
-    var e = TripIdea(id: UUID(), tripID: UUID(), ideaID: idea, status: status, shortlistRank: rank)
+    var e = TripIdea(
+      id: UUID(), tripID: UUID(), ideaID: idea, status: status,
+      shortlistRank: rank, dayRank: dayRank ?? Double(rank))
     e.apply(schedule)
     return e
   }
@@ -30,9 +33,11 @@ import Testing
     title: String,
     note: String? = nil,
     rank: Int = 0,
+    dayRank: Double? = nil,
     schedule: Schedule = .unscheduled
   ) -> TripIdea {
     var e = TripIdea.freeform(id: UUID(), tripID: UUID(), title: title, note: note, shortlistRank: rank)
+    e.dayRank = dayRank ?? Double(rank)
     e.apply(schedule)
     return e
   }
@@ -65,6 +70,49 @@ import Testing
     ]
     let p = plan(entries, ideas: [idea(a), idea(b), idea(c)])
     #expect(p.scheduled.map { $0.idea!.id } == [c, b, a])  // day1 08:00, day1 bare, day2 lunch
+  }
+
+  // ADR-0033: untimed ("Anytime") stops on the same day order by `dayRank`, the
+  // manual intra-day position — no longer piled at the day's end by pool rank.
+  @Test func anytimeStopsOrderByDayRankNotShortlistRank() {
+    let (a, b, c) = (UUID(), UUID(), UUID())
+    // Shortlist rank and day rank are deliberately *opposed*: if the old
+    // shortlistRank tiebreak were still in effect this would come back [a, b, c].
+    let entries = [
+      entry(idea: a, status: .scheduled, rank: 0, dayRank: 2, schedule: .day(1)),
+      entry(idea: b, status: .scheduled, rank: 1, dayRank: 1, schedule: .day(1)),
+      entry(idea: c, status: .scheduled, rank: 2, dayRank: 0, schedule: .day(1)),
+    ]
+    let p = plan(entries, ideas: [idea(a), idea(b), idea(c)])
+    #expect(p.itinerary[0].stops.map { $0.idea!.id } == [c, b, a])
+    #expect(p.scheduled.map { $0.idea!.id } == [c, b, a])
+  }
+
+  // An Anytime stop can be positioned *between* timed stops via `dayRank` while the
+  // timed stops themselves stay ordered by clock time (time still wins over rank).
+  @Test func timedStopsStayTimeOrderedRegardlessOfDayRank() {
+    let (morning, anytime, evening) = (UUID(), UUID(), UUID())
+    let entries = [
+      // A high dayRank must not drag a timed stop out of its clock position.
+      entry(idea: evening, status: .scheduled, dayRank: 0, schedule: .timed(1, start: "20:00", end: nil)),
+      entry(idea: anytime, status: .scheduled, dayRank: 5, schedule: .day(1)),
+      entry(idea: morning, status: .scheduled, dayRank: 9, schedule: .timed(1, start: "09:00", end: nil)),
+    ]
+    let p = plan(entries, ideas: [idea(morning), idea(anytime), idea(evening)])
+    // 09:00 and 20:00 keep their clock order; the Anytime stop falls to end-of-day
+    // (Slice 1 — anchored interleave between timed stops arrives in Slice 2).
+    #expect(p.itinerary[0].stops.map { $0.idea!.id } == [morning, evening, anytime])
+  }
+
+  // `dayRank` breaks ties among stops sharing the same clock time.
+  @Test func dayRankBreaksTiesAmongEquallyTimedStops() {
+    let (first, second) = (UUID(), UUID())
+    let entries = [
+      entry(idea: second, status: .scheduled, dayRank: 1, schedule: .timed(1, start: "12:00", end: nil)),
+      entry(idea: first, status: .scheduled, dayRank: 0, schedule: .timed(1, start: "12:00", end: nil)),
+    ]
+    let p = plan(entries, ideas: [idea(first), idea(second)])
+    #expect(p.itinerary[0].stops.map { $0.idea!.id } == [first, second])
   }
 
   @Test func orphanEntriesAreDroppedFromEveryProjection() {
