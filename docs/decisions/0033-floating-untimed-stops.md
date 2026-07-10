@@ -1,11 +1,14 @@
 # ADR-0033: Floating untimed stops — an "Anytime" stop holds a position in the day, not a clock time
 
-*Status: **accepted (functional core)** — 2026-07-10. The schema, sort/anchor, and
-`suggestedTime` core (Slices 1–3, 5) shipped and unit-tested. The **UI (Slice 4)** — a stop
-time editor that pre-fills `suggestedTime`, and an intra-day reorder that writes `dayRank` — is a
-follow-up tracked in docs/BACKLOG.md: the app has no stop clock-time editor yet, and drag-reorder
-is blocked by the Xcode 27 beta 1 `List` drop-timeout (docs/KNOWN-ISSUES.md), so it needs a
-non-drag affordance. Refines the day-relative time model (docs/trip-time-model.md §2, ADR-0004)
+*Status: **accepted** — 2026-07-10. The schema, sort/anchor, and `suggestedTime` core
+(Slices 1–3, 5) shipped and unit-tested; the **UI (Slice 4)** shipped 2026-07-10 — a stop
+clock-time editor (`StopTimeSheet`) that pre-fills `suggestedTime`, and a **menu-based**
+"Move Earlier / Later in Day" that writes `dayRank` via `reorderDayStops` (drag stays blocked by
+the Xcode 27 beta 1 `List` drop-timeout, docs/KNOWN-ISSUES.md). The §2 "before the first timed
+stop" limitation was **kept, not lifted** (see §2): "Move Earlier" simply disables at that
+boundary, and a daypart remains the way to seat a stop ahead of the day's first timed stop — so
+nothing regresses for the shipped end-of-day core or dogfooded data. Refines the day-relative time
+model (docs/trip-time-model.md §2, ADR-0004)
 and ADR-0010 (freeform stops). Feeds ADR-0030's one-tap pull+schedule and the now-marker/travel-leg
 timeline. Prompted by a review of Tripsy's activity docs (untimed activities "can be placed
 anywhere in your itinerary, even between timed events").*
@@ -81,7 +84,19 @@ day-by-day builder (`TripIdea.itinerary` via `orderedDayStops`) and the timeline
 An Anytime stop with **no timed/dayparted stop before it** in `dayRank` order keeps **end-of-day**
 placement (today's behavior) — nothing regresses for stops the user never positioned. (A
 consequence: placing an Anytime stop *before the day's first timed stop* isn't expressible via the
-anchor alone — give it a daypart, which already interleaves. Noted for the Slice 4 UI.)
+anchor alone — give it a daypart, which already interleaves.)
+
+**Slice 4 resolution (2026-07-10):** we **kept** this end-of-day rule rather than teaching
+`effectiveIntraDaySort` a "before-first" anchor. A before-first case would have flipped the shipped
+`anytimeStopWithNoPrecedingTimedStopStaysAtEndOfDay` test and, worse, would have re-seated
+already-dogfooded Anytime stops (whose migrated `dayRank = shortlistRank`) at the *top* of their
+day on the next TestFlight build — a real regression for the exact "stops the user never
+positioned" the rule protects. Instead the reorder UI **enforces the boundary**: "Move Earlier"
+disables once a bare Anytime stop sits right after the day's first timed/dayparted stop. This still
+covers the ADR's two motivating cases — reorder Anytime stops among themselves, and walk "coffee"
+up across the 14:00 stop into the 10:00–14:00 gap — because crossing *up* past a non-first timed
+stop re-anchors to the earlier one (expressible); only crossing above the *first* timed stop is
+refused. To seat a stop ahead of the day's first timed stop, give it a daypart.
 
 ### 3. `Schedule.suggestedTime(...)` — a pure helper, not a write
 
@@ -177,10 +192,15 @@ free — a "lunch break" is the canonical floating stop.
 - **Slice 3 — `suggestedTime` ✅:** the pure `Schedule.suggestedTime(after:before:)` helper +
   table-driven tests (both-sides, one-side, collide→midnight-clamp, empty, non-timed, malformed
   neighbor).
-- **Slice 4 — UI (follow-up, not yet built):** a stop clock-time editor that pre-fills the
-  suggestion (net-new — no stop time editor exists today), and a **non-drag** intra-day reorder
-  that writes `dayRank` (drag-reorder is blocked by the Xcode 27 beta 1 `List` drop-timeout,
-  KNOWN-ISSUES; the itinerary row stream is also heterogeneous, so `.onMove` needs restructuring).
-  `swiftui-specialist` checkpoint; iPad sim install. Tracked in docs/BACKLOG.md.
+- **Slice 4 — UI ✅ (2026-07-10):** a stop clock-time editor (`StopTimeSheet`, wired through a new
+  `Destination.stopTime` + `TripPlanningModel.editStopTime`/`saveStopTime`) that pre-fills
+  `Schedule.suggestedTime` from the stop's ordered-day neighbors — net-new, the app's first stop
+  time editor. `StopMenu` gains a **"Set Time… / Change Time…"** affordance, a bare-Anytime-only
+  **"Move Earlier / Later in Day"** pair (`moveStopEarlier`/`moveStopLater` → `reorderDayStops`,
+  with "Move Earlier" disabled at the first-timed boundary per §2), and its Move-to-Day now seeds a
+  timed stop's clock from the **destination** day's neighbors (`moveToDay`). Drag stays blocked
+  (Xcode 27 beta 1 `List` drop-timeout, KNOWN-ISSUES; the itinerary row stream is heterogeneous, so
+  `.onMove` needs a `ScrollView`/`LazyVStack` rebuild). `swiftui-specialist` checkpoint done; built
+  and installed on the iPad Pro 13-inch (M5) sim.
 - **Slice 5 — docs ✅:** flipped to accepted (core); ROADMAP / BACKLOG / trip-time-model note;
   superseded ADR-0010's `nextStopRank` line.

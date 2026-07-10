@@ -35,6 +35,9 @@ enum Icon {
   case unschedule     // pull a stop off its day
   case toBeScheduled  // committed but dayless
   case timeOfDay      // set/no time-of-day on a placed stop
+  case setTime        // give a placed stop an exact clock time (ADR-0033)
+  case moveEarlier    // reorder a stop one slot earlier in its day (ADR-0033)
+  case moveLater      // reorder a stop one slot later in its day (ADR-0033)
   case someday        // held in a someday trip / backlog
   case stay           // an accommodation / home base (ADR-0011)
   case checkIn        // arriving at a stay
@@ -83,6 +86,9 @@ enum Icon {
     case .unschedule: "calendar.badge.minus"
     case .toBeScheduled: "calendar.badge.clock"
     case .timeOfDay: "clock"
+    case .setTime: "clock.badge"
+    case .moveEarlier: "arrow.up"
+    case .moveLater: "arrow.down"
     case .someday: "bookmark"
     case .stay: "bed.double"
     case .checkIn: "arrow.down.to.line"

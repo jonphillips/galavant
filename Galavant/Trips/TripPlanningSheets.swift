@@ -380,3 +380,93 @@ struct StaySheet: View {
     return Calendar.current.date(from: c) ?? .now
   }
 }
+
+/// Give a placed stop an exact clock time (ADR-0033 Slice 4) — the app's first
+/// stop time editor. `start` is required (a `.timed` stop has one); `end` is
+/// optional via the same toggle idiom as the stay editor. The `start` field is
+/// pre-filled by the caller from `Schedule.suggestedTime` over the day's
+/// neighbors, so the common case is confirm-not-type. "Remove Time" drops back to
+/// a bare "Anytime" placement on the same day.
+struct StopTimeSheet: View {
+  let model: TripPlanningModel
+  @State private var draft: StopTimeDraft
+  @Environment(\.dismiss) private var dismiss
+
+  init(model: TripPlanningModel, draft: StopTimeDraft) {
+    self.model = model
+    _draft = State(initialValue: draft)
+  }
+
+  private var stopTitle: String? {
+    model.orderedStops(onDay: draft.day).first { $0.id == draft.stopID }?.content.title
+  }
+
+  var body: some View {
+    NavigationStack {
+      Form {
+        Section("Start") {
+          DatePicker(
+            "Time",
+            selection: Binding(
+              get: { Self.date(from: draft.start) },
+              set: { draft.start = Self.hhmm(from: $0) }),
+            displayedComponents: .hourAndMinute)
+        }
+        Section("End") {
+          Toggle("Set end time", isOn: Binding(
+            get: { draft.end != nil },
+            set: { draft.end = $0 ? (draft.end ?? Self.hourAfter(draft.start)) : nil }))
+          if draft.end != nil {
+            DatePicker(
+              "Time",
+              selection: Binding(
+                get: { Self.date(from: draft.end ?? draft.start) },
+                set: { draft.end = Self.hhmm(from: $0) }),
+              displayedComponents: .hourAndMinute)
+          }
+        }
+        Section {
+          Button("Remove Time", systemImage: Icon.timeOfDay.systemName, role: .destructive) {
+            model.clearStopTime(draft)
+          }
+        } footer: {
+          Text("Removing the time keeps the stop on the day as “Anytime.”")
+        }
+      }
+      .navigationTitle(stopTitle ?? "Set Time")
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          Button("Cancel") { dismiss() }
+        }
+        ToolbarItem(placement: .confirmationAction) {
+          Button("Save") { model.saveStopTime(draft) }
+        }
+      }
+    }
+    .presentationDetents([.medium])
+  }
+
+  private static func hhmm(from date: Date) -> String {
+    let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+    return String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0)
+  }
+
+  private static func date(from hhmm: String) -> Date {
+    let parts = hhmm.split(separator: ":")
+    var c = DateComponents()
+    c.hour = parts.first.flatMap { Int($0) } ?? 12
+    c.minute = parts.count > 1 ? Int(parts[1]) ?? 0 : 0
+    return Calendar.current.date(from: c) ?? .now
+  }
+
+  /// One hour past `start` (clamped within the day) — the seed when the user first
+  /// toggles an end time on.
+  private static func hourAfter(_ hhmm: String) -> String {
+    let parts = hhmm.split(separator: ":")
+    let hour = parts.first.flatMap { Int($0) } ?? 12
+    let minute = parts.count > 1 ? Int(parts[1]) ?? 0 : 0
+    let clamped = Swift.min(hour * 60 + minute + 60, 24 * 60 - 1)
+    return String(format: "%02d:%02d", clamped / 60, clamped % 60)
+  }
+}

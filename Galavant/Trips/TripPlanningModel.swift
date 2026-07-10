@@ -26,6 +26,20 @@ struct PlaceIdeaTarget: Identifiable {
   let day: Int?
 }
 
+/// The editable state of the stop clock-time editor (ADR-0033 Slice 4) — give a
+/// placed stop an exact `.timed` start (and optional end) on its `day`. `start`
+/// is pre-filled from `Schedule.suggestedTime` over the stop's ordered-day
+/// neighbors (or its own start when already timed); `end` mirrors the stay
+/// editor's optional-time toggle. Identifiable (keyed on the stop) so it drives a
+/// `.sheet(item:)`.
+struct StopTimeDraft: Identifiable {
+  var stopID: TripIdea.ID
+  var day: Int
+  var start: String
+  var end: String?
+  var id: TripIdea.ID { stopID }
+}
+
 /// The editable state of the lodging sheet — author a new stay or edit one in
 /// place (ADR-0011). `stayID == nil` means creating. `ideaID` set means the stay
 /// is backed by a pool hotel (chosen in the sheet's Hotel picker, or seeded by
@@ -125,6 +139,7 @@ final class TripPlanningModel {
     case placeIdea(PlaceIdeaTarget)
     case freeformStop(FreeformStopDraft)
     case stay(StayDraft)
+    case stopTime(StopTimeDraft)
   }
 
   init(tripID: Trip.ID) {
