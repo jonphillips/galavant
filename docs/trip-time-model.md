@@ -26,6 +26,12 @@ DayPart?)`, `timed(DayNumber, …)`) — that design survives as-is. Assigning o
 changing the trip's start date re-derives the calendar view; it never rewrites
 the itinerary.
 
+**Intra-day order (ADR-0033).** Within a day, timed/dayparted stops sort by clock
+/ band position; a bare-day "Anytime" stop is a *positioned* citizen — it holds a
+per-stop `dayRank` (a `Double`, midpoint-insertable) and interleaves by anchoring
+to the timed stop it sits after, rather than piling at the day's end. `dayRank` is
+intra-day order, not a date — still fully day-relative.
+
 ## 3. The start-day solver (the payoff)
 
 Because the itinerary is day-relative, the start date becomes a **free

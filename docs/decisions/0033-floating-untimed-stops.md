@@ -1,9 +1,14 @@
 # ADR-0033: Floating untimed stops — an "Anytime" stop holds a position in the day, not a clock time
 
-*Status: proposed — 2026-07-09. Refines the day-relative time model (docs/trip-time-model.md
-§2, ADR-0004) and ADR-0010 (freeform stops). Feeds ADR-0030's one-tap pull+schedule and the
-now-marker/travel-leg timeline. Prompted by a review of Tripsy's activity docs
-(untimed activities "can be placed anywhere in your itinerary, even between timed events").*
+*Status: **accepted (functional core)** — 2026-07-10. The schema, sort/anchor, and
+`suggestedTime` core (Slices 1–3, 5) shipped and unit-tested. The **UI (Slice 4)** — a stop
+time editor that pre-fills `suggestedTime`, and an intra-day reorder that writes `dayRank` — is a
+follow-up tracked in docs/BACKLOG.md: the app has no stop clock-time editor yet, and drag-reorder
+is blocked by the Xcode 27 beta 1 `List` drop-timeout (docs/KNOWN-ISSUES.md), so it needs a
+non-drag affordance. Refines the day-relative time model (docs/trip-time-model.md §2, ADR-0004)
+and ADR-0010 (freeform stops). Feeds ADR-0030's one-tap pull+schedule and the now-marker/travel-leg
+timeline. Prompted by a review of Tripsy's activity docs (untimed activities "can be placed
+anywhere in your itinerary, even between timed events").*
 
 ## Context
 
@@ -61,13 +66,22 @@ stops doubling as an accidental itinerary tiebreaker.
 
 ### 2. Anytime stops interleave via an anchor, not a forced end-of-day
 
-`intraDaySort` gains a case for the positioned Anytime stop: rather than `endOfDay`, an Anytime
-stop resolves its sort key from its **anchor** — the `intraDaySort` of the timed/dayparted stop
-it was dropped after on the day (0 if dropped first). This keeps `intraDaySort` a pure function
-of the stop plus its day context; the day builder (`TripIdea.itinerary`) computes anchors in one
-pass over the already-time-sorted timed stops, then splices Anytime stops in by `dayRank`. A
-truly free-floating Anytime stop with no anchor preference defaults to the **end of the day**
-(today's behavior), so nothing regresses for stops the user never positions.
+A positioned Anytime stop resolves its sort key from its **anchor** — the `intraDaySort` of the
+timed/dayparted stop it sits after in the day's manual order. The anchor lives in the **day
+builder**, not on `Schedule.intraDaySort` (which stays a context-free value — it can't see its
+day's other stops). The shared helper `TripIdea.effectiveIntraDaySort(_:)` walks a day's stops in
+`dayRank` order, tracking the running `intraDaySort` of the most recent timed/dayparted stop; each
+bare `.day` Anytime stop adopts that running anchor. Because the walk is `dayRank`-ordered, an
+anchor always has a lower `dayRank` than the stop it anchors, so the final `(effectiveKey, dayRank)`
+sort seats the Anytime stop *right after* its anchor and before the next timed stop. Both the
+day-by-day builder (`TripIdea.itinerary` via `orderedDayStops`) and the timeline weave
+(`TripPlan.itineraryItems`, which interleaves check-in/out boundaries) key off the same
+`effectiveIntraDaySort`, so the two surfaces agree.
+
+An Anytime stop with **no timed/dayparted stop before it** in `dayRank` order keeps **end-of-day**
+placement (today's behavior) — nothing regresses for stops the user never positioned. (A
+consequence: placing an Anytime stop *before the day's first timed stop* isn't expressible via the
+anchor alone — give it a daypart, which already interleaves. Noted for the Slice 4 UI.)
 
 ### 3. `Schedule.suggestedTime(...)` — a pure helper, not a write
 
@@ -75,16 +89,18 @@ A pure function in GalavantSchema:
 
 ```swift
 extension Schedule {
-  /// A proposed "HH:mm" start for a stop being timed on `day`, given the day's
-  /// other stops in order. Nil when the day has no timed neighbors to reason from.
-  static func suggestedTime(insertingAfter: ResolvedStop?, before: ResolvedStop?,
-                            existing: [ResolvedStop]) -> String?
+  /// A proposed "HH:mm" start for a stop being given a clock time, from the timed
+  /// stops that bracket its position. Nil when neither neighbor is timed.
+  static func suggestedTime(after previous: Schedule?, before next: Schedule?) -> String?
 }
 ```
 
-It reads neighbor start/end times and proposes a slot (after the previous stop's end, before the
-next stop's start; a default gap when only one side is timed). **It never writes.** The two call
-sites are pure app actions:
+Implemented on the two bracketing `Schedule`s rather than the ADR's original `ResolvedStop`
+sketch — the neighbors' start/end times are all it needs, so it stays free of the resolve layer,
+and the app computes the two neighbors from the ordered day. It reads neighbor start/end times and
+proposes a slot (after the previous stop's end, before the next stop's start; a default block —
+`Schedule.suggestedGapMinutes` — when only one side is timed; the midpoint when the two collide).
+**It never writes.** The two call sites are pure app actions:
 
 - **Promote an Anytime stop to timed** — the time editor pre-fills `suggestedTime(...)` instead
   of a blank field; the user confirms or edits, then the existing timed-write op runs.
@@ -151,14 +167,20 @@ free — a "lunch break" is the canonical floating stop.
 
 ## Slices
 
-- **Slice 1 — schema + sort:** `TripIdea.dayRank` column + setter; switch `scheduled`/`itinerary`
+- **Slice 1 — schema + sort ✅:** `TripIdea.dayRank` column + setter; switch `scheduled`/`itinerary`
   tiebreaker to `dayRank`; in-memory tests that Anytime stops now order by `dayRank` and timed
   stops are unaffected.
-- **Slice 2 — anchored interleave:** `intraDaySort` anchor-awareness + the day-builder splice;
-  tests that an Anytime stop dropped after the 10:00 stop sorts before the 14:00 stop.
-- **Slice 3 — `suggestedTime`:** the pure helper + table-driven tests (both-sides, one-side,
-  empty-day, malformed neighbor).
-- **Slice 4 — UI:** drag-between-timed in the itinerary; suggestion pre-fill in the time editor;
-  `swiftui-specialist` checkpoint; iPad sim install.
-- **Slice 5 — docs:** flip to accepted; ROADMAP / BACKLOG / trip-time-model note; supersede
-  ADR-0010's `nextStopRank` line.
+- **Slice 2 — anchored interleave ✅:** the anchor lives in the day builder
+  (`TripIdea.effectiveIntraDaySort` / `orderedDayStops`), shared with `TripPlan.itineraryItems`;
+  tests that an Anytime stop dropped after the 10:00 stop sorts before the 14:00 stop, that stops
+  share an anchor by `dayRank`, and that an un-anchored Anytime stop stays at end-of-day.
+- **Slice 3 — `suggestedTime` ✅:** the pure `Schedule.suggestedTime(after:before:)` helper +
+  table-driven tests (both-sides, one-side, collide→midnight-clamp, empty, non-timed, malformed
+  neighbor).
+- **Slice 4 — UI (follow-up, not yet built):** a stop clock-time editor that pre-fills the
+  suggestion (net-new — no stop time editor exists today), and a **non-drag** intra-day reorder
+  that writes `dayRank` (drag-reorder is blocked by the Xcode 27 beta 1 `List` drop-timeout,
+  KNOWN-ISSUES; the itinerary row stream is also heterogeneous, so `.onMove` needs restructuring).
+  `swiftui-specialist` checkpoint; iPad sim install. Tracked in docs/BACKLOG.md.
+- **Slice 5 — docs ✅:** flipped to accepted (core); ROADMAP / BACKLOG / trip-time-model note;
+  superseded ADR-0010's `nextStopRank` line.

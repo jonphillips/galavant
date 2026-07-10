@@ -163,15 +163,16 @@ public struct TripPlan: Equatable, Sendable {
       .compactMap(resolve)
   }
 
-  /// Scheduled stops in itinerary order (day, then time of day) — the Ideas
-  /// page's Scheduled section.
+  /// Scheduled stops in itinerary order (day, then the ADR-0033 intra-day order —
+  /// timed by clock, Anytime interleaved by anchor+`dayRank`) — the Ideas page's
+  /// Scheduled section. Grouped by day so each day's Anytime stops anchor within
+  /// their own day, matching the itinerary.
   public var scheduled: [ResolvedStop] {
-    entries
-      .filter { $0.status == .scheduled }
-      .sorted {
-        ($0.dayNumber ?? 0, $0.schedule.intraDaySort, $0.dayRank)
-          < ($1.dayNumber ?? 0, $1.schedule.intraDaySort, $1.dayRank)
-      }
+    let byDay = Dictionary(grouping: entries.filter { $0.status == .scheduled }) {
+      $0.dayNumber ?? 0
+    }
+    return byDay.keys.sorted()
+      .flatMap { TripIdea.orderedDayStops(byDay[$0] ?? []) }
       .compactMap(resolve)
   }
 
@@ -379,11 +380,16 @@ public struct TripPlan: Equatable, Sendable {
     let markerAt = nowMarkerIndex(
       in: stops, day: day, now: now, tripStartDate: tripStartDate)
 
-    // One ordered stream of stops + boundaries. Stops carry their intra-day sort
-    // key at rank 1; a stable sort keeps stops in their existing order on ties.
+    // One ordered stream of stops + boundaries. Stops carry their *effective*
+    // intra-day key at rank 1 (ADR-0033: an Anytime stop uses its anchor, not
+    // end-of-day, so it weaves among boundaries where it visually sits); a stable
+    // sort keeps stops in their existing order on ties.
+    let effectiveKey = TripIdea.effectiveIntraDaySort(stops.map(\.entry))
     enum Slot { case stop(Int); case boundary(ItineraryItem) }
     var stream: [(key: Int, rank: Int, slot: Slot)] =
-      stops.enumerated().map { (i, stop) in (stop.entry.schedule.intraDaySort, 1, .stop(i)) }
+      stops.enumerated().map { (i, stop) in
+        (effectiveKey[stop.id] ?? stop.entry.schedule.intraDaySort, 1, .stop(i))
+      }
     stream += boundaries.map { ($0.key, $0.rank, .boundary($0.item)) }
     stream.sort { ($0.key, $0.rank) < ($1.key, $1.rank) }
 
