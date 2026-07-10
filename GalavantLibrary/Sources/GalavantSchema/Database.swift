@@ -520,6 +520,14 @@ extension DependencyValues {
       try #sql(#"ALTER TABLE "trips" ADD COLUMN "headerPhotographerName" TEXT"#).execute(db)
       try #sql(#"ALTER TABLE "trips" ADD COLUMN "headerPhotographerUsername" TEXT"#).execute(db)
     }
+    migrator.registerMigration("Add dayRank to tripIdeas (ADR-0033)") { db in
+      // Manual intra-day order so an untimed ("Anytime") stop can hold a position
+      // among timed stops instead of piling at the day's end by pool rank. One
+      // additive REAL column, CloudKit-legal. Back-filled from `shortlistRank` —
+      // the current intra-day tiebreaker — so existing itineraries keep their order.
+      try #sql(#"ALTER TABLE "tripIdeas" ADD COLUMN "dayRank" REAL NOT NULL DEFAULT 0"#).execute(db)
+      try #sql(#"UPDATE "tripIdeas" SET "dayRank" = "shortlistRank""#).execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if case let .configured(startImmediately) = syncMode {

@@ -25,6 +25,13 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
   public var inlineNote: String?
   public var status: TripIdeaStatus = .considering
   public var shortlistRank = 0
+  /// Manual order **within a day** — the intra-day tiebreaker that lets an
+  /// untimed ("Anytime") stop hold a position among timed stops instead of
+  /// piling at the day's end by pool rank (ADR-0033). `Double` so an
+  /// insert-between can take a neighbors' midpoint without renumbering. Distinct
+  /// from `shortlistRank` (order in the shortlist *pile*); back-filled from it on
+  /// migration so existing itineraries keep their order.
+  public var dayRank: Double = 0
   public var dayNumber: Int?
   public var dayPart: DayPart?
   public var startTime: String?
@@ -38,6 +45,7 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
     inlineNote: String? = nil,
     status: TripIdeaStatus = .considering,
     shortlistRank: Int = 0,
+    dayRank: Double = 0,
     dayNumber: Int? = nil,
     dayPart: DayPart? = nil,
     startTime: String? = nil,
@@ -50,6 +58,7 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
     self.inlineNote = inlineNote
     self.status = status
     self.shortlistRank = shortlistRank
+    self.dayRank = dayRank
     self.dayNumber = dayNumber
     self.dayPart = dayPart
     self.startTime = startTime

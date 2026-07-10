@@ -239,6 +239,31 @@ struct TripTests {
     #expect(order == ["C", "A", "B"])
   }
 
+  // ADR-0033: reordering a day's stops persists `dayRank` and re-orders the
+  // itinerary, independent of the shortlist order.
+  @Test func reorderDayStopsPersistsIntraDayOrder() async throws {
+    let order = try await database.write { db -> [String] in
+      let trip = try Trip.create(name: "Copenhagen", in: db)
+      let ideas = try ["A", "B", "C"].map { try seedIdea(name: $0, in: db) }
+      for idea in ideas {
+        try TripIdea.pull(ideaID: idea.id, into: trip.id, in: db)
+        // All three are untimed ("Anytime") on day 1 — the case dayRank governs.
+        try TripIdea.schedule(.day(1), ideaID: idea.id, tripID: trip.id, in: db)
+      }
+      let entries = try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db)
+      let joinID = Dictionary(uniqueKeysWithValues: entries.map { ($0.ideaID!, $0.id) })
+      try TripIdea.reorderDayStops(
+        [joinID[ideas[2].id]!, joinID[ideas[0].id]!, joinID[ideas[1].id]!], in: db
+      )
+      let names = Dictionary(uniqueKeysWithValues: ideas.map { ($0.id, $0.name) })
+      let day1 = TripIdea.itinerary(
+        try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db), lengthInDays: 1
+      )[0].stops
+      return day1.map { names[$0.ideaID!]! }
+    }
+    #expect(order == ["C", "A", "B"])
+  }
+
   @Test func shortlistAndConsideringPartition() {
     let trip = UUID()
     let entries = [
@@ -389,15 +414,21 @@ struct TripTests {
     #expect(days[0].stops.map(\.id) == [morningClock.id, morning.id, afternoonClock.id, dinner.id])
   }
 
-  @Test func itineraryTiebreaksEqualTimesByShortlistRank() {
+  // ADR-0033: equal-time (here, both bare "Anytime") stops tiebreak by `dayRank`,
+  // the manual intra-day order — not by `shortlistRank`, which now only orders the
+  // shortlist pile. `shortlistRank` is set opposite to `dayRank` to prove it no
+  // longer influences intra-day order.
+  @Test func itineraryTiebreaksEqualTimesByDayRank() {
     let trip = UUID()
-    func stop(rank: Int) -> TripIdea {
-      var entry = TripIdea(id: UUID(), tripID: trip, ideaID: UUID(), status: .scheduled, shortlistRank: rank)
+    func stop(shortlistRank: Int, dayRank: Double) -> TripIdea {
+      var entry = TripIdea(
+        id: UUID(), tripID: trip, ideaID: UUID(), status: .scheduled,
+        shortlistRank: shortlistRank, dayRank: dayRank)
       entry.apply(.day(1))
       return entry
     }
-    let high = stop(rank: 2)
-    let low = stop(rank: 1)
+    let high = stop(shortlistRank: 0, dayRank: 2)
+    let low = stop(shortlistRank: 1, dayRank: 1)
     let days = TripIdea.itinerary([high, low], lengthInDays: 1)
     #expect(days[0].stops.map(\.id) == [low.id, high.id])
   }

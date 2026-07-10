@@ -169,8 +169,8 @@ public struct TripPlan: Equatable, Sendable {
     entries
       .filter { $0.status == .scheduled }
       .sorted {
-        ($0.dayNumber ?? 0, $0.schedule.intraDaySort, $0.shortlistRank)
-          < ($1.dayNumber ?? 0, $1.schedule.intraDaySort, $1.shortlistRank)
+        ($0.dayNumber ?? 0, $0.schedule.intraDaySort, $0.dayRank)
+          < ($1.dayNumber ?? 0, $1.schedule.intraDaySort, $1.dayRank)
       }
       .compactMap(resolve)
   }
