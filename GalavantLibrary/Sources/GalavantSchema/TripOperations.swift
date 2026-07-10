@@ -454,25 +454,68 @@ extension TripIdea {
 
   /// Lay the `scheduled` stops out across days 1…`lengthInDays`. Every day is
   /// present (empty days included, so the view can offer them as drop targets);
-  /// each day's stops are ordered by their schedule's intra-day key, then
-  /// `dayRank` as the manual intra-day tiebreak (ADR-0033). Stops whose day falls outside
-  /// 1…`lengthInDays` (e.g. the trip was shortened) collapse onto the last day
-  /// so nothing silently vanishes. Pure — the densely-tested core.
+  /// each day's stops are ordered by `orderedDayStops` (ADR-0033). Stops whose day
+  /// falls outside 1…`lengthInDays` (e.g. the trip was shortened) collapse onto the
+  /// last day so nothing silently vanishes. Pure — the densely-tested core.
   public static func itinerary(_ entries: [TripIdea], lengthInDays: Int) -> [ItineraryDay] {
     let days = Swift.max(1, lengthInDays)
     let scheduled = entries.filter { $0.status == .scheduled && $0.dayNumber != nil }
     return (1...days).map { number in
-      let stops = scheduled
-        .filter { entry in
+      let stops = orderedDayStops(
+        scheduled.filter { entry in
           let day = entry.dayNumber ?? 1
           return Swift.min(Swift.max(day, 1), days) == number
-        }
-        .sorted {
-          ($0.schedule.intraDaySort, $0.dayRank)
-            < ($1.schedule.intraDaySort, $1.dayRank)
-        }
+        })
       return ItineraryDay(number: number, stops: stops)
     }
+  }
+
+  /// Order one day's stops (ADR-0033). Timed and dayparted stops anchor by their
+  /// clock/band position (`intraDaySort`), exactly as before. A bare `.day`
+  /// "Anytime" stop is the floating case: rather than piling at the day's end, it
+  /// **adopts the `intraDaySort` of the last timed/dayparted stop before it in
+  /// manual `dayRank` order** — so dropping it after the 10:00 stop makes it sort
+  /// after 10:00 and before 14:00. An Anytime stop with no timed/dayparted stop
+  /// before it keeps end-of-day (today's behavior — nothing regresses for stops the
+  /// user never positions; give it a daypart or time to anchor it earlier).
+  /// `dayRank` is the final tiebreak: it keeps stops that share an anchor (or an
+  /// equal clock time) in the user's manual order. Pure — the densely-tested core.
+  ///
+  /// The anchor lives here, in the day builder, rather than inside
+  /// `Schedule.intraDaySort`, so that `Schedule` stays a context-free value (it
+  /// can't see its day's other stops). Refines ADR-0033 §2, which floated putting
+  /// the anchor on `intraDaySort`.
+  public static func orderedDayStops(_ stops: [TripIdea]) -> [TripIdea] {
+    let key = effectiveIntraDaySort(stops)
+    return stops.sorted { a, b in
+      (key[a.id] ?? a.schedule.intraDaySort, a.dayRank)
+        < (key[b.id] ?? b.schedule.intraDaySort, b.dayRank)
+    }
+  }
+
+  /// The **effective** intra-day sort minute for each stop on a day (ADR-0033),
+  /// keyed by stop ID: a stop's own `intraDaySort`, except a bare `.day` "Anytime"
+  /// stop adopts its **anchor** — the `intraDaySort` of the most recent
+  /// timed/dayparted stop before it in manual `dayRank` order (end-of-day when none
+  /// precedes it). Resolved in one `dayRank`-ordered pass, so an anchor always has a
+  /// lower `dayRank` than the Anytime stop it anchors and the stop seats right after
+  /// it. Shared by `orderedDayStops` and the timeline weave (`TripPlan.itineraryItems`)
+  /// so a boundary row and an anchored Anytime stop interleave by the same key. Pure.
+  public static func effectiveIntraDaySort(_ stops: [TripIdea]) -> [TripIdea.ID: Int] {
+    var result: [TripIdea.ID: Int] = [:]
+    var running: Int?
+    for stop in stops.sorted(by: { $0.dayRank < $1.dayRank }) {
+      switch stop.schedule {
+      case .timed, .daypart:
+        running = stop.schedule.intraDaySort
+        result[stop.id] = stop.schedule.intraDaySort
+      case .day:
+        result[stop.id] = running ?? stop.schedule.intraDaySort  // anchor, else end-of-day
+      case .unscheduled:
+        result[stop.id] = stop.schedule.intraDaySort
+      }
+    }
+    return result
   }
 }
 

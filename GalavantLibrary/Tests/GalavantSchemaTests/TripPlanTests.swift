@@ -99,8 +99,9 @@ import Testing
       entry(idea: morning, status: .scheduled, dayRank: 9, schedule: .timed(1, start: "09:00", end: nil)),
     ]
     let p = plan(entries, ideas: [idea(morning), idea(anytime), idea(evening)])
-    // 09:00 and 20:00 keep their clock order; the Anytime stop falls to end-of-day
-    // (Slice 1 — anchored interleave between timed stops arrives in Slice 2).
+    // 09:00 and 20:00 keep their clock order; the Anytime stop (dayRank 5) sits
+    // after evening (dayRank 0) in manual order, so it anchors to evening and
+    // trails it (Slice 2). Order is unchanged from the Slice 1 end-of-day pile here.
     #expect(p.itinerary[0].stops.map { $0.idea!.id } == [morning, evening, anytime])
   }
 
@@ -113,6 +114,51 @@ import Testing
     ]
     let p = plan(entries, ideas: [idea(first), idea(second)])
     #expect(p.itinerary[0].stops.map { $0.idea!.id } == [first, second])
+  }
+
+  // ADR-0033 Slice 2: an Anytime stop dropped *after* the 10:00 stop (dayRank
+  // between the two timed stops) anchors to 10:00 and sorts before the 14:00 stop —
+  // the headline "coffee, sometime after the museum, before the 2pm tour" case.
+  @Test func anytimeStopAnchorsBetweenTimedStopsByDayRank() {
+    let (museum, coffee, tour) = (UUID(), UUID(), UUID())
+    let entries = [
+      entry(idea: museum, status: .scheduled, dayRank: 0, schedule: .timed(1, start: "10:00", end: "12:00")),
+      entry(idea: coffee, status: .scheduled, dayRank: 1, schedule: .day(1)),           // dropped after museum
+      entry(idea: tour, status: .scheduled, dayRank: 2, schedule: .timed(1, start: "14:00", end: nil)),
+    ]
+    let p = plan(entries, ideas: [idea(museum), idea(coffee), idea(tour)])
+    #expect(p.itinerary[0].stops.map { $0.idea!.id } == [museum, coffee, tour])
+    #expect(p.scheduled.map { $0.idea!.id } == [museum, coffee, tour])
+  }
+
+  // Two Anytime stops sharing a gap keep their manual `dayRank` order behind their
+  // common anchor, and ahead of the next timed stop.
+  @Test func multipleAnytimeStopsShareAnAnchorInDayRankOrder() {
+    let (lunch, walk, nap, dinner) = (UUID(), UUID(), UUID(), UUID())
+    let entries = [
+      entry(idea: lunch, status: .scheduled, dayRank: 0, schedule: .timed(1, start: "12:00", end: "13:00")),
+      entry(idea: nap, status: .scheduled, dayRank: 2, schedule: .day(1)),
+      entry(idea: walk, status: .scheduled, dayRank: 1, schedule: .day(1)),
+      entry(idea: dinner, status: .scheduled, dayRank: 3, schedule: .timed(1, start: "19:00", end: nil)),
+    ]
+    let p = plan(entries, ideas: [idea(lunch), idea(walk), idea(nap), idea(dinner)])
+    // Both untimed stops anchor to lunch (12:00) and order walk (rank 1) then nap
+    // (rank 2) between lunch and dinner.
+    #expect(p.itinerary[0].stops.map { $0.idea!.id } == [lunch, walk, nap, dinner])
+  }
+
+  // An Anytime stop with no timed/dayparted stop before it in dayRank order keeps
+  // end-of-day placement — nothing regresses for stops the user never positioned.
+  @Test func anytimeStopWithNoPrecedingTimedStopStaysAtEndOfDay() {
+    let (early, wander, late) = (UUID(), UUID(), UUID())
+    let entries = [
+      // `wander` has the *lowest* dayRank, so no timed stop precedes it: end-of-day.
+      entry(idea: wander, status: .scheduled, dayRank: 0, schedule: .day(1)),
+      entry(idea: early, status: .scheduled, dayRank: 1, schedule: .timed(1, start: "09:00", end: nil)),
+      entry(idea: late, status: .scheduled, dayRank: 2, schedule: .timed(1, start: "17:00", end: nil)),
+    ]
+    let p = plan(entries, ideas: [idea(early), idea(wander), idea(late)])
+    #expect(p.itinerary[0].stops.map { $0.idea!.id } == [early, late, wander])
   }
 
   @Test func orphanEntriesAreDroppedFromEveryProjection() {

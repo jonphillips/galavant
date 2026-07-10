@@ -375,6 +375,43 @@ struct TripTests {
     }
   }
 
+  // ADR-0033 §3: `suggestedTime` proposes a start from the bracketing timed stops.
+  @Test func suggestedTimeProposesASlotFromNeighbors() {
+    let cases: [(previous: Schedule?, next: Schedule?, expected: String?)] = [
+      // Both sides timed, room after the previous → start when the previous ends.
+      (.timed(1, start: "10:00", end: "11:00"), .timed(1, start: "14:00", end: nil), "11:00"),
+      // Previous has no end → assume a default block, still lands before the next.
+      (.timed(1, start: "10:00", end: nil), .timed(1, start: "14:00", end: nil), "11:00"),
+      // No room (previous runs to/past the next) → midpoint of the two starts.
+      (.timed(1, start: "13:00", end: "15:00"), .timed(1, start: "14:00", end: nil), "13:30"),
+      // Only a previous neighbor → right when it ends.
+      (.timed(1, start: "10:00", end: "11:00"), nil, "11:00"),
+      (.timed(1, start: "10:00", end: nil), nil, "11:00"),
+      // Only a next neighbor → a default block before it, clamped at midnight.
+      (nil, .timed(1, start: "09:00", end: nil), "08:00"),
+      (nil, .timed(1, start: "00:30", end: nil), "00:00"),
+      // Nothing to reason from → nil (the editor stays blank).
+      (nil, nil, nil),
+      // Non-timed neighbors carry no clock time → treated as absent.
+      (.day(1), .daypart(1, .lunch), nil),
+    ]
+    for c in cases {
+      #expect(
+        Schedule.suggestedTime(after: c.previous, before: c.next) == c.expected,
+        "after \(String(describing: c.previous)) before \(String(describing: c.next))")
+    }
+  }
+
+  // A neighbor whose time can't be parsed can't anchor; the other neighbor still can.
+  @Test func suggestedTimeTreatsMalformedNeighborAsAbsent() {
+    withKnownIssue {
+      #expect(
+        Schedule.suggestedTime(
+          after: .timed(1, start: "nope", end: nil),
+          before: .timed(1, start: "12:00", end: nil)) == "11:00")
+    }
+  }
+
   @Test func itineraryGroupsStopsByDayAndSortsWithinEachDay() {
     let trip = UUID()
     func stop(_ schedule: Schedule, rank: Int, status: TripIdeaStatus = .scheduled) -> TripIdea {

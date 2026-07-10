@@ -111,7 +111,10 @@ sketch where the global button branched into both).
   slot and sort among stops, not marginal annotations).
 - **Ops.** `TripIdea.createFreeform` / `editFreeform`, stop-ID-keyed;
   `editFreeform` no-ops on an idea-backed stop. New freeform stops append to the
-  bottom of the trip's intra-day order (`nextStopRank`).
+  bottom of the trip's intra-day order (`nextStopRank`). *(Superseded by ADR-0033:
+  a stop's day position is now `dayRank`, a per-stop intra-day order; `shortlistRank`/
+  `nextStopRank` orders only the shortlist pile. A freeform stop is the archetypal
+  floating "Anytime" stop and inherits `dayRank` + `suggestedTime` for free.)*
 
 ## Consequences
 

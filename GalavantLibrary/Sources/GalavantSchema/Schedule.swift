@@ -92,6 +92,66 @@ public enum Schedule: Equatable, Sendable {
     }
   }
 
+  // MARK: - Suggested time (ADR-0033 §3)
+
+  /// Default block length, in minutes, when only one neighbor is timed — how long
+  /// a lone previous stop is assumed to run, and how far before a lone next stop to
+  /// propose a start.
+  public static let suggestedGapMinutes = 60
+
+  /// A proposed `"HH:mm"` start for a stop being given a clock time on a day, from
+  /// the timed stops that bracket its position (ADR-0033 §3). A **pure** function —
+  /// it never writes; the caller seeds the time editor with it and the human
+  /// confirms (ADR-0004/ADR-0030 keep the write on the tap). Two call sites:
+  /// promoting an Anytime stop to timed, and moving a `.timed` stop to a new day.
+  ///
+  /// - `previous` end is its `end`, or its `start` + `suggestedGapMinutes` when it
+  ///   has no end. `next` contributes its `start`.
+  /// - both timed → start when the previous ends, unless that spills to/past the
+  ///   next start, in which case the midpoint of the previous start and the next
+  ///   start (so the suggestion always lands strictly between);
+  /// - only a previous neighbor → right when it ends;
+  /// - only a next neighbor → `suggestedGapMinutes` before it starts (clamped ≥ 0);
+  /// - neither, or only non-timed/malformed neighbors → nil (nothing to reason
+  ///   from; the editor stays blank).
+  public static func suggestedTime(after previous: Schedule?, before next: Schedule?) -> String? {
+    let prevStart = previous.flatMap(startMinutes)
+    let prevEnd = previous.flatMap(endMinutes)
+    let nextStart = next.flatMap(startMinutes)
+    let minutes: Int
+    switch (prevEnd, nextStart) {
+    case let (prev?, next?):
+      minutes = prev < next ? prev : ((prevStart ?? 0) + next) / 2
+    case let (prev?, nil):
+      minutes = prev
+    case let (nil, next?):
+      minutes = Swift.max(0, next - suggestedGapMinutes)
+    case (nil, nil):
+      return nil
+    }
+    return formatted(minutes: minutes)
+  }
+
+  /// A timed stop's start in minutes; nil for any other case or a malformed time.
+  private static func startMinutes(_ schedule: Schedule) -> Int? {
+    guard case let .timed(_, start, _) = schedule else { return nil }
+    return minutes(from: start)
+  }
+
+  /// A timed stop's end in minutes — its `end`, or its `start + suggestedGapMinutes`
+  /// when it has no end. Nil for any other case or a malformed time.
+  private static func endMinutes(_ schedule: Schedule) -> Int? {
+    guard case let .timed(_, start, end) = schedule else { return nil }
+    if let end { return minutes(from: end) }
+    return minutes(from: start).map { $0 + suggestedGapMinutes }
+  }
+
+  /// Render a minutes-from-midnight value as `"HH:mm"`, clamped to a single day.
+  private static func formatted(minutes: Int) -> String {
+    let clamped = Swift.min(Swift.max(minutes, 0), 24 * 60 - 1)
+    return String(format: "%02d:%02d", clamped / 60, clamped % 60)
+  }
+
   private var endOfDay: Int { 24 * 60 + 1 }
 
   /// Parse an `"HH:mm"` string into minutes from midnight. Reports an issue on

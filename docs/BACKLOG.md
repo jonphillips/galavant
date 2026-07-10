@@ -481,9 +481,37 @@ sheet. Jon wants stops **draggable across day sections** directly — *and* (add
 2026-06-14) **dragging items out of the "To Be Scheduled" bucket onto a day**.
 Both are the same gesture: drop target → day number → `TripIdea.schedule(_.onDay(n))`
 (or `scheduleUnplaced` to drop back into the bucket). Needs cross-section drag
-(the M3b `reorderable()`/`reorderContainer` is single-collection). Within-day
-reordering is moot (stops auto-sort by time), so this is purely "drop onto
-another day / the bucket." Fast-follow; the menus cover the function until then.
+(the M3b `reorderable()`/`reorderContainer` is single-collection). ~~Within-day
+reordering is moot (stops auto-sort by time)~~ — **no longer true as of ADR-0033**:
+untimed "Anytime" stops now hold a manual intra-day `dayRank`, so within-day reorder
+is a real gesture (see the ADR-0033 Slice 4 entry below). Fast-follow; the menus
+cover the cross-day function until then.
+
+## ADR-0033 Slice 4 — floating-untimed-stops UI (core shipped 2026-07-10)
+
+ADR-0033's functional core (a per-stop intra-day `dayRank`; anchored interleave of
+"Anytime" stops between timed ones; a pure `Schedule.suggestedTime(after:before:)`)
+shipped and is unit-tested. The **UI is the remaining slice**, and it's net-new, not
+a wiring-up:
+
+1. **Stop clock-time editor.** There is *no* way to set an exact time on a stop today
+   — `StopMenu` offers only Anytime + dayparts + Move-to-Day; `.timed` stops exist only
+   in demo fixtures. Add a "Set time…" affordance that opens an hour-minute editor
+   (clone the stay editor's `timeRow`/`DatePicker` in `TripPlanningSheets`), **pre-filled
+   from `Schedule.suggestedTime`** using the stop's ordered-day neighbors. Also pre-fill
+   it on a cross-day move (ADR-0030) so the new day's neighbors seed the time.
+2. **Non-drag intra-day reorder** writing `dayRank` via `TripIdea.reorderDayStops`. Drag
+   is blocked — the Xcode 27 beta 1 `List` drop-timeout (KNOWN-ISSUES, and the
+   cross-day-drag entry above), *and* the itinerary row stream is heterogeneous
+   (stops + connectors + now-marker + check rows), so `.onMove` needs the
+   `ScrollView`/`LazyVStack` rebuild noted above. Until then, a menu-based "Move
+   earlier / later in day" on `StopMenu` is the tractable affordance (mirrors the
+   existing Move-to-Day idiom).
+
+`swiftui-specialist` checkpoint; app target is untestable so verify on the iPad Pro
+13-inch sim. Note the anchor limitation from ADR-0033 §2: an Anytime stop can't yet be
+placed *before* the day's first timed stop via order alone — give it a daypart, or let
+the reorder UI teach the anchor a "before-first" case.
 
 ## Grow the Itinerary stop detail into a richer screen (from Jon, 2026-06-14) — PARTLY DONE
 

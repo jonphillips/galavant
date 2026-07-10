@@ -124,6 +124,7 @@ opening a fresh Opus session is worth it.
   per-day-region driving, stays summary band + spanning banner, hotel-anchored
   routing. **Next: numbered itinerary rows (located-only, matching map pins), then
   per-day regions.**
+- ✅ **Floating untimed stops (ADR-0033, core 2026-07-10):** an "Anytime" stop is a positioned citizen of its day — a per-stop intra-day `dayRank`, anchored interleave between timed stops, and a pure `Schedule.suggestedTime`. Functional core shipped + unit-tested; the UI (stop time editor + non-drag intra-day reorder) is a follow-up in docs/BACKLOG.md.
 - Trip model: **certainty lifecycle** someday(rank) → targeted(year, quarter) → dated (docs/trip-time-model.md); duration in days; **day-number-relative itinerary** + **TripIdea join with status lifecycle** (ADR-0004)
 - Trips list grouped by certainty; drag-rank the someday backlog; trip link bookmarks (label+URL)
 - Planning view: pool filtered by trip lens → pull to shortlist
