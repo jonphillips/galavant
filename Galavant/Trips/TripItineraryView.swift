@@ -219,7 +219,8 @@ struct TripItineraryView: View {
   }
 
   /// A stop row: the stop content, an optional info button (idea-backed only),
-  /// its `StopMenu`, and a tap. An idea-backed row taps to select on the shared
+  /// a pinned-reservation indicator (docs/trip-time-model.md §4), its
+  /// `StopMenu`, and a tap. An idea-backed row taps to select on the shared
   /// canvas (the info button is its own hit target); a freeform row has no map
   /// pin to select, so it taps to open its inline editor instead (ADR-0010).
   private func stopRow(
@@ -234,6 +235,12 @@ struct TripItineraryView: View {
     } ?? .kind
     return PlanningRow(content: resolved.content, subtitle: .category, marker: marker) {
       HStack(spacing: 14) {
+        if resolved.entry.pinnedDate != nil {
+          Icon.pinnedReservation.image
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .accessibilityLabel("Pinned reservation")
+        }
         if let idea = resolved.idea {
           Button { model.showDetail(idea) } label: {
             Icon.info.image.foregroundStyle(.secondary)

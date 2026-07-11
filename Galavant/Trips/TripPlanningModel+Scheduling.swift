@@ -211,6 +211,64 @@ extension TripPlanningModel {
     destination = nil
   }
 
+  // MARK: - Pinned reservations (docs/trip-time-model.md §4)
+
+  /// Present the reservation-pin editor for a stop. Seeds from the stop's
+  /// existing pin when it has one (editing); otherwise from its current day's
+  /// calendar date on a dated trip, falling back to today — a reasonable first
+  /// guess the human confirms or changes, never silently trusted.
+  func editBooking(_ stop: ResolvedStop) {
+    let entry = stop.entry
+    let seededDate =
+      entry.pinnedDate
+      ?? entry.schedule.dayNumber.flatMap { trip?.date(forDay: $0) }
+      ?? Date()
+    destination = .booking(
+      BookingDraft(
+        stopID: stop.id,
+        isEditing: entry.pinnedDate != nil,
+        date: seededDate,
+        confirmationNumber: entry.confirmationNumber ?? "",
+        bookingURL: entry.bookingURL ?? "",
+        partySize: entry.partySize.map(String.init) ?? ""
+      ))
+  }
+
+  /// Commit the reservation-pin editor: nail the stop to `draft.date` (plus
+  /// whatever booking metadata was entered — all optional, blank fields drop to
+  /// `nil`). `TripIdea.setBooking` computes the resulting `dayNumber` when the
+  /// trip is dated; on an undated trip the pin is stored inert.
+  func saveBooking(_ draft: BookingDraft) {
+    let confirmation = draft.confirmationNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+    let url = draft.bookingURL.trimmingCharacters(in: .whitespacesAndNewlines)
+    let partySize = Int(draft.partySize.trimmingCharacters(in: .whitespacesAndNewlines))
+    let pin = ReservationPin(
+      date: draft.date,
+      confirmationNumber: confirmation.isEmpty ? nil : confirmation,
+      bookingURL: url.isEmpty ? nil : url,
+      partySize: partySize
+    )
+    let stopID = draft.stopID
+    withErrorReporting {
+      try database.write { db in
+        try TripIdea.setBooking(pin, stopID: stopID, in: db)
+      }
+    }
+    destination = nil
+  }
+
+  /// Un-pin a stop's reservation (the editor's destructive "Remove Pin"),
+  /// returning it to an ordinary day-relative stop sitting right where it was.
+  func clearBooking(_ draft: BookingDraft) {
+    let stopID = draft.stopID
+    withErrorReporting {
+      try database.write { db in
+        try TripIdea.setBooking(nil, stopID: stopID, in: db)
+      }
+    }
+    destination = nil
+  }
+
   /// Move a stop to another day — StopMenu's Move-to-Day. A `.timed` stop seeds its
   /// clock time from the **destination** day's neighbors rather than carrying the
   /// old day's time blindly (ADR-0033 §3): it appends after that day's last timed

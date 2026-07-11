@@ -67,6 +67,16 @@ struct StopMenu: View {
           model.sendToBeScheduled(stopID)
         }
       }
+      // A confirmed reservation is nailed to a real calendar date, not this day
+      // number (docs/trip-time-model.md §4) — available whether the stop is
+      // placed or still in the To-Be-Scheduled bucket, since pinning a dated
+      // trip's stop places it immediately.
+      Button(
+        stop.entry.pinnedDate != nil ? "Edit Booking Details…" : "Pin Reservation…",
+        systemImage: Icon.pinnedReservation.systemName
+      ) {
+        model.editBooking(stop)
+      }
       Divider()
       if let length = model.trip?.lengthInDays {
         Menu(placed ? "Move to Day" : "Set Day") {
