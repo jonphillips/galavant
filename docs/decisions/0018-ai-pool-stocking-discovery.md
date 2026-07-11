@@ -6,7 +6,7 @@ Consequences)*
 ## Context
 
 The concrete first slice of the long-standing "AI assistant" theme
-(`docs/BACKLOG.md` — "AI pool-stocking via App Intents", 2026-06-22), and the
+(`docs/CURRENT_HANDOFF.md` — "AI pool-stocking via App Intents", 2026-06-22), and the
 successor to the M6 enrichment/chat work now merged (M6a–d). Where M6c *enriches*
 an already-known place, this slice *discovers* new ones: **query + region → a set
 of candidate pool ideas, grounded in live web search, deduped against the pool.**

@@ -99,7 +99,7 @@ purely additive (the same nullable-column move M3c used):
 
 **Decision:** land with **M4 (capture)** — that's when a share/OpenTable import
 actually creates such a stop, and it pairs naturally with the metadata and the
-"reservable-from" booking-window work (docs/BACKLOG.md). This *refines* the
+"reservable-from" booking-window work (docs/CURRENT_HANDOFF.md). This *refines* the
 day-relative model; it does not re-open it. Until then, bookings are entered as
 day-relative `.timed` stops on a dated trip, which is faithful for display.
 

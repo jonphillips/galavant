@@ -65,7 +65,7 @@ See `docs/MINING.md` for the per-milestone port/adapt/skip inventory.
 ## Context Management
 - **Start a fresh conversation at commit/milestone boundaries** (not every task —
   our exploratory multi-task sessions are fine). The repo (CLAUDE.md, docs/,
-  ADRs, ROADMAP, BACKLOG) + auto-memory hold all durable state, so a new session
+  ADRs, ROADMAP, CURRENT_HANDOFF, DONE_LOG) + auto-memory hold all durable state, so a new session
   resumes with zero loss. Suggest a fresh start when context is heavy AND the
   tree is clean (committed).
 - **Don't paste large tool output** (crash reports, full compiler command lines,

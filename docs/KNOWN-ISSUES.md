@@ -70,7 +70,7 @@ failed:
   Move-to-Day / To-Be-Scheduled covers it); re-check on a later beta.
 - **Fallback if it persists:** render the itinerary as a `ScrollView`/`LazyVStack`
   (no `UICollectionView` interception) instead of `List`; row `.draggable` /
-  `.dropDestination` work reliably there. Tracked in docs/BACKLOG.md.
+  `.dropDestination` work reliably there. Tracked in docs/CURRENT_HANDOFF.md.
 
 ## Keyboard text entry flaky in the iOS 27 simulator (environment, not our code)
 
