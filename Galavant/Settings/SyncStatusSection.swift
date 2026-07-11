@@ -49,7 +49,7 @@ private struct SyncStatusDot: View {
     switch status {
     case .disabled: .secondary
     case .localOnly: .orange
-    case .syncing: .blue
+    case .syncing, .downloading: .blue
     case .upToDate: .green
     case .error: .red
     }
@@ -104,6 +104,7 @@ struct SyncStatusDetailView: View {
     switch model.displayStatus {
     case let .localOnly(reason): reason
     case let .syncing(pending): "\(pending) change\(pending == 1 ? "" : "s") uploading"
+    case .downloading: "Downloading changes from iCloud"
     case let .error(message): message
     case .disabled, .upToDate: nil
     }
@@ -117,6 +118,8 @@ struct SyncStatusDetailView: View {
       "Changes stay on this device until iCloud can sync. You and your travel party won’t see each other’s updates yet."
     case .syncing:
       "Uploading recent changes to iCloud."
+    case .downloading:
+      "Downloading changes from iCloud. A first sync of a large pool can take a while — iCloud drip-feeds it and it will finish on its own; keep this device on Wi-Fi and power."
     case .upToDate:
       "Your ideas and trips are synced with your travel party over iCloud."
     case .error:

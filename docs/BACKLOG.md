@@ -3,6 +3,54 @@
 Not milestone-scoped (see ROADMAP.md for those). Running list of refinements
 noted in passing, with enough context to act on cold.
 
+## Sync status indicator: adopt the CloudSyncKit `.downloading` state (jon-platform ADR-0028, 2026-07-10) — DONE
+
+**DONE 2026-07-10** (same session as the CloudSyncKit fix; not yet committed — Jon does
+the git dance). Both app-side sites updated to match Yes Chef: `SyncHealthModel.refresh()`
+now feeds `isFetchingChanges: isEngineRunning && syncEngine.isFetchingChanges`, and
+`SyncStatusSection`'s three switches handle `.downloading` (blue dot, "Downloading changes
+from iCloud" detail line, first-large-sync-takes-a-while explanation). Build succeeds
+(`iPad Pro 13-inch (M5)` sim, `-skipMacroValidation`); `swiftlint --strict` clean. The
+original note is kept below for context.
+
+**Origin:** Yes Chef's two-device dogfood found the Settings sync row lying "Up to
+date" while a fresh device was still pulling a large library *down* from CloudKit
+(nothing pending to upload, so the reducer flipped green the instant the first batch
+landed — a throttled bulk initial sync drip-feeds tens of thousands of rows over
+hours). The fix landed in **CloudSyncKit** (the shared package, referenced here by
+local path `../../jon-platform/packages/CloudSyncKit`), so Galavant inherits the
+reducer change automatically — **and inherits a compile break until the app-side
+switches handle the new case.**
+
+**What changed in CloudSyncKit (`SyncHealth.swift`):**
+- `SyncHealth` gained a boolean input `isFetchingChanges` (defaulted `false`, so the
+  `SyncHealth(...)` init call still compiles unchanged).
+- `SyncDisplayStatus` gained a new case **`.downloading`** — pull-in-flight, nothing
+  left to push. This is what makes the exhaustive `switch`es over `SyncDisplayStatus`
+  **fail to build** until updated.
+- Reducer gates `.downloading` *after* the upload-pending check (an upload carries a
+  count and is the more useful thing to show; both are honest "in progress" states).
+  `.downloading.summary == "Syncing…"` (same glanceable text as `.syncing`).
+
+**Galavant app-side changes to mirror (parallel to Yes Chef's, same file names):**
+1. **`Galavant/Settings/SyncHealthModel.swift`** — in `refresh()`, feed the new input:
+   `isFetchingChanges: isEngineRunning && syncEngine.isFetchingChanges` into the
+   `SyncHealth(...)` init (line ~59). No view-wiring change needed — `SettingsScreen`'s
+   existing `.onChange(of: syncHealth.isSynchronizing)` already covers fetch toggles
+   (`isSynchronizing == isSendingChanges || isFetchingChanges`).
+2. **`Galavant/Settings/SyncStatusSection.swift`** — add `.downloading` to the three
+   exhaustive switches: the dot color (`case .syncing, .downloading: .blue`), the
+   detail line (e.g. `"Downloading changes from iCloud"`), and the explanation footer
+   (a "first sync of a large library can take a while — keep on Wi-Fi and power" note
+   reads well here). These are the compile-forcing sites.
+
+**Scope note (don't chase it):** there is **no public rate-limit/backoff signal** —
+SQLiteData swallows the throttle `CKError`s internally (SyncEngine.swift ~1794/1830),
+so the row can't say "paused by iCloud, will resume" and may briefly flash "Up to
+date" *between* throttled fetch batches. Accepted limitation, same as Yes Chef; a
+truthful pause state would need an upstream SQLiteData change. See
+`yes-chef/docs/decisions/ADR-0028-*.md` for the full write-up.
+
 ## Guide-link enrichment rung + generalized in-app browser (ADR-0016 follow-on, 2026-06-24)
 
 **Automated rung DONE (2026-06-24, ADR-0021, branch `feat/guide-link-enrichment-rung`).**
