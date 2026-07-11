@@ -13,6 +13,9 @@ struct StopMenu: View {
 
   private var schedule: Schedule { stop.entry.schedule }
   private var stopID: TripIdea.ID { stop.id }
+  private var isTimed: Bool {
+    if case .timed = schedule { return true } else { return false }
+  }
   private var isFreeform: Bool {
     if case .freeform = stop.content { return true } else { return false }
   }
@@ -44,6 +47,22 @@ struct StopMenu: View {
             }
           }
         }
+        Button(isTimed ? "Change Time…" : "Set Time…", systemImage: Icon.setTime.systemName) {
+          model.editStopTime(stop)
+        }
+        // Non-drag intra-day reorder (ADR-0033 Slice 4). Only a bare "Anytime"
+        // stop carries a hand-order — timed/dayparted stops are positioned by
+        // their clock/band time — so the reorder pair shows only for those.
+        if case .day = schedule {
+          Button("Move Earlier in Day", systemImage: Icon.moveEarlier.systemName) {
+            model.moveStopEarlier(stop)
+          }
+          .disabled(!model.canMoveStopEarlier(stop))
+          Button("Move Later in Day", systemImage: Icon.moveLater.systemName) {
+            model.moveStopLater(stop)
+          }
+          .disabled(!model.canMoveStopLater(stop))
+        }
         Button("To Be Scheduled", systemImage: Icon.toBeScheduled.systemName) {
           model.sendToBeScheduled(stopID)
         }
@@ -53,7 +72,7 @@ struct StopMenu: View {
         Menu(placed ? "Move to Day" : "Set Day") {
           ForEach(1...length, id: \.self) { n in
             Button {
-              model.setSchedule(schedule.onDay(n), for: stopID)
+              model.moveToDay(stop, day: n)
             } label: {
               let title = dayLabel(n, trip: model.trip)
               if placed, n == day {

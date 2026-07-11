@@ -140,6 +140,9 @@ struct TripPlanningView: View {
       .sheet(item: $model.destination.stay, id: \.id) { draft in
         StaySheet(model: model, draft: draft)
       }
+      .sheet(item: $model.destination.stopTime, id: \.id) { draft in
+        StopTimeSheet(model: model, draft: draft)
+      }
       .sheet(isPresented: $showingStartDay) {
         StartDayPanel(model: model)
       }

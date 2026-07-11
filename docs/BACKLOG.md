@@ -535,7 +535,16 @@ untimed "Anytime" stops now hold a manual intra-day `dayRank`, so within-day reo
 is a real gesture (see the ADR-0033 Slice 4 entry below). Fast-follow; the menus
 cover the cross-day function until then.
 
-## ADR-0033 Slice 4 — floating-untimed-stops UI (core shipped 2026-07-10)
+## ADR-0033 Slice 4 — floating-untimed-stops UI — DONE (2026-07-10)
+
+Shipped 2026-07-10. The stop clock-time editor (`StopTimeSheet` + `Destination.stopTime`,
+pre-filled from `Schedule.suggestedTime`), the menu-based **"Move Earlier / Later in
+Day"** reorder (`reorderDayStops`, bare-Anytime-only, "earlier" disabled at the first-timed
+boundary), and destination-day time seeding on Move-to-Day (`moveToDay`) all landed on
+`StopMenu` / `TripPlanningModel+Scheduling`. The §2 "before the first timed stop"
+limitation was kept, not lifted (a daypart is still the way to seat a stop ahead of the
+day's first timed stop) — see the ADR-0033 §2 "Slice 4 resolution" note for why (it would
+have re-seated dogfooded Anytime stops). Original scope below.
 
 ADR-0033's functional core (a per-stop intra-day `dayRank`; anchored interleave of
 "Anytime" stops between timed ones; a pure `Schedule.suggestedTime(after:before:)`)
