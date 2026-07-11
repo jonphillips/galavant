@@ -50,6 +50,11 @@ final class SyncHealthModel {
   func refresh() async {
     let isManuallyEnabled = GalavantCloudSync.isManuallyEnabled()
     let isEngineRunning = syncEngine.isRunning
+    // The download counterpart to the pending (upload) count: true while the engine is
+    // pulling changes down. Without it a fresh device pulling a large pool reads
+    // "Up to date" the instant the first batch lands (jon-platform ADR-0028). Only
+    // meaningful while running.
+    let isFetchingChanges = isEngineRunning && syncEngine.isFetchingChanges
     let account = await currentAccountStatus()
     // The pending-changes table only exists once sync has run; querying it while the
     // gate is off can throw "no such table", so skip it — the status is `.disabled`
@@ -61,6 +66,7 @@ final class SyncHealthModel {
       account: account,
       isEngineRunning: isEngineRunning,
       pendingChangeCount: pending,
+      isFetchingChanges: isFetchingChanges,
       lastError: lastStartError
     )
   }
