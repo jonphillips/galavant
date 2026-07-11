@@ -22,6 +22,8 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>CKSharingSupported</key>
 	<true/>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Galavant syncs a trip's scheduled stops to a dedicated calendar so they show up alongside your other events.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
