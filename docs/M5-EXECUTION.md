@@ -94,8 +94,8 @@ two-device, on the TestFlight build — this slice is what makes that verificati
 
 ## M5-pinned — booked reservations as absolute, pinned stops · **Opus** for slice 1 (date-slide semantics are judgment), Sonnet-friendly after
 
-**ADR / rationale:** `docs/trip-time-model.md §4` (read it) + the BACKLOG entry
-"Booked reservations as absolute, pinned stops."
+**ADR / rationale:** `docs/trip-time-model.md §4` (read it) + the `docs/CURRENT_HANDOFF.md`
+entry "Booked reservations as absolute, pinned stops."
 
 **Goal:** a confirmed reservation (OpenTable, hotel, timed museum entry) is an
 **absolute fact** — nailed to a calendar date, and it must **not** slide when the

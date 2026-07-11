@@ -156,4 +156,5 @@ applied to facts).
 - **Known gap (2026-06-23):** hours extraction is structured-data only (JSON-LD +
   microdata), so unstructured-markup sites (e.g. Squarespace `.module--hours`
   widgets) yield nothing at capture *or* on demand — the §1 extract-only LLM
-  fallback was never wired into the hours ladder. See `docs/BACKLOG.md`.
+  fallback was never wired into the hours ladder. **Since fixed** — see
+  `docs/DONE_LOG.md` ("Hours extraction misses unstructured-markup sites").

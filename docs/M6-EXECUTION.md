@@ -191,7 +191,7 @@ stamped with provenance; parser recognizer tests green.
 3. **Tools over `GalavantSchema`** — v1 read-leaning: `queryPool` (NL filter over ideas)
    + `createIdea` (lands a **candidate**, ADR-0013). Defer `scheduleStop` (read +
    propose; don't mutate the trip — ADR-0004). Share the verb definitions with the
-   App Intents work (the "AI pool-stocking" BACKLOG entry).
+   App Intents work (the "AI pool-stocking" entry in `docs/CURRENT_HANDOFF.md`).
 4. **The panel UI:** iPhone sheet / iPad **side column** (reuse the canvas
    `horizontalSizeClass` split — **not** a nested `NavigationStack` in the iPad detail,
    `ipad-nested-navigationstack-trap`); a clear tier indicator + an explicit "data
@@ -258,7 +258,7 @@ save as a **candidate** → optional `PlaceEnricher`.
 3. **The real UI:** region-scoped discovery entry + candidate review (list + candidate-
    tinted pins on `PoolMapView`, reuse ADR-0013 styling) + Add all/selected.
    `swiftui-specialist` checkpoint.
-4. **Docs:** flip ADR-0018 to accepted; ROADMAP/BACKLOG updates.
+4. **Docs:** flip ADR-0018 to accepted; ROADMAP/CURRENT_HANDOFF/DONE_LOG updates.
 
 **Skill checkpoints (past cutoff):** **`claude-api`** for the `web_search` server-tool
 block + response shape + model IDs (`claude-opus-4-8`) before any wire change;
@@ -378,7 +378,7 @@ payoff — in v1 the button calls the ops directly; the model does not invoke th
    tests (Add creates a candidate, pulls, schedules day-relative; undo = unschedule/remove).
 3. **The UI:** suggestion cards in the Trip `.inspector` + a "Suggest for <day>" entry tied
    to `focusedDay`; Add → live itinerary via `@FetchAll`. `swiftui-specialist` checkpoint.
-4. **Docs:** flip ADR-0030 to accepted; ROADMAP/BACKLOG/this file.
+4. **Docs:** flip ADR-0030 to accepted; ROADMAP/CURRENT_HANDOFF/DONE_LOG/this file.
 
 **Skill checkpoints (past cutoff):** **`claude-api`** for the grounded `complete()` +
 structured-output shape (reuses M6e's `web_search` block); **`swiftui-specialist`** for the

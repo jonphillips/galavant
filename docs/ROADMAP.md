@@ -28,7 +28,7 @@ opening a fresh Opus session is worth it.
 - ✅ M2a: TravelParty/Planner/IdeaInterest schema, kinds, per-planner first-run identity, his/hers interest UI
 - ✅ M2b: MapKit location search in the form (idea gets coordinates) + pool map with pins + list/map toggle
 - ✅ M2c: first-class MapRegion (containment-based), pool filter (region/kind/visited), filter UI + define-region-from-map, filter-summary bar
-- ✅ Capture polish: **search-first form** — place search leads, auto-populates name/kind/link/address/phone from MapKit (`MKMapItem` + pure `IdeaKind` POI mapping); ⏳ Tags (first-class?); ✅ location-search robustness (worldwide `MKLocalSearch` natural-language query — DONE 2026-06-16, docs/BACKLOG.md)
+- ✅ Capture polish: **search-first form** — place search leads, auto-populates name/kind/link/address/phone from MapKit (`MKMapItem` + pure `IdeaKind` POI mapping); ⏳ Tags (first-class?); ✅ location-search robustness (worldwide `MKLocalSearch` natural-language query — DONE 2026-06-16, docs/DONE_LOG.md)
 - ⏳ Second-device identity hardening (ADR-0008): bind-or-create planner picker, stray-party cleanup, IdeaInterest dedup-on-read
 - Full Idea model: kinds, visited state, tags, URLs, images, opening days/hours and reservable-from (manual entry)
   - **Image storage strategy** (cross-cutting; inherited by M4 scraped images + M5
@@ -67,8 +67,9 @@ opening a fresh Opus session is worth it.
   rows. Ideas page is **Ideas | Itinerary** with shortlist/scheduled/considering
   sections, one-tap state icons, and swipe Remove/Unschedule. 11 new tests (43 total). **Done is intentionally not a
   per-stop action** (Jon: completion is assumed once the trip passes) — the
-  `markDone`→`visited` op stays as the mechanism for a future trip-level rollup +
-  a "now" marker (docs/BACKLOG.md). Deferred: clock-time *entry* UI, drag stops
+  `markDone`→`visited` op stays as the mechanism for a future trip-level rollup
+  (docs/CURRENT_HANDOFF.md) + a "now" marker (shipped since — docs/DONE_LOG.md).
+  Deferred: clock-time *entry* UI, drag stops
   between days, per-day region stops (`.timed` + schema already support the first;
   freeform stops shipped M3g, accommodations M3h, the now marker M3f). `TripRegion` join (single-FK→Trip ON DELETE CASCADE, loose regionID per ADR-0007) with `setRegions` reconcile + `regionIDs(forTrip:)`. `poolFiltered` now takes a region **union** (`regions: [MapRegion]`, empty = no constraint, match any); IdeasListModel + tests updated. Multi-region picker in the trip form; the Add lens (`Set<MapRegion.ID>`) **pre-seeds from the trip's regions** on appear. Demo trips pre-associated with regions. 32 tests green. (Reorder-on-fast-nav race parked as a beta-watch item — docs/KNOWN-ISSUES.md.)
 - ✅ M3d (done, 2026-06-14): **map-as-canvas trip view** — the map is the
@@ -124,7 +125,7 @@ opening a fresh Opus session is worth it.
   per-day-region driving, stays summary band + spanning banner, hotel-anchored
   routing. **Next: numbered itinerary rows (located-only, matching map pins), then
   per-day regions.**
-- ✅ **Floating untimed stops (ADR-0033, core 2026-07-10):** an "Anytime" stop is a positioned citizen of its day — a per-stop intra-day `dayRank`, anchored interleave between timed stops, and a pure `Schedule.suggestedTime`. Functional core shipped + unit-tested; the UI (stop time editor + non-drag intra-day reorder) is a follow-up in docs/BACKLOG.md.
+- ✅ **Floating untimed stops (ADR-0033, core 2026-07-10):** an "Anytime" stop is a positioned citizen of its day — a per-stop intra-day `dayRank`, anchored interleave between timed stops, and a pure `Schedule.suggestedTime`. Functional core shipped + unit-tested; the UI (stop time editor + non-drag intra-day reorder) shipped as a follow-up — see docs/DONE_LOG.md.
 - Trip model: **certainty lifecycle** someday(rank) → targeted(year, quarter) → dated (docs/trip-time-model.md); duration in days; **day-number-relative itinerary** + **TripIdea join with status lifecycle** (ADR-0004)
 - Trips list grouped by certainty; drag-rank the someday backlog; trip link bookmarks (label+URL)
 - Planning view: pool filtered by trip lens → pull to shortlist
@@ -132,14 +133,14 @@ opening a fresh Opus session is worth it.
 - Itinerary: days, per-day regions (with percentDay splits), stops with the V2 Schedule enum; "bookable now / opens in N days" section on dated trips
 - Post-trip: done/skipped feedback to pool
 - Map-as-canvas trip view: day chips, numbered sequence pins, bottom-sheet timeline (docs/trip-canvas.md)
-- ✅ Travel-time connectors between a day's stops (MKDirections ETAs + transport-mode auto-detect/per-leg override; `TravelConnector`/`DirectionsClient`, 2026-06-20) + open-in-Maps handoff (M3d). The "now" you-are-here marker on active dated trips also shipped (2026-06-20; docs/BACKLOG.md "now marker" item).
+- ✅ Travel-time connectors between a day's stops (MKDirections ETAs + transport-mode auto-detect/per-leg override; `TravelConnector`/`DirectionsClient`, 2026-06-20) + open-in-Maps handoff (M3d). The "now" you-are-here marker on active dated trips also shipped (2026-06-20; docs/DONE_LOG.md "now marker" item).
 - Stretch: start-day solver (slide start date → check key stops' open days; docs/trip-time-model.md)
 - ✅ Done when: the Copenhagen scenario works end to end
 
 ## M4 — Capture from anywhere ✅ (done 2026-06-18 — M4a–M4h; CloudKit BLOB sync still to verify on two real devices, ADR-0009 §4)
 - ✅ M4a (2026-06-16): **the pure parser engine** — new isolated SPM target
   `GalavantCapture` (SwiftSoup + Foundation only; **no** SwiftUI/CloudKit, never
-  sees `Idea`/`Trip` — the portfolio-extraction seam, BACKLOG/ADR-0009). `HTML →
+  sees `Idea`/`Trip` — the portfolio-extraction seam, docs/CURRENT_HANDOFF.md/ADR-0009). `HTML →
   ParsedPage` (a domain-free value type: title/summary/phone/email/`websiteURL`/
   coordinate/address/images/socials/`schemaTypes`/`openingHours`/`capturedAt`).
   Layers run least→most structured into one **value vote** (V1's

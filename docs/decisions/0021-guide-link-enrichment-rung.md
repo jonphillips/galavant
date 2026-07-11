@@ -43,7 +43,7 @@ human-in-the-loop rendered-DOM browser fallback for JS-heavy / anti-bot guide pa
 That is the *same* effort's next rung (generalize `HoursBrowserView` into a reusable
 "render URL → hand back HTML → run any extractor" component), but we ship the
 automated rung first — it handles the static guide pages and surfaces *which* pages
-actually need rendering. See docs/BACKLOG.md.
+actually need rendering. See docs/CURRENT_HANDOFF.md.
 
 ## Decision
 
