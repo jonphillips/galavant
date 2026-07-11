@@ -95,6 +95,14 @@ struct IdeaFormView: View {
               }
             }
           }
+          // The "manage many" surface (BACKLOG "Multi-select tag assignment on
+          // Ideas"): a checkmark list of every tag, for toggling several at once
+          // instead of the one-at-a-time flow above.
+          NavigationLink {
+            TagPickerView(model: model)
+          } label: {
+            Icon.tagPicker.label("Select from all tags…")
+          }
         }
 
         StackedFormField(title: "Link") {
