@@ -76,6 +76,24 @@ See `docs/MINING.md` for the per-milestone port/adapt/skip inventory.
 - `/compact` mid-task if context-heavy but not ready to stop; a fresh session is
   better when you are.
 
+## Verifying
+
+`scripts/check-drift.sh` is the single entry point: SwiftLint, `swift test
+--package-path GalavantLibrary`, and a `build-for-testing` pass that compiles and
+links `GalavantUITests`. It never boots a simulator — running the UI tests is a
+separate, deliberate step.
+
+That last stage exists because `GalavantUITests` is compiled by nothing else here
+and run by nothing in CI, which is precisely how a test target rots without
+anyone noticing. `GALAVANT_SKIP_TEST_BUILD=1` skips it and says loudly that it
+did.
+
+- **Declare what you use, even when you got it for free.** `import SQLiteData`
+  hands you GRDB's `Database`/`DatabaseWriter` via `@_exported`, but that is a
+  compile-time re-export only. Static builds resolve it anyway; the moment
+  anything makes SwiftPM products dynamic, an undeclared dependency is a link
+  failure. If a target uses a type, its manifest should name the package.
+
 ## Conventions
 
 - Keep dependencies minimal; each new package needs a reason
