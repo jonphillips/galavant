@@ -21,6 +21,7 @@ enum Icon {
   case disclosure     // row chevron
   case filterActive   // filter control, engaged
   case manage         // manage / adjust (regions, tags)
+  case tagPicker      // open the multi-select tag picker
   case info           // open a read-only detail
   case sidebar
   case settings       // app settings / "You" area
@@ -75,6 +76,7 @@ enum Icon {
     case .disclosure: "chevron.right"
     case .filterActive: "line.3.horizontal.decrease.circle.fill"
     case .manage: "slider.horizontal.3"
+    case .tagPicker: "checklist"
     case .info: "info.circle"
     case .sidebar: "sidebar.left"
     case .settings: "gearshape"
