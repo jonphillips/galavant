@@ -63,6 +63,24 @@ struct StayDraft: Identifiable {
   var isIdeaBacked: Bool { ideaID != nil }
 }
 
+/// The editable state of the reservation-pin sheet (docs/trip-time-model.md §4)
+/// — give a stop an absolute calendar date plus optional booking metadata, or
+/// (from the sheet's destructive action) drop its pin back to an ordinary
+/// day-relative stop. `isEditing` distinguishes an existing pin (seeded from its
+/// current fields) from a fresh one (seeded from the stop's current placement or
+/// today). `partySize` stays a free-text field, parsed to `Int?` on save, so an
+/// empty field round-trips to "not set" without a separate toggle. Identifiable
+/// (keyed on the stop) so it drives a `.sheet(item:)`.
+struct BookingDraft: Identifiable {
+  var stopID: TripIdea.ID
+  var isEditing: Bool
+  var date: Date
+  var confirmationNumber = ""
+  var bookingURL = ""
+  var partySize = ""
+  var id: TripIdea.ID { stopID }
+}
+
 /// Owns one trip's planning surface (ADR-0004): the shortlist + considering
 /// pile of pulled ideas, and the filtered pool you pull *from*. Persistence
 /// delegates to the tested `TripIdea` operations; pool scoping reuses the pure
@@ -140,6 +158,7 @@ final class TripPlanningModel {
     case freeformStop(FreeformStopDraft)
     case stay(StayDraft)
     case stopTime(StopTimeDraft)
+    case booking(BookingDraft)
   }
 
   init(tripID: Trip.ID) {

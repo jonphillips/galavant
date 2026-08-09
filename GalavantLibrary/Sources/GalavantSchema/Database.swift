@@ -528,6 +528,18 @@ extension DependencyValues {
       try #sql(#"ALTER TABLE "tripIdeas" ADD COLUMN "dayRank" REAL NOT NULL DEFAULT 0"#).execute(db)
       try #sql(#"UPDATE "tripIdeas" SET "dayRank" = "shortlistRank""#).execute(db)
     }
+    migrator.registerMigration("Add pinned-reservation columns to tripIdeas (docs/trip-time-model.md §4)") { db in
+      // A confirmed reservation (OpenTable, a hotel, a timed entry) is an absolute
+      // calendar fact, unlike a day-relative planned stop — `pinnedDate` locks it to
+      // a real date so it re-derives its `dayNumber` (rather than sliding) when the
+      // trip's start date moves. Booking metadata rides alongside it. All additive,
+      // nullable columns, CloudKit-legal; `pinnedDate` sits beside `Schedule`, not
+      // inside it — the four existing cases are unchanged.
+      try #sql(#"ALTER TABLE "tripIdeas" ADD COLUMN "pinnedDate" TEXT"#).execute(db)
+      try #sql(#"ALTER TABLE "tripIdeas" ADD COLUMN "confirmationNumber" TEXT"#).execute(db)
+      try #sql(#"ALTER TABLE "tripIdeas" ADD COLUMN "bookingURL" TEXT"#).execute(db)
+      try #sql(#"ALTER TABLE "tripIdeas" ADD COLUMN "partySize" INTEGER"#).execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if case let .configured(startImmediately) = syncMode {

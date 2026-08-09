@@ -470,3 +470,65 @@ struct StopTimeSheet: View {
     return String(format: "%02d:%02d", clamped / 60, clamped % 60)
   }
 }
+
+/// Pin a stop to an absolute reservation date, with light booking metadata
+/// (docs/trip-time-model.md §4) — a confirmed OpenTable table, hotel stay, or
+/// timed museum entry is nailed to a real calendar date and must **not** slide
+/// when the trip's start date moves, unlike an ordinary day-relative stop.
+/// Mirrors `StopTimeSheet`'s shape: one required field (here, the date) plus
+/// optional free-text fields, and a destructive action ("Remove Pin") that
+/// drops the stop back to whatever ordinary day-relative placement it's
+/// currently sitting at.
+struct BookingSheet: View {
+  let model: TripPlanningModel
+  @State private var draft: BookingDraft
+  @Environment(\.dismiss) private var dismiss
+
+  init(model: TripPlanningModel, draft: BookingDraft) {
+    self.model = model
+    _draft = State(initialValue: draft)
+  }
+
+  var body: some View {
+    NavigationStack {
+      Form {
+        Section("Reservation Date") {
+          DatePicker("Date", selection: $draft.date, displayedComponents: .date)
+        }
+        Section {
+          TextField("Confirmation number", text: $draft.confirmationNumber)
+          TextField("Booking URL", text: $draft.bookingURL)
+            .keyboardType(.URL)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+          TextField("Party size", text: $draft.partySize)
+            .keyboardType(.numberPad)
+        } header: {
+          Text("Booking Details")
+        } footer: {
+          Text("Optional — shown on the stop for your own reference.")
+        }
+        if draft.isEditing {
+          Section {
+            Button("Remove Pin", systemImage: Icon.revert.systemName, role: .destructive) {
+              model.clearBooking(draft)
+            }
+          } footer: {
+            Text("Removes the pin — the stop returns to an ordinary day-relative placement.")
+          }
+        }
+      }
+      .navigationTitle(draft.isEditing ? "Edit Booking" : "Pin Reservation")
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          Button("Cancel") { dismiss() }
+        }
+        ToolbarItem(placement: .confirmationAction) {
+          Button("Save") { model.saveBooking(draft) }
+        }
+      }
+    }
+    .presentationDetents([.medium])
+  }
+}

@@ -546,6 +546,176 @@ struct TripTests {
     #expect(trip("Someday", .someday(rank: 0)).date(forDay: 1) == nil)
   }
 
+  // MARK: - Pinned reservations (docs/trip-time-model.md §4)
+
+  @Test func bookingRoundTripsThroughColumns() {
+    let date = Date(timeIntervalSince1970: 1_700_000_000)
+    var entry = TripIdea(id: UUID(), tripID: UUID(), ideaID: UUID())
+    #expect(entry.booking == nil)  // no pin, the common case
+    entry.pinnedDate = date
+    entry.confirmationNumber = "ABC123"
+    entry.bookingURL = "https://opentable.com/r/x"
+    entry.partySize = 4
+    #expect(
+      entry.booking
+        == ReservationPin(
+          date: date, confirmationNumber: "ABC123",
+          bookingURL: "https://opentable.com/r/x", partySize: 4))
+  }
+
+  // `dayNumber(forPinnedDate:startDate:)` is the exact inverse of `date(forDay:)`:
+  // for every day 1...N, pinning to that day's derived date must round-trip back
+  // to the same day number.
+  @Test func dayNumberForPinnedDateInvertsDateForDay() {
+    let start = Date(timeIntervalSince1970: 1_700_000_000)
+    for day in 1...10 {
+      let date = Calendar.current.date(byAdding: .day, value: day - 1, to: start)!
+      #expect(Trip.dayNumber(forPinnedDate: date, startDate: start) == day)
+    }
+  }
+
+  @Test func dayNumberForPinnedDateHandlesStartDateSlide() {
+    let originalStart = Date(timeIntervalSince1970: 1_700_000_000)  // a Tuesday-ish anchor
+    // A reservation pinned to what was day 6 of the original plan.
+    let pinnedDate = Calendar.current.date(byAdding: .day, value: 5, to: originalStart)!
+    #expect(Trip.dayNumber(forPinnedDate: pinnedDate, startDate: originalStart) == 6)
+
+    // Slide the start date two days later — the pin's real date is unchanged, but
+    // it now lands on day 4 (it's two days closer to the new start).
+    let laterStart = Calendar.current.date(byAdding: .day, value: 2, to: originalStart)!
+    #expect(Trip.dayNumber(forPinnedDate: pinnedDate, startDate: laterStart) == 4)
+
+    // Slide the start date three days earlier — the pin now lands further out, day 9.
+    let earlierStart = Calendar.current.date(byAdding: .day, value: -3, to: originalStart)!
+    #expect(Trip.dayNumber(forPinnedDate: pinnedDate, startDate: earlierStart) == 9)
+  }
+
+  @Test func dayNumberForPinnedDateBeforeStartIsNonPositive() {
+    // A pin dated before the (new) start date isn't clamped here — that's the
+    // display layer's job (`TripIdea.itinerary` already clamps out-of-range days).
+    let start = Date(timeIntervalSince1970: 1_700_000_000)
+    let earlier = Calendar.current.date(byAdding: .day, value: -2, to: start)!
+    #expect(Trip.dayNumber(forPinnedDate: earlier, startDate: start) == -1)
+  }
+
+  @Test func setBookingOnADatedTripComputesDayNumberAndSchedules() async throws {
+    let start = Date(timeIntervalSince1970: 1_700_000_000)
+    let entry = try await database.write { db -> TripIdea in
+      let trip = try Trip.create(
+        name: "Copenhagen", certainty: .dated(start: start), lengthInDays: 10, in: db)
+      let idea = try seedIdea(name: "Noma", in: db)
+      let pulled = try TripIdea.pull(ideaID: idea.id, into: trip.id, in: db)
+      let pinnedDate = Calendar.current.date(byAdding: .day, value: 5, to: start)!  // day 6
+      try TripIdea.setBooking(
+        ReservationPin(date: pinnedDate, confirmationNumber: "RES-9", partySize: 2),
+        stopID: pulled.id, in: db)
+      return try TripIdea.find(pulled.id).fetchOne(db)!
+    }
+    #expect(entry.status == .scheduled)
+    #expect(entry.dayNumber == 6)
+    #expect(entry.confirmationNumber == "RES-9")
+    #expect(entry.partySize == 2)
+  }
+
+  @Test func setBookingOnAnUndatedTripStoresThePinInert() async throws {
+    let pinnedDate = Date(timeIntervalSince1970: 1_700_000_000)
+    let entry = try await database.write { db -> TripIdea in
+      let trip = try Trip.create(name: "Someday Denmark", in: db)  // undated (someday)
+      let idea = try seedIdea(name: "Noma", in: db)
+      let pulled = try TripIdea.pull(ideaID: idea.id, into: trip.id, in: db)
+      try TripIdea.setBooking(ReservationPin(date: pinnedDate), stopID: pulled.id, in: db)
+      return try TripIdea.find(pulled.id).fetchOne(db)!
+    }
+    // The pin round-trips through storage even with no start date to derive against.
+    #expect(entry.pinnedDate == pinnedDate)
+    #expect(entry.status == .scheduled)
+    #expect(entry.dayNumber == nil)
+  }
+
+  @Test func unpinningLeavesDayNumberAndStatusAlone() async throws {
+    let start = Date(timeIntervalSince1970: 1_700_000_000)
+    let entry = try await database.write { db -> TripIdea in
+      let trip = try Trip.create(name: "Copenhagen", certainty: .dated(start: start), in: db)
+      let idea = try seedIdea(name: "Noma", in: db)
+      let pulled = try TripIdea.pull(ideaID: idea.id, into: trip.id, in: db)
+      let pinnedDate = Calendar.current.date(byAdding: .day, value: 2, to: start)!  // day 3
+      try TripIdea.setBooking(ReservationPin(date: pinnedDate), stopID: pulled.id, in: db)
+      try TripIdea.setBooking(nil, stopID: pulled.id, in: db)
+      return try TripIdea.find(pulled.id).fetchOne(db)!
+    }
+    #expect(entry.booking == nil)
+    #expect(entry.status == .scheduled)  // untouched, still where the pin left it
+    #expect(entry.dayNumber == 3)
+  }
+
+  // ADR-0004/§4: sliding a dated trip's start date re-derives every pinned
+  // stop's dayNumber so it keeps landing on the same real date; a normal
+  // day-relative stop (no pin) never moves.
+  @Test func updateSlidingStartDateRederivesPinnedStopsOnly() async throws {
+    let originalStart = Date(timeIntervalSince1970: 1_700_000_000)
+    let (pinnedDay, unpinnedDay) = try await database.write { db -> (Int?, Int?) in
+      let trip = try Trip.create(
+        name: "Copenhagen", certainty: .dated(start: originalStart), lengthInDays: 14, in: db)
+      let pinnedIdea = try seedIdea(name: "Noma", in: db)
+      let unpinnedIdea = try seedIdea(name: "Tivoli", in: db)
+      let pinnedStop = try TripIdea.pull(ideaID: pinnedIdea.id, into: trip.id, in: db)
+      let unpinnedStop = try TripIdea.pull(ideaID: unpinnedIdea.id, into: trip.id, in: db)
+      // Pin the reservation to what's currently day 6; place the other stop on day 6 too.
+      let pinnedDate = Calendar.current.date(byAdding: .day, value: 5, to: originalStart)!
+      try TripIdea.setBooking(ReservationPin(date: pinnedDate), stopID: pinnedStop.id, in: db)
+      try TripIdea.schedule(.day(6), ideaID: unpinnedIdea.id, tripID: trip.id, in: db)
+
+      // Slide the start date two days later.
+      let newStart = Calendar.current.date(byAdding: .day, value: 2, to: originalStart)!
+      let draft = Trip.Draft(trip)
+      try Trip.update(draft, certainty: .dated(start: newStart), in: db)
+
+      let pinned = try TripIdea.find(pinnedStop.id).fetchOne(db)!
+      let unpinned = try TripIdea.find(unpinnedStop.id).fetchOne(db)!
+      return (pinned.dayNumber, unpinned.dayNumber)
+    }
+    // The pin's real date is now 2 days closer to the new start → day 4.
+    #expect(pinnedDay == 4)
+    // The unpinned stop's day-relative placement never moves.
+    #expect(unpinnedDay == 6)
+  }
+
+  @Test func updateDatingAnUndatedTripRederivesItsExistingPins() async throws {
+    let pinnedDate = Date(timeIntervalSince1970: 1_700_000_000)
+    let dayNumber = try await database.write { db -> Int? in
+      let trip = try Trip.create(name: "Someday Denmark", lengthInDays: 10, in: db)  // undated
+      let idea = try seedIdea(name: "Noma", in: db)
+      let pulled = try TripIdea.pull(ideaID: idea.id, into: trip.id, in: db)
+      // Pin while still undated — held inert (no dayNumber yet).
+      try TripIdea.setBooking(ReservationPin(date: pinnedDate), stopID: pulled.id, in: db)
+      #expect(try TripIdea.find(pulled.id).fetchOne(db)!.dayNumber == nil)
+
+      // Certainty transitions someday → dated: the pin should become effective.
+      let start = Calendar.current.date(byAdding: .day, value: -2, to: pinnedDate)!  // pin lands on day 3
+      let draft = Trip.Draft(trip)
+      try Trip.update(draft, certainty: .dated(start: start), in: db)
+      return try TripIdea.find(pulled.id).fetchOne(db)!.dayNumber
+    }
+    #expect(dayNumber == 3)
+  }
+
+  @Test func updateWithoutAStartDateChangeLeavesPinnedStopsAlone() async throws {
+    let start = Date(timeIntervalSince1970: 1_700_000_000)
+    let dayNumber = try await database.write { db -> Int? in
+      let trip = try Trip.create(name: "Copenhagen", certainty: .dated(start: start), in: db)
+      let idea = try seedIdea(name: "Noma", in: db)
+      let pulled = try TripIdea.pull(ideaID: idea.id, into: trip.id, in: db)
+      let pinnedDate = Calendar.current.date(byAdding: .day, value: 5, to: start)!
+      try TripIdea.setBooking(ReservationPin(date: pinnedDate), stopID: pulled.id, in: db)
+      // Update the trip's name only — same certainty/start date.
+      var draft = Trip.Draft(trip)
+      draft.name = "Copenhagen (renamed)"
+      try Trip.update(draft, certainty: .dated(start: start), in: db)
+      return try TripIdea.find(pulled.id).fetchOne(db)!.dayNumber
+    }
+    #expect(dayNumber == 6)  // unchanged — no re-derivation ran (no extra writes)
+  }
+
   // MARK: - Freeform stops (ADR-0010)
 
   @Test func createFreeformBornScheduledInTheBucketWithNoIdea() async throws {

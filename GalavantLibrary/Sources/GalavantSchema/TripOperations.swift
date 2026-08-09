@@ -33,15 +33,27 @@ extension Trip {
   /// Moving a trip *into* the someday backlog from another stage appends it to
   /// the bottom; staying in someday preserves its rank. Sets the party FK and
   /// upserts. (New trips go through `create` instead.)
+  ///
+  /// When this changes (or sets, via a certainty transition into `.dated`) the
+  /// trip's `startDate`, every pinned reservation (`TripIdea.pinnedDate != nil`)
+  /// on the trip has its `dayNumber` re-derived so it keeps its absolute calendar
+  /// date rather than sliding with the trip (docs/trip-time-model.md §4). An
+  /// undated trip (or one leaving `.dated`) has no `startDate` to re-derive
+  /// against, so pinned stops are left untouched — their pin holds inert until
+  /// the trip is dated.
   public static func update(_ draft: Trip.Draft, certainty: Certainty, in db: Database) throws {
     var draft = draft
     var certainty = certainty
     if certainty.stage == .someday, draft.certaintyStage != .someday {
       certainty = .someday(rank: try nextSomedayRank(in: db))
     }
+    let priorStartDate = try draft.id.flatMap { try Trip.find($0).fetchOne(db) }?.startDate
     draft.apply(certainty)
     draft.travelPartyID = try TravelParty.ensureDefault(in: db).id
     try Trip.upsert { draft }.execute(db)
+    if let tripID = draft.id, let newStartDate = certainty.startDate, newStartDate != priorStartDate {
+      try TripIdea.rederivePinnedStops(tripID: tripID, startDate: newStartDate, in: db)
+    }
   }
 
   /// The next free backlog position — one past the current bottom (or 0 when the
@@ -124,6 +136,21 @@ extension Trip {
   public func date(forDay number: Int) -> Date? {
     guard let startDate else { return nil }
     return Calendar.current.date(byAdding: .day, value: number - 1, to: startDate)
+  }
+
+  /// The exact inverse of `date(forDay:)`: which day number `pinnedDate` lands on
+  /// given `startDate` (docs/trip-time-model.md §4). Day 1 == `startDate`'s
+  /// calendar day; whole-day difference, so a pinned reservation keeps its real
+  /// date fixed and only its day-relative placement moves when `startDate` slides.
+  /// Pure — no clamping to `1...lengthInDays`; a pin that lands before the trip
+  /// starts or past its last day still gets its true day number here, the same
+  /// way `TripIdea.itinerary` already clamps out-of-range day numbers for display.
+  public static func dayNumber(forPinnedDate pinnedDate: Date, startDate: Date) -> Int {
+    let calendar = Calendar.current
+    let start = calendar.startOfDay(for: startDate)
+    let pinned = calendar.startOfDay(for: pinnedDate)
+    let days = calendar.dateComponents([.day], from: start, to: pinned).day ?? 0
+    return days + 1
   }
 }
 
@@ -344,6 +371,53 @@ extension TripIdea {
   /// Delete a stop from the trip entirely by its own primary key.
   public static func remove(stopID: TripIdea.ID, in db: Database) throws {
     try TripIdea.find(stopID).delete().execute(db)
+  }
+
+  // MARK: - Pinned reservations (docs/trip-time-model.md §4)
+
+  /// Pin (or, with `nil`, un-pin) a stop's absolute reservation date and booking
+  /// metadata. No-op if the stop doesn't exist. Pinning marks the stop
+  /// `.scheduled` and, when the trip is already dated, immediately re-derives its
+  /// `dayNumber` from the pin so the itinerary reflects the booking without
+  /// waiting for a later `Trip.update` — on an undated trip the pin is stored
+  /// inert (kept, and made effective once the trip is dated and `Trip.update`
+  /// runs `rederivePinnedStops`). Un-pinning drops the pin/metadata but leaves the
+  /// stop's current `dayNumber`/status alone — it becomes an ordinary day-relative
+  /// stop sitting right where it was.
+  public static func setBooking(_ pin: ReservationPin?, stopID: TripIdea.ID, in db: Database) throws {
+    guard let existing = try TripIdea.find(stopID).fetchOne(db) else { return }
+    let startDate = try Trip.find(existing.tripID).fetchOne(db)?.startDate
+    let rederivedDay = pin.flatMap { p in startDate.map { Trip.dayNumber(forPinnedDate: p.date, startDate: $0) } }
+    let dayNumber = rederivedDay ?? existing.dayNumber
+    let status: TripIdeaStatus = pin != nil ? .scheduled : existing.status
+    try TripIdea.find(stopID)
+      .update {
+        $0.pinnedDate = #bind(pin?.date)
+        $0.confirmationNumber = #bind(pin?.confirmationNumber)
+        $0.bookingURL = #bind(pin?.bookingURL)
+        $0.partySize = #bind(pin?.partySize)
+        $0.dayNumber = #bind(dayNumber)
+        $0.status = #bind(status)
+      }
+      .execute(db)
+  }
+
+  /// Re-derive `dayNumber` for every pinned stop on `tripID` after its `startDate`
+  /// changes (docs/trip-time-model.md §4) — called from `Trip.update`. A pinned
+  /// stop's `pinnedDate` never moves; only the day-relative `dayNumber` it implies
+  /// shifts to keep landing on that same real date. Filtered in Swift (a trip
+  /// carries a handful of stops), matching this file's other Swift-side filters.
+  static func rederivePinnedStops(tripID: Trip.ID, startDate: Date, in db: Database) throws {
+    let pinned = try TripIdea
+      .where { $0.tripID.eq(tripID) }
+      .fetchAll(db)
+      .filter { $0.pinnedDate != nil }
+    for entry in pinned {
+      guard let pinnedDate = entry.pinnedDate else { continue }
+      let day = Trip.dayNumber(forPinnedDate: pinnedDate, startDate: startDate)
+      guard day != entry.dayNumber else { continue }
+      try TripIdea.find(entry.id).update { $0.dayNumber = #bind(day) }.execute(db)
+    }
   }
 
   // MARK: - Freeform stops (ADR-0010)

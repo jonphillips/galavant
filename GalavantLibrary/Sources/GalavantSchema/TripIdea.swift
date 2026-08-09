@@ -36,6 +36,20 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
   public var dayPart: DayPart?
   public var startTime: String?
   public var endTime: String?
+  /// The absolute calendar date this stop is nailed to, when it's a **confirmed
+  /// reservation** (OpenTable, a hotel, a timed entry) rather than a day-relative
+  /// planned stop (docs/trip-time-model.md §4). `nil` for every ordinary stop —
+  /// the common case. When set, it sits *beside* `Schedule`, not inside it: the
+  /// stop still carries a `dayNumber` for display/ordering, but that day number is
+  /// re-derived from `pinnedDate` (via `Trip.dayNumber(forPinnedDate:startDate:)`)
+  /// whenever the trip's start date changes, so the reservation keeps its real
+  /// date instead of sliding with the trip. Inert on an undated trip (no
+  /// `startDate` to re-derive against) until the trip becomes dated.
+  public var pinnedDate: Date?
+  /// Booking metadata for a pinned reservation — free-form, never parsed.
+  public var confirmationNumber: String?
+  public var bookingURL: String?
+  public var partySize: Int?
 
   public init(
     id: UUID,
@@ -49,7 +63,11 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
     dayNumber: Int? = nil,
     dayPart: DayPart? = nil,
     startTime: String? = nil,
-    endTime: String? = nil
+    endTime: String? = nil,
+    pinnedDate: Date? = nil,
+    confirmationNumber: String? = nil,
+    bookingURL: String? = nil,
+    partySize: Int? = nil
   ) {
     self.id = id
     self.tripID = tripID
@@ -63,6 +81,10 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
     self.dayPart = dayPart
     self.startTime = startTime
     self.endTime = endTime
+    self.pinnedDate = pinnedDate
+    self.confirmationNumber = confirmationNumber
+    self.bookingURL = bookingURL
+    self.partySize = partySize
   }
 
   /// Make a freeform stop (no pool idea) on a trip, born `.scheduled` per
@@ -105,6 +127,45 @@ extension TripIdea {
     case let .timed(day, start, end):
       (dayNumber, dayPart, startTime, endTime) = (day, nil, start, end)
     }
+  }
+
+  /// This stop's pinned-reservation fact, as a single value (docs/trip-time-model.md
+  /// §4) — `nil` for an ordinary day-relative stop. Mirrors `Trip.headerImage`'s
+  /// all-or-nothing fold of flat columns into one domain value; write through
+  /// `TripIdea.setBooking(_:stopID:in:)`, not this property directly (the write
+  /// needs the trip's `startDate` to re-derive `dayNumber`).
+  public var booking: ReservationPin? {
+    guard let pinnedDate else { return nil }
+    return ReservationPin(
+      date: pinnedDate,
+      confirmationNumber: confirmationNumber,
+      bookingURL: bookingURL,
+      partySize: partySize
+    )
+  }
+}
+
+/// A confirmed reservation's absolute-date pin and light booking metadata
+/// (docs/trip-time-model.md §4) — an OpenTable table, a hotel, a timed museum
+/// entry. `date` is the real calendar date the stop is nailed to; the other
+/// fields are free-form, never parsed. Set/cleared as one unit via
+/// `TripIdea.setBooking(_:stopID:in:)`.
+public struct ReservationPin: Equatable, Sendable {
+  public var date: Date
+  public var confirmationNumber: String?
+  public var bookingURL: String?
+  public var partySize: Int?
+
+  public init(
+    date: Date,
+    confirmationNumber: String? = nil,
+    bookingURL: String? = nil,
+    partySize: Int? = nil
+  ) {
+    self.date = date
+    self.confirmationNumber = confirmationNumber
+    self.bookingURL = bookingURL
+    self.partySize = partySize
   }
 }
 
