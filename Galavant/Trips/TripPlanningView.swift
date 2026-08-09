@@ -28,6 +28,11 @@ struct TripPlanningView: View {
   @State private var showingChat = false
   @State private var showingStartDay = false
   @State private var showingHeaderPicker = false
+  /// The "Sync to Calendar" action (BACKLOG "Export itinerary to Apple Calendar
+  /// / iCal") — a fresh model per view, not cached on the router: the export
+  /// pass is a one-shot fire-and-forget, unlike the planning model's
+  /// persistent in-trip state.
+  @State private var calendarExportModel = CalendarExportModel()
   @State private var sheetDetent: PresentationDetent = .medium
   /// Measured heights of the full-bleed map and the bottom sheet over it — their
   /// ratio is the southern slice of the map the sheet hides, fed to the canvas so
@@ -92,6 +97,7 @@ struct TripPlanningView: View {
             }
           }
         }
+        calendarExportToolbarItem
       }
       .task {
         model.pickInitialSheetTabIfNeeded()
@@ -159,6 +165,37 @@ struct TripPlanningView: View {
           )
         }
       }
+      // Result of the "Sync to Calendar" action — a single OK dismisses either
+      // a success summary or a failure message (e.g. access denied).
+      .alert(
+        "Calendar",
+        isPresented: Binding(
+          get: { calendarExportModel.isShowingResult },
+          set: { if !$0 { calendarExportModel.dismissResult() } }
+        )
+      ) {
+        Button("OK") { calendarExportModel.dismissResult() }
+      } message: {
+        Text(calendarExportModel.resultMessage)
+      }
+  }
+
+  /// Export the itinerary to a dedicated device-local calendar (BACKLOG
+  /// "Export itinerary to Apple Calendar / iCal") — only once the trip is
+  /// dated (day-relative-only trips have no calendar date to export to).
+  /// Factored out of the main `.toolbar` builder: inlining this conditional
+  /// item there blew past the type-checker's time budget.
+  @ToolbarContentBuilder private var calendarExportToolbarItem: some ToolbarContent {
+    if let trip = model.trip, trip.certainty.stage == .dated {
+      ToolbarItem {
+        Button {
+          Task { await calendarExportModel.exportButtonTapped(trip: trip, plan: model.plan) }
+        } label: {
+          Icon.calendar.label("Sync to Calendar")
+        }
+        .disabled(calendarExportModel.state == .exporting)
+      }
+    }
   }
 
   @ViewBuilder private var layout: some View {

@@ -57,6 +57,10 @@ targets:
         # build setting below so the value stays out of package source; GalavantPlaces
         # reads it via `\.unsplashAccessKey`.
         UNSPLASH_ACCESS_KEY: $(UNSPLASH_ACCESS_KEY)
+        # Calendar export (BACKLOG "Export itinerary to Apple Calendar / iCal") —
+        # EventKit's full-access request (`requestFullAccessToEvents`) needs this
+        # usage-description key; no entitlement is required.
+        NSCalendarsFullAccessUsageDescription: "Galavant syncs a trip's scheduled stops to a dedicated calendar so they show up alongside your other events."
     dependencies:
       - target: GalavantShare
       - package: GalavantLibrary

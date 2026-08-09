@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0287A6CD02AFDA26119DD050 /* SettingsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE3B27C919A28992FDEB2A3D /* SettingsModel.swift */; };
+		076EC78EEEA664F8BF4FC53F /* CalendarExportClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51AA50E3CB7A4D6C5DD50110 /* CalendarExportClient.swift */; };
 		0A4F2D930190CC5D4B629BCC /* SQLiteData in Frameworks */ = {isa = PBXBuildFile; productRef = EB30B546BC69ECE08A9C6766 /* SQLiteData */; };
 		0BB238241FF15660518799F8 /* GalavantSchema in Frameworks */ = {isa = PBXBuildFile; productRef = 9CF31E175F7DCB4D59EAF394 /* GalavantSchema */; };
 		0D52F2373EEF284921180A85 /* IdeaRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EF8BE4704C36D1A6FFB14D6 /* IdeaRow.swift */; };
@@ -71,6 +72,7 @@
 		B18CAB3F9D57980B501FEE56 /* ExtensionPreProcessing.js in Resources */ = {isa = PBXBuildFile; fileRef = D180C34C8C9F3983F7CF9CFB /* ExtensionPreProcessing.js */; };
 		B5C9C13675D88912AC33E3D7 /* SettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56F1C96A9E48EE73DC2B6D08 /* SettingsScreen.swift */; };
 		BA6DC33C006D131C9DDA042C /* DayChipBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAA9983C3B6D9D9B731F96F9 /* DayChipBar.swift */; };
+		BC168628E33830089E560CB9 /* CalendarExportModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8BA5355102262E8FF3F053B /* CalendarExportModel.swift */; };
 		BC89E64DDA8A0975A83107D5 /* StackedForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 371FEFD498525E0EA4709909 /* StackedForm.swift */; };
 		C00CC22E1860FAA90381B866 /* SwiftUINavigation in Frameworks */ = {isa = PBXBuildFile; productRef = A0C2774E35241633FE89B7A7 /* SwiftUINavigation */; };
 		C0D128FB3AAE61FF0C72B45B /* AISettingsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C4838518F023973640A8AEE /* AISettingsModel.swift */; };
@@ -158,6 +160,7 @@
 		43AABFB8B03E2303AECAF355 /* GalavantApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GalavantApp.swift; sourceTree = "<group>"; };
 		43D5D11997CB5E747A590622 /* CaptureExtraction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureExtraction.swift; sourceTree = "<group>"; };
 		4784A4E4DDB7356EEF63A970 /* Binding+Present.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Binding+Present.swift"; sourceTree = "<group>"; };
+		51AA50E3CB7A4D6C5DD50110 /* CalendarExportClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarExportClient.swift; sourceTree = "<group>"; };
 		51B1DF18254B63AD4237897B /* IdeaPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaPersistenceTests.swift; sourceTree = "<group>"; };
 		549199D3FB7222F5D893194E /* TravelProfileEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelProfileEditView.swift; sourceTree = "<group>"; };
 		56F1C96A9E48EE73DC2B6D08 /* SettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScreen.swift; sourceTree = "<group>"; };
@@ -191,6 +194,7 @@
 		C071E50FDA62E29FC448F993 /* GalavantLibrary */ = {isa = PBXFileReference; lastKnownFileType = folder; name = GalavantLibrary; path = GalavantLibrary; sourceTree = SOURCE_ROOT; };
 		C0A1B810182571FD874E4261 /* SyncSeedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncSeedTests.swift; sourceTree = "<group>"; };
 		C5AD27A1248EEA1D9B580277 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		C8BA5355102262E8FF3F053B /* CalendarExportModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarExportModel.swift; sourceTree = "<group>"; };
 		CC16D0C39AA361A09737B45F /* Galavant.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Galavant.entitlements; sourceTree = "<group>"; };
 		D180C34C8C9F3983F7CF9CFB /* ExtensionPreProcessing.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = ExtensionPreProcessing.js; sourceTree = "<group>"; };
 		D3BFE6AAFB0EDC36E3BB7755 /* GalavantShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GalavantShare.entitlements; sourceTree = "<group>"; };
@@ -333,6 +337,15 @@
 			path = Trips;
 			sourceTree = "<group>";
 		};
+		370543ACE0B28DE54D365B7E /* Calendar */ = {
+			isa = PBXGroup;
+			children = (
+				51AA50E3CB7A4D6C5DD50110 /* CalendarExportClient.swift */,
+				C8BA5355102262E8FF3F053B /* CalendarExportModel.swift */,
+			);
+			path = Calendar;
+			sourceTree = "<group>";
+		};
 		64DB71B050831FD651A208C0 /* Design */ = {
 			isa = PBXGroup;
 			children = (
@@ -384,6 +397,7 @@
 				43AABFB8B03E2303AECAF355 /* GalavantApp.swift */,
 				D8A01FBA56D01193ABBE48E6 /* Info.plist */,
 				9D30DAE67801B102AE6F181F /* Browser */,
+				370543ACE0B28DE54D365B7E /* Calendar */,
 				1AF078CA6D50D1067E93FBCB /* Chat */,
 				64DB71B050831FD651A208C0 /* Design */,
 				E74AA89EA770500888848A49 /* Ideas */,
@@ -612,6 +626,8 @@
 				52FDF2960D787D40108B3780 /* Binding+Present.swift in Sources */,
 				1284CC7780258FD4F4425010 /* BrowserScreen.swift in Sources */,
 				1BA8684F8293D1EBB16FB70C /* BrowserScreenModel.swift in Sources */,
+				076EC78EEEA664F8BF4FC53F /* CalendarExportClient.swift in Sources */,
+				BC168628E33830089E560CB9 /* CalendarExportModel.swift in Sources */,
 				4171E2BF905DAB98B77389EB /* CertaintyStyle.swift in Sources */,
 				C7FC1AA264B96268F69FC474 /* ChatPanelView.swift in Sources */,
 				BA6DC33C006D131C9DDA042C /* DayChipBar.swift in Sources */,
