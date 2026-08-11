@@ -140,6 +140,10 @@ extension DependencyValues {
 /// before any reconciliation outcome, binding, or history is made durable.
 struct CalendarObservedEvent: Equatable, Sendable, Identifiable {
   let id: String
+  /// `eventIdentifier` is not guaranteed for every subscribed/shared EventKit
+  /// record. The spike can show such an event, but deliberately does not pretend it
+  /// can follow a later move outside the trip's query window.
+  var eventIdentifier: String?
   var title: String
   var location: String?
   var latitude: Double?
@@ -150,15 +154,25 @@ struct CalendarObservedEvent: Equatable, Sendable, Identifiable {
   var calendarTitle: String
 
   init(event: EKEvent) {
-    id = event.eventIdentifier
-    title = event.title
+    // EventKit exposes these as `String!`: shared and subscribed feeds can leave
+    // either nil. Snapshot them safely so an odd real-world event never crashes the
+    // device gate. A Calendar-item identifier or immutable display fields provide
+    // the list-only fallback identity; neither becomes a durable event binding.
+    eventIdentifier = event.eventIdentifier.flatMap { $0.isEmpty ? nil : $0 }
+    let rawTitle = event.title ?? ""
+    title = rawTitle.isEmpty ? "Untitled Event" : rawTitle
     location = event.location
     latitude = event.structuredLocation?.geoLocation?.coordinate.latitude
     longitude = event.structuredLocation?.geoLocation?.coordinate.longitude
     startDate = event.startDate
     endDate = event.endDate
     isAllDay = event.isAllDay
-    calendarTitle = event.calendar.title
+    let rawCalendarTitle = event.calendar.title ?? ""
+    calendarTitle = rawCalendarTitle.isEmpty ? "Untitled Calendar" : rawCalendarTitle
+    id = eventIdentifier
+      ?? event.calendarItemIdentifier
+      ?? [calendarTitle, title, String(startDate.timeIntervalSinceReferenceDate),
+          String(endDate.timeIntervalSinceReferenceDate), location ?? ""].joined(separator: "|")
   }
 }
 

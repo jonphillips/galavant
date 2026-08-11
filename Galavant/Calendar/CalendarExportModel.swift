@@ -190,7 +190,9 @@ final class CalendarObservationSpikeModel {
 
       self.candidates = candidates
       if watchedEvent == nil {
-        watchedEvent = candidates.first(where: { $0.itineraryStopTitle != nil })?.event
+        watchedEvent = candidates.first {
+          $0.itineraryStopTitle != nil && $0.event.eventIdentifier != nil
+        }?.event
       }
       updateNotice(scope: scope, visibleEvents: events)
       state = .observed
@@ -265,13 +267,13 @@ final class CalendarObservationSpikeModel {
   }
 
   private func updateNotice(scope: DateInterval, visibleEvents: [CalendarObservedEvent]) {
-    guard let watchedEvent,
-      !visibleEvents.contains(where: { $0.id == watchedEvent.id })
+    guard let watchedEvent, let eventIdentifier = watchedEvent.eventIdentifier,
+      !visibleEvents.contains(where: { $0.eventIdentifier == eventIdentifier })
     else {
       notice = nil
       return
     }
-    if let current = calendarClient.event(watchedEvent.id), !scope.contains(current.startDate) {
+    if let current = calendarClient.event(eventIdentifier), !scope.contains(current.startDate) {
       notice = .movedOutsideTrip(current)
     } else {
       // `event(withIdentifier:) == nil` can be a deletion, a changed EventKit
