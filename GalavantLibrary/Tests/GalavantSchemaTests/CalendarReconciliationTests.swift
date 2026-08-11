@@ -17,7 +17,10 @@ import Testing
   private func event(
     title: String,
     day: Int = 1,
-    identifier: String = UUID().uuidString
+    identifier: String = UUID().uuidString,
+    externalIdentifier: String? = "server-item",
+    isAllDay: Bool = false,
+    isRecurring: Bool = false
   ) -> CalendarObservedEvent {
     let start = calendar.date(
       byAdding: .day,
@@ -27,12 +30,24 @@ import Testing
     return CalendarObservedEvent(
       id: identifier,
       eventIdentifier: identifier,
+      externalIdentifier: externalIdentifier,
       title: title,
       startDate: start,
       endDate: start.addingTimeInterval(60 * 60),
-      isAllDay: false,
+      isAllDay: isAllDay,
+      isRecurring: isRecurring,
       calendarTitle: "Family"
     )
+  }
+
+  /// An automatic Maps-identity candidate for `stop`, the shape that drives a link.
+  private func mapsMatchCandidate(
+    for stop: TripIdea, idea: Idea, event: CalendarObservedEvent
+  ) -> [CalendarReconciliationCandidate] {
+    let input = CalendarIngestedEvent(
+      event: event,
+      matchedPlace: CalendarMatchedPlace(name: idea.name, mapItemIdentifier: idea.mapItemIdentifier))
+    return CalendarReconciliation.candidates(for: [input], trip: trip(), plan: plan([stop], ideas: [idea]))
   }
 
   private func stop(
@@ -308,6 +323,79 @@ import Testing
     #expect(automaticPlan.localState.history.map(\.kind) == [.linked])
   }
 
+  @Test func localCalendarEventIsShownButNeverWritesTheSharedPlan() {
+    let frenchLaundry = Idea(id: UUID(), name: "The French Laundry", mapItemIdentifier: "maps-french-laundry")
+    let stop = stop(idea: frenchLaundry, day: 1)
+    // A device-only calendar event: no server identity, but an otherwise perfect
+    // automatic Maps match. It must stay a candidate yet never bind, apply, or sync.
+    let candidates = mapsMatchCandidate(
+      for: stop, idea: frenchLaundry,
+      event: event(title: "Dinner", identifier: "reservation-1", externalIdentifier: nil))
+    #expect({ if case .automatic = candidates.first?.result { true } else { false } }())
+
+    let automaticPlan = CalendarReconciliation.automaticPlan(
+      candidates: candidates, localState: CalendarReconciliationLocalState(), observedAt: .distantPast,
+      makeHistoryID: UUID.init)
+
+    #expect(automaticPlan.applications.isEmpty)
+    #expect(automaticPlan.localState == CalendarReconciliationLocalState())
+  }
+
+  @Test func allDayEventIsShownButNeverWritesTheSharedPlan() {
+    let frenchLaundry = Idea(id: UUID(), name: "The French Laundry", mapItemIdentifier: "maps-french-laundry")
+    let stop = stop(idea: frenchLaundry, day: 1)
+    // All-day spans resolve through the device calendar, so two time zones can
+    // derive different commitments. Observed and shown, deferred to Slice 4.
+    let candidates = mapsMatchCandidate(
+      for: stop, idea: frenchLaundry,
+      event: event(title: "Dinner", identifier: "reservation-1", isAllDay: true))
+
+    let automaticPlan = CalendarReconciliation.automaticPlan(
+      candidates: candidates, localState: CalendarReconciliationLocalState(), observedAt: .distantPast,
+      makeHistoryID: UUID.init)
+
+    #expect(automaticPlan.applications.isEmpty)
+    #expect(automaticPlan.localState == CalendarReconciliationLocalState())
+  }
+
+  @Test func recurringEventIsShownButNeverWritesTheSharedPlan() {
+    let frenchLaundry = Idea(id: UUID(), name: "The French Laundry", mapItemIdentifier: "maps-french-laundry")
+    let stop = stop(idea: frenchLaundry, day: 1)
+    // Every occurrence of a series shares one external identity, so a per-occurrence
+    // durable binding is unsafe until Slice 4's temporal model.
+    let candidates = mapsMatchCandidate(
+      for: stop, idea: frenchLaundry,
+      event: event(title: "Dinner", identifier: "reservation-1", isRecurring: true))
+
+    let automaticPlan = CalendarReconciliation.automaticPlan(
+      candidates: candidates, localState: CalendarReconciliationLocalState(), observedAt: .distantPast,
+      makeHistoryID: UUID.init)
+
+    #expect(automaticPlan.applications.isEmpty)
+    #expect(automaticPlan.localState == CalendarReconciliationLocalState())
+  }
+
+  @Test func anIneligibleDuplicateDoesNotBlockAnEligibleAutomaticLink() {
+    let frenchLaundry = Idea(id: UUID(), name: "The French Laundry", mapItemIdentifier: "maps-french-laundry")
+    let stop = stop(idea: frenchLaundry, day: 1)
+    let match = CalendarMatchedPlace(name: frenchLaundry.name, mapItemIdentifier: frenchLaundry.mapItemIdentifier)
+    // Two automatic matches for one stop, but only one is eligible. The ineligible
+    // all-day copy must not manufacture ambiguity that suppresses the real link.
+    let eligible = CalendarIngestedEvent(
+      event: event(title: "Dinner", identifier: "reservation-1"), matchedPlace: match)
+    let ineligible = CalendarIngestedEvent(
+      event: event(title: "Dinner", identifier: "reservation-2", isAllDay: true), matchedPlace: match)
+    let candidates = CalendarReconciliation.candidates(
+      for: [eligible, ineligible], trip: trip(), plan: plan([stop], ideas: [frenchLaundry]))
+
+    let automaticPlan = CalendarReconciliation.automaticPlan(
+      candidates: candidates, localState: CalendarReconciliationLocalState(), observedAt: .distantPast,
+      makeHistoryID: UUID.init)
+
+    #expect(automaticPlan.applications.map(\.stopID) == [stop.id])
+    #expect(automaticPlan.applications.map(\.kind) == [.linked])
+  }
+
   @Test func identicalLinkedObservationDoesNotCreateAnotherHistoryEntry() {
     let frenchLaundry = Idea(id: UUID(), name: "The French Laundry", mapItemIdentifier: "maps-french-laundry")
     let stop = stop(idea: frenchLaundry, day: 1)
@@ -466,6 +554,7 @@ import Testing
       event: CalendarObservedEvent(
         id: overnight.id,
         eventIdentifier: overnight.eventIdentifier,
+        externalIdentifier: overnight.externalIdentifier,
         title: overnight.title,
         startDate: overnight.startDate,
         endDate: calendar.date(byAdding: .day, value: 1, to: overnight.endDate)!,
@@ -491,6 +580,7 @@ import Testing
       event: CalendarObservedEvent(
         id: "display-only",
         hasStableLocalIdentity: false,
+        externalIdentifier: "server-item",
         title: "Dinner",
         startDate: fallback.startDate,
         endDate: fallback.endDate,

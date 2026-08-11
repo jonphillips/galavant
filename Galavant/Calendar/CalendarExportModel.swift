@@ -2,6 +2,7 @@ import Dependencies
 import Foundation
 import GalavantPlaces
 import GalavantSchema
+import SQLiteData
 import SwiftUI
 
 /// Retained machinery for a future, deliberate "Add to Shared Calendar" action.
@@ -118,7 +119,8 @@ final class CalendarExportModel {
 /// Coordinates a fresh trip-scoped Calendar read, an app-side `PlaceMatcher`
 /// pass, the pure reconciliation ladder, and the local auto-apply plan. Only
 /// uniquely identified MapKit matches write an existing stop's Calendar-backed
-/// time; the EventKit binding and audit history remain device-local until Slice 3.
+/// time. EventKit bindings remain device-local, while the resulting review ledger
+/// is shared through the trip's CloudKit graph (Slice 3).
 @MainActor
 @Observable
 final class CalendarReconciliationModel {
@@ -136,10 +138,13 @@ final class CalendarReconciliationModel {
   @ObservationIgnored @Dependency(\.defaultDatabase) private var database
   @ObservationIgnored @Dependency(\.date.now) private var now
   @ObservationIgnored @Dependency(\.uuid) private var uuid
+  @ObservationIgnored @FetchAll(CalendarReconciliationLedgerEntry.all) private var allLedgerEntries
 
   var state: State = .idle
   var candidates: [CalendarReconciliationCandidate] = []
   var localState = CalendarReconciliationLocalState()
+
+  var sharedHistory: [CalendarReconciliationLedgerEntry] { allLedgerEntries }
 
   func refresh(trip: Trip, plan: TripPlan) async {
     guard let scope = scope(for: trip) else {
@@ -172,10 +177,17 @@ final class CalendarReconciliationModel {
         localState: localState,
         observedAt: now,
         makeHistoryID: { uuid() })
-      if !automaticPlan.applications.isEmpty {
+      let newHistory = automaticPlan.localState.history.dropFirst(localState.history.count)
+      let ledgerEntries = newHistory.compactMap {
+        CalendarReconciliationLedgerEntry(tripID: trip.id, historyEntry: $0)
+      }
+      if !automaticPlan.applications.isEmpty || !ledgerEntries.isEmpty {
         try await database.write { db in
           for application in automaticPlan.applications {
             try TripIdea.applyCalendarCommitment(application.commitment, stopID: application.stopID, in: db)
+          }
+          for entry in ledgerEntries {
+            try CalendarReconciliationLedgerEntry.record(entry, in: db)
           }
         }
       }
@@ -237,7 +249,7 @@ struct CalendarReconciliationSheet: View {
     NavigationStack {
       List {
         Section {
-          Text("Calendar is authoritative for high-confidence linked commitments. Applied updates are recorded locally on this device.")
+          Text("Calendar is authoritative for high-confidence linked commitments. Applied updates are shared with your travel party.")
             .font(.footnote)
             .foregroundStyle(.secondary)
         }
@@ -313,37 +325,29 @@ struct CalendarReconciliationSheet: View {
         }
       }
     }
-    if !model.localState.history.isEmpty {
+    let history = model.sharedHistory.filter { $0.tripID == trip.id }
+    if !history.isEmpty {
       Section("Calendar History") {
-        ForEach(model.localState.history.reversed()) { entry in
+        ForEach(history.reversed()) { entry in
           historyRow(entry)
         }
       }
     }
   }
 
-  private func historyRow(_ entry: CalendarReconciliationHistoryEntry) -> some View {
+  private func historyRow(_ entry: CalendarReconciliationLedgerEntry) -> some View {
     VStack(alignment: .leading, spacing: 4) {
       Text(entry.eventTitle)
-      Text(historyDescription(entry.kind))
+      Text("Calendar commitment recorded.")
         .font(.caption)
         .foregroundStyle(.secondary)
-      Text(entry.current.pinnedDate, format: .dateTime.weekday().month().day().hour().minute())
-        .font(.caption)
-        .foregroundStyle(.secondary)
+      if let current = entry.current {
+        Text(current.pinnedDate, format: .dateTime.weekday().month().day().hour().minute())
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
     }
     .accessibilityElement(children: .combine)
-  }
-
-  private func historyDescription(_ kind: CalendarReconciliationHistoryEntry.Kind) -> String {
-    switch kind {
-    case .linked:
-      "Linked to this itinerary stop."
-    case .updated:
-      "Calendar time updated automatically."
-    case .movedOutsideTrip:
-      "Moved outside this trip. Galavant kept the itinerary stop unchanged."
-    }
   }
 
   private func candidateRow(_ candidate: CalendarReconciliationCandidate) -> some View {

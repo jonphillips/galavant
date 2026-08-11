@@ -537,6 +537,34 @@ extension DependencyValues {
       try #sql(#"ALTER TABLE "tripIdeas" ADD COLUMN "bookingURL" TEXT"#).execute(db)
       try #sql(#"ALTER TABLE "tripIdeas" ADD COLUMN "partySize" INTEGER"#).execute(db)
     }
+    migrator.registerMigration("Create calendarReconciliationLedgerEntries table (ADR-0034)") { db in
+      // The shared reconciliation outcome rides its trip (one real FK); stopID is
+      // a loose UUID so history survives later stop deletion. `id` is a
+      // deterministic semantic fingerprint, not a device-generated history UUID:
+      // two phones observing one Calendar mutation therefore converge on one row.
+      try #sql(
+        """
+        CREATE TABLE "calendarReconciliationLedgerEntries" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE,
+          "tripID" TEXT NOT NULL REFERENCES "trips"("id") ON DELETE CASCADE,
+          "sourceFingerprint" TEXT NOT NULL,
+          "stopID" TEXT NOT NULL,
+          "eventTitle" TEXT NOT NULL DEFAULT '',
+          "currentIsAllDay" INTEGER NOT NULL DEFAULT 0,
+          "currentStartDate" TEXT NOT NULL,
+          "currentEndDate" TEXT
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_calendarReconciliationLedgerEntries_on_tripID"
+        ON "calendarReconciliationLedgerEntries"("tripID")
+        """
+      )
+      .execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if case let .configured(startImmediately) = syncMode {

@@ -28,7 +28,17 @@ matches, same-name ties, unmatched obligations, denied/revoked access, and refre
 foreground before promoting the slice to done. Full sequence: ROADMAP M7; rationale:
 ADR-0034.
 
-## In progress — M7 Slice 2 auto-apply + local history (ADR-0034)
+## In progress — M7 Slice 3 shared ledger + cross-device dedup (ADR-0034)
+
+Slice 3 (`codex/m7-s3-shared-ledger`) promotes only the reviewable outcome into
+the trip's shared CloudKit graph. The EventKit binding remains device-local, while
+each shared ledger row is keyed by a deterministic hash of the Calendar item's
+server identity/revision and the applied semantic change. Raw EventKit identifiers
+and device observation times never sync; two phones observing the same event change
+therefore write the same record. Existing local Slice 2 history is deliberately not
+guessed into shared state because it lacks that cross-device source fingerprint.
+
+## Dogfood gate — M7 Slice 2 auto-apply + local history (ADR-0034)
 
 Slice 2 (`codex/m7-s2-auto-apply`) establishes only a device-local EventKit binding:
 one unique, same-day Apple Maps identity with a stable local EventKit identifier may
@@ -40,9 +50,8 @@ linked event that is explicitly found outside the trip window is recorded as **m
 outside this trip** without rewriting or deleting the itinerary stop; a missing lookup
 remains unknown, never deletion. A name-only proposal, duplicate automatic candidate,
 display-only fallback identity, or cross-day timed event also never writes. The synced
-`TripIdea` cache is deliberately not a synced EventKit binding — Slice 3 must still
-design the shared ledger, fingerprint, and cross-device dedup before either device can
-make that local authority global. Remaining gate: dogfood a real shared reservation,
+`TripIdea` cache is deliberately not a synced EventKit binding — the shared ledger
+does not make an EventKit binding global. Remaining gate: dogfood a real shared reservation,
 then inspect a later time/day move and a moved-outside-trip notice in local history.
 
 The read-only proposal tier also flags a nearby, differently resolved Maps place when
