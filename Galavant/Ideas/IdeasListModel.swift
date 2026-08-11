@@ -401,7 +401,7 @@ final class IdeasListModel {
   }
 
   func addIdeaButtonTapped() {
-    destination = .form(Idea.Draft())
+    destination = .form(Idea.Draft(Idea(id: UUID())))
   }
 
   func ideaTapped(_ idea: Idea) {

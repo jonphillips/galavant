@@ -24,7 +24,7 @@ final class TripsListModel {
   var sections: TripSections { Trip.sectioned(trips) }
 
   func addTripButtonTapped() {
-    destination = .form(Trip.Draft())
+    destination = .form(Trip.Draft(Trip(id: UUID())))
   }
 
   func deleteTrips(_ trips: [Trip], at offsets: IndexSet) {

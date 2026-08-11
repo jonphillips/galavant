@@ -45,7 +45,7 @@ public final class CaptureModel {
 
   public private(set) var phase: Phase = .preparing
   /// The editable idea the confirm sheet binds to (name/kind/notes/url/…).
-  public var draft = Idea.Draft()
+  public var draft = Idea.Draft(Idea(id: UUID()))
   /// Explicit field values set by the browser's tap-to-fill chip bar (ADR-0025 §5).
   /// Set before `prepare()` runs; applied at the end of `prepare()` so user selections
   /// win over auto-parsed values. `nil` = no overrides (the common path).
@@ -474,22 +474,24 @@ public final class CaptureModel {
     }
     try Idea.insert {
       Idea.Draft(
-        id: id,
-        name: name,
-        description: description,
-        notes: notes,
-        kind: kind,
-        regionName: regionName,
-        address: address,
-        phone: phone,
-        latitude: latitude,
-        longitude: longitude,
-        url: url,
-        openingHours: openingHours,
-        hoursProvenance: hoursProvenance,
-        hoursVerifiedAt: hoursVerifiedAt,
-        mapItemIdentifier: mapItemIdentifier,
-        travelPartyID: travelPartyID
+        Idea(
+          id: id ?? UUID(),
+          name: name,
+          description: description,
+          notes: notes,
+          kind: kind,
+          regionName: regionName,
+          address: address,
+          phone: phone,
+          latitude: latitude,
+          longitude: longitude,
+          url: url,
+          openingHours: openingHours,
+          hoursProvenance: hoursProvenance,
+          hoursVerifiedAt: hoursVerifiedAt,
+          mapItemIdentifier: mapItemIdentifier,
+          travelPartyID: travelPartyID
+        )
       )
     }
     .execute(db)

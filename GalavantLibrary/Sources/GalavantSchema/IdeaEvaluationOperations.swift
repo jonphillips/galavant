@@ -28,22 +28,24 @@ extension IdeaEvaluation {
     let id = UUID()
     try IdeaEvaluation.insert {
       IdeaEvaluation.Draft(
-        id: id,
-        travelPartyID: travelPartyID,
-        ideaID: ideaID,
-        sourceName: sourceName,
-        kind: kind,
-        nativeValueText: nativeValueText,
-        nativeValueNumber: nativeValueNumber,
-        nativeValueMax: nativeValueMax,
-        nativeDisplay: nativeDisplay,
-        evaluationDate: evaluationDate,
-        guideYear: guideYear,
-        recordedAt: Date(),
-        confidence: confidence,
-        staleness: staleness,
-        sourceURL: sourceURL,
-        summary: summary
+        IdeaEvaluation(
+          id: id,
+          travelPartyID: travelPartyID,
+          ideaID: ideaID,
+          sourceName: sourceName,
+          kind: kind,
+          nativeValueText: nativeValueText,
+          nativeValueNumber: nativeValueNumber,
+          nativeValueMax: nativeValueMax,
+          nativeDisplay: nativeDisplay,
+          evaluationDate: evaluationDate,
+          guideYear: guideYear,
+          recordedAt: Date(),
+          confidence: confidence,
+          staleness: staleness,
+          sourceURL: sourceURL,
+          summary: summary
+        )
       )
     }
     .execute(db)

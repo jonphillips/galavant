@@ -59,7 +59,7 @@ extension IdeasListModel {
       try database.write { db in
         let partyID = try TravelParty.ensureDefault(in: db).id
         try MapRegion.insert {
-          MapRegion.Draft(
+          MapRegion(
             id: UUID(),
             name: trimmed,
             centerLatitude: center.latitude,

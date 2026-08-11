@@ -36,7 +36,7 @@ extension TripRegion {
     let existing = Set(try TripRegion.regionIDs(forTrip: tripID, in: db))
     for regionID in regionIDs.subtracting(existing) {
       try TripRegion.insert {
-        TripRegion.Draft(id: UUID(), tripID: tripID, regionID: regionID)
+        TripRegion.Draft(TripRegion(id: UUID(), tripID: tripID, regionID: regionID))
       }
       .execute(db)
     }

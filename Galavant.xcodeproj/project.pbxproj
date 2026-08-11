@@ -136,6 +136,7 @@
 		07A4BE5288975EEF3DA91B16 /* TripDetailContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripDetailContent.swift; sourceTree = "<group>"; };
 		07FF30B2A97AE7158A524026 /* TripsListModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripsListModel.swift; sourceTree = "<group>"; };
 		080E46AACA8A4087FB22F116 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		0875D5B7D1A0BAAA7A6A2F1C /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		08F3A8C38B6B2977E3D8153F /* TripPlanningView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripPlanningView.swift; sourceTree = "<group>"; };
 		0A8181602270C693F3DBB397 /* BrowserScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserScreen.swift; sourceTree = "<group>"; };
 		0CA9E000AA9AEEE1E3D68F79 /* GalavantUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = GalavantUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -291,6 +292,7 @@
 		121203D1BD1798441D7EDF35 = {
 			isa = PBXGroup;
 			children = (
+				2D68689794BA7673C4373EC2 /* Config */,
 				BDAA34A104A70523CB975F25 /* Galavant */,
 				0A7131DDBE2DA42C9D03DE1A /* GalavantShare */,
 				03D3B4DD92E3024BD94B2AD0 /* GalavantUITests */,
@@ -335,6 +337,14 @@
 				BC5C21FC298AEA29CFE09DC6 /* TripsScreen.swift */,
 			);
 			path = Trips;
+			sourceTree = "<group>";
+		};
+		2D68689794BA7673C4373EC2 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				0875D5B7D1A0BAAA7A6A2F1C /* Secrets.xcconfig */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 		370543ACE0B28DE54D365B7E /* Calendar */ = {
@@ -848,6 +858,7 @@
 		};
 		BAE02772CAB7AE2CA434917E /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0875D5B7D1A0BAAA7A6A2F1C /* Secrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Galavant/Galavant.entitlements;
@@ -860,7 +871,6 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.jonphillips.galavant;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				UNSPLASH_ACCESS_KEY = REDACTED_UNSPLASH_ACCESS_KEY;
 			};
 			name = Debug;
 		};
@@ -928,6 +938,7 @@
 		};
 		DB0820B74B4582FECFAD49C5 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0875D5B7D1A0BAAA7A6A2F1C /* Secrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Galavant/Galavant.entitlements;
@@ -940,7 +951,6 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.jonphillips.galavant;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				UNSPLASH_ACCESS_KEY = REDACTED_UNSPLASH_ACCESS_KEY;
 			};
 			name = Release;
 		};

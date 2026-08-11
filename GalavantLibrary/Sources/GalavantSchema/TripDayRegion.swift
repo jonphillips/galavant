@@ -54,7 +54,9 @@ extension TripDayRegion {
       .execute(db)
     if let regionID {
       try TripDayRegion.insert {
-        TripDayRegion.Draft(id: UUID(), tripID: tripID, dayNumber: day, regionID: regionID)
+        TripDayRegion.Draft(
+          TripDayRegion(id: UUID(), tripID: tripID, dayNumber: day, regionID: regionID)
+        )
       }
       .execute(db)
     }
