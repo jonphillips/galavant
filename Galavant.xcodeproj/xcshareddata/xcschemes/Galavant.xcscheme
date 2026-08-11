@@ -82,7 +82,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "--seed-demo"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
       </CommandLineArguments>
    </LaunchAction>

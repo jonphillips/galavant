@@ -66,9 +66,6 @@ extension DependencyValues {
         try SQLiteData.defaultDatabase(configuration: configuration)
       }
     var migrator = DatabaseMigrator()
-    #if DEBUG
-      migrator.eraseDatabaseOnSchemaChange = true
-    #endif
     migrator.registerMigration("Create ideas table") { db in
       try #sql(
         """
