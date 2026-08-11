@@ -107,12 +107,17 @@ final class TripPlanningModel {
 
   let tripID: Trip.ID
   var destination: Destination?
+  private var calendarLocalState: CalendarReconciliationLocalState
 
   /// The local EventKit binding governs time edits on this device. The applied
   /// reservation cache is still in the synced trip row; Slice 3 supplies the
   /// shared review ledger and cross-device reconciliation identity.
   func calendarTimeAuthority(for stopID: TripIdea.ID) -> CalendarTimeAuthority {
-    calendarHistoryStore.state(tripID).authority(for: stopID)
+    calendarLocalState.authority(for: stopID)
+  }
+
+  func reloadCalendarTimeAuthority() {
+    calendarLocalState = calendarHistoryStore.state(tripID)
   }
 
   /// The idea drilled into on the in-panel detail push (nil = the list root). A
@@ -170,7 +175,9 @@ final class TripPlanningModel {
   }
 
   init(tripID: Trip.ID) {
+    @Dependency(\.calendarReconciliationHistoryStore) var calendarHistoryStore
     self.tripID = tripID
+    calendarLocalState = calendarHistoryStore.state(tripID)
     // Opening a trip to plan it is the strongest "this is the trip I'm working on"
     // signal — record it so a share-extension capture defaults onto it.
     recentTripStore.record(tripID)

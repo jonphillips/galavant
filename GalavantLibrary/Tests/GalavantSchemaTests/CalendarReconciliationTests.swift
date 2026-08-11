@@ -138,6 +138,73 @@ import Testing
     #expect(result == .unmatched)
   }
 
+  @Test func nearbyNameMatchBeyondOneHundredMetersIsUnmatched() {
+    let dichter = Idea(
+      id: UUID(),
+      name: "Dichter",
+      latitude: 47.698_000,
+      longitude: 11.763_000,
+      mapItemIdentifier: "maps-venue")
+    let stop = stop(idea: dichter, day: 1)
+    let input = CalendarIngestedEvent(
+      event: CalendarObservedEvent(
+        id: "reservation-1",
+        eventIdentifier: "reservation-1",
+        title: "Dinner Dichter",
+        latitude: 47.700_000,
+        longitude: 11.763_000,
+        startDate: calendar.date(from: DateComponents(year: 2026, month: 8, day: 1, hour: 19))!,
+        endDate: calendar.date(from: DateComponents(year: 2026, month: 8, day: 1, hour: 20))!,
+        isAllDay: false,
+        calendarTitle: "Family"),
+      matchedPlace: CalendarMatchedPlace(name: "Gourmetrestaurant Dichter", mapItemIdentifier: "maps-address"))
+
+    let result = CalendarReconciliation.result(
+      for: input, trip: trip(), plan: plan([stop], ideas: [dichter]))
+
+    #expect(result == .unmatched)
+  }
+
+  @Test func nearbyNameMatchTieRemainsAmbiguous() {
+    let first = Idea(
+      id: UUID(),
+      name: "Dichter Restaurant",
+      latitude: 47.698_000,
+      longitude: 11.763_000,
+      mapItemIdentifier: "maps-venue-1")
+    let second = Idea(
+      id: UUID(),
+      name: "Dichter Bar",
+      latitude: 47.698_300,
+      longitude: 11.763_300,
+      mapItemIdentifier: "maps-venue-2")
+    let firstStop = stop(idea: first, day: 1)
+    let secondStop = stop(idea: second, day: 1)
+    let input = CalendarIngestedEvent(
+      event: CalendarObservedEvent(
+        id: "reservation-1",
+        eventIdentifier: "reservation-1",
+        title: "Dinner Dichter",
+        latitude: 47.698_150,
+        longitude: 11.763_150,
+        startDate: calendar.date(from: DateComponents(year: 2026, month: 8, day: 1, hour: 19))!,
+        endDate: calendar.date(from: DateComponents(year: 2026, month: 8, day: 1, hour: 20))!,
+        isAllDay: false,
+        calendarTitle: "Family"),
+      matchedPlace: CalendarMatchedPlace(name: "Gourmetrestaurant Dichter", mapItemIdentifier: "maps-address"))
+
+    let result = CalendarReconciliation.result(
+      for: input,
+      trip: trip(),
+      plan: plan([firstStop, secondStop], ideas: [first, second]))
+
+    guard case let .ambiguous(matches) = result else {
+      Issue.record("Expected nearby place tie to remain ambiguous.")
+      return
+    }
+    #expect(Set(matches.map(\.id)) == [firstStop.id, secondStop.id])
+  }
+
   @Test func sameDayNameTiesRemainAmbiguous() {
     let first = Idea(id: UUID(), name: "Noma")
     let second = Idea(id: UUID(), name: "Noma")
