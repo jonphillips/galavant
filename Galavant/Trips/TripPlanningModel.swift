@@ -1,6 +1,7 @@
 import CasePaths
 import Dependencies
 import Foundation
+import GalavantPlaces
 import GalavantSchema
 import SQLiteData
 
@@ -24,6 +25,13 @@ struct FreeformStopDraft: Identifiable {
 struct PlaceIdeaTarget: Identifiable {
   let id = UUID()
   let day: Int?
+}
+
+/// A place selected directly from the Apple Maps canvas, awaiting the normal
+/// confirm-and-tweak idea form. The UUID gives every tap its own sheet identity.
+struct MapPlaceIdea: Identifiable {
+  let id = UUID()
+  let draft: Idea.Draft
 }
 
 /// The editable state of the stop clock-time editor (ADR-0033 Slice 4) — give a
@@ -167,6 +175,7 @@ final class TripPlanningModel {
   enum Destination {
     case edit(Trip.Draft)
     case addIdeas
+    case mapPlaceIdea(MapPlaceIdea)
     case placeIdea(PlaceIdeaTarget)
     case freeformStop(FreeformStopDraft)
     case stay(StayDraft)
@@ -422,6 +431,42 @@ final class TripPlanningModel {
   /// Present the filterable pool sheet for adding ideas to the shortlist.
   func addIdeasButtonTapped() {
     destination = .addIdeas
+  }
+
+  /// Start a normal idea edit from a POI the person tapped on the trip map. The
+  /// `Place` carries the canonical Maps identifier, so this avoids re-searching a
+  /// name the map already resolved.
+  func addMapPlace(_ place: Place) {
+    destination = .mapPlaceIdea(
+      MapPlaceIdea(
+        draft: Idea.Draft(
+          Idea(
+            id: UUID(),
+            name: place.name,
+            kind: place.kind,
+            regionName: place.regionName,
+            address: place.address,
+            phone: place.phone,
+            latitude: place.latitude,
+            longitude: place.longitude,
+            url: place.url ?? "",
+            mapItemIdentifier: place.mapItemIdentifier
+          )
+        )
+      )
+    )
+  }
+
+  /// After a newly map-picked idea saves successfully, pull it onto this trip's
+  /// shortlist. The save callback never fires when the idea write fails.
+  func addNewIdeaToShortlist(_ ideaID: Idea.ID) {
+    let tripID = tripID
+    _ = withErrorReporting {
+      try database.write { db in
+        try TripIdea.pull(ideaID: ideaID, into: tripID, in: db)
+        try TripIdea.setStatus(.shortlisted, ideaID: ideaID, tripID: tripID, in: db)
+      }
+    }
   }
 
   /// Drill into a pulled idea's read-only detail (Trip Ideas row tap / Itinerary

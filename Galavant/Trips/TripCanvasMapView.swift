@@ -1,4 +1,5 @@
 import GalavantSchema
+import GalavantPlaces
 import MapKit
 import SwiftUI
 
@@ -16,6 +17,10 @@ struct TripCanvasMapView: View {
 
   @State private var cameraPosition: MapCameraPosition = .automatic
   @State private var visibleRegion: MKCoordinateRegion?
+  /// One selection type can represent both a tagged Galavant stop and an Apple
+  /// Maps feature. The former keeps the map/timeline link; the latter opens the
+  /// map-first capture flow.
+  @State private var mapSelection: MapSelection<TripIdea.ID>?
 
   /// The days the map draws: just the selected day, or all when the lens is
   /// "All" (`canvasSelectedDay == nil`).
@@ -28,7 +33,7 @@ struct TripCanvasMapView: View {
 
   var body: some View {
     @Bindable var model = model
-    Map(position: $cameraPosition, selection: $model.canvasSelectedStopID) {
+    Map(position: $cameraPosition, selection: $mapSelection) {
       ForEach(visibleDays) { day in
         dayContent(day)
       }
@@ -37,8 +42,22 @@ struct TripCanvasMapView: View {
     .onMapCameraChange(frequency: .onEnd) { context in
       visibleRegion = context.region
     }
+    // Keep the existing itinerary selection in sync when it originated from the
+    // timeline rather than a pin tap.
+    .onChange(of: model.canvasSelectedStopID) { _, id in
+      let selection = id.map(MapSelection.init)
+      if mapSelection != selection { mapSelection = selection }
+      revealStop(id)
+    }
+    .task(id: mapSelection) {
+      await handleMapSelection()
+    }
+    // The map's labels are useful only when they represent a place we can add.
+    // Leave cities, regions, and physical geography nonselectable.
+    .mapFeatureSelectionDisabled { feature in
+      feature.kind != .pointOfInterest
+    }
     .onChange(of: model.canvasSelectedDay, initial: true) { _, _ in frameSelection() }
-    .onChange(of: model.canvasSelectedStopID) { _, id in revealStop(id) }
     // Re-reveal when the sheet grows/shrinks over the map: a pin that the rising
     // sheet would swallow pans back into the clear (and `reveal` no-ops when the
     // pin is already above the sheet, so shrinking it never jerks the map).
@@ -96,6 +115,29 @@ struct TripCanvasMapView: View {
         }
       }
     }
+  }
+
+  // MARK: - Selection
+
+  /// Route a tagged Galavant pin back to the itinerary, or turn an Apple Maps POI
+  /// into the same `Place` value used by text search. The task is view-scoped, so
+  /// changing selection or leaving the canvas cancels the lookup automatically.
+  private func handleMapSelection() async {
+    guard let mapSelection else {
+      model.selectStop(nil)
+      return
+    }
+    if let stopID = mapSelection.value {
+      if model.canvasSelectedStopID != stopID { model.selectStop(stopID) }
+      return
+    }
+    guard let feature = mapSelection.feature, feature.kind == .pointOfInterest else { return }
+    guard
+      let item = try? await MKMapItemRequest(feature: feature).mapItem,
+      !Task.isCancelled
+    else { return }
+    model.addMapPlace(Place(mapItem: item))
+    self.mapSelection = nil
   }
 
   // MARK: - Camera

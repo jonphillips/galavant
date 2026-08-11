@@ -81,8 +81,23 @@ final class IdeasListModel {
 
   @CasePathable
   enum Destination {
-    case form(Idea.Draft)
+    case form(IdeaFormPresentation)
     case identity
+  }
+
+  /// The editor's draft plus the geographic lens it must use for Apple Maps
+  /// search. Keeping them together prevents a trip-scoped form from silently
+  /// falling back to a worldwide search.
+  struct IdeaFormPresentation: Identifiable {
+    let id: UUID
+    let draft: Idea.Draft
+    let searchRegions: [MapRegion]
+
+    init(draft: Idea.Draft, searchRegions: [MapRegion]) {
+      self.id = draft.id ?? UUID()
+      self.draft = draft
+      self.searchRegions = searchRegions
+    }
   }
 
   /// A header image's thumbnail keyed to its idea — the light projection the list
@@ -401,11 +416,16 @@ final class IdeasListModel {
   }
 
   func addIdeaButtonTapped() {
-    destination = .form(Idea.Draft(Idea(id: UUID())))
+    destination = .form(
+      IdeaFormPresentation(
+        draft: Idea.Draft(Idea(id: UUID())),
+        searchRegions: scopeRegions
+      )
+    )
   }
 
   func ideaTapped(_ idea: Idea) {
-    destination = .form(Idea.Draft(idea))
+    destination = .form(IdeaFormPresentation(draft: Idea.Draft(idea), searchRegions: []))
   }
 
   func deleteIdeas(_ displayed: [Idea], at offsets: IndexSet) {

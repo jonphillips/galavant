@@ -125,8 +125,8 @@ struct IdeasScreen: View {
         }
       }
     }
-    .sheet(item: $model.destination.form, id: \.id) { draft in
-      IdeaFormView(draft: draft)
+    .sheet(item: $model.destination.form) { presentation in
+      IdeaFormView(draft: presentation.draft, searchRegions: presentation.searchRegions)
     }
     .sheet(isPresented: Binding($model.destination.identity)) {
       IdentityView(model: model)

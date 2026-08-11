@@ -59,7 +59,14 @@ struct TripPlanningView: View {
 
   var body: some View {
     @Bindable var model = model
-    layout
+    CalendarReconciliationPresentationHost(
+      model: model,
+      reconciliationModel: calendarReconciliationModel,
+      isPresented: $showingCalendarReconciliation
+    ) {
+      TripHeaderPresentationHost(model: model, isPresented: $showingHeaderPicker) {
+        MapPlacePresentationHost(model: model) {
+          layout
       // Inspector nested *below* the toolbar host: an `.inspector` applied outside a
       // toolbar-bearing view swallows its `.toolbar` on iPad (docs/KNOWN-ISSUES.md).
       .chatPanel(isPresented: $showingChat, context: .trip(model.plan))
@@ -154,27 +161,9 @@ struct TripPlanningView: View {
       .sheet(isPresented: $showingStartDay) {
         StartDayPanel(model: model)
       }
-      .sheet(isPresented: $showingHeaderPicker) {
-        if let trip = model.trip {
-          TripHeaderPickerSheet(
-            tripID: trip.id,
-            tripName: trip.name,
-            primaryRegionName: model.tripRegions.first?.name,
-            hasHeader: trip.headerImage != nil
-          )
         }
       }
-      .sheet(isPresented: $showingCalendarReconciliation, onDismiss: {
-        model.reloadCalendarTimeAuthority()
-      }) {
-        if let trip = model.trip {
-          CalendarReconciliationSheet(
-            model: calendarReconciliationModel,
-            trip: trip,
-            plan: model.plan
-          )
-        }
-      }
+    }
   }
 
   /// Calendar is now authoritative for real commitments (ADR-0034), so the
@@ -232,5 +221,82 @@ struct TripPlanningView: View {
   private var canvas: some View {
     TripCanvasMapView(model: model, bottomInsetFraction: bottomInsetFraction)
       .safeAreaInset(edge: .top, spacing: 0) { DayChipBar(model: model) }
+  }
+}
+
+/// The normal confirm-and-tweak form for a directly selected Apple Maps POI. The
+/// save label makes the second half of the action explicit: it also lands on the
+/// trip's shortlist, never directly on the itinerary.
+private struct MapPlaceIdeaSheet: View {
+  let model: TripPlanningModel
+  let presentation: MapPlaceIdea
+
+  var body: some View {
+    IdeaFormView(
+      draft: presentation.draft,
+      searchRegions: model.tripRegions,
+      saveTitle: "Save & Add to Trip"
+    ) { ideaID in
+      model.addNewIdeaToShortlist(ideaID)
+    }
+  }
+}
+
+/// Extracted from the planning host's modifier chain so the Xcode beta compiler
+/// can type-check the map-first sheet alongside the existing reconciliation UI.
+private struct CalendarReconciliationPresentationHost<Content: View>: View {
+  let model: TripPlanningModel
+  let reconciliationModel: CalendarReconciliationModel
+  @Binding var isPresented: Bool
+  @ViewBuilder let content: Content
+
+  var body: some View {
+    content
+      .sheet(isPresented: $isPresented, onDismiss: {
+        model.reloadCalendarTimeAuthority()
+      }) {
+        if let trip = model.trip {
+          CalendarReconciliationSheet(
+            model: reconciliationModel,
+            trip: trip,
+            plan: model.plan
+          )
+        }
+    }
+  }
+}
+
+/// Isolates the new POI capture sheet from the existing trip-edit presentations.
+private struct MapPlacePresentationHost<Content: View>: View {
+  let model: TripPlanningModel
+  @ViewBuilder let content: Content
+
+  var body: some View {
+    @Bindable var model = model
+    content
+      .sheet(item: $model.destination.mapPlaceIdea, id: \.id) { presentation in
+        MapPlaceIdeaSheet(model: model, presentation: presentation)
+      }
+  }
+}
+
+/// Keeps the image-picker presentation out of the already-dense planning host.
+private struct TripHeaderPresentationHost<Content: View>: View {
+  let model: TripPlanningModel
+  @Binding var isPresented: Bool
+  @ViewBuilder let content: Content
+
+  var body: some View {
+    content
+      .sheet(isPresented: $isPresented) {
+        if let trip = model.trip {
+          TripHeaderPickerSheet(
+            tripID: trip.id,
+            tripName: trip.name,
+            primaryRegionName: model.tripRegions.first?.name,
+            hasHeader: trip.headerImage != nil
+          )
+        }
+      }
   }
 }
