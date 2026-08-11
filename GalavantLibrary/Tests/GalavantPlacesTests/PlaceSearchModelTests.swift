@@ -1,5 +1,6 @@
 import Dependencies
 import Foundation
+import GalavantSchema
 import Testing
 
 @testable import GalavantPlaces
@@ -20,8 +21,9 @@ import Testing
       address: "Refshalevej 96, Copenhagen"
     )
     await withDependencies {
-      $0.placeSearch.search = { query in
+      $0.placeSearch.search = { query, regions in
         #expect(query == "noma")
+        #expect(regions.isEmpty)
         return [noma]
       }
     } operation: {
@@ -35,7 +37,7 @@ import Testing
   /// A one-character query is below the threshold: no search fires, results clear.
   @Test func shortQueryDoesNotSearch() async {
     await withDependencies {
-      $0.placeSearch.search = { _ in
+      $0.placeSearch.search = { _, _ in
         Issue.record("search should not run for a sub-threshold query")
         return []
       }
@@ -44,6 +46,25 @@ import Testing
       model.query = "n"
       await model.searchTask?.value
       #expect(model.results.isEmpty)
+    }
+  }
+
+  @Test func queryUsesTheSuppliedTripRegions() async {
+    let dolomites = MapRegion(
+      id: UUID(), name: "Dolomites",
+      centerLatitude: 46.5, centerLongitude: 11.8,
+      latitudeDelta: 1, longitudeDelta: 1
+    )
+    await withDependencies {
+      $0.placeSearch.search = { query, regions in
+        #expect(query == "es:senz")
+        #expect(regions == [dolomites])
+        return []
+      }
+    } operation: {
+      let model = PlaceSearchModel(regions: [dolomites])
+      model.query = "es:senz"
+      await model.searchTask?.value
     }
   }
 }

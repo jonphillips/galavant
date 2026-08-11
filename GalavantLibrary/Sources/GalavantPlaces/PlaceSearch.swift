@@ -54,29 +54,62 @@ public struct Place: Identifiable, Equatable, Sendable {
 /// API call). MapKit lives **only** behind this boundary, so the search is
 /// overridable in tests/previews where `MKLocalSearch` can't run.
 ///
-/// Uses `MKLocalSearch` with a **natural-language query** over a **world-wide
-/// region** rather than `MKLocalSearchCompleter`: the completer biases to the
-/// device's location (so a famous-but-distant POI like Copenhagen's Noma never
-/// surfaces from California) and handles combined "<name> <city>" fragments poorly.
-/// Natural-language search is what Maps uses and is forgiving of "Noma Copenhagen".
+/// Uses `MKLocalSearch` with a **natural-language query** rather than
+/// `MKLocalSearchCompleter`: the completer biases to the device's location (so a
+/// famous-but-distant POI like Copenhagen's Noma never surfaces from California)
+/// and handles combined "<name> <city>" fragments poorly. Natural-language search
+/// is what Maps uses and is forgiving of "Noma Copenhagen". A caller may instead
+/// supply one or more saved regions; those searches are required to stay inside
+/// each region, not merely ranked toward it.
 struct PlaceSearchClient: Sendable {
-  var search: @Sendable (_ query: String) async throws -> [Place]
+  var search: @Sendable (_ query: String, _ regions: [MapRegion]) async throws -> [Place]
 }
 
 extension PlaceSearchClient: DependencyKey {
-  static let liveValue = PlaceSearchClient { query in
-    let request = MKLocalSearch.Request()
-    request.naturalLanguageQuery = query
-    request.resultTypes = [.pointOfInterest, .address]
-    // Don't bias to the device: search the whole world so a distant named place
-    // ranks on its own merits.
-    request.region = MKCoordinateRegion(MKMapRect.world)
-    let response = try await MKLocalSearch(request: request).start()
-    return response.mapItems.prefix(12).map(Place.init(mapItem:))
+  static let liveValue = PlaceSearchClient { query, regions in
+    let searchRegions = regions.isEmpty ? [MapRegion?](repeating: nil, count: 1) : regions.map { Optional($0) }
+    var found: [Place] = []
+    var seen = Set<String>()
+    for region in searchRegions {
+      let response = try await MKLocalSearch(request: Self.request(query: query, region: region)).start()
+      for item in response.mapItems {
+        let place = Place(mapItem: item)
+        guard seen.insert(place.searchIdentity).inserted else { continue }
+        found.append(place)
+        if found.count == 12 { return found }
+      }
+    }
+    return found
   }
 
   /// No network in tests/previews — override per case to supply fixtures.
-  static let testValue = PlaceSearchClient { _ in [] }
+  static let testValue = PlaceSearchClient { _, _ in [] }
+
+  /// A non-empty region scope is deliberately strict: a trip's regions are its
+  /// geographic contract, so a global same-name result must never leak in.
+  private static func request(query: String, region: MapRegion?) -> MKLocalSearch.Request {
+    let request = MKLocalSearch.Request()
+    request.naturalLanguageQuery = query
+    request.resultTypes = [.pointOfInterest, .address]
+    if let region {
+      request.region = MKCoordinateRegion(
+        center: CLLocationCoordinate2D(
+          latitude: region.centerLatitude,
+          longitude: region.centerLongitude
+        ),
+        span: MKCoordinateSpan(
+          latitudeDelta: region.latitudeDelta,
+          longitudeDelta: region.longitudeDelta
+        )
+      )
+      request.regionPriority = .required
+    } else {
+      // Don't bias an unscoped capture to the device: search the whole world so a
+      // distant named place ranks on its own merits.
+      request.region = MKCoordinateRegion(MKMapRect.world)
+    }
+    return request
+  }
 }
 
 extension DependencyValues {
@@ -87,9 +120,19 @@ extension DependencyValues {
 }
 
 extension Place {
+  /// MapKit's persistent ID is the best de-duplication key. A coordinate fallback
+  /// keeps searches across overlapping trip regions from displaying one place twice.
+  fileprivate var searchIdentity: String {
+    mapItemIdentifier
+      ?? "\(name)|\(latitude)|\(longitude)"
+  }
+
   /// Map a MapKit result to our value boundary, using the iOS 26 `location` /
   /// `address` / `addressRepresentations` API (`placemark` is deprecated).
-  init(mapItem item: MKMapItem) {
+  /// Map a directly selected Apple Maps POI into the same value boundary as a
+  /// text-search result. This lets map-first capture retain the POI's durable
+  /// identity instead of re-searching by its displayed name.
+  public init(mapItem item: MKMapItem) {
     self.init(
       id: UUID(),
       name: item.name ?? item.addressRepresentations?.cityName ?? "Location",
@@ -119,12 +162,18 @@ public final class PlaceSearchModel {
 
   public private(set) var results: [Place] = []
   private(set) var searchTask: Task<Void, Never>?
+  private let regions: [MapRegion]
 
   public var query = "" {
     didSet { scheduleSearch() }
   }
 
-  public init() {}
+  /// Empty preserves the pool's worldwide lookup. The Ideas shopping surface
+  /// supplies its selected trip/day regions so a new place is searched where that
+  /// trip actually is.
+  public init(regions: [MapRegion] = []) {
+    self.regions = regions
+  }
 
   private func scheduleSearch() {
     searchTask?.cancel()
@@ -145,7 +194,7 @@ public final class PlaceSearchModel {
   private func runSearch(_ text: String) async {
     // Leave the last results in place on throttle/cancel/no-network rather than
     // flashing an empty list mid-typing.
-    guard let found = try? await placeSearch.search(text), !Task.isCancelled else { return }
+    guard let found = try? await placeSearch.search(text, regions), !Task.isCancelled else { return }
     results = found
   }
 }

@@ -7,12 +7,22 @@ import UIKit
 
 struct IdeaFormView: View {
   @State private var model: IdeaFormModel
-  @State private var search = PlaceSearchModel()
+  @State private var search: PlaceSearchModel
   @Environment(\.dismiss) private var dismiss
   @FocusState private var tagFieldFocused: Bool
+  private let saveTitle: String
+  private let onSave: ((Idea.ID) -> Void)?
 
-  init(draft: Idea.Draft) {
+  init(
+    draft: Idea.Draft,
+    searchRegions: [MapRegion] = [],
+    saveTitle: String = "Save",
+    onSave: ((Idea.ID) -> Void)? = nil
+  ) {
     _model = State(initialValue: IdeaFormModel(draft: draft))
+    _search = State(initialValue: PlaceSearchModel(regions: searchRegions))
+    self.saveTitle = saveTitle
+    self.onSave = onSave
   }
 
   var body: some View {
@@ -167,8 +177,10 @@ struct IdeaFormView: View {
       .navigationTitle(model.isNew ? "New Idea" : "Edit Idea")
       .toolbar {
         ToolbarItem(placement: .confirmationAction) {
-          Button("Save") {
-            model.saveButtonTapped()
+          Button(saveTitle) {
+            if let ideaID = model.saveButtonTapped() {
+              onSave?(ideaID)
+            }
             dismiss()
           }
           .disabled(!model.canSave)

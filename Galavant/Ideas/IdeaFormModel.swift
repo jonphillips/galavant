@@ -243,10 +243,11 @@ final class IdeaFormModel {
     draft.hoursVerifiedAt = now.now
   }
 
-  func saveButtonTapped() {
+  @discardableResult
+  func saveButtonTapped() -> Idea.ID? {
     let tagNames = tagNames
     let draft = draft
-    withErrorReporting {
+    return withErrorReporting {
       try database.write { db in
         try Idea.save(draft, tagNames: tagNames, in: db)
       }
