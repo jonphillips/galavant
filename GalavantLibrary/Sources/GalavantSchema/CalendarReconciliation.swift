@@ -165,45 +165,6 @@ public struct CalendarObservedEvent: Equatable, Sendable, Identifiable {
   }
 }
 
-/// The Maps identity discovered for a calendar event by `PlaceMatcher`. It is
-/// an ephemeral input to matching, not a Calendar binding or persisted fact.
-public struct CalendarMatchedPlace: Equatable, Sendable {
-  public var name: String
-  public var mapItemIdentifier: String?
-
-  public init(name: String, mapItemIdentifier: String? = nil) {
-    self.name = name
-    self.mapItemIdentifier = mapItemIdentifier
-  }
-}
-
-/// One EventKit snapshot after the app-side `PlaceMatcher` pass.
-public struct CalendarIngestedEvent: Equatable, Sendable, Identifiable {
-  public var event: CalendarObservedEvent
-  public var matchedPlace: CalendarMatchedPlace?
-
-  public var id: String { event.id }
-
-  public init(event: CalendarObservedEvent, matchedPlace: CalendarMatchedPlace? = nil) {
-    self.event = event
-    self.matchedPlace = matchedPlace
-  }
-}
-
-/// An explicitly requested read of an existing local EventKit binding. The
-/// binding ID is retained separately because EventKit may return a fresh event
-/// identifier after an external edit; it is the stored local binding, not a
-/// title or a new match, that establishes the relationship.
-public struct CalendarBoundEventObservation: Equatable, Sendable {
-  public var bindingID: String
-  public var event: CalendarObservedEvent
-
-  public init(bindingID: String, event: CalendarObservedEvent) {
-    self.bindingID = bindingID
-    self.event = event
-  }
-}
-
 /// Why the read-only reconciliation view found a candidate. These cases are
 /// intentionally descriptive rather than a numeric score: Slice 1 proves a
 /// conservative ladder before later slices establish durable links.
@@ -226,18 +187,37 @@ public enum CalendarReconciliationResult: Equatable, Sendable {
   case proposed(ResolvedStop, basis: CalendarMatchBasis)
   /// More than one same-day stop has the same normalized name.
   case ambiguous([ResolvedStop])
+  /// The event is an absolute instant, but no itinerary/day zone could be
+  /// resolved safely from its travel context.
+  case unresolvedTimeZone
   case unmatched
 }
 
 public struct CalendarReconciliationCandidate: Equatable, Sendable, Identifiable {
   public var input: CalendarIngestedEvent
   public var result: CalendarReconciliationResult
+  public var projection: CalendarTripDayProjection
+  public var temporalContext: CalendarTripTemporalContext?
 
   public var id: String { input.id }
 
-  public init(input: CalendarIngestedEvent, result: CalendarReconciliationResult) {
+  public init(
+    input: CalendarIngestedEvent,
+    result: CalendarReconciliationResult,
+    projection: CalendarTripDayProjection,
+    temporalContext: CalendarTripTemporalContext?
+  ) {
     self.input = input
     self.result = result
+    self.projection = projection
+    self.temporalContext = temporalContext
+  }
+
+  public func projection(using fallbackTimeZone: TimeZone?) -> CalendarTripDayProjection {
+    guard let temporalContext else { return .outsideTrip }
+    return temporalContext.project(
+      input.event.temporal,
+      absoluteTimeZone: input.itineraryTimeZone ?? fallbackTimeZone)
   }
 }
 
@@ -246,26 +226,45 @@ public struct CalendarReconciliationCandidate: Equatable, Sendable, Identifiable
 /// different day is not evidence that the event is the same commitment.
 public enum CalendarReconciliation {
   public static func candidates(
-    for events: [CalendarIngestedEvent], trip: Trip, plan: TripPlan,
-    calendar: Calendar = .current
+    for events: [CalendarIngestedEvent], trip: Trip, plan: TripPlan
   ) -> [CalendarReconciliationCandidate] {
-    events.map { event in
-      CalendarReconciliationCandidate(
+    events.compactMap { event in
+      let context = trip.startDate.flatMap {
+        CalendarTripTemporalContext(startDate: $0, dayCount: trip.lengthInDays)
+      }
+      let projection = context?.project(
+        event.event.temporal,
+        absoluteTimeZone: event.itineraryTimeZone) ?? .outsideTrip
+      guard projection != .outsideTrip else { return nil }
+      return CalendarReconciliationCandidate(
         input: event,
-        result: result(for: event, trip: trip, plan: plan, calendar: calendar))
+        result: result(for: event, plan: plan, projection: projection),
+        projection: projection,
+        temporalContext: context)
     }
   }
 
   public static func result(
-    for input: CalendarIngestedEvent, trip: Trip, plan: TripPlan,
-    calendar: Calendar = .current
+    for input: CalendarIngestedEvent, trip: Trip, plan: TripPlan
   ) -> CalendarReconciliationResult {
-    guard let startDate = trip.startDate else { return .unmatched }
-    let tripStart = CalendarCivilDate(startDate, calendar: calendar)
-    guard let dayNumber = input.event.temporal.nativeStartDate.dayNumber(since: tripStart) else {
-      return .unmatched
+    guard let startDate = trip.startDate,
+      let context = CalendarTripTemporalContext(
+        startDate: startDate, dayCount: trip.lengthInDays)
+    else { return .unmatched }
+    let projection = context.project(
+      input.event.temporal,
+      absoluteTimeZone: input.itineraryTimeZone)
+    return result(for: input, plan: plan, projection: projection)
+  }
+
+  private static func result(
+    for input: CalendarIngestedEvent,
+    plan: TripPlan,
+    projection: CalendarTripDayProjection
+  ) -> CalendarReconciliationResult {
+    guard case let .day(dayNumber, _) = projection else {
+      return projection == .unresolvedTimeZone ? .unresolvedTimeZone : .unmatched
     }
-    guard (1...trip.lengthInDays).contains(dayNumber) else { return .unmatched }
     let stops = plan.itinerary.first(where: { $0.number == dayNumber })?.stops ?? []
 
     if let mapItemIdentifier = input.matchedPlace?.mapItemIdentifier {
@@ -294,17 +293,17 @@ public enum CalendarReconciliation {
 
   /// The pure auto-apply pass for Slice 2. A previously linked event remains
   /// authoritative even if its day or title no longer produces a fresh matching
-  /// candidate; its local EventKit identity is the evidence. New links require
-  /// the Slice 1 automatic Maps-identity result and exactly one event for the
-  /// target stop in this pass. An event that is absent from this read produces no
-  /// action — loss of visibility is never inferred as deletion.
+  /// candidate. Its local EventKit ID is primary evidence; a recurring occurrence
+  /// can heal a changed ID using its server source plus original-occurrence anchor.
+  /// New links require the Slice 1 automatic Maps-identity result and exactly one
+  /// event for the target stop in this pass. An absent event produces no action —
+  /// loss of visibility is never inferred as deletion.
   public static func automaticPlan(
     candidates: [CalendarReconciliationCandidate],
     outsideTripObservations: [CalendarBoundEventObservation] = [],
     localState: CalendarReconciliationLocalState,
     observedAt: Date,
-    makeHistoryID: () -> UUID,
-    calendar _: Calendar = .current
+    makeHistoryID: () -> UUID
   ) -> CalendarReconciliationAutomaticPlan {
     var state = localState
     var applications: [CalendarReconciliationApplication] = []
@@ -318,27 +317,22 @@ public enum CalendarReconciliation {
       guard event.isEligibleForSharedReconciliation else { continue }
       guard let commitment = CalendarCommitment(event: event) else { continue }
 
-      if let index = state.linkedStops.firstIndex(where: { $0.eventID == event.id }) {
-        let linked = state.linkedStops[index]
-        guard linked.commitment != commitment || linked.movedOutsideTripCommitment != nil else { continue }
-        state.linkedStops[index] = CalendarLinkedStop(
-          stopID: linked.stopID,
-          eventID: event.id,
+      if let index = linkedStopIndex(for: event, in: state.linkedStops) {
+        if let application = updateLinkedStop(
+          at: index,
+          with: candidate,
           commitment: commitment,
+          in: &state,
           observedAt: observedAt,
-          eventTitle: event.title)
-        state.history.append(historyEntry(
-          kind: .updated, stopID: linked.stopID, eventID: event.id, event: event,
-          previous: linked.movedOutsideTripCommitment ?? linked.commitment,
-          current: commitment, observedAt: observedAt, makeID: makeHistoryID))
-        if linked.commitment != commitment {
-          applications.append(
-            CalendarReconciliationApplication(stopID: linked.stopID, commitment: commitment, kind: .updated))
+          makeHistoryID: makeHistoryID
+        ) {
+          applications.append(application)
         }
         continue
       }
 
       guard case let .automatic(stop, _) = candidate.result,
+        case let .day(day, timeZone) = candidate.projection,
         event.hasStableLocalIdentity,
         automaticStops[stop.id] == 1,
         !state.linkedStops.contains(where: { $0.stopID == stop.id })
@@ -350,12 +344,17 @@ public enum CalendarReconciliation {
           eventID: event.id,
           commitment: commitment,
           observedAt: observedAt,
-          eventTitle: event.title))
+          eventTitle: event.title,
+          sourceExternalIdentifier: event.externalIdentifier,
+          occurrenceAnchor: event.recurrence?.originalOccurrence,
+          itineraryTimeZoneIdentifier: timeZone?.identifier))
       state.history.append(historyEntry(
         kind: .linked, stopID: stop.id, eventID: event.id, event: event,
         current: commitment, observedAt: observedAt, makeID: makeHistoryID))
       applications.append(
-        CalendarReconciliationApplication(stopID: stop.id, commitment: commitment, kind: .linked))
+        CalendarReconciliationApplication(
+          stopID: stop.id, commitment: commitment,
+          dayNumber: day, kind: .linked))
     }
 
     recordOutsideTripObservations(
@@ -363,6 +362,47 @@ public enum CalendarReconciliation {
       observedAt: observedAt, makeHistoryID: makeHistoryID)
 
     return CalendarReconciliationAutomaticPlan(applications: applications, localState: state)
+  }
+
+  private static func updateLinkedStop(
+    at index: Int,
+    with candidate: CalendarReconciliationCandidate,
+    commitment: CalendarCommitment,
+    in state: inout CalendarReconciliationLocalState,
+    observedAt: Date,
+    makeHistoryID: () -> UUID
+  ) -> CalendarReconciliationApplication? {
+    let event = candidate.input.event
+    let linked = state.linkedStops[index]
+    let projection = candidate.projection(using: linked.itineraryTimeZone)
+    guard case let .day(day, timeZone) = projection else { return nil }
+    let identityChanged = linked.eventID != event.id
+    let commitmentChanged = linked.commitment != commitment
+      || linked.movedOutsideTripCommitment != nil
+    let metadataChanged = linked.sourceExternalIdentifier != event.externalIdentifier
+      || linked.occurrenceAnchor != event.recurrence?.originalOccurrence
+      || (linked.itineraryTimeZoneIdentifier == nil && timeZone != nil)
+    guard identityChanged || commitmentChanged || metadataChanged else { return nil }
+    state.linkedStops[index] = CalendarLinkedStop(
+      stopID: linked.stopID,
+      eventID: event.id,
+      commitment: commitment,
+      observedAt: observedAt,
+      eventTitle: event.title,
+      sourceExternalIdentifier: event.externalIdentifier,
+      occurrenceAnchor: event.recurrence?.originalOccurrence,
+      itineraryTimeZoneIdentifier: timeZone?.identifier
+        ?? linked.itineraryTimeZoneIdentifier)
+    if commitmentChanged {
+      state.history.append(historyEntry(
+        kind: .updated, stopID: linked.stopID, eventID: event.id, event: event,
+        previous: linked.movedOutsideTripCommitment ?? linked.commitment,
+        current: commitment, observedAt: observedAt, makeID: makeHistoryID))
+    }
+    guard linked.commitment != commitment else { return nil }
+    return CalendarReconciliationApplication(
+      stopID: linked.stopID, commitment: commitment,
+      dayNumber: day, kind: .updated)
   }
 
   private static func automaticStopCounts(
@@ -373,6 +413,23 @@ public enum CalendarReconciliation {
         case let .automatic(stop, _) = candidate.result
       else { return }
       counts[stop.id, default: 0] += 1
+    }
+  }
+
+  private static func linkedStopIndex(
+    for event: CalendarObservedEvent,
+    in linkedStops: [CalendarLinkedStop]
+  ) -> Int? {
+    if let direct = linkedStops.firstIndex(where: { $0.eventID == event.id }) {
+      return direct
+    }
+    guard event.hasStableLocalIdentity,
+      let sourceExternalIdentifier = event.externalIdentifier,
+      let occurrenceAnchor = event.recurrence?.originalOccurrence
+    else { return nil }
+    return linkedStops.firstIndex {
+      $0.sourceExternalIdentifier == sourceExternalIdentifier
+        && $0.occurrenceAnchor == occurrenceAnchor
     }
   }
 
@@ -388,13 +445,18 @@ public enum CalendarReconciliation {
         event.isEligibleForSharedReconciliation,
         let commitment = CalendarCommitment(event: event),
         let index = state.linkedStops.firstIndex(where: { $0.eventID == observation.bindingID })
+          ?? linkedStopIndex(for: event, in: state.linkedStops)
       else { continue }
 
       let linked = state.linkedStops[index]
       guard linked.movedOutsideTripCommitment != commitment else { continue }
       state.linkedStops[index] = CalendarLinkedStop(
-        stopID: linked.stopID, eventID: linked.eventID, commitment: linked.commitment,
-        observedAt: observedAt, eventTitle: event.title, movedOutsideTripCommitment: commitment)
+        stopID: linked.stopID, eventID: event.id, commitment: linked.commitment,
+        observedAt: observedAt, eventTitle: event.title,
+        movedOutsideTripCommitment: commitment,
+        sourceExternalIdentifier: event.externalIdentifier,
+        occurrenceAnchor: event.recurrence?.originalOccurrence,
+        itineraryTimeZoneIdentifier: linked.itineraryTimeZoneIdentifier)
       state.history.append(historyEntry(
         kind: .movedOutsideTrip, stopID: linked.stopID, eventID: linked.eventID,
         event: event, previous: linked.commitment, current: commitment,
@@ -472,27 +534,5 @@ public enum CalendarReconciliation {
       + cos(latitude1 * .pi / 180) * cos(latitude2 * .pi / 180)
       * sin(longitudeDelta / 2) * sin(longitudeDelta / 2)
     return 6_371_000 * 2 * atan2(sqrt(haversine), sqrt(1 - haversine))
-  }
-}
-
-public struct CalendarReconciliationApplication: Equatable, Sendable {
-  public var stopID: TripIdea.ID
-  public var commitment: CalendarCommitment
-  public var kind: CalendarReconciliationHistoryEntry.Kind
-
-  public init(stopID: TripIdea.ID, commitment: CalendarCommitment, kind: CalendarReconciliationHistoryEntry.Kind) {
-    self.stopID = stopID
-    self.commitment = commitment
-    self.kind = kind
-  }
-}
-
-public struct CalendarReconciliationAutomaticPlan: Equatable, Sendable {
-  public var applications: [CalendarReconciliationApplication]
-  public var localState: CalendarReconciliationLocalState
-
-  public init(applications: [CalendarReconciliationApplication], localState: CalendarReconciliationLocalState) {
-    self.applications = applications
-    self.localState = localState
   }
 }

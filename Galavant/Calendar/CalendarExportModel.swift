@@ -148,7 +148,10 @@ final class CalendarReconciliationModel {
 
   func refresh(trip: Trip, plan: TripPlan) async {
     guard let scope = scope(for: trip),
-      let queryInterval = scope.queryInterval(in: .current)
+      let startDate = trip.startDate,
+      let temporalContext = CalendarTripTemporalContext(
+        startDate: startDate, dayCount: trip.lengthInDays),
+      let queryInterval = scope.queryInterval(in: Self.storageTimeZone)
     else {
       state = .failure("Calendar reconciliation needs a dated trip.")
       return
@@ -167,14 +170,16 @@ final class CalendarReconciliationModel {
       // scope discard the padding. Two days covers even the widest real-world
       // zone separation at a trip-day boundary.
       let events = try calendarClient.events(queryInterval).filter {
-        scope.overlaps($0.temporal)
+        scope.overlaps($0.temporal, absoluteTimeZone: nil) != false
       }
       let ingestedEvents = try await ingest(events)
       candidates = CalendarReconciliation.candidates(for: ingestedEvents, trip: trip, plan: plan)
       let outsideTripObservations: [CalendarBoundEventObservation] = localState.linkedStops.compactMap { linked in
         guard
           let event = calendarClient.event(linked.eventID),
-          !scope.overlaps(event.temporal)
+          temporalContext.project(
+            event.temporal,
+            absoluteTimeZone: linked.itineraryTimeZone) == .outsideTrip
         else { return nil }
         return CalendarBoundEventObservation(bindingID: linked.eventID, event: event)
       }
@@ -184,29 +189,40 @@ final class CalendarReconciliationModel {
         localState: localState,
         observedAt: now,
         makeHistoryID: { uuid() })
-      let newHistory = automaticPlan.localState.history.dropFirst(localState.history.count)
-      let ledgerEntries = newHistory.compactMap {
-        CalendarReconciliationLedgerEntry(tripID: trip.id, historyEntry: $0)
-      }
-      if !automaticPlan.applications.isEmpty || !ledgerEntries.isEmpty {
-        try await database.write { db in
-          for application in automaticPlan.applications {
-            try TripIdea.applyCalendarCommitment(application.commitment, stopID: application.stopID, in: db)
-          }
-          for entry in ledgerEntries {
-            try CalendarReconciliationLedgerEntry.record(entry, in: db)
-          }
-        }
-      }
-      if automaticPlan.localState != localState {
-        historyStore.setState(trip.id, automaticPlan.localState)
-        localState = automaticPlan.localState
-      }
+      try await persist(automaticPlan, tripID: trip.id)
       state = .loaded
     } catch is CancellationError {
       // Sheet dismissal is normal view-lifecycle cancellation.
     } catch {
       state = .failure(error.localizedDescription)
+    }
+  }
+
+  private func persist(
+    _ plan: CalendarReconciliationAutomaticPlan,
+    tripID: Trip.ID
+  ) async throws {
+    let newHistory = plan.localState.history.dropFirst(localState.history.count)
+    let ledgerEntries = newHistory.compactMap {
+      CalendarReconciliationLedgerEntry(tripID: tripID, historyEntry: $0)
+    }
+    if !plan.applications.isEmpty || !ledgerEntries.isEmpty {
+      try await database.write { db in
+        for application in plan.applications {
+          try TripIdea.applyCalendarCommitment(
+            application.commitment,
+            stopID: application.stopID,
+            dayNumber: application.dayNumber,
+            in: db)
+        }
+        for entry in ledgerEntries {
+          try CalendarReconciliationLedgerEntry.record(entry, in: db)
+        }
+      }
+    }
+    if plan.localState != localState {
+      historyStore.setState(tripID, plan.localState)
+      localState = plan.localState
     }
   }
 
@@ -223,7 +239,10 @@ final class CalendarReconciliationModel {
       let matchedPlace = match.map {
         CalendarMatchedPlace(name: $0.name ?? event.title, mapItemIdentifier: $0.mapItemIdentifier)
       }
-      ingested.append(CalendarIngestedEvent(event: event, matchedPlace: matchedPlace))
+      ingested.append(CalendarIngestedEvent(
+        event: event,
+        matchedPlace: matchedPlace,
+        itineraryTimeZone: match?.timeZoneIdentifier.flatMap(TimeZone.init(identifier:))))
     }
     return ingested
   }
@@ -232,11 +251,14 @@ final class CalendarReconciliationModel {
   /// this remains the pure semantic boundary for zoned, floating, and all-day time.
   private func scope(for trip: Trip) -> CalendarTripScope? {
     guard let startDate = trip.startDate else { return nil }
-    let calendar = Calendar.current
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = Self.storageTimeZone
     return CalendarTripScope(
       start: CalendarCivilDate(startDate, calendar: calendar),
       dayCount: trip.lengthInDays)
   }
+
+  private static let storageTimeZone = TimeZone(secondsFromGMT: 0)!
 }
 
 struct CalendarReconciliationSheet: View {
@@ -370,6 +392,9 @@ struct CalendarReconciliationSheet: View {
           .font(.caption)
       case let .ambiguous(stops):
         Text("Could be: \(stops.map(\.content.title).joined(separator: ", ")).")
+          .font(.caption)
+      case .unresolvedTimeZone:
+        Text("Travel time zone needs review before this event can be placed on a trip day.")
           .font(.caption)
       case .unmatched:
         Text("No same-day itinerary stop matches this event.")

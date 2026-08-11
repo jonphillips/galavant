@@ -233,9 +233,16 @@ public struct CalendarTripScope: Equatable, Sendable {
     return DateInterval(start: paddedStart, end: paddedEnd)
   }
 
-  public func overlaps(_ temporal: CalendarEventTime) -> Bool {
+  /// Whether a semantic event overlaps these trip days. Absolute instants require
+  /// an explicit itinerary/day zone; nil means the caller must retain the event as
+  /// unresolved rather than silently using its display zone or the device zone.
+  public func overlaps(
+    _ temporal: CalendarEventTime,
+    absoluteTimeZone: TimeZone?
+  ) -> Bool? {
     switch temporal {
-    case let .absolute(eventStart, eventEnd, timeZone):
+    case let .absolute(eventStart, eventEnd, _):
+      guard let timeZone = absoluteTimeZone else { return nil }
       guard let start = start.date(in: timeZone),
         let end = endExclusive.date(in: timeZone)
       else { return false }
@@ -248,6 +255,63 @@ public struct CalendarTripScope: Equatable, Sendable {
     case let .allDay(eventStart, eventEnd):
       return eventStart < endExclusive && eventEnd > start
     }
+  }
+}
+
+/// The result of projecting one Calendar value onto the trip's numbered civil
+/// days. An absolute instant is never projected without an explicit itinerary
+/// zone; that ambiguity remains visible to reconciliation.
+public enum CalendarTripDayProjection: Equatable, Sendable {
+  case day(DayNumber, timeZone: TimeZone?)
+  case outsideTrip
+  case unresolvedTimeZone
+
+  public var dayNumber: DayNumber? {
+    guard case let .day(day, _) = self else { return nil }
+    return day
+  }
+
+  public var timeZone: TimeZone? {
+    guard case let .day(_, timeZone) = self else { return nil }
+    return timeZone
+  }
+}
+
+/// The stable inputs needed to project Calendar values onto a dated itinerary.
+/// Absolute events interpret both the stored trip start and the event instant in
+/// the explicitly supplied itinerary/day zone. Civil values use UTC only as the
+/// deterministic storage calendar for `Trip.startDate`; their own date is retained.
+public struct CalendarTripTemporalContext: Equatable, Sendable {
+  public let startDate: Date
+  public let dayCount: Int
+
+  public init?(startDate: Date, dayCount: Int) {
+    guard dayCount > 0 else { return nil }
+    self.startDate = startDate
+    self.dayCount = dayCount
+  }
+
+  public func project(
+    _ temporal: CalendarEventTime,
+    absoluteTimeZone: TimeZone?
+  ) -> CalendarTripDayProjection {
+    let timeZone: TimeZone
+    switch temporal {
+    case .absolute:
+      guard let absoluteTimeZone else { return .unresolvedTimeZone }
+      timeZone = absoluteTimeZone
+    case .floating, .allDay:
+      timeZone = TimeZone(secondsFromGMT: 0)!
+    }
+
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = timeZone
+    let tripStart = CalendarCivilDate(startDate, calendar: calendar)
+    let eventStart = temporal.startDate(in: timeZone)
+    guard let day = eventStart.dayNumber(since: tripStart),
+      (1...dayCount).contains(day)
+    else { return .outsideTrip }
+    return .day(day, timeZone: temporal.timeZone == nil ? nil : timeZone)
   }
 }
 

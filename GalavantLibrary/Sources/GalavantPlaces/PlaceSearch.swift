@@ -21,6 +21,9 @@ public struct Place: Identifiable, Equatable, Sendable {
   /// so a captured idea can store it as the ADR-0019 dedup key. `nil` for a
   /// geocoded-address or scraped-coordinate result MapKit gave no POI identity to.
   public var mapItemIdentifier: String?
+  /// The place's civil-time zone from MapKit. Calendar reconciliation uses this
+  /// as an explicit itinerary projection, never as the event's display zone.
+  public var timeZoneIdentifier: String?
 
   public init(
     id: UUID,
@@ -32,7 +35,8 @@ public struct Place: Identifiable, Equatable, Sendable {
     url: String? = nil,
     phone: String? = nil,
     address: String? = nil,
-    mapItemIdentifier: String? = nil
+    mapItemIdentifier: String? = nil,
+    timeZoneIdentifier: String? = nil
   ) {
     self.id = id
     self.name = name
@@ -44,6 +48,7 @@ public struct Place: Identifiable, Equatable, Sendable {
     self.phone = phone
     self.address = address
     self.mapItemIdentifier = mapItemIdentifier
+    self.timeZoneIdentifier = timeZoneIdentifier
   }
 
   /// One-line secondary text for a result row: the street address, else the city.
@@ -218,7 +223,8 @@ extension Place {
       address: item.address?.fullAddress,
       // The persistent POI identity (iOS 18+), the ADR-0019 dedup key; nil for a
       // geocoded address or other non-POI hit.
-      mapItemIdentifier: item.identifier?.rawValue
+      mapItemIdentifier: item.identifier?.rawValue,
+      timeZoneIdentifier: item.timeZone?.identifier
     )
   }
 }

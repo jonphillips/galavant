@@ -45,10 +45,14 @@ semantic values: absolute instants with their display zone, floating civil date-
 or all-day civil ranges. Availability remains distinct from occupancy, so all-day,
 free, and tentative events do not manufacture hard-busy intervals. Recurrence binds
 one occurrence by its original scheduled anchor (including a detached/moved instance),
-never the whole series. The complete semantic commitment now round-trips through the
-shared ledger while legacy Slice 2 local history and Slice 3 ledger rows still decode.
-The remaining gate is the slice PR plus real Calendar dogfooding across home/travel
-zones and a modified recurring occurrence.
+never the whole series. Absolute instants project onto trip days only through the
+matched travel place's explicit MapKit time zone; an unresolved zone stays visible as
+a reconciliation item rather than falling back to the event or device zone. Local
+recurring bindings retain source + occurrence identity and heal a replacement EventKit
+identifier before applying a detached occurrence's move. The complete semantic
+commitment round-trips through the shared ledger while legacy Slice 2 local history
+and Slice 3 ledger rows still decode. The remaining gate is the slice PR plus real
+Calendar dogfooding across home/travel zones and a modified recurring occurrence.
 
 ## Dogfood gate — M7 Slice 2 auto-apply + local history (ADR-0034)
 

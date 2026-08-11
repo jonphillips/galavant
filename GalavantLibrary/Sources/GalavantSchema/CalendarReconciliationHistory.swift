@@ -25,6 +25,14 @@ public struct CalendarLinkedStop: Codable, Equatable, Sendable {
   /// trip's dates. Keep the observed fact for review, but never turn absence or
   /// an out-of-scope date into a deletion or an itinerary write.
   public var movedOutsideTripCommitment: CalendarCommitment?
+  /// Stable source identity plus occurrence anchor heal an EventKit binding when
+  /// sync replaces the device-local event identifier for one recurring instance.
+  /// Optional fields keep existing Slice 2 payloads decodable.
+  public var sourceExternalIdentifier: String?
+  public var occurrenceAnchor: CalendarOccurrenceAnchor?
+  /// The explicit itinerary zone used when this binding was established. It is
+  /// local integration context, not a synced trip-wide time zone.
+  public var itineraryTimeZoneIdentifier: String?
 
   public init(
     stopID: TripIdea.ID,
@@ -32,7 +40,10 @@ public struct CalendarLinkedStop: Codable, Equatable, Sendable {
     commitment: CalendarCommitment,
     observedAt: Date,
     eventTitle: String? = nil,
-    movedOutsideTripCommitment: CalendarCommitment? = nil
+    movedOutsideTripCommitment: CalendarCommitment? = nil,
+    sourceExternalIdentifier: String? = nil,
+    occurrenceAnchor: CalendarOccurrenceAnchor? = nil,
+    itineraryTimeZoneIdentifier: String? = nil
   ) {
     self.stopID = stopID
     self.eventID = eventID
@@ -40,6 +51,13 @@ public struct CalendarLinkedStop: Codable, Equatable, Sendable {
     self.observedAt = observedAt
     self.eventTitle = eventTitle
     self.movedOutsideTripCommitment = movedOutsideTripCommitment
+    self.sourceExternalIdentifier = sourceExternalIdentifier
+    self.occurrenceAnchor = occurrenceAnchor
+    self.itineraryTimeZoneIdentifier = itineraryTimeZoneIdentifier
+  }
+
+  public var itineraryTimeZone: TimeZone? {
+    itineraryTimeZoneIdentifier.flatMap(TimeZone.init(identifier:))
   }
 }
 

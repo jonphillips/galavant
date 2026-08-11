@@ -20,6 +20,7 @@ public struct LocationMatch: Equatable, Sendable {
   /// from the matched `Place` so capture can stamp it as the ADR-0019 dedup key. `nil`
   /// for a coordinate-only or geocoded match with no POI identity.
   public var mapItemIdentifier: String?
+  public var timeZoneIdentifier: String?
 
   public init(
     coordinate: ParsedCoordinate,
@@ -29,7 +30,8 @@ public struct LocationMatch: Equatable, Sendable {
     kind: IdeaKind? = nil,
     phone: String? = nil,
     url: String? = nil,
-    mapItemIdentifier: String? = nil
+    mapItemIdentifier: String? = nil,
+    timeZoneIdentifier: String? = nil
   ) {
     self.coordinate = coordinate
     self.name = name
@@ -39,6 +41,7 @@ public struct LocationMatch: Equatable, Sendable {
     self.phone = phone
     self.url = url
     self.mapItemIdentifier = mapItemIdentifier
+    self.timeZoneIdentifier = timeZoneIdentifier
   }
 }
 
@@ -151,7 +154,7 @@ public struct PlaceMatcher: Sendable {
   /// the nearby POI's identity, or its capture lands undeduplicatable.
   private func enriched(_ match: LocationMatch, for page: ParsedPage) async -> LocationMatch {
     guard match.kind == nil || match.phone == nil || match.url == nil
-      || match.mapItemIdentifier == nil,
+      || match.mapItemIdentifier == nil || match.timeZoneIdentifier == nil,
       let name = page.title, !name.isEmpty
     else { return match }
     let candidates = await lookupNear(name, match.coordinate)
@@ -166,6 +169,7 @@ public struct PlaceMatcher: Sendable {
     // Adopt the POI's persistent identity when the resolving step gave none — a
     // coordinate- or geocode-first match has no dedup key otherwise (ADR-0019).
     if match.mapItemIdentifier == nil { match.mapItemIdentifier = poi.mapItemIdentifier }
+    if match.timeZoneIdentifier == nil { match.timeZoneIdentifier = poi.timeZoneIdentifier }
     return match
   }
 
@@ -204,7 +208,8 @@ extension LocationMatch {
       kind: place.kind,
       phone: place.phone,
       url: place.url,
-      mapItemIdentifier: place.mapItemIdentifier
+      mapItemIdentifier: place.mapItemIdentifier,
+      timeZoneIdentifier: place.timeZoneIdentifier
     )
   }
 }

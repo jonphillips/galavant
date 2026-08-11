@@ -108,9 +108,26 @@ import Testing
       end: date(2026, 8, 12, 0, 30, in: newYork),
       timeZone: newYork)
 
-    #expect(scope.overlaps(allDay))
-    #expect(scope.overlaps(floating))
-    #expect(scope.overlaps(zoned))
+    #expect(scope.overlaps(allDay, absoluteTimeZone: nil) == true)
+    #expect(scope.overlaps(floating, absoluteTimeZone: nil) == true)
+    #expect(scope.overlaps(zoned, absoluteTimeZone: rome) == true)
+  }
+
+  @Test func absoluteEventUsesItineraryZoneForScopeAndDayProjection() throws {
+    let tripStart = date(2026, 8, 12, 0, 0, in: rome)
+    let context = try #require(CalendarTripTemporalContext(
+      startDate: tripStart, dayCount: 3))
+    let scope = try #require(CalendarTripScope(
+      start: civilDate(2026, 8, 12), dayCount: 3))
+    let event = CalendarEventTime.absolute(
+      start: date(2026, 8, 11, 22, 0, in: newYork),
+      end: date(2026, 8, 11, 23, 0, in: newYork),
+      timeZone: newYork)
+
+    expectNoDifference(context.project(event, absoluteTimeZone: rome), .day(1, timeZone: rome))
+    #expect(scope.overlaps(event, absoluteTimeZone: rome) == true)
+    #expect(scope.overlaps(event, absoluteTimeZone: newYork) == false)
+    #expect(scope.overlaps(event, absoluteTimeZone: nil) == nil)
   }
 
   @Test func recurrenceFingerprintIdentifiesOneOccurrenceNotTheSeries() throws {

@@ -10,15 +10,11 @@ extension TripIdea {
   public static func applyCalendarCommitment(
     _ commitment: CalendarCommitment,
     stopID: TripIdea.ID,
-    in db: Database,
-    calendar: Calendar = .current
+    dayNumber: DayNumber,
+    in db: Database
   ) throws {
-    guard let existing = try TripIdea.find(stopID).fetchOne(db),
-      let startDate = try Trip.find(existing.tripID).fetchOne(db)?.startDate
-    else { return }
-    let tripStart = CalendarCivilDate(startDate, calendar: calendar)
-    guard let day = commitment.temporal.nativeStartDate.dayNumber(since: tripStart) else { return }
-    let schedule = commitment.schedule(on: day)
+    guard try TripIdea.find(stopID).fetchOne(db) != nil else { return }
+    let schedule = commitment.schedule(on: dayNumber)
     switch schedule {
     case let .day(day):
       try TripIdea.find(stopID)
