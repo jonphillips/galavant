@@ -142,7 +142,18 @@ extension CalendarObservedEvent {
     // device gate. A Calendar-item identifier or immutable display fields provide
     // the list-only fallback identity; neither becomes a durable event binding.
     let eventIdentifier = event.eventIdentifier.flatMap { $0.isEmpty ? nil : $0 }
-    let externalIdentifier = event.calendarItemExternalIdentifier.flatMap { $0.isEmpty ? nil : $0 }
+    let externalIdentifier: String?
+    switch event.calendar.source.sourceType {
+    case .calDAV:
+      // iCloud and generic CalDAV are the only sources whose
+      // `calendarItemExternalIdentifier` is stable across devices, so only these
+      // can back a shared-ledger identity. Local/birthday IDs are device-local;
+      // Exchange and subscribed IDs differ between iOS and macOS (Apple docs).
+      // Everything else is still observed and shown — it just can't be promoted.
+      externalIdentifier = event.calendarItemExternalIdentifier.flatMap { $0.isEmpty ? nil : $0 }
+    default:
+      externalIdentifier = nil
+    }
     let rawTitle = event.title ?? ""
     let title = rawTitle.isEmpty ? "Untitled Event" : rawTitle
     let location = event.location
@@ -172,6 +183,7 @@ extension CalendarObservedEvent {
       startDate: startDate,
       endDate: endDate,
       isAllDay: isAllDay,
+      isRecurring: event.hasRecurrenceRules,
       calendarTitle: calendarTitle
     )
   }

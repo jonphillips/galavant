@@ -9,9 +9,9 @@ import SQLiteData
 /// loose: a ledger record explains a stop even after that stop has been removed.
 /// EventKit's local identifiers and this device's observation time never enter
 /// this table. Instead, `id` is deterministically derived from a hash of the
-/// Calendar source revision plus the semantic outcome. Two devices observing the
-/// same change therefore write the same CloudKit record, rather than two records
-/// that merely look alike (ADR-0034 §10).
+/// Calendar source revision plus the shared resulting commitment. Two devices
+/// observing the same change therefore write the same CloudKit record, regardless
+/// of their distinct device-local EventKit binding histories (ADR-0034 §10).
 @Table
 public struct CalendarReconciliationLedgerEntry: Identifiable, Equatable, Sendable {
   public let id: UUID
@@ -19,14 +19,10 @@ public struct CalendarReconciliationLedgerEntry: Identifiable, Equatable, Sendab
   /// Hash-only identity for the Calendar source snapshot. The raw server ID never
   /// leaves the EventKit boundary.
   public var sourceFingerprint: String
-  public var kind: CalendarReconciliationHistoryEntry.Kind
   /// Loose UUID by the single-FK sharing rule. This record remains useful history
   /// if a planner later removes the stop.
   public var stopID: TripIdea.ID
   public var eventTitle: String
-  public var previousIsAllDay: Bool?
-  public var previousStartDate: Date?
-  public var previousEndDate: Date?
   public var currentIsAllDay: Bool
   public var currentStartDate: Date
   public var currentEndDate: Date?
@@ -35,28 +31,25 @@ public struct CalendarReconciliationLedgerEntry: Identifiable, Equatable, Sendab
     id: UUID,
     tripID: Trip.ID,
     sourceFingerprint: String,
-    kind: CalendarReconciliationHistoryEntry.Kind,
     stopID: TripIdea.ID,
     eventTitle: String,
-    previous: CalendarCommitment?,
     current: CalendarCommitment
   ) {
     self.id = id
     self.tripID = tripID
     self.sourceFingerprint = sourceFingerprint
-    self.kind = kind
     self.stopID = stopID
     self.eventTitle = eventTitle
-    (previousIsAllDay, previousStartDate, previousEndDate) = Self.columns(for: previous)
-    let currentColumns = Self.columns(for: current)
-    self.currentIsAllDay = currentColumns.isAllDay ?? false
-    self.currentStartDate = currentColumns.startDate ?? .distantPast
+    let currentColumns = Self.persistedColumns(for: current)
+    self.currentIsAllDay = currentColumns.isAllDay
+    self.currentStartDate = currentColumns.startDate
     self.currentEndDate = currentColumns.endDate
   }
 
-  /// Promotes a new Slice 2 history entry. Pre-Slice-3 local history deliberately
-  /// has no cross-device source fingerprint, so it remains local instead of being
-  /// guessed into shared state.
+  /// Promotes a new Slice 2 history entry. It only promotes server-identified
+  /// events: a display-derived fallback cannot prove two devices saw one event.
+  /// The local transition (`linked` versus `updated`, including its previous value)
+  /// remains in device-local history; this shared row records the resulting fact.
   public init?(
     tripID: Trip.ID,
     historyEntry: CalendarReconciliationHistoryEntry
@@ -65,23 +58,15 @@ public struct CalendarReconciliationLedgerEntry: Identifiable, Equatable, Sendab
     let fingerprint = CalendarReconciliationFingerprint.outcome(
       tripID: tripID,
       sourceFingerprint: sourceFingerprint,
-      kind: historyEntry.kind,
       stopID: historyEntry.stopID,
-      previous: historyEntry.previous,
       current: historyEntry.current)
     self.init(
       id: CalendarReconciliationFingerprint.uuid(from: fingerprint),
       tripID: tripID,
       sourceFingerprint: sourceFingerprint,
-      kind: historyEntry.kind,
       stopID: historyEntry.stopID,
       eventTitle: historyEntry.eventTitle,
-      previous: historyEntry.previous,
       current: historyEntry.current)
-  }
-
-  public var previous: CalendarCommitment? {
-    Self.commitment(isAllDay: previousIsAllDay, startDate: previousStartDate, endDate: previousEndDate)
   }
 
   public var current: CalendarCommitment? {
@@ -102,12 +87,10 @@ public struct CalendarReconciliationLedgerEntry: Identifiable, Equatable, Sendab
     .execute(db)
   }
 
-  private static func columns(
-    for commitment: CalendarCommitment?
-  ) -> (isAllDay: Bool?, startDate: Date?, endDate: Date?) {
+  private static func persistedColumns(
+    for commitment: CalendarCommitment
+  ) -> (isAllDay: Bool, startDate: Date, endDate: Date?) {
     switch commitment {
-    case .none:
-      (nil, nil, nil)
     case let .allDay(date):
       (true, date, nil)
     case let .timed(start, end):
@@ -129,12 +112,8 @@ public struct CalendarReconciliationLedgerEntry: Identifiable, Equatable, Sendab
 /// semantic outcome produced from it. This intentionally has no EventKit import,
 /// so its inputs and guarantees are unit-testable in the package.
 enum CalendarReconciliationFingerprint {
-  static func source(for event: CalendarObservedEvent) -> String {
-    let sourceIdentity = nonEmpty(event.externalIdentifier)
-      ?? [
-        normalized(event.calendarTitle), normalized(event.title), normalized(event.location ?? ""),
-        event.latitude.map(stable) ?? "", event.longitude.map(stable) ?? "",
-      ].joined(separator: "|")
+  static func source(for event: CalendarObservedEvent) -> String? {
+    guard let sourceIdentity = nonEmpty(event.externalIdentifier) else { return nil }
     let revision = event.lastModifiedDate.map(stable)
       ?? [stable(event.startDate), stable(event.endDate), event.isAllDay ? "allDay" : "timed"].joined(separator: "|")
     return digest("calendar-source-v1|\(sourceIdentity)|\(revision)")
@@ -143,15 +122,13 @@ enum CalendarReconciliationFingerprint {
   static func outcome(
     tripID: Trip.ID,
     sourceFingerprint: String,
-    kind: CalendarReconciliationHistoryEntry.Kind,
     stopID: TripIdea.ID,
-    previous: CalendarCommitment?,
     current: CalendarCommitment
   ) -> String {
     digest(
       [
-        "calendar-outcome-v1", tripID.uuidString, sourceFingerprint, kind.rawValue,
-        stopID.uuidString, commitmentDescription(previous), commitmentDescription(current),
+        "calendar-outcome-v1", tripID.uuidString, sourceFingerprint,
+        stopID.uuidString, commitmentDescription(current),
       ].joined(separator: "|"))
   }
 
@@ -171,16 +148,8 @@ enum CalendarReconciliationFingerprint {
     }
   }
 
-  private static func normalized(_ value: String) -> String {
-    value.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "en_US_POSIX"))
-  }
-
   private static func stable(_ value: Date) -> String {
     String(value.timeIntervalSinceReferenceDate.bitPattern, radix: 16)
-  }
-
-  private static func stable(_ value: Double) -> String {
-    String(value.bitPattern, radix: 16)
   }
 
   private static func nonEmpty(_ value: String?) -> String? {

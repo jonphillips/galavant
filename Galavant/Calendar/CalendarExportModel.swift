@@ -338,7 +338,7 @@ struct CalendarReconciliationSheet: View {
   private func historyRow(_ entry: CalendarReconciliationLedgerEntry) -> some View {
     VStack(alignment: .leading, spacing: 4) {
       Text(entry.eventTitle)
-      Text(historyDescription(entry.kind))
+      Text("Calendar commitment recorded.")
         .font(.caption)
         .foregroundStyle(.secondary)
       if let current = entry.current {
@@ -348,17 +348,6 @@ struct CalendarReconciliationSheet: View {
       }
     }
     .accessibilityElement(children: .combine)
-  }
-
-  private func historyDescription(_ kind: CalendarReconciliationHistoryEntry.Kind) -> String {
-    switch kind {
-    case .linked:
-      "Linked to this itinerary stop."
-    case .updated:
-      "Calendar time updated automatically."
-    case .movedOutsideTrip:
-      "Moved outside this trip. Galavant kept the itinerary stop unchanged."
-    }
   }
 
   private func candidateRow(_ candidate: CalendarReconciliationCandidate) -> some View {

@@ -548,12 +548,8 @@ extension DependencyValues {
           "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE,
           "tripID" TEXT NOT NULL REFERENCES "trips"("id") ON DELETE CASCADE,
           "sourceFingerprint" TEXT NOT NULL,
-          "kind" TEXT NOT NULL DEFAULT 'linked',
           "stopID" TEXT NOT NULL,
           "eventTitle" TEXT NOT NULL DEFAULT '',
-          "previousIsAllDay" INTEGER,
-          "previousStartDate" TEXT,
-          "previousEndDate" TEXT,
           "currentIsAllDay" INTEGER NOT NULL DEFAULT 0,
           "currentStartDate" TEXT NOT NULL,
           "currentEndDate" TEXT

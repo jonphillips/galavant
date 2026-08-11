@@ -25,6 +25,11 @@ public struct CalendarObservedEvent: Equatable, Sendable, Identifiable {
   public var startDate: Date
   public var endDate: Date
   public var isAllDay: Bool
+  /// Whether EventKit reports this as an occurrence of a recurring series. Every
+  /// occurrence of a series shares one `calendarItemExternalIdentifier`, so an
+  /// occurrence has no durable per-instance identity yet; recurrence is Slice 4's
+  /// temporal model. Recurring events are observed and shown, never promoted.
+  public var isRecurring: Bool
   public var calendarTitle: String
 
   public init(
@@ -40,6 +45,7 @@ public struct CalendarObservedEvent: Equatable, Sendable, Identifiable {
     startDate: Date,
     endDate: Date,
     isAllDay: Bool,
+    isRecurring: Bool = false,
     calendarTitle: String
   ) {
     self.id = id
@@ -54,7 +60,27 @@ public struct CalendarObservedEvent: Equatable, Sendable, Identifiable {
     self.startDate = startDate
     self.endDate = endDate
     self.isAllDay = isAllDay
+    self.isRecurring = isRecurring
     self.calendarTitle = calendarTitle
+  }
+
+  /// The single gate deciding whether this event may drive a *shared* itinerary
+  /// write and a shared ledger row. Slice 3 only promotes a change it can prove a
+  /// second device derives identically from the same shared calendar:
+  ///
+  /// - `externalIdentifier != nil` — a server identity from a shared iCloud/CalDAV
+  ///   source. The EventKit adapter withholds this for local, birthday, Exchange,
+  ///   and subscribed sources, whose IDs are device- or platform-specific.
+  /// - `!isAllDay` — an all-day span resolves through the device calendar, so two
+  ///   devices in different time zones can derive different commitments (ADR-0034).
+  /// - `!isRecurring` — occurrences share one external identity; deferred to Slice 4.
+  ///
+  /// The remaining requirement — a single-day timed span — is enforced separately
+  /// by `CalendarCommitment(event:)`, which yields no value for multi-day or
+  /// malformed spans. Everything ineligible is still observed and shown as a
+  /// candidate; it simply never mutates the synced plan until Slice 4 models it.
+  public var isEligibleForSharedReconciliation: Bool {
+    externalIdentifier != nil && !isAllDay && !isRecurring
   }
 }
 
@@ -198,6 +224,10 @@ public enum CalendarReconciliation {
 
     for candidate in candidates {
       let event = candidate.input.event
+      // The shared boundary: an ineligible event (local/Exchange/subscribed source,
+      // all-day, or recurring) is observed and shown as a candidate but never binds,
+      // records history, applies to the synced itinerary, or promotes a ledger row.
+      guard event.isEligibleForSharedReconciliation else { continue }
       guard let commitment = CalendarCommitment(event: event, calendar: calendar) else { continue }
 
       if let index = state.linkedStops.firstIndex(where: { $0.eventID == event.id }) {
@@ -252,7 +282,9 @@ public enum CalendarReconciliation {
     _ candidates: [CalendarReconciliationCandidate]
   ) -> [TripIdea.ID: Int] {
     candidates.reduce(into: [:]) { counts, candidate in
-      guard case let .automatic(stop, _) = candidate.result else { return }
+      guard candidate.input.event.isEligibleForSharedReconciliation,
+        case let .automatic(stop, _) = candidate.result
+      else { return }
       counts[stop.id, default: 0] += 1
     }
   }
@@ -267,6 +299,7 @@ public enum CalendarReconciliation {
     for observation in observations {
       let event = observation.event
       guard
+        event.isEligibleForSharedReconciliation,
         let commitment = CalendarCommitment(event: event, calendar: calendar),
         let index = state.linkedStops.firstIndex(where: { $0.eventID == observation.bindingID })
       else { continue }
