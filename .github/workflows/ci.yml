@@ -29,4 +29,24 @@ jobs:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
+      # GalavantLibrary consumes three lifted packages by LOCAL PATH
+      # (../../../jon-platform/packages/{WebExtractorKit,LLMClientKit,CloudSyncKit} —
+      # jon-platform ADR-0002/0003). Locally that resolves because ~/code/galavant/galavant
+      # sits beside ~/code/jon-platform; on the runner jon-platform isn't checked out, so
+      # SPM resolution fails before any test runs. Clone the (private) jon-platform repo to
+      # the exact sibling path those relative deps point at. Needs a read-only PAT for the
+      # private repo (the workflow's built-in GITHUB_TOKEN can't cross repositories):
+      # repo secret JON_PLATFORM_PAT (fine-grained, Contents: read on jonphillips/jon-platform).
+      - name: Check out jon-platform beside galavant (local-path SPM deps)
+        env:
+          JON_PLATFORM_PAT: ${{ secrets.JON_PLATFORM_PAT }}
+        run: |
+          set -euo pipefail
+          # Resolve the sibling location GalavantLibrary's deps expect: from
+          # GalavantLibrary/, "../../../jon-platform" == three levels up + jon-platform.
+          dest="$(cd "$GITHUB_WORKSPACE/GalavantLibrary" && cd ../../.. && pwd)/jon-platform"
+          echo "Cloning jon-platform to $dest"
+          git clone --depth 1 \
+            "https://x-access-token:${JON_PLATFORM_PAT}@github.com/jonphillips/jon-platform.git" \
+            "$dest"
       - run: swift test --package-path GalavantLibrary
