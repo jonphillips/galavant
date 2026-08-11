@@ -428,6 +428,20 @@ final class IdeasListModel {
     destination = .form(IdeaFormPresentation(draft: Idea.Draft(idea), searchRegions: []))
   }
 
+  func mapPlaceTapped(_ place: Place) async {
+    let draft = await MapPlaceCapture().draft(for: place)
+    destination = .form(
+      IdeaFormPresentation(
+        draft: draft,
+        searchRegions: scopeRegions
+      )
+    )
+  }
+
+  func ideaFormSaved(_ ideaID: Idea.ID) async {
+    await MapPlaceCapture().enrichIfNeeded(ideaID: ideaID)
+  }
+
   func deleteIdeas(_ displayed: [Idea], at offsets: IndexSet) {
     let ids = offsets.map { displayed[$0].id }
     withErrorReporting {

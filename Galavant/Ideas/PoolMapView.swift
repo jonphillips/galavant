@@ -1,3 +1,4 @@
+import GalavantPlaces
 import GalavantSchema
 import MapKit
 import SwiftUI
@@ -13,10 +14,11 @@ struct PoolMapView: View {
   /// (ADR-0013). Empty for the eternal "All" pool, so nothing reads as "pulled."
   var pulledIDs: Set<Idea.ID> = []
   let onSelect: (Idea) -> Void
+  let onSelectMapPlace: (Place) async -> Void
   @Binding var visibleRegion: MKCoordinateRegion?
 
   @State private var cameraPosition: MapCameraPosition = .automatic
-  @State private var selectedIdeaID: Idea.ID?
+  @State private var mapSelection: MapSelection<Idea.ID>?
 
   private var mappableIdeas: [Idea] {
     ideas.filter { $0.coordinate != nil }
@@ -29,7 +31,7 @@ struct PoolMapView: View {
   }
 
   var body: some View {
-    Map(position: $cameraPosition, selection: $selectedIdeaID) {
+    Map(position: $cameraPosition, selection: $mapSelection) {
       ForEach(mappableIdeas) { idea in
         if let coordinate = idea.coordinate {
           Marker(
@@ -45,21 +47,47 @@ struct PoolMapView: View {
     .onMapCameraChange(frequency: .onEnd) { context in
       visibleRegion = context.region
     }
+    .task(id: mapSelection) {
+      await handleMapSelection()
+    }
+    .mapFeatureSelectionAccessory(nil)
+    .mapFeatureSelectionDisabled { feature in
+      feature.kind != .pointOfInterest
+    }
     .onChange(of: framingRegions.map(\.id), initial: true) { frameSelectedRegion() }
     .overlay {
       if mappableIdeas.isEmpty {
         ContentUnavailableView(
           "No pinned ideas",
           systemImage: Icon.map.systemName,
-          description: Text("Add a location to an idea to see it on the map.")
+          description: Text("Tap an Apple Maps place to add your first idea.")
         )
+        .allowsHitTesting(false)
       }
     }
-    .onChange(of: selectedIdeaID) { _, newValue in
-      guard let id = newValue, let idea = ideas.first(where: { $0.id == id }) else { return }
-      onSelect(idea)
-      selectedIdeaID = nil
+    .overlay(alignment: .top) {
+      MapPlaceSearchOverlay(
+        visibleRegion: visibleRegion,
+        onSelect: onSelectMapPlace
+      )
     }
+  }
+
+  private func handleMapSelection() async {
+    guard let mapSelection else { return }
+    if let id = mapSelection.value {
+      if let idea = ideas.first(where: { $0.id == id }) {
+        onSelect(idea)
+      }
+      self.mapSelection = nil
+      return
+    }
+    guard let feature = mapSelection.feature, feature.kind == .pointOfInterest else { return }
+    let place = await MapPlaceResolver.place(for: feature)
+    guard !Task.isCancelled else { return }
+    await onSelectMapPlace(place)
+    guard !Task.isCancelled else { return }
+    self.mapSelection = nil
   }
 
   /// Zoom to the union of the lens regions, or auto-frame all pins when unscoped.

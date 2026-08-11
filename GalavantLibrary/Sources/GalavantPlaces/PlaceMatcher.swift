@@ -223,7 +223,7 @@ extension PlaceMatcher: DependencyKey {
     },
     search: { query in
       // Reuse the tuned worldwide natural-language search from PlaceSearchClient.
-      (try? await PlaceSearchClient.liveValue.search(query, [])) ?? []
+      (try? await PlaceSearchClient.liveValue.search(query, .worldwide)) ?? []
     },
     lookupNear: { query, coordinate in
       // The enrichment pass: a tight, region-biased POI search around the point we

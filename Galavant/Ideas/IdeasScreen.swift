@@ -126,7 +126,11 @@ struct IdeasScreen: View {
       }
     }
     .sheet(item: $model.destination.form) { presentation in
-      IdeaFormView(draft: presentation.draft, searchRegions: presentation.searchRegions)
+      IdeaFormView(
+        draft: presentation.draft,
+        searchRegions: presentation.searchRegions,
+        onSave: model.ideaFormSaved
+      )
     }
     .sheet(isPresented: Binding($model.destination.identity)) {
       IdentityView(model: model)
@@ -190,6 +194,7 @@ struct IdeasScreen: View {
       framingRegions: model.framingRegions,
       pulledIDs: model.activeTripIdeaIDs,
       onSelect: model.ideaTapped,
+      onSelectMapPlace: model.mapPlaceTapped,
       visibleRegion: $visibleRegion
     )
   }

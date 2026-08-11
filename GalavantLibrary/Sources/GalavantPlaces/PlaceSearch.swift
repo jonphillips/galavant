@@ -50,6 +50,54 @@ public struct Place: Identifiable, Equatable, Sendable {
   public var subtitle: String { address ?? regionName ?? "" }
 }
 
+public struct PlaceSearchViewport: Equatable, Sendable {
+  public let centerLatitude: Double
+  public let centerLongitude: Double
+  public let latitudeDelta: Double
+  public let longitudeDelta: Double
+
+  public init(
+    centerLatitude: Double,
+    centerLongitude: Double,
+    latitudeDelta: Double,
+    longitudeDelta: Double
+  ) {
+    self.centerLatitude = centerLatitude
+    self.centerLongitude = centerLongitude
+    self.latitudeDelta = latitudeDelta
+    self.longitudeDelta = longitudeDelta
+  }
+
+  public init(region: MKCoordinateRegion) {
+    self.init(
+      centerLatitude: region.center.latitude,
+      centerLongitude: region.center.longitude,
+      latitudeDelta: region.span.latitudeDelta,
+      longitudeDelta: region.span.longitudeDelta
+    )
+  }
+
+  fileprivate var region: MKCoordinateRegion {
+    MKCoordinateRegion(
+      center: CLLocationCoordinate2D(
+        latitude: centerLatitude,
+        longitude: centerLongitude
+      ),
+      span: MKCoordinateSpan(
+        latitudeDelta: latitudeDelta,
+        longitudeDelta: longitudeDelta
+      )
+    )
+  }
+}
+
+enum PlaceSearchScope: Equatable, Sendable {
+  case unavailable
+  case worldwide
+  case regions([MapRegion])
+  case viewport(PlaceSearchViewport)
+}
+
 /// Injectable place search (STYLE.md §4 — location is a dependency, not a baked-in
 /// API call). MapKit lives **only** behind this boundary, so the search is
 /// overridable in tests/previews where `MKLocalSearch` can't run.
@@ -62,16 +110,47 @@ public struct Place: Identifiable, Equatable, Sendable {
 /// supply one or more saved regions; those searches are required to stay inside
 /// each region, not merely ranked toward it.
 struct PlaceSearchClient: Sendable {
-  var search: @Sendable (_ query: String, _ regions: [MapRegion]) async throws -> [Place]
+  var search: @Sendable (_ query: String, _ scope: PlaceSearchScope) async throws -> [Place]
 }
 
 extension PlaceSearchClient: DependencyKey {
-  static let liveValue = PlaceSearchClient { query, regions in
-    let searchRegions = regions.isEmpty ? [MapRegion?](repeating: nil, count: 1) : regions.map { Optional($0) }
+  static let liveValue = PlaceSearchClient { query, scope in
+    let searchRegions: [(region: MKCoordinateRegion, required: Bool)]
+    switch scope {
+    case .unavailable:
+      return []
+    case .worldwide:
+      searchRegions = [(MKCoordinateRegion(MKMapRect.world), false)]
+    case .regions(let regions):
+      searchRegions = regions.map {
+        (
+          MKCoordinateRegion(
+            center: CLLocationCoordinate2D(
+              latitude: $0.centerLatitude,
+              longitude: $0.centerLongitude
+            ),
+            span: MKCoordinateSpan(
+              latitudeDelta: $0.latitudeDelta,
+              longitudeDelta: $0.longitudeDelta
+            )
+          ),
+          true
+        )
+      }
+    case .viewport(let viewport):
+      searchRegions = [(viewport.region, true)]
+    }
     var found: [Place] = []
     var seen = Set<String>()
-    for region in searchRegions {
-      let response = try await MKLocalSearch(request: Self.request(query: query, region: region)).start()
+    for searchRegion in searchRegions {
+      let response = try await MKLocalSearch(
+        request: Self.request(
+          query: query,
+          region: searchRegion.region,
+          required: searchRegion.required
+        )
+      )
+      .start()
       for item in response.mapItems {
         let place = Place(mapItem: item)
         guard seen.insert(place.searchIdentity).inserted else { continue }
@@ -87,26 +166,17 @@ extension PlaceSearchClient: DependencyKey {
 
   /// A non-empty region scope is deliberately strict: a trip's regions are its
   /// geographic contract, so a global same-name result must never leak in.
-  private static func request(query: String, region: MapRegion?) -> MKLocalSearch.Request {
+  private static func request(
+    query: String,
+    region: MKCoordinateRegion,
+    required: Bool
+  ) -> MKLocalSearch.Request {
     let request = MKLocalSearch.Request()
     request.naturalLanguageQuery = query
     request.resultTypes = [.pointOfInterest, .address]
-    if let region {
-      request.region = MKCoordinateRegion(
-        center: CLLocationCoordinate2D(
-          latitude: region.centerLatitude,
-          longitude: region.centerLongitude
-        ),
-        span: MKCoordinateSpan(
-          latitudeDelta: region.latitudeDelta,
-          longitudeDelta: region.longitudeDelta
-        )
-      )
+    request.region = region
+    if required {
       request.regionPriority = .required
-    } else {
-      // Don't bias an unscoped capture to the device: search the whole world so a
-      // distant named place ranks on its own merits.
-      request.region = MKCoordinateRegion(MKMapRect.world)
     }
     return request
   }
@@ -162,7 +232,7 @@ public final class PlaceSearchModel {
 
   public private(set) var results: [Place] = []
   private(set) var searchTask: Task<Void, Never>?
-  private let regions: [MapRegion]
+  private var scope: PlaceSearchScope
 
   public var query = "" {
     didSet { scheduleSearch() }
@@ -172,13 +242,32 @@ public final class PlaceSearchModel {
   /// supplies its selected trip/day regions so a new place is searched where that
   /// trip actually is.
   public init(regions: [MapRegion] = []) {
-    self.regions = regions
+    scope = regions.isEmpty ? .worldwide : .regions(regions)
+  }
+
+  public init(viewport: PlaceSearchViewport?) {
+    scope = viewport.map(PlaceSearchScope.viewport) ?? .unavailable
+  }
+
+  public func visibleRegionChanged(_ viewport: PlaceSearchViewport?) {
+    let newScope = viewport.map(PlaceSearchScope.viewport) ?? .unavailable
+    guard scope != newScope else { return }
+    scope = newScope
+    scheduleSearch()
+  }
+
+  public func cancelButtonTapped() {
+    query = ""
+  }
+
+  public func resultTapped() {
+    query = ""
   }
 
   private func scheduleSearch() {
     searchTask?.cancel()
     let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard text.count >= 2 else {
+    guard text.count >= 2, scope != .unavailable else {
       results = []
       return
     }
@@ -194,7 +283,7 @@ public final class PlaceSearchModel {
   private func runSearch(_ text: String) async {
     // Leave the last results in place on throttle/cancel/no-network rather than
     // flashing an empty list mid-typing.
-    guard let found = try? await placeSearch.search(text, regions), !Task.isCancelled else { return }
+    guard let found = try? await placeSearch.search(text, scope), !Task.isCancelled else { return }
     results = found
   }
 }

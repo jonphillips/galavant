@@ -436,23 +436,11 @@ final class TripPlanningModel {
   /// Start a normal idea edit from a POI the person tapped on the trip map. The
   /// `Place` carries the canonical Maps identifier, so this avoids re-searching a
   /// name the map already resolved.
-  func addMapPlace(_ place: Place) {
+  func mapPlaceTapped(_ place: Place) async {
+    let draft = await MapPlaceCapture().draft(for: place)
     destination = .mapPlaceIdea(
       MapPlaceIdea(
-        draft: Idea.Draft(
-          Idea(
-            id: UUID(),
-            name: place.name,
-            kind: place.kind,
-            regionName: place.regionName,
-            address: place.address,
-            phone: place.phone,
-            latitude: place.latitude,
-            longitude: place.longitude,
-            url: place.url ?? "",
-            mapItemIdentifier: place.mapItemIdentifier
-          )
-        )
+        draft: draft
       )
     )
   }
@@ -467,6 +455,11 @@ final class TripPlanningModel {
         try TripIdea.setStatus(.shortlisted, ideaID: ideaID, tripID: tripID, in: db)
       }
     }
+  }
+
+  func mapPlaceIdeaSaved(_ ideaID: Idea.ID) async {
+    addNewIdeaToShortlist(ideaID)
+    await MapPlaceCapture().enrichIfNeeded(ideaID: ideaID)
   }
 
   /// Drill into a pulled idea's read-only detail (Trip Ideas row tap / Itinerary

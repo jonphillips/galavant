@@ -11,13 +11,13 @@ struct IdeaFormView: View {
   @Environment(\.dismiss) private var dismiss
   @FocusState private var tagFieldFocused: Bool
   private let saveTitle: String
-  private let onSave: ((Idea.ID) -> Void)?
+  private let onSave: (@MainActor (Idea.ID) async -> Void)?
 
   init(
     draft: Idea.Draft,
     searchRegions: [MapRegion] = [],
     saveTitle: String = "Save",
-    onSave: ((Idea.ID) -> Void)? = nil
+    onSave: (@MainActor (Idea.ID) async -> Void)? = nil
   ) {
     _model = State(initialValue: IdeaFormModel(draft: draft))
     _search = State(initialValue: PlaceSearchModel(regions: searchRegions))
@@ -179,7 +179,7 @@ struct IdeaFormView: View {
         ToolbarItem(placement: .confirmationAction) {
           Button(saveTitle) {
             if let ideaID = model.saveButtonTapped() {
-              onSave?(ideaID)
+              Task { await onSave?(ideaID) }
             }
             dismiss()
           }
