@@ -65,21 +65,23 @@ extension CapturedPlace {
   ) -> CapturedPlace {
     let address = page.address.oneLine
     let draft = Idea.Draft(
-      id: id,
-      name: page.title ?? "",
-      // The page's short descriptor → `description` (a page-derived fact); `notes` is the
-      // user's own space and starts empty (ADR-0026). De-market the fallback summary
-      // (no-op once the model's clean summary is in; matters when Apple Intelligence is
-      // unavailable and this is raw og:description).
-      description: TextCleaning.demarketed(page.summary) ?? "",
-      kind: IdeaKind(schemaOrgTypes: page.schemaTypes),
-      regionName: page.address.locality ?? page.address.region,
-      address: address.isEmpty ? nil : address,
-      phone: page.phone,
-      latitude: page.coordinate?.latitude,
-      longitude: page.coordinate?.longitude,
-      url: page.websiteURL?.absoluteString ?? "",
-      travelPartyID: travelPartyID
+      Idea(
+        id: id,
+        name: page.title ?? "",
+        // The page's short descriptor → `description` (a page-derived fact); `notes` is the
+        // user's own space and starts empty (ADR-0026). De-market the fallback summary
+        // (no-op once the model's clean summary is in; matters when Apple Intelligence is
+        // unavailable and this is raw og:description).
+        description: TextCleaning.demarketed(page.summary) ?? "",
+        kind: IdeaKind(schemaOrgTypes: page.schemaTypes),
+        regionName: page.address.locality ?? page.address.region,
+        address: address.isEmpty ? nil : address,
+        phone: page.phone,
+        latitude: page.coordinate?.latitude,
+        longitude: page.coordinate?.longitude,
+        url: page.websiteURL?.absoluteString ?? "",
+        travelPartyID: travelPartyID
+      )
     )
     return CapturedPlace(
       draft: draft,

@@ -23,7 +23,10 @@ extension TravelParty {
     if let existing = try TravelParty.order(by: \.id).fetchOne(db) {
       return existing
     }
-    try TravelParty.insert { TravelParty.Draft(name: "Our Travels") }.execute(db)
+    try TravelParty.insert {
+      TravelParty.Draft(TravelParty(id: UUID(), name: "Our Travels"))
+    }
+    .execute(db)
     guard let created = try TravelParty.order(by: \.id).fetchOne(db) else {
       throw TravelPartyError.creationFailed
     }

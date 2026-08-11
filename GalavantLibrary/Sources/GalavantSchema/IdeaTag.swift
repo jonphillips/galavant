@@ -22,7 +22,10 @@ extension IdeaTag {
       .where { $0.ideaID.eq(ideaID) && $0.tagID.eq(tagID) }
       .fetchCount(db) > 0
     guard !exists else { return }
-    try IdeaTag.insert { IdeaTag.Draft(id: UUID(), ideaID: ideaID, tagID: tagID) }.execute(db)
+    try IdeaTag.insert {
+      IdeaTag.Draft(IdeaTag(id: UUID(), ideaID: ideaID, tagID: tagID))
+    }
+    .execute(db)
   }
 
   public static func remove(tagID: Tag.ID, from ideaID: Idea.ID, in db: Database) throws {

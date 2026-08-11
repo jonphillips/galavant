@@ -44,6 +44,11 @@ targets:
     platform: iOS
     sources:
       - Galavant
+    # Keep the Unsplash Client-ID in a machine-local xcconfig. XcodeGen attaches
+    # it to both app configurations; the file is intentionally gitignored.
+    configFiles:
+      Debug: Config/Secrets.xcconfig
+      Release: Config/Secrets.xcconfig
     info:
       path: Galavant/Info.plist
       properties:
@@ -53,9 +58,8 @@ targets:
         CFBundleDisplayName: Galavant
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        # The Unsplash trip-header "romance" access key (ADR-0032), surfaced from the
-        # build setting below so the value stays out of package source; GalavantPlaces
-        # reads it via `\.unsplashAccessKey`.
+        # The machine-local `Config/Secrets.xcconfig` supplies this build setting;
+        # GalavantPlaces reads the resolved value via `\.unsplashAccessKey`.
         UNSPLASH_ACCESS_KEY: $(UNSPLASH_ACCESS_KEY)
         # Calendar export (BACKLOG "Export itinerary to Apple Calendar / iCal") —
         # EventKit's full-access request (`requestFullAccessToEvents`) needs this
@@ -92,10 +96,6 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.jonphillips.galavant
         TARGETED_DEVICE_FAMILY: "1,2"
         CODE_SIGN_ENTITLEMENTS: Galavant/Galavant.entitlements
-        # Unsplash trip-header access key (ADR-0032) — a *public* Client-ID (safe to
-        # ship client-side), fed into Info.plist above. Move to a gitignored xcconfig
-        # if this repo ever goes public; the package only ever sees the Info.plist key.
-        UNSPLASH_ACCESS_KEY: REDACTED_UNSPLASH_ACCESS_KEY
   GalavantShare:
     type: app-extension
     platform: iOS

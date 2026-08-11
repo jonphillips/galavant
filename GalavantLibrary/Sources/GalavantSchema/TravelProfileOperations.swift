@@ -34,10 +34,12 @@ extension TravelProfile {
     let id = UUID()
     try TravelProfile.insert {
       TravelProfile.Draft(
-        id: id,
-        travelPartyID: travelPartyID,
-        plannerID: plannerID,
-        preferences: preferences
+        TravelProfile(
+          id: id,
+          travelPartyID: travelPartyID,
+          plannerID: plannerID,
+          preferences: preferences
+        )
       )
     }
     .execute(db)

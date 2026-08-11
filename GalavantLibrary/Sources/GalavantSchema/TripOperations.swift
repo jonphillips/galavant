@@ -19,7 +19,7 @@ extension Trip {
     }
     let id = UUID()
     var draft = Trip.Draft(
-      id: id, name: name, notes: notes, lengthInDays: lengthInDays, travelPartyID: partyID
+      Trip(id: id, name: name, notes: notes, lengthInDays: lengthInDays, travelPartyID: partyID)
     )
     draft.apply(certainty)
     try Trip.insert { draft }.execute(db)
@@ -184,7 +184,7 @@ extension TripIdea {
     if let existing { return existing }
     let id = UUID()
     try TripIdea.insert {
-      TripIdea.Draft(id: id, tripID: tripID, ideaID: ideaID, status: status)
+      TripIdea.Draft(TripIdea(id: id, tripID: tripID, ideaID: ideaID, status: status))
     }
     .execute(db)
     guard let created = try TripIdea.find(id).fetchOne(db) else {
@@ -437,9 +437,12 @@ extension TripIdea {
     let rank = try nextStopRank(tripID: tripID, in: db)
     try TripIdea.insert {
       TripIdea.Draft(
-        id: id, tripID: tripID, ideaID: nil,
-        inlineTitle: title, inlineNote: note,
-        status: .scheduled, shortlistRank: rank)
+        TripIdea(
+          id: id, tripID: tripID, ideaID: nil,
+          inlineTitle: title, inlineNote: note,
+          status: .scheduled, shortlistRank: rank
+        )
+      )
     }
     .execute(db)
     return id

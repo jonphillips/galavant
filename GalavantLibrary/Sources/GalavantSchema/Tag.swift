@@ -28,7 +28,10 @@ extension Tag {
     if let existing { return existing }
     let partyID = try TravelParty.ensureDefault(in: db).id
     let id = UUID()
-    try Tag.insert { Tag.Draft(id: id, name: trimmed, travelPartyID: partyID) }.execute(db)
+    try Tag.insert {
+      Tag.Draft(Tag(id: id, name: trimmed, travelPartyID: partyID))
+    }
+    .execute(db)
     return try Tag.find(id).fetchOne(db)!
   }
 }

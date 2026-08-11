@@ -44,7 +44,7 @@
       for (name, lat, lon) in regionSpecs {
         let regionID = UUID()
         try MapRegion.insert {
-          MapRegion.Draft(
+          MapRegion(
             id: regionID, name: name,
             centerLatitude: lat, centerLongitude: lon,
             latitudeDelta: 1.5, longitudeDelta: 1.5, travelPartyID: partyID
@@ -76,7 +76,7 @@
           k += 1
           let ideaID = UUID()
           try Idea.insert {
-            Idea.Draft(
+            Idea(
               id: ideaID,
               name: "\(regionName) \(kind.label) \(i + 1)",
               kind: kind,
@@ -167,7 +167,7 @@
       for (name, kind, lat, lon, schedule) in tokyoStops {
         let ideaID = UUID()
         try Idea.insert {
-          Idea.Draft(
+          Idea(
             id: ideaID, name: name, kind: kind, regionName: "Tokyo",
             latitude: lat, longitude: lon, travelPartyID: partyID
           )

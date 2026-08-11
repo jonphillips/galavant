@@ -113,7 +113,7 @@ extension Planner {
     let travelPartyID = try TravelParty.ensureDefault(in: db).id
     let id = UUID()
     try Planner.insert {
-      Planner.Draft(id: id, displayName: displayName, travelPartyID: travelPartyID)
+      Planner.Draft(Planner(id: id, displayName: displayName, travelPartyID: travelPartyID))
     }
     .execute(db)
     guard let created = try Planner.find(id).fetchOne(db) else {
@@ -145,7 +145,9 @@ extension IdeaInterest {
       }
     } else if level != nil {
       try IdeaInterest.insert {
-        IdeaInterest.Draft(id: UUID(), ideaID: ideaID, plannerID: plannerID, level: level)
+        IdeaInterest.Draft(
+          IdeaInterest(id: UUID(), ideaID: ideaID, plannerID: plannerID, level: level)
+        )
       }
       .execute(db)
     }

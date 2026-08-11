@@ -85,13 +85,15 @@ extension ImageAsset {
     let rank = (existing.map(\.sortRank).max() ?? -1) + 1
     try ImageAsset.insert {
       ImageAsset.Draft(
-        id: id,
-        ideaID: ideaID,
-        display: display,
-        thumbnail: thumbnail,
-        sourceURL: sourceURL,
-        sortRank: rank,
-        isHeader: makeHeader
+        ImageAsset(
+          id: id,
+          ideaID: ideaID,
+          display: display,
+          thumbnail: thumbnail,
+          sourceURL: sourceURL,
+          sortRank: rank,
+          isHeader: makeHeader
+        )
       )
     }
     .execute(db)

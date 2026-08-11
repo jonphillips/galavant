@@ -38,9 +38,12 @@ extension TripStay {
     let id = UUID()
     try TripStay.insert {
       TripStay.Draft(
-        id: id, tripID: tripID, ideaID: ideaID,
-        checkInDay: span.checkIn, checkOutDay: span.checkOut,
-        checkInTime: checkInTime, checkOutTime: checkOutTime)
+        TripStay(
+          id: id, tripID: tripID, ideaID: ideaID,
+          checkInDay: span.checkIn, checkOutDay: span.checkOut,
+          checkInTime: checkInTime, checkOutTime: checkOutTime
+        )
+      )
     }
     .execute(db)
     return id
@@ -64,10 +67,13 @@ extension TripStay {
     let id = UUID()
     try TripStay.insert {
       TripStay.Draft(
-        id: id, tripID: tripID, ideaID: nil,
-        inlineTitle: title, inlineNote: note,
-        checkInDay: span.checkIn, checkOutDay: span.checkOut,
-        checkInTime: checkInTime, checkOutTime: checkOutTime)
+        TripStay(
+          id: id, tripID: tripID, ideaID: nil,
+          inlineTitle: title, inlineNote: note,
+          checkInDay: span.checkIn, checkOutDay: span.checkOut,
+          checkInTime: checkInTime, checkOutTime: checkOutTime
+        )
+      )
     }
     .execute(db)
     return id

@@ -136,8 +136,8 @@ public struct PoolToolExecutor: ChatToolExecutor {
     else {
       return "Couldn't add the idea: a name is required."
     }
-    // Pass only Sendable values across the write boundary; `Idea.Draft` isn't
-    // Sendable, so build it inside the closure.
+        // Pass only Sendable values across the write boundary; the generated
+        // `Idea.Draft` is not Sendable, so build it inside the closure.
     let id = UUID()
     let notes = input.string("notes") ?? ""
     let kind = input.string("kind").flatMap(Self.parseKind)
@@ -145,7 +145,9 @@ public struct PoolToolExecutor: ChatToolExecutor {
     do {
       try await database.write { db in
         _ = try Idea.save(
-          Idea.Draft(id: id, name: name, notes: notes, kind: kind, regionName: region),
+          Idea.Draft(
+            Idea(id: id, name: name, notes: notes, kind: kind, regionName: region)
+          ),
           tagNames: [], in: db)
       }
       return "Added \"\(name)\" to the pool as a candidate. You can pull it onto a trip when ready."
