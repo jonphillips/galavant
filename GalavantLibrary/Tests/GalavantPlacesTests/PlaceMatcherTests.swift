@@ -15,6 +15,26 @@ import Testing
     )
   }
 
+  @Test("Calendar events use the same PlaceMatcher ladder as capture")
+  func calendarEventUsesPlaceMatcher() async {
+    let matcher = PlaceMatcher(
+      geocode: { _ in Issue.record("a structured coordinate wins"); return nil },
+      search: { _ in Issue.record("a structured coordinate wins"); return [] },
+      lookupNear: { _, _ in
+        [self.place("The French Laundry", 38.4043, -122.3630)]
+      }
+    )
+
+    let match = await matcher.match(
+      calendarEventTitle: "French Laundry",
+      latitude: 38.4043,
+      longitude: -122.3630,
+      location: "Yountville"
+    )
+
+    #expect(match?.coordinate == ParsedCoordinate(latitude: 38.4043, longitude: -122.3630))
+  }
+
   @Test("Scraped coordinates are authoritative — no geocode or search")
   func coordinatesWinOutright() async {
     let matcher = PlaceMatcher(

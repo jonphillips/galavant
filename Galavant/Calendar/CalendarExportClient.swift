@@ -132,3 +132,96 @@ extension DependencyValues {
     set { self[CalendarExportClient.self] = newValue }
   }
 }
+
+// MARK: - M7 Slice 0 observation spike
+
+/// The EventKit facts the M7 spike is allowed to hold in memory. This is
+/// intentionally not a schema record: Slice 0 proves observation and matching
+/// before any reconciliation outcome, binding, or history is made durable.
+struct CalendarObservedEvent: Equatable, Sendable, Identifiable {
+  let id: String
+  var title: String
+  var location: String?
+  var latitude: Double?
+  var longitude: Double?
+  var startDate: Date
+  var endDate: Date
+  var isAllDay: Bool
+  var calendarTitle: String
+
+  init(event: EKEvent) {
+    id = event.eventIdentifier
+    title = event.title
+    location = event.location
+    latitude = event.structuredLocation?.geoLocation?.coordinate.latitude
+    longitude = event.structuredLocation?.geoLocation?.coordinate.longitude
+    startDate = event.startDate
+    endDate = event.endDate
+    isAllDay = event.isAllDay
+    calendarTitle = event.calendar.title
+  }
+}
+
+/// Injectable read-only EventKit boundary for M7 Slice 0. It requests **full**
+/// event access, queries all visible calendars in a trip's supplied interval, and
+/// exposes `EKEventStoreChangedNotification` so the spike can re-query after an
+/// external edit or permission change. No closure here creates, updates, or
+/// deletes a calendar event, and the client owns no persisted identifier mapping.
+struct CalendarObservationClient: Sendable {
+  var requestFullAccess: @Sendable () async throws -> Bool
+  var hasFullAccess: @Sendable () -> Bool
+  var events: @Sendable (_ interval: DateInterval) throws -> [CalendarObservedEvent]
+  /// Looks up the in-memory spike's current event identity after it leaves the
+  /// trip query. A non-nil value outside the interval proves "moved", while nil
+  /// remains an unknown-visibility result — never a deletion conclusion.
+  var event: @Sendable (_ identifier: String) -> CalendarObservedEvent?
+  var changes: @Sendable () -> AsyncStream<Void>
+}
+
+extension CalendarObservationClient: DependencyKey {
+  static let liveValue: CalendarObservationClient = {
+    let box = EventKitStore()
+    return CalendarObservationClient(
+      requestFullAccess: {
+        try await box.store.requestFullAccessToEvents()
+      },
+      hasFullAccess: {
+        EKEventStore.authorizationStatus(for: .event) == .fullAccess
+      },
+      events: { interval in
+        let predicate = box.store.predicateForEvents(
+          withStart: interval.start, end: interval.end, calendars: nil)
+        return box.store.events(matching: predicate).map(CalendarObservedEvent.init(event:))
+      },
+      event: { identifier in
+        box.store.event(withIdentifier: identifier).map(CalendarObservedEvent.init(event:))
+      },
+      changes: {
+        AsyncStream { continuation in
+          let task = Task {
+            for await _ in NotificationCenter.default.notifications(named: .EKEventStoreChanged) {
+              continuation.yield()
+            }
+            continuation.finish()
+          }
+          continuation.onTermination = { _ in task.cancel() }
+        }
+      }
+    )
+  }()
+
+  static let testValue = CalendarObservationClient(
+    requestFullAccess: { true },
+    hasFullAccess: { true },
+    events: { _ in [] },
+    event: { _ in nil },
+    changes: { AsyncStream { $0.finish() } }
+  )
+}
+
+extension DependencyValues {
+  var calendarObservationClient: CalendarObservationClient {
+    get { self[CalendarObservationClient.self] }
+    set { self[CalendarObservationClient.self] = newValue }
+  }
+}
