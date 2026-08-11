@@ -10,6 +10,29 @@ Ordered roughly **active/blocked first, someday/design-only last** — not a str
 priority queue, just enough to skim top-to-bottom sensibly. Each entry carries
 enough context to act on cold.
 
+## Next up — M7 calendar reconciliation (ADR-0034), starting with the Slice 0 spike
+
+The calendar direction has been reversed (ADR-0034, 2026-08-10): the couple's shared
+Apple Calendar is authoritative for real commitments, and Galavant **ingests and
+reconciles** in-scope events for a dated trip instead of projecting the one-way
+`Galavant: <trip>` mirror. The shipped export is demoted, not deleted (future "Add to
+Shared Calendar"). The first build step is the **M7 Slice 0 spike** — observe the
+shared calendar in trip scope, match one obvious event via `PlaceMatcher`, survive
+permission-revoked + moved-outside-trip, **no durable writes** — which also confirms
+iOS 27 EventKit reality against the SDK headers ([[apple-sdk-headers-authoritative]])
+before any real code. Full slice sequence: ROADMAP M7; rationale: ADR-0034.
+
+## Parallel / independent — the M5 real-device gate (calendar removed)
+
+Still worth running, now decoupled from calendar: a TestFlight build on both phones to
+verify travel-party share acceptance, two-way CloudKit changes, image/BLOB round
+trips, and pinned-reservation behavior. Checklist: `docs/M5-EXECUTION.md`. The old
+"manual Calendar export on both devices" check was dropped per ADR-0034.
+
+The bounded intelligence follow-ups in `docs/M6-EXECUTION.md` (wire `TravelProfile`;
+review chat's direct `create_idea` durable write) remain decision gates, not an
+implementation queue.
+
 ## Trip header image — "romance" (from Jon, 2026-06-14)
 
 **Being implemented under [ADR-0032](decisions/0032-trip-header-image.md) on branch
@@ -92,39 +115,6 @@ since shipped as the **persistent browser** (ADR-0025, branch `feat/persistent-b
 for other reasons (field capture). Re-check before starting this: the reusable
 "load URL → rendered HTML → run an extractor" piece this entry wants may already be
 substantially covered by that work.
-
-## Export itinerary to Apple Calendar / iCal (from Jon, 2026-06-13)
-
-Once a trip is **dated**, let the app populate a calendar with its scheduled
-stops via **EventKit** (`EKEvent`s in a dedicated "Galavant: <trip>" calendar,
-or `.ics` export for sharing). The M3c data model is already shaped for this:
-`Trip.date(forDay:)` derives the calendar date for each day number, and the
-`Schedule` facade gives the time — `.timed` → exact `EKEvent` start/end,
-`.daypart` → an all-day-ish event anchored at `DayPart.sortHour` (the
-representative hour we already sort by), `.day` → all-day event. Undated trips
-have nothing to export (day-relative only). Considerations: re-export should
-reconcile (update/delete) rather than duplicate; needs the Calendars privacy
-permission; likely a per-trip "Add to Calendar" action. Bigger than a one-liner
-— a small feature, post-M3 (fits the M5 polish/integration band).
-
-**Note (added at the 2026-07-11 backlog split):** see also
-`galavant-calendar-mirror-design` in house memory — the settled design is a
-**one-way, read-only, per-device projection** into Apple Calendar (never a shared
-calendar), reconciled on foreground. This entry's `.ics`/EventKit sketch predates
-that design call; follow the mirror design when building this.
-
-## Booked reservations as absolute, pinned stops (from Jon, 2026-06-13)
-
-A confirmed reservation (OpenTable, hotel, timed entry) is an absolute fact —
-nailed to a calendar date, must **not** slide when the trip's start date moves,
-unlike a day-relative *planned* stop. M3c trimmed V2's `.exact(Date,…)` from
-`Schedule` (day-relative is deliberate — trip-time-model.md §2), but did **not**
-preclude this. Fix is additive: an optional `TripIdea.pinnedDate: Date?` plus
-booking metadata (confirmation #, booking URL, party size, booked-vs-planned)
-that locks the stop to its date and re-derives `dayNumber` if the start slides.
-Land with **M4 capture** (when a share/OpenTable import creates one); pairs with
-the "reservable-from" booking-window work. Full rationale + decision in
-**docs/trip-time-model.md §4**.
 
 ## Drag itinerary stops between days / out of the bucket (from Jon, 2026-06-13/14) — BLOCKED (Xcode 27 beta 1)
 
@@ -293,7 +283,12 @@ slices shipped" for accommodations since this entry was written — re-verify
 current status against `docs/ROADMAP.md` / recent commits before treating this as
 still fully open; it may already be DONE and this entry stale.
 
-## AI pool-stocking via App Intents — discovery → candidate ideas (from Jon, 2026-06-22)
+## Historical M6 discovery notes — superseded by the rebaseline
+
+This is retained for provenance, not as a build brief. `PlaceDiscoveryClient` exists
+only as grounded-request infrastructure; the advertised resolve/dedup/persist/review
+pipeline has not shipped. Do not resume this plan without first using
+`docs/M6-EXECUTION.md` to decide whether frontier discovery is worth pursuing at all.
 
 > **Designed as ADR-0018 + M6e (2026-06-23).** The discovery-pipeline first slice
 > below is now settled in `docs/decisions/0018-ai-pool-stocking-discovery.md` with an
@@ -374,7 +369,11 @@ differentiated long-term bet, unique to a two-person app); **semantic pool searc
 ("that cozy waterfront place we saved") via on-device embeddings; **latent-trip
 clustering** (surface a someday-Jutland from 14 clustered ideas).
 
-## AI assistant / chat (from Jon, 2026-06-13)
+## Historical chat framing — superseded by the rebaseline
+
+Embedded chat is now a real Ideas/Trip surface. Its remaining question is product
+role and write authority, not whether to create a chat panel; see
+`docs/M6-EXECUTION.md` before taking any follow-up.
 
 A larger future theme, not yet milestone-scoped: an in-app conversational
 assistant (Claude API — see CLAUDE.md model guidance) layered over the pool +
