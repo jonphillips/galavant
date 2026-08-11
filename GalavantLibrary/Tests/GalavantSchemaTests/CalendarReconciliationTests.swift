@@ -119,6 +119,42 @@ import Testing
     #expect(result == .unmatched)
   }
 
+  @Test func sameDayEventWithoutAMatchingStopIsUnmatched() {
+    let noma = Idea(id: UUID(), name: "Noma")
+    let input = CalendarIngestedEvent(event: event(title: "Canal tour"))
+
+    let result = CalendarReconciliation.result(
+      for: input,
+      trip: trip(),
+      plan: plan([stop(idea: noma, day: 1)], ideas: [noma])
+    )
+
+    #expect(result == .unmatched)
+  }
+
+  @Test func sameDayMapsIdentityTieRemainsAmbiguous() {
+    let first = Idea(id: UUID(), name: "Noma", mapItemIdentifier: "maps-noma")
+    let second = Idea(id: UUID(), name: "Noma Upstairs", mapItemIdentifier: "maps-noma")
+    let firstStop = stop(idea: first, day: 1)
+    let secondStop = stop(idea: second, day: 1)
+    let input = CalendarIngestedEvent(
+      event: event(title: "Noma"),
+      matchedPlace: CalendarMatchedPlace(name: "Noma", mapItemIdentifier: "maps-noma")
+    )
+
+    let result = CalendarReconciliation.result(
+      for: input,
+      trip: trip(),
+      plan: plan([firstStop, secondStop], ideas: [first, second])
+    )
+
+    guard case let .ambiguous(matches) = result else {
+      Issue.record("Expected an ambiguous Maps-identity match, got \(result).")
+      return
+    }
+    #expect(Set(matches.map(\.id)) == [firstStop.id, secondStop.id])
+  }
+
   @Test func blankEventTitleNeverManufacturesAMatch() {
     let unnamed = Idea(id: UUID(), name: "")
     let input = CalendarIngestedEvent(event: event(title: ""))

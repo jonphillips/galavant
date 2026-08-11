@@ -7,6 +7,7 @@ import SwiftUI
 /// Retained machinery for a future, deliberate "Add to Shared Calendar" action.
 /// M7 reverses the former one-way mirror: Calendar is now ingested as commitment
 /// reality, and this writer has no visible entry point.
+/// Retained, intentionally unwired — see ADR-0034 §11.
 @MainActor
 @Observable
 final class CalendarExportModel {
@@ -48,6 +49,9 @@ final class CalendarExportModel {
     state = .idle
   }
 
+  /// Export/reconcile `trip`'s itinerary to its dedicated device-local calendar.
+  /// Guards on `trip.startDate` too (not just a caller's dated-trip visibility
+  /// gate), so a stale action after editing the trip cannot export an undated trip.
   func exportButtonTapped(trip: Trip, plan: TripPlan) async {
     guard trip.startDate != nil else {
       state = .failure("This trip has no start date yet — set one before syncing to Calendar.")
@@ -82,6 +86,8 @@ final class CalendarExportModel {
           newMapping[update.item.id] = update.identifier
           updated += 1
         } else {
+          // Deleted out from under us (Calendar.app, or a stale identifier) —
+          // recreate rather than silently dropping the stop from Calendar.
           let identifier = try calendarClient.createEvent(update.item, calendarID)
           newMapping[update.item.id] = identifier
           created += 1
@@ -99,6 +105,9 @@ final class CalendarExportModel {
     }
   }
 
+  /// Stable across exports so `findOrCreateCalendar` finds the same calendar.
+  /// Renaming a trip after its first export creates a new calendar rather than
+  /// renaming the existing one — an intentionally retained V1 tradeoff.
   private func calendarTitle(for trip: Trip) -> String {
     "Galavant: \(trip.name)"
   }
@@ -126,11 +135,7 @@ final class CalendarReconciliationModel {
   var state: State = .idle
   var candidates: [CalendarReconciliationCandidate] = []
 
-  func sheetTask(trip: Trip, plan: TripPlan) async {
-    await refreshButtonTapped(trip: trip, plan: plan)
-  }
-
-  func refreshButtonTapped(trip: Trip, plan: TripPlan) async {
+  func refresh(trip: Trip, plan: TripPlan) async {
     guard let scope = scope(for: trip) else {
       state = .failure("Calendar reconciliation needs a dated trip.")
       return
@@ -222,15 +227,15 @@ struct CalendarReconciliationSheet: View {
         }
         ToolbarItem(placement: .primaryAction) {
           Button("Refresh") {
-            Task { await model.refreshButtonTapped(trip: trip, plan: plan) }
+            Task { await model.refresh(trip: trip, plan: plan) }
           }
           .disabled(model.state == .loading)
         }
       }
-      .task(id: trip.id) { await model.sheetTask(trip: trip, plan: plan) }
+      .task(id: trip.id) { await model.refresh(trip: trip, plan: plan) }
       .onChange(of: scenePhase) { _, phase in
         guard phase == .active else { return }
-        Task { await model.refreshButtonTapped(trip: trip, plan: plan) }
+        Task { await model.refresh(trip: trip, plan: plan) }
       }
     }
   }
