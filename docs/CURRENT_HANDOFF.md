@@ -10,17 +10,23 @@ Ordered roughly **active/blocked first, someday/design-only last** — not a str
 priority queue, just enough to skim top-to-bottom sensibly. Each entry carries
 enough context to act on cold.
 
-## Next up — M7 calendar reconciliation (ADR-0034), starting with the Slice 0 spike
+## In progress — M7 Slice 1 calendar reconciliation (ADR-0034)
 
 The calendar direction has been reversed (ADR-0034, 2026-08-10): the couple's shared
 Apple Calendar is authoritative for real commitments, and Galavant **ingests and
 reconciles** in-scope events for a dated trip instead of projecting the one-way
 `Galavant: <trip>` mirror. The shipped export is demoted, not deleted (future "Add to
-Shared Calendar"). The first build step is the **M7 Slice 0 spike** — observe the
-shared calendar in trip scope, match one obvious event via `PlaceMatcher`, survive
-permission-revoked + moved-outside-trip, **no durable writes** — which also confirms
-iOS 27 EventKit reality against the SDK headers ([[apple-sdk-headers-authoritative]])
-before any real code. Full slice sequence: ROADMAP M7; rationale: ADR-0034.
+Shared Calendar"). Slice 0 cleared its EventKit observation gate on 2026-08-10.
+
+Slice 1 (`codex/m7-s1-calendar-ingest`) now reads the dated trip's full civil-day
+window, resolves every event through the existing `PlaceMatcher`, and renders a
+read-only, in-memory reconciliation view. Its conservative ladder auto-identifies
+only a unique same-day Apple Maps identity; a unique normalized name is merely a
+proposal; ties and unknowns stay visible without writing a link, ledger, or Calendar
+record. The remaining gate is **real shared-calendar dogfooding**: exercise obvious
+matches, same-name ties, unmatched obligations, denied/revoked access, and refresh on
+foreground before promoting the slice to done. Full sequence: ROADMAP M7; rationale:
+ADR-0034.
 
 ## Parallel / independent — the M5 real-device gate (calendar removed)
 

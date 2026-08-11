@@ -61,10 +61,10 @@ targets:
         # The machine-local `Config/Secrets.xcconfig` supplies this build setting;
         # GalavantPlaces reads the resolved value via `\.unsplashAccessKey`.
         UNSPLASH_ACCESS_KEY: $(UNSPLASH_ACCESS_KEY)
-        # Calendar export (BACKLOG "Export itinerary to Apple Calendar / iCal") —
-        # EventKit's full-access request (`requestFullAccessToEvents`) needs this
-        # usage-description key; no entitlement is required.
-        NSCalendarsFullAccessUsageDescription: "Galavant syncs a trip's scheduled stops to a dedicated calendar so they show up alongside your other events."
+        # Calendar reconciliation (ADR-0034) reads the couple's real shared
+        # calendars in a dated trip's scope. EventKit full access needs this usage
+        # description key; no entitlement is required.
+        NSCalendarsFullAccessUsageDescription: "Galavant reads shared Calendar events for a trip so it can reconcile real commitments with the itinerary."
     dependencies:
       - target: GalavantShare
       - package: GalavantLibrary

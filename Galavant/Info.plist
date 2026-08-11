@@ -23,7 +23,7 @@
 	<key>CKSharingSupported</key>
 	<true/>
 	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>Galavant syncs a trip's scheduled stops to a dedicated calendar so they show up alongside your other events.</string>
+	<string>Galavant reads shared Calendar events for a trip so it can reconcile real commitments with the itinerary.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

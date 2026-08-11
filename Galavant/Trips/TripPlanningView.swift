@@ -28,15 +28,10 @@ struct TripPlanningView: View {
   @State private var showingChat = false
   @State private var showingStartDay = false
   @State private var showingHeaderPicker = false
-  /// M7 Slice 0's deliberately disposable EventKit observation gate. It has no
-  /// database dependency and is removed once the real reconciliation surface lands.
-  @State private var showingCalendarObservationSpike = false
-  @State private var calendarObservationSpikeModel = CalendarObservationSpikeModel()
-  /// The "Sync to Calendar" action (BACKLOG "Export itinerary to Apple Calendar
-  /// / iCal") — a fresh model per view, not cached on the router: the export
-  /// pass is a one-shot fire-and-forget, unlike the planning model's
-  /// persistent in-trip state.
-  @State private var calendarExportModel = CalendarExportModel()
+  /// M7's local, read-only reconciliation view. Its results never leave this
+  /// per-view model until later slices prove the durable authority semantics.
+  @State private var showingCalendarReconciliation = false
+  @State private var calendarReconciliationModel = CalendarReconciliationModel()
   @State private var sheetDetent: PresentationDetent = .medium
   /// Measured heights of the full-bleed map and the bottom sheet over it — their
   /// ratio is the southern slice of the map the sheet hides, fed to the canvas so
@@ -101,8 +96,7 @@ struct TripPlanningView: View {
             }
           }
         }
-        calendarObservationSpikeToolbarItem
-        calendarExportToolbarItem
+        calendarReconciliationToolbarItem
       }
       .task {
         model.pickInitialSheetTabIfNeeded()
@@ -170,58 +164,26 @@ struct TripPlanningView: View {
           )
         }
       }
-      .sheet(isPresented: $showingCalendarObservationSpike) {
+      .sheet(isPresented: $showingCalendarReconciliation) {
         if let trip = model.trip {
-          CalendarObservationSpikeSheet(
-            model: calendarObservationSpikeModel,
+          CalendarReconciliationSheet(
+            model: calendarReconciliationModel,
             trip: trip,
             plan: model.plan
           )
         }
       }
-      // Result of the "Sync to Calendar" action — a single OK dismisses either
-      // a success summary or a failure message (e.g. access denied).
-      .alert(
-        "Calendar",
-        isPresented: Binding(
-          get: { calendarExportModel.isShowingResult },
-          set: { if !$0 { calendarExportModel.dismissResult() } }
-        )
-      ) {
-        Button("OK") { calendarExportModel.dismissResult() }
-      } message: {
-        Text(calendarExportModel.resultMessage)
-      }
   }
 
-  /// Export the itinerary to a dedicated device-local calendar (BACKLOG
-  /// "Export itinerary to Apple Calendar / iCal") — only once the trip is
-  /// dated (day-relative-only trips have no calendar date to export to).
-  /// Factored out of the main `.toolbar` builder: inlining this conditional
-  /// item there blew past the type-checker's time budget.
-  @ToolbarContentBuilder private var calendarExportToolbarItem: some ToolbarContent {
+  /// Calendar is now authoritative for real commitments (ADR-0034), so the
+  /// former automatic mirror is intentionally absent from this toolbar.
+  @ToolbarContentBuilder private var calendarReconciliationToolbarItem: some ToolbarContent {
     if let trip = model.trip, trip.certainty.stage == .dated {
       ToolbarItem {
         Button {
-          Task { await calendarExportModel.exportButtonTapped(trip: trip, plan: model.plan) }
+          showingCalendarReconciliation = true
         } label: {
-          Icon.calendar.label("Sync to Calendar")
-        }
-        .disabled(calendarExportModel.state == .exporting)
-      }
-    }
-  }
-
-  /// A tiny, explicitly labelled gate for M7 Slice 0. It is separate from the
-  /// retained one-way export action, because this reads the couple's real shared
-  /// calendars and must prove its semantics before reconciliation becomes durable.
-  @ToolbarContentBuilder private var calendarObservationSpikeToolbarItem: some ToolbarContent {
-    if let trip = model.trip, trip.certainty.stage == .dated {
-      ToolbarItem {
-        Button {
-          showingCalendarObservationSpike = true
-        } label: {
-          Label("Observe Calendar (Spike)", systemImage: "eye")
+          Label("Reconcile Calendar", systemImage: "calendar.badge.clock")
         }
       }
     }
