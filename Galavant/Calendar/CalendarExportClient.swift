@@ -142,6 +142,7 @@ extension CalendarObservedEvent {
     // device gate. A Calendar-item identifier or immutable display fields provide
     // the list-only fallback identity; neither becomes a durable event binding.
     let eventIdentifier = event.eventIdentifier.flatMap { $0.isEmpty ? nil : $0 }
+    let externalIdentifier = event.calendarItemExternalIdentifier.flatMap { $0.isEmpty ? nil : $0 }
     let rawTitle = event.title ?? ""
     let title = rawTitle.isEmpty ? "Untitled Event" : rawTitle
     let location = event.location
@@ -162,6 +163,8 @@ extension CalendarObservedEvent {
       id: stableIdentifier ?? fallbackIdentifier,
       hasStableLocalIdentity: stableIdentifier != nil,
       eventIdentifier: eventIdentifier,
+      externalIdentifier: externalIdentifier,
+      lastModifiedDate: event.lastModifiedDate,
       title: title,
       location: location,
       latitude: latitude,

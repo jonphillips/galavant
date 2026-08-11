@@ -117,6 +117,7 @@ public enum GalavantCloudSync {
         IdeaTag.self,
         Trip.self,
         TripIdea.self,
+        CalendarReconciliationLedgerEntry.self,
         TripRegion.self,
         ImageAsset.self,
         TripStay.self,

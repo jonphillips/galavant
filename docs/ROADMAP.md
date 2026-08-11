@@ -430,9 +430,10 @@ are proven locally. Full rationale + acceptance criteria in ADR-0034.
   to linked stops; the `.linked`/`.manual` authority enum lands here (amends
   docs/trip-time-model.md §4); durable **local** review/resolution history. Initial
   implementation: `codex/m7-s2-auto-apply`. **Opus.**
-- ⏳ **Slice 3 — synced shared ledger + cross-device dedup.** Promote the ledger to
+- 🚧 **Slice 3 — synced shared ledger + cross-device dedup.** Promote the ledger to
   CloudKit-shared state; the identity/fingerprint + dedup design. The hard one — only
-  after 1–2 prove the semantics. **Opus.**
+  after 1–2 prove the semantics. Initial implementation: `codex/m7-s3-shared-ledger`.
+  **Opus.**
 - ⏳ **Slice 4 — temporal subsystem.** Time-zone three-concept model, all-day / free /
   tentative, recurrence-occurrence handling — pure core, heavily tested. **Opus.**
 - ⏳ **Slice 5 — Calendar-originated non-place constraints.** "Call Tax Advisor" as a

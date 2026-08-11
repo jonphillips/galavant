@@ -1,5 +1,6 @@
 import Dependencies
 import Foundation
+import SQLiteData
 
 /// Whether a stop's reservation time is still entered in Galavant or is now
 /// observed from the shared Calendar. The `.linked` binding itself is local:
@@ -83,11 +84,11 @@ public struct CalendarLinkedStop: Codable, Equatable, Sendable {
   }
 }
 
-/// A reviewable, local record of an authoritative Calendar update. It stays
-/// local through Slice 2 so devices cannot create competing ledger entries;
-/// Slice 3 supplies the shared identity and deduplication design.
+/// A reviewable, device-local audit record of an authoritative Calendar update.
+/// It retains the EventKit binding ID needed on this device; Slice 3 derives a
+/// separate shared ledger outcome from its semantic source fingerprint.
 public struct CalendarReconciliationHistoryEntry: Codable, Equatable, Sendable, Identifiable {
-  public enum Kind: String, Codable, Equatable, Sendable {
+  public enum Kind: String, Codable, Equatable, Sendable, QueryBindable {
     case linked
     case updated
     case movedOutsideTrip
@@ -100,6 +101,12 @@ public struct CalendarReconciliationHistoryEntry: Codable, Equatable, Sendable, 
   public var eventTitle: String
   public var previous: CalendarCommitment?
   public var current: CalendarCommitment
+  /// A one-way hash of the server event identity/revision and its semantic
+  /// snapshot. It intentionally excludes the device-local EventKit identifier
+  /// and the device's observation time; Slice 3 combines it with the outcome to
+  /// make a deterministic CloudKit record ID. Optional keeps Slice 2's stored
+  /// UserDefaults payloads decodable.
+  public var sourceFingerprint: String?
   public var appliedAt: Date
 
   public init(
@@ -110,6 +117,7 @@ public struct CalendarReconciliationHistoryEntry: Codable, Equatable, Sendable, 
     eventTitle: String,
     previous: CalendarCommitment? = nil,
     current: CalendarCommitment,
+    sourceFingerprint: String? = nil,
     appliedAt: Date
   ) {
     self.id = id
@@ -119,13 +127,14 @@ public struct CalendarReconciliationHistoryEntry: Codable, Equatable, Sendable, 
     self.eventTitle = eventTitle
     self.previous = previous
     self.current = current
+    self.sourceFingerprint = sourceFingerprint
     self.appliedAt = appliedAt
   }
 }
 
-/// All local reconciliation state for one trip. It is intentionally a single
-/// UserDefaults payload: both the binding and its audit history are device-local
-/// until Slice 3 can make their shared form converge safely.
+/// All device-local reconciliation state for one trip. It is intentionally a
+/// single UserDefaults payload: EventKit bindings and their local audit context
+/// remain local even after Slice 3 promotes the matching outcome to CloudKit.
 public struct CalendarReconciliationLocalState: Codable, Equatable, Sendable {
   public var linkedStops: [CalendarLinkedStop]
   public var history: [CalendarReconciliationHistoryEntry]

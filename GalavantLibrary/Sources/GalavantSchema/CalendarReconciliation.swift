@@ -11,6 +11,13 @@ public struct CalendarObservedEvent: Equatable, Sendable, Identifiable {
   /// EventKit does not guarantee this for every subscribed/shared event. It is
   /// useful while observing locally, but never becomes a synced binding.
   public var eventIdentifier: String?
+  /// A server-provided identity for the calendar item. Unlike `eventIdentifier`,
+  /// this can identify the same event across devices. It is never persisted
+  /// directly; Slice 3 hashes it into a shared outcome fingerprint.
+  public var externalIdentifier: String?
+  /// The source's revision instant when EventKit provides one. This is input to
+  /// the semantic fingerprint, never a device-observation timestamp.
+  public var lastModifiedDate: Date?
   public var title: String
   public var location: String?
   public var latitude: Double?
@@ -24,6 +31,8 @@ public struct CalendarObservedEvent: Equatable, Sendable, Identifiable {
     id: String,
     hasStableLocalIdentity: Bool = true,
     eventIdentifier: String? = nil,
+    externalIdentifier: String? = nil,
+    lastModifiedDate: Date? = nil,
     title: String,
     location: String? = nil,
     latitude: Double? = nil,
@@ -36,6 +45,8 @@ public struct CalendarObservedEvent: Equatable, Sendable, Identifiable {
     self.id = id
     self.hasStableLocalIdentity = hasStableLocalIdentity
     self.eventIdentifier = eventIdentifier
+    self.externalIdentifier = externalIdentifier
+    self.lastModifiedDate = lastModifiedDate
     self.title = title
     self.location = location
     self.latitude = latitude
@@ -198,16 +209,10 @@ public enum CalendarReconciliation {
           commitment: commitment,
           observedAt: observedAt,
           eventTitle: event.title)
-        state.history.append(
-          CalendarReconciliationHistoryEntry(
-            id: makeHistoryID(),
-            kind: .updated,
-            stopID: linked.stopID,
-            eventID: event.id,
-            eventTitle: event.title,
-            previous: linked.movedOutsideTripCommitment ?? linked.commitment,
-            current: commitment,
-            appliedAt: observedAt))
+        state.history.append(historyEntry(
+          kind: .updated, stopID: linked.stopID, eventID: event.id, event: event,
+          previous: linked.movedOutsideTripCommitment ?? linked.commitment,
+          current: commitment, observedAt: observedAt, makeID: makeHistoryID))
         if linked.commitment != commitment {
           applications.append(
             CalendarReconciliationApplication(stopID: linked.stopID, commitment: commitment, kind: .updated))
@@ -228,15 +233,9 @@ public enum CalendarReconciliation {
           commitment: commitment,
           observedAt: observedAt,
           eventTitle: event.title))
-      state.history.append(
-        CalendarReconciliationHistoryEntry(
-          id: makeHistoryID(),
-          kind: .linked,
-          stopID: stop.id,
-          eventID: event.id,
-          eventTitle: event.title,
-          current: commitment,
-          appliedAt: observedAt))
+      state.history.append(historyEntry(
+        kind: .linked, stopID: stop.id, eventID: event.id, event: event,
+        current: commitment, observedAt: observedAt, makeID: makeHistoryID))
       applications.append(
         CalendarReconciliationApplication(stopID: stop.id, commitment: commitment, kind: .linked))
     }
@@ -277,12 +276,28 @@ public enum CalendarReconciliation {
       state.linkedStops[index] = CalendarLinkedStop(
         stopID: linked.stopID, eventID: linked.eventID, commitment: linked.commitment,
         observedAt: observedAt, eventTitle: event.title, movedOutsideTripCommitment: commitment)
-      state.history.append(
-        CalendarReconciliationHistoryEntry(
-          id: makeHistoryID(), kind: .movedOutsideTrip, stopID: linked.stopID,
-          eventID: linked.eventID, eventTitle: event.title, previous: linked.commitment,
-          current: commitment, appliedAt: observedAt))
+      state.history.append(historyEntry(
+        kind: .movedOutsideTrip, stopID: linked.stopID, eventID: linked.eventID,
+        event: event, previous: linked.commitment, current: commitment,
+        observedAt: observedAt, makeID: makeHistoryID))
     }
+  }
+
+  private static func historyEntry(
+    kind: CalendarReconciliationHistoryEntry.Kind,
+    stopID: TripIdea.ID,
+    eventID: String,
+    event: CalendarObservedEvent,
+    previous: CalendarCommitment? = nil,
+    current: CalendarCommitment,
+    observedAt: Date,
+    makeID: () -> UUID
+  ) -> CalendarReconciliationHistoryEntry {
+    CalendarReconciliationHistoryEntry(
+      id: makeID(), kind: kind, stopID: stopID, eventID: eventID, eventTitle: event.title,
+      previous: previous, current: current,
+      sourceFingerprint: CalendarReconciliationFingerprint.source(for: event),
+      appliedAt: observedAt)
   }
 
   /// Comparison-only normalization: case/diacritic/punctuation differences in a
