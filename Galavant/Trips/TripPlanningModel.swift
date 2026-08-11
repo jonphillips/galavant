@@ -91,6 +91,7 @@ final class TripPlanningModel {
   @ObservationIgnored @Dependency(\.defaultDatabase) var database
   @ObservationIgnored @Dependency(\.recentTripStore) var recentTripStore
   @ObservationIgnored @Dependency(\.directionsClient) var directionsClient
+  @ObservationIgnored @Dependency(\.calendarReconciliationHistoryStore) var calendarHistoryStore
   @ObservationIgnored @FetchAll(Trip.all) var trips
   @ObservationIgnored @FetchAll(Idea.order(by: \.name)) var ideas
   @ObservationIgnored @FetchAll(TripIdea.all) var allTripIdeas
@@ -106,6 +107,13 @@ final class TripPlanningModel {
 
   let tripID: Trip.ID
   var destination: Destination?
+
+  /// The local EventKit binding governs time edits on this device. The applied
+  /// reservation cache is still in the synced trip row; Slice 3 supplies the
+  /// shared review ledger and cross-device reconciliation identity.
+  func calendarTimeAuthority(for stopID: TripIdea.ID) -> CalendarTimeAuthority {
+    calendarHistoryStore.state(tripID).authority(for: stopID)
+  }
 
   /// The idea drilled into on the in-panel detail push (nil = the list root). A
   /// push within the panel, not a sheet, so it never covers the map; driven by ID
