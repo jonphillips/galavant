@@ -341,11 +341,11 @@ import Testing
     #expect(automaticPlan.localState == CalendarReconciliationLocalState())
   }
 
-  @Test func allDayEventIsShownButNeverWritesTheSharedPlan() {
+  @Test func allDayEventLinksAsCivilDayContext() {
     let frenchLaundry = Idea(id: UUID(), name: "The French Laundry", mapItemIdentifier: "maps-french-laundry")
     let stop = stop(idea: frenchLaundry, day: 1)
-    // All-day spans resolve through the device calendar, so two time zones can
-    // derive different commitments. Observed and shown, deferred to Slice 4.
+    // Slice 4 captures the civil range before it can be flattened through a
+    // device zone, so it can now establish the same shared fact on both phones.
     let candidates = mapsMatchCandidate(
       for: stop, idea: frenchLaundry,
       event: event(title: "Dinner", identifier: "reservation-1", isAllDay: true))
@@ -354,15 +354,15 @@ import Testing
       candidates: candidates, localState: CalendarReconciliationLocalState(), observedAt: .distantPast,
       makeHistoryID: UUID.init)
 
-    #expect(automaticPlan.applications.isEmpty)
-    #expect(automaticPlan.localState == CalendarReconciliationLocalState())
+    #expect(automaticPlan.applications.map(\.stopID) == [stop.id])
+    #expect(automaticPlan.applications.first?.commitment.occupancy == .dayContext)
+    #expect(automaticPlan.localState.authority(for: stop.id) == .linked)
   }
 
-  @Test func recurringEventIsShownButNeverWritesTheSharedPlan() {
+  @Test func recurringOccurrenceLinksWithoutBindingTheWholeSeries() {
     let frenchLaundry = Idea(id: UUID(), name: "The French Laundry", mapItemIdentifier: "maps-french-laundry")
     let stop = stop(idea: frenchLaundry, day: 1)
-    // Every occurrence of a series shares one external identity, so a per-occurrence
-    // durable binding is unsafe until Slice 4's temporal model.
+    // The occurrence's original scheduled start now disambiguates the series ID.
     let candidates = mapsMatchCandidate(
       for: stop, idea: frenchLaundry,
       event: event(title: "Dinner", identifier: "reservation-1", isRecurring: true))
@@ -371,20 +371,22 @@ import Testing
       candidates: candidates, localState: CalendarReconciliationLocalState(), observedAt: .distantPast,
       makeHistoryID: UUID.init)
 
-    #expect(automaticPlan.applications.isEmpty)
-    #expect(automaticPlan.localState == CalendarReconciliationLocalState())
+    #expect(automaticPlan.applications.map(\.stopID) == [stop.id])
+    #expect(automaticPlan.localState.authority(for: stop.id) == .linked)
   }
 
   @Test func anIneligibleDuplicateDoesNotBlockAnEligibleAutomaticLink() {
     let frenchLaundry = Idea(id: UUID(), name: "The French Laundry", mapItemIdentifier: "maps-french-laundry")
     let stop = stop(idea: frenchLaundry, day: 1)
     let match = CalendarMatchedPlace(name: frenchLaundry.name, mapItemIdentifier: frenchLaundry.mapItemIdentifier)
-    // Two automatic matches for one stop, but only one is eligible. The ineligible
-    // all-day copy must not manufacture ambiguity that suppresses the real link.
+    // Two automatic matches for one stop, but only one has a server identity. The
+    // device-only copy must not manufacture ambiguity that suppresses the real link.
     let eligible = CalendarIngestedEvent(
       event: event(title: "Dinner", identifier: "reservation-1"), matchedPlace: match)
     let ineligible = CalendarIngestedEvent(
-      event: event(title: "Dinner", identifier: "reservation-2", isAllDay: true), matchedPlace: match)
+      event: event(
+        title: "Dinner", identifier: "reservation-2", externalIdentifier: nil),
+      matchedPlace: match)
     let candidates = CalendarReconciliation.candidates(
       for: [eligible, ineligible], trip: trip(), plan: plan([stop], ideas: [frenchLaundry]))
 
@@ -546,7 +548,7 @@ import Testing
     #expect(automaticPlan.localState == CalendarReconciliationLocalState())
   }
 
-  @Test func crossDayTimedEventWaitsForTheTemporalSlice() {
+  @Test func crossDayTimedEventIsPreservedByTheTemporalSlice() {
     let frenchLaundry = Idea(id: UUID(), name: "The French Laundry", mapItemIdentifier: "maps-french-laundry")
     let stop = stop(idea: frenchLaundry, day: 1)
     let overnight = event(title: "Dinner", identifier: "overnight")
@@ -568,8 +570,8 @@ import Testing
       candidates: candidates, localState: CalendarReconciliationLocalState(), observedAt: .distantPast,
       makeHistoryID: UUID.init)
 
-    #expect(automaticPlan.applications.isEmpty)
-    #expect(automaticPlan.localState == CalendarReconciliationLocalState())
+    #expect(automaticPlan.applications.map(\.stopID) == [stop.id])
+    #expect(automaticPlan.localState.authority(for: stop.id) == .linked)
   }
 
   @Test func displayFallbackIdentityCannotEstablishALink() {

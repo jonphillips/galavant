@@ -22,16 +22,53 @@ public struct CalendarObservedEvent: Equatable, Sendable, Identifiable {
   public var location: String?
   public var latitude: Double?
   public var longitude: Double?
-  public var startDate: Date
-  public var endDate: Date
-  public var isAllDay: Bool
-  /// Whether EventKit reports this as an occurrence of a recurring series. Every
-  /// occurrence of a series shares one `calendarItemExternalIdentifier`, so an
-  /// occurrence has no durable per-instance identity yet; recurrence is Slice 4's
-  /// temporal model. Recurring events are observed and shown, never promoted.
-  public var isRecurring: Bool
+  /// Zoned instant, floating civil time, or all-day civil range. This is captured
+  /// at the EventKit boundary before a later device-zone change can alter meaning.
+  public var temporal: CalendarEventTime
+  public var availability: CalendarEventAvailability
+  /// Nil for a standalone event. Recurring values identify exactly one occurrence
+  /// by its original scheduled start, including a detached/moved occurrence.
+  public var recurrence: CalendarEventRecurrence?
   public var calendarTitle: String
 
+  public var isAllDay: Bool {
+    if case .allDay = temporal { true } else { false }
+  }
+
+  public var isRecurring: Bool { recurrence != nil }
+
+  public init(
+    id: String,
+    hasStableLocalIdentity: Bool = true,
+    eventIdentifier: String? = nil,
+    externalIdentifier: String? = nil,
+    lastModifiedDate: Date? = nil,
+    title: String,
+    location: String? = nil,
+    latitude: Double? = nil,
+    longitude: Double? = nil,
+    temporal: CalendarEventTime,
+    availability: CalendarEventAvailability = .notSupported,
+    recurrence: CalendarEventRecurrence? = nil,
+    calendarTitle: String
+  ) {
+    self.id = id
+    self.hasStableLocalIdentity = hasStableLocalIdentity
+    self.eventIdentifier = eventIdentifier
+    self.externalIdentifier = externalIdentifier
+    self.lastModifiedDate = lastModifiedDate
+    self.title = title
+    self.location = location
+    self.latitude = latitude
+    self.longitude = longitude
+    self.temporal = temporal
+    self.availability = availability
+    self.recurrence = recurrence
+    self.calendarTitle = calendarTitle
+  }
+
+  /// Compatibility initializer for ordinary timed Slice 1–3 call sites. EventKit
+  /// itself uses the explicit temporal initializer above.
   public init(
     id: String,
     hasStableLocalIdentity: Bool = true,
@@ -46,22 +83,69 @@ public struct CalendarObservedEvent: Equatable, Sendable, Identifiable {
     endDate: Date,
     isAllDay: Bool,
     isRecurring: Bool = false,
-    calendarTitle: String
+    calendarTitle: String,
+    calendar: Calendar = .current,
+    availability: CalendarEventAvailability = .notSupported
   ) {
-    self.id = id
-    self.hasStableLocalIdentity = hasStableLocalIdentity
-    self.eventIdentifier = eventIdentifier
-    self.externalIdentifier = externalIdentifier
-    self.lastModifiedDate = lastModifiedDate
-    self.title = title
-    self.location = location
-    self.latitude = latitude
-    self.longitude = longitude
-    self.startDate = startDate
-    self.endDate = endDate
-    self.isAllDay = isAllDay
-    self.isRecurring = isRecurring
-    self.calendarTitle = calendarTitle
+    let temporal: CalendarEventTime
+    if isAllDay {
+      let start = CalendarCivilDate(startDate, calendar: calendar)
+      var end = CalendarCivilDate(endDate, calendar: calendar)
+      if end <= start {
+        let next = calendar.date(byAdding: .day, value: 1, to: startDate)!
+        end = CalendarCivilDate(next, calendar: calendar)
+      }
+      temporal = .allDay(start: start, endExclusive: end)
+    } else {
+      temporal = .absolute(start: startDate, end: endDate, timeZone: calendar.timeZone)
+    }
+    let recurrence: CalendarEventRecurrence? = if isRecurring {
+      CalendarEventRecurrence(
+        originalOccurrence: isAllDay
+          ? .allDay(CalendarCivilDate(startDate, calendar: calendar))
+          : .absolute(startDate),
+        isDetached: false)
+    } else {
+      nil
+    }
+    self.init(
+      id: id,
+      hasStableLocalIdentity: hasStableLocalIdentity,
+      eventIdentifier: eventIdentifier,
+      externalIdentifier: externalIdentifier,
+      lastModifiedDate: lastModifiedDate,
+      title: title,
+      location: location,
+      latitude: latitude,
+      longitude: longitude,
+      temporal: temporal,
+      availability: availability,
+      recurrence: recurrence,
+      calendarTitle: calendarTitle)
+  }
+
+  /// A deterministic materialization used only by legacy I/O code that needs an
+  /// absolute query value. Domain logic consumes `temporal` directly.
+  public var startDate: Date {
+    switch temporal {
+    case let .absolute(start, _, _):
+      start
+    case let .floating(start, _):
+      start.instant(in: TimeZone(secondsFromGMT: 0)!)!
+    case let .allDay(start, _):
+      start.date(in: TimeZone(secondsFromGMT: 0)!)!
+    }
+  }
+
+  public var endDate: Date {
+    switch temporal {
+    case let .absolute(_, end, _):
+      end
+    case let .floating(_, end):
+      end.instant(in: TimeZone(secondsFromGMT: 0)!)!
+    case let .allDay(_, endExclusive):
+      endExclusive.date(in: TimeZone(secondsFromGMT: 0)!)!
+    }
   }
 
   /// The single gate deciding whether this event may drive a *shared* itinerary
@@ -71,16 +155,13 @@ public struct CalendarObservedEvent: Equatable, Sendable, Identifiable {
   /// - `externalIdentifier != nil` — a server identity from a shared iCloud/CalDAV
   ///   source. The EventKit adapter withholds this for local, birthday, Exchange,
   ///   and subscribed sources, whose IDs are device- or platform-specific.
-  /// - `!isAllDay` — an all-day span resolves through the device calendar, so two
-  ///   devices in different time zones can derive different commitments (ADR-0034).
-  /// - `!isRecurring` — occurrences share one external identity; deferred to Slice 4.
-  ///
-  /// The remaining requirement — a single-day timed span — is enforced separately
-  /// by `CalendarCommitment(event:)`, which yields no value for multi-day or
-  /// malformed spans. Everything ineligible is still observed and shown as a
-  /// candidate; it simply never mutates the synced plan until Slice 4 models it.
+  /// - a recurring event carries an original-occurrence anchor, making its identity
+  ///   independent of both the series and a detached occurrence's moved start.
+  /// - its temporal range is valid. All-day, floating, and cross-day timed events
+  ///   are first-class rather than being flattened through `Calendar.current`.
   public var isEligibleForSharedReconciliation: Bool {
-    externalIdentifier != nil && !isAllDay && !isRecurring
+    externalIdentifier != nil
+      && CalendarCommitment(event: self) != nil
   }
 }
 
@@ -165,18 +246,25 @@ public struct CalendarReconciliationCandidate: Equatable, Sendable, Identifiable
 /// different day is not evidence that the event is the same commitment.
 public enum CalendarReconciliation {
   public static func candidates(
-    for events: [CalendarIngestedEvent], trip: Trip, plan: TripPlan
+    for events: [CalendarIngestedEvent], trip: Trip, plan: TripPlan,
+    calendar: Calendar = .current
   ) -> [CalendarReconciliationCandidate] {
     events.map { event in
-      CalendarReconciliationCandidate(input: event, result: result(for: event, trip: trip, plan: plan))
+      CalendarReconciliationCandidate(
+        input: event,
+        result: result(for: event, trip: trip, plan: plan, calendar: calendar))
     }
   }
 
   public static func result(
-    for input: CalendarIngestedEvent, trip: Trip, plan: TripPlan
+    for input: CalendarIngestedEvent, trip: Trip, plan: TripPlan,
+    calendar: Calendar = .current
   ) -> CalendarReconciliationResult {
     guard let startDate = trip.startDate else { return .unmatched }
-    let dayNumber = Trip.dayNumber(forPinnedDate: input.event.startDate, startDate: startDate)
+    let tripStart = CalendarCivilDate(startDate, calendar: calendar)
+    guard let dayNumber = input.event.temporal.nativeStartDate.dayNumber(since: tripStart) else {
+      return .unmatched
+    }
     guard (1...trip.lengthInDays).contains(dayNumber) else { return .unmatched }
     let stops = plan.itinerary.first(where: { $0.number == dayNumber })?.stops ?? []
 
@@ -216,7 +304,7 @@ public enum CalendarReconciliation {
     localState: CalendarReconciliationLocalState,
     observedAt: Date,
     makeHistoryID: () -> UUID,
-    calendar: Calendar = .current
+    calendar _: Calendar = .current
   ) -> CalendarReconciliationAutomaticPlan {
     var state = localState
     var applications: [CalendarReconciliationApplication] = []
@@ -224,11 +312,11 @@ public enum CalendarReconciliation {
 
     for candidate in candidates {
       let event = candidate.input.event
-      // The shared boundary: an ineligible event (local/Exchange/subscribed source,
-      // all-day, or recurring) is observed and shown as a candidate but never binds,
-      // records history, applies to the synced itinerary, or promotes a ledger row.
+      // The shared boundary: an event without server identity, a valid temporal
+      // range, or a recurrence occurrence anchor remains visible but never binds,
+      // writes the itinerary, or promotes a shared ledger row.
       guard event.isEligibleForSharedReconciliation else { continue }
-      guard let commitment = CalendarCommitment(event: event, calendar: calendar) else { continue }
+      guard let commitment = CalendarCommitment(event: event) else { continue }
 
       if let index = state.linkedStops.firstIndex(where: { $0.eventID == event.id }) {
         let linked = state.linkedStops[index]
@@ -272,8 +360,7 @@ public enum CalendarReconciliation {
 
     recordOutsideTripObservations(
       outsideTripObservations, in: &state,
-      observedAt: observedAt, makeHistoryID: makeHistoryID,
-      calendar: calendar)
+      observedAt: observedAt, makeHistoryID: makeHistoryID)
 
     return CalendarReconciliationAutomaticPlan(applications: applications, localState: state)
   }
@@ -293,14 +380,13 @@ public enum CalendarReconciliation {
     _ observations: [CalendarBoundEventObservation],
     in state: inout CalendarReconciliationLocalState,
     observedAt: Date,
-    makeHistoryID: () -> UUID,
-    calendar: Calendar
+    makeHistoryID: () -> UUID
   ) {
     for observation in observations {
       let event = observation.event
       guard
         event.isEligibleForSharedReconciliation,
-        let commitment = CalendarCommitment(event: event, calendar: calendar),
+        let commitment = CalendarCommitment(event: event),
         let index = state.linkedStops.firstIndex(where: { $0.eventID == observation.bindingID })
       else { continue }
 

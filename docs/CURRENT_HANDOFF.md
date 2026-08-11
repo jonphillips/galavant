@@ -38,6 +38,18 @@ and device observation times never sync; two phones observing the same event cha
 therefore write the same record. Existing local Slice 2 history is deliberately not
 guessed into shared state because it lacks that cross-device source fingerprint.
 
+## In progress — M7 Slice 4 temporal subsystem (ADR-0034)
+
+Slice 4 (`codex/m7-s4-temporal-subsystem`) captures EventKit time as one of three
+semantic values: absolute instants with their display zone, floating civil date-time,
+or all-day civil ranges. Availability remains distinct from occupancy, so all-day,
+free, and tentative events do not manufacture hard-busy intervals. Recurrence binds
+one occurrence by its original scheduled anchor (including a detached/moved instance),
+never the whole series. The complete semantic commitment now round-trips through the
+shared ledger while legacy Slice 2 local history and Slice 3 ledger rows still decode.
+The remaining gate is the slice PR plus real Calendar dogfooding across home/travel
+zones and a modified recurring occurrence.
+
 ## Dogfood gate — M7 Slice 2 auto-apply + local history (ADR-0034)
 
 Slice 2 (`codex/m7-s2-auto-apply`) establishes only a device-local EventKit binding:
@@ -49,10 +61,12 @@ cover typed pins. Every link/update is retained as device-local review history. 
 linked event that is explicitly found outside the trip window is recorded as **moved
 outside this trip** without rewriting or deleting the itinerary stop; a missing lookup
 remains unknown, never deletion. A name-only proposal, duplicate automatic candidate,
-display-only fallback identity, or cross-day timed event also never writes. The synced
+display-only fallback identity, or malformed temporal range also never writes. Slice 4
+lifts Slice 2's former all-day, recurrence, and cross-day restrictions. The synced
 `TripIdea` cache is deliberately not a synced EventKit binding — the shared ledger
-does not make an EventKit binding global. Remaining gate: dogfood a real shared reservation,
-then inspect a later time/day move and a moved-outside-trip notice in local history.
+does not make an EventKit binding global. Remaining gate: dogfood a real shared
+reservation, then inspect a later time/day move and a moved-outside-trip notice in
+local history.
 
 The read-only proposal tier also flags a nearby, differently resolved Maps place when
 both sides have coordinates within 100m and share a meaningful normalized name token.

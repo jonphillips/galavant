@@ -26,6 +26,10 @@ public struct CalendarReconciliationLedgerEntry: Identifiable, Equatable, Sendab
   public var currentIsAllDay: Bool
   public var currentStartDate: Date
   public var currentEndDate: Date?
+  /// Complete temporal + availability snapshot. The original columns remain as
+  /// a backward-compatible projection for Slice 3 rows; this encoded value is the
+  /// authoritative representation for floating, all-day, and zoned semantics.
+  public var currentSnapshot: String?
 
   public init(
     id: UUID,
@@ -44,6 +48,7 @@ public struct CalendarReconciliationLedgerEntry: Identifiable, Equatable, Sendab
     self.currentIsAllDay = currentColumns.isAllDay
     self.currentStartDate = currentColumns.startDate
     self.currentEndDate = currentColumns.endDate
+    self.currentSnapshot = Self.encode(current)
   }
 
   /// Promotes a new Slice 2 history entry. It only promotes server-identified
@@ -70,7 +75,8 @@ public struct CalendarReconciliationLedgerEntry: Identifiable, Equatable, Sendab
   }
 
   public var current: CalendarCommitment? {
-    Self.commitment(
+    if let currentSnapshot, let decoded = Self.decode(currentSnapshot) { return decoded }
+    return Self.commitment(
       isAllDay: currentIsAllDay,
       startDate: currentStartDate,
       endDate: currentEndDate)
@@ -90,11 +96,14 @@ public struct CalendarReconciliationLedgerEntry: Identifiable, Equatable, Sendab
   private static func persistedColumns(
     for commitment: CalendarCommitment
   ) -> (isAllDay: Bool, startDate: Date, endDate: Date?) {
-    switch commitment {
-    case let .allDay(date):
-      (true, date, nil)
-    case let .timed(start, end):
-      (false, start, end)
+    let utc = TimeZone(secondsFromGMT: 0)!
+    switch commitment.temporal {
+    case let .absolute(start, end, _):
+      return (false, start, end)
+    case let .floating(start, end):
+      return (false, start.instant(in: utc)!, end.instant(in: utc)!)
+    case let .allDay(start, _):
+      return (true, start.date(in: utc)!, nil)
     }
   }
 
@@ -106,6 +115,16 @@ public struct CalendarReconciliationLedgerEntry: Identifiable, Equatable, Sendab
     guard let endDate else { return nil }
     return .timed(start: startDate, end: endDate)
   }
+
+  private static func encode(_ commitment: CalendarCommitment) -> String? {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.sortedKeys]
+    return try? String(decoding: encoder.encode(commitment), as: UTF8.self)
+  }
+
+  private static func decode(_ value: String) -> CalendarCommitment? {
+    try? JSONDecoder().decode(CalendarCommitment.self, from: Data(value.utf8))
+  }
 }
 
 /// Stable, hash-only identity for a Calendar source snapshot and the shared
@@ -114,9 +133,17 @@ public struct CalendarReconciliationLedgerEntry: Identifiable, Equatable, Sendab
 enum CalendarReconciliationFingerprint {
   static func source(for event: CalendarObservedEvent) -> String? {
     guard let sourceIdentity = nonEmpty(event.externalIdentifier) else { return nil }
-    let revision = event.lastModifiedDate.map(stable)
-      ?? [stable(event.startDate), stable(event.endDate), event.isAllDay ? "allDay" : "timed"].joined(separator: "|")
-    return digest("calendar-source-v1|\(sourceIdentity)|\(revision)")
+    if event.recurrence == nil,
+      case let .absolute(start, end, _) = event.temporal
+    {
+      // Preserve Slice 3 identity for the already-shipped ordinary timed case.
+      let revision = event.lastModifiedDate.map(stable)
+        ?? [stable(start), stable(end), "timed"].joined(separator: "|")
+      return digest("calendar-source-v1|\(sourceIdentity)|\(revision)")
+    }
+    let revision = event.lastModifiedDate.map(stable) ?? event.temporal.stableDescription
+    let occurrence = event.recurrence?.originalOccurrence.stableDescription ?? "standalone"
+    return digest("calendar-source-v2|\(sourceIdentity)|\(revision)|\(occurrence)")
   }
 
   static func outcome(
@@ -143,8 +170,8 @@ enum CalendarReconciliationFingerprint {
   private static func commitmentDescription(_ commitment: CalendarCommitment?) -> String {
     switch commitment {
     case .none: "none"
-    case let .allDay(date): "allDay:\(stable(date))"
-    case let .timed(start, end): "timed:\(stable(start)):\(stable(end))"
+    case let .some(commitment):
+      "\(commitment.temporal.stableDescription)|availability:\(commitment.availability.rawValue)"
     }
   }
 

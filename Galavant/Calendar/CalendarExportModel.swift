@@ -114,7 +114,7 @@ final class CalendarExportModel {
   }
 }
 
-// MARK: - M7 Slice 2 reconciliation
+// MARK: - M7 Calendar reconciliation
 
 /// Coordinates a fresh trip-scoped Calendar read, an app-side `PlaceMatcher`
 /// pass, the pure reconciliation ladder, and the local auto-apply plan. Only
@@ -147,7 +147,9 @@ final class CalendarReconciliationModel {
   var sharedHistory: [CalendarReconciliationLedgerEntry] { allLedgerEntries }
 
   func refresh(trip: Trip, plan: TripPlan) async {
-    guard let scope = scope(for: trip) else {
+    guard let scope = scope(for: trip),
+      let queryInterval = scope.queryInterval(in: .current)
+    else {
       state = .failure("Calendar reconciliation needs a dated trip.")
       return
     }
@@ -161,13 +163,18 @@ final class CalendarReconciliationModel {
       }
 
       localState = historyStore.state(trip.id)
-      let events = try calendarClient.events(scope)
+      // Query two padded days on either side, then let the pure civil/absolute
+      // scope discard the padding. Two days covers even the widest real-world
+      // zone separation at a trip-day boundary.
+      let events = try calendarClient.events(queryInterval).filter {
+        scope.overlaps($0.temporal)
+      }
       let ingestedEvents = try await ingest(events)
       candidates = CalendarReconciliation.candidates(for: ingestedEvents, trip: trip, plan: plan)
       let outsideTripObservations: [CalendarBoundEventObservation] = localState.linkedStops.compactMap { linked in
         guard
           let event = calendarClient.event(linked.eventID),
-          !overlaps(event, scope: scope)
+          !scope.overlaps(event.temporal)
         else { return nil }
         return CalendarBoundEventObservation(bindingID: linked.eventID, event: event)
       }
@@ -221,20 +228,14 @@ final class CalendarReconciliationModel {
     return ingested
   }
 
-  /// Full first and last civil days. M7 Slice 4 owns the durable travel-zone and
-  /// floating-time model; this read-only slice intentionally makes no such fact.
-  private func scope(for trip: Trip) -> DateInterval? {
+  /// Full first and last civil days. EventKit querying is padded separately so
+  /// this remains the pure semantic boundary for zoned, floating, and all-day time.
+  private func scope(for trip: Trip) -> CalendarTripScope? {
     guard let startDate = trip.startDate else { return nil }
     let calendar = Calendar.current
-    let start = calendar.startOfDay(for: startDate)
-    guard let end = calendar.date(byAdding: .day, value: trip.lengthInDays, to: start) else {
-      return nil
-    }
-    return DateInterval(start: start, end: end)
-  }
-
-  private func overlaps(_ event: CalendarObservedEvent, scope: DateInterval) -> Bool {
-    event.startDate < scope.end && event.endDate > scope.start
+    return CalendarTripScope(
+      start: CalendarCivilDate(startDate, calendar: calendar),
+      dayCount: trip.lengthInDays)
   }
 }
 
@@ -342,7 +343,7 @@ struct CalendarReconciliationSheet: View {
         .font(.caption)
         .foregroundStyle(.secondary)
       if let current = entry.current {
-        Text(current.pinnedDate, format: .dateTime.weekday().month().day().hour().minute())
+        Text(temporalDescription(current.temporal))
           .font(.caption)
           .foregroundStyle(.secondary)
       }
@@ -356,7 +357,7 @@ struct CalendarReconciliationSheet: View {
       Text(candidate.input.event.calendarTitle)
         .font(.caption)
         .foregroundStyle(.secondary)
-      Text(candidate.input.event.startDate, format: .dateTime.weekday().month().day().hour().minute())
+      Text(temporalDescription(candidate.input.event.temporal))
         .font(.caption)
         .foregroundStyle(.secondary)
       switch candidate.result {
@@ -383,6 +384,28 @@ struct CalendarReconciliationSheet: View {
     case .mapItemIdentifier: "the same Apple Maps place"
     case .exactName: "the exact place name"
     case .nameAndProximity: "a nearby place with a shared name"
+    }
+  }
+
+  private func temporalDescription(_ temporal: CalendarEventTime) -> String {
+    switch temporal {
+    case let .absolute(start, _, timeZone):
+      var style = Date.FormatStyle(date: .abbreviated, time: .shortened)
+      style.timeZone = timeZone
+      return start.formatted(style)
+    case let .floating(start, _):
+      return String(
+        format: "%d/%d/%04d %02d:%02d (floating)",
+        start.date.month, start.date.day, start.date.year, start.hour, start.minute)
+    case let .allDay(start, endExclusive):
+      if endExclusive == start.adding(days: 1) {
+        return String(format: "%d/%d/%04d (all day)", start.month, start.day, start.year)
+      }
+      let inclusiveEnd = endExclusive.adding(days: -1) ?? endExclusive
+      return String(
+        format: "%d/%d/%04d–%d/%d/%04d (all day)",
+        start.month, start.day, start.year,
+        inclusiveEnd.month, inclusiveEnd.day, inclusiveEnd.year)
     }
   }
 }

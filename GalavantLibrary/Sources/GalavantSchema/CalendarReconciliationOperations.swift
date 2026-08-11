@@ -2,8 +2,8 @@ import Foundation
 import SQLiteData
 
 extension TripIdea {
-  /// Apply an ordinary, already-validated Calendar commitment to a linked stop.
-  /// This is the only Slice 2 writer for Calendar-authoritative time: it updates
+  /// Apply an already-validated Calendar commitment to a linked stop.
+  /// This is the Calendar-authoritative time writer: it updates
   /// the synced display cache while the EventKit binding itself remains local in
   /// `CalendarReconciliationHistoryStore`. It intentionally preserves the user's
   /// free-form booking details; Calendar supplied time, not those notes.
@@ -16,8 +16,9 @@ extension TripIdea {
     guard let existing = try TripIdea.find(stopID).fetchOne(db),
       let startDate = try Trip.find(existing.tripID).fetchOne(db)?.startDate
     else { return }
-    let day = Trip.dayNumber(forPinnedDate: commitment.pinnedDate, startDate: startDate)
-    let schedule = commitment.schedule(on: day, calendar: calendar)
+    let tripStart = CalendarCivilDate(startDate, calendar: calendar)
+    guard let day = commitment.temporal.nativeStartDate.dayNumber(since: tripStart) else { return }
+    let schedule = commitment.schedule(on: day)
     switch schedule {
     case let .day(day):
       try TripIdea.find(stopID)
