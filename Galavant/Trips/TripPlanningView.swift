@@ -65,8 +65,7 @@ struct TripPlanningView: View {
       isPresented: $showingCalendarReconciliation
     ) {
       TripHeaderPresentationHost(model: model, isPresented: $showingHeaderPicker) {
-        MapPlacePresentationHost(model: model) {
-          layout
+        layout
       // Inspector nested *below* the toolbar host: an `.inspector` applied outside a
       // toolbar-bearing view swallows its `.toolbar` on iPad (docs/KNOWN-ISSUES.md).
       .chatPanel(isPresented: $showingChat, context: .trip(model.plan))
@@ -161,7 +160,6 @@ struct TripPlanningView: View {
       .sheet(isPresented: $showingStartDay) {
         StartDayPanel(model: model)
       }
-        }
       }
     }
   }
@@ -224,24 +222,6 @@ struct TripPlanningView: View {
   }
 }
 
-/// The normal confirm-and-tweak form for a directly selected Apple Maps POI. The
-/// save label makes the second half of the action explicit: it also lands on the
-/// trip's shortlist, never directly on the itinerary.
-private struct MapPlaceIdeaSheet: View {
-  let model: TripPlanningModel
-  let presentation: MapPlaceIdea
-
-  var body: some View {
-    IdeaFormView(
-      draft: presentation.draft,
-      searchRegions: model.tripRegions,
-      saveTitle: "Save & Add to Trip"
-    ) { ideaID in
-      model.addNewIdeaToShortlist(ideaID)
-    }
-  }
-}
-
 /// Extracted from the planning host's modifier chain so the Xcode beta compiler
 /// can type-check the map-first sheet alongside the existing reconciliation UI.
 private struct CalendarReconciliationPresentationHost<Content: View>: View {
@@ -263,20 +243,6 @@ private struct CalendarReconciliationPresentationHost<Content: View>: View {
           )
         }
     }
-  }
-}
-
-/// Isolates the new POI capture sheet from the existing trip-edit presentations.
-private struct MapPlacePresentationHost<Content: View>: View {
-  let model: TripPlanningModel
-  @ViewBuilder let content: Content
-
-  var body: some View {
-    @Bindable var model = model
-    content
-      .sheet(item: $model.destination.mapPlaceIdea, id: \.id) { presentation in
-        MapPlaceIdeaSheet(model: model, presentation: presentation)
-      }
   }
 }
 

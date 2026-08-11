@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		016DF429F8301AE8171A5C94 /* MapPlaceResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 208207E0BC551E1C0AA0E597 /* MapPlaceResolver.swift */; };
 		0287A6CD02AFDA26119DD050 /* SettingsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE3B27C919A28992FDEB2A3D /* SettingsModel.swift */; };
 		076EC78EEEA664F8BF4FC53F /* CalendarExportClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51AA50E3CB7A4D6C5DD50110 /* CalendarExportClient.swift */; };
 		0A4F2D930190CC5D4B629BCC /* SQLiteData in Frameworks */ = {isa = PBXBuildFile; productRef = EB30B546BC69ECE08A9C6766 /* SQLiteData */; };
@@ -46,6 +47,7 @@
 		666F98ED751CC0C6994CFED4 /* CloudSyncKit in Frameworks */ = {isa = PBXBuildFile; productRef = BAB8971211A0C3E3E9C18A40 /* CloudSyncKit */; };
 		66E8ED4BF33E10641C5CA1D9 /* TripsListModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07FF30B2A97AE7158A524026 /* TripsListModel.swift */; };
 		686D8E04502200DBC618B751 /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF473C91775923ADF6F5FDEF /* AppRouter.swift */; };
+		6D4B81713C707877850A54BD /* MapPlaceSearchOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = C03BF0F90A008DC4A1E8E3BA /* MapPlaceSearchOverlay.swift */; };
 		6DFEFA57B8BACC403A250F18 /* ShareSeedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8885060D462E6E53320A2831 /* ShareSeedTests.swift */; };
 		771BA3D003504F4DE062AFFB /* StartDayPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B2DC50A26F7695EC3EC536A /* StartDayPanel.swift */; };
 		79754521E12644FF3AA51458 /* GalavantCaptureUI in Frameworks */ = {isa = PBXBuildFile; productRef = 45FB64BD9AB6BD913C67BFEA /* GalavantCaptureUI */; };
@@ -148,6 +150,7 @@
 		1D62672E298B917B0707B6F4 /* TagManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagManagerView.swift; sourceTree = "<group>"; };
 		1EF8BE4704C36D1A6FFB14D6 /* IdeaRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaRow.swift; sourceTree = "<group>"; };
 		201134A6F0FAB081A677EB63 /* AISettingsSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AISettingsSections.swift; sourceTree = "<group>"; };
+		208207E0BC551E1C0AA0E597 /* MapPlaceResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapPlaceResolver.swift; sourceTree = "<group>"; };
 		292BC932AEA1B53EB11DA125 /* InterestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterestView.swift; sourceTree = "<group>"; };
 		2B2DC50A26F7695EC3EC536A /* StartDayPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartDayPanel.swift; sourceTree = "<group>"; };
 		2CD37357C07AFC3DAE3CDAE7 /* DemoFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoFixtures.swift; sourceTree = "<group>"; };
@@ -192,6 +195,7 @@
 		BAA9983C3B6D9D9B731F96F9 /* DayChipBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayChipBar.swift; sourceTree = "<group>"; };
 		BC5C21FC298AEA29CFE09DC6 /* TripsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripsScreen.swift; sourceTree = "<group>"; };
 		C01187279655F718B34FA9DC /* ChatPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatPanelView.swift; sourceTree = "<group>"; };
+		C03BF0F90A008DC4A1E8E3BA /* MapPlaceSearchOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapPlaceSearchOverlay.swift; sourceTree = "<group>"; };
 		C071E50FDA62E29FC448F993 /* GalavantLibrary */ = {isa = PBXFileReference; lastKnownFileType = folder; name = GalavantLibrary; path = GalavantLibrary; sourceTree = SOURCE_ROOT; };
 		C0A1B810182571FD874E4261 /* SyncSeedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncSeedTests.swift; sourceTree = "<group>"; };
 		C5AD27A1248EEA1D9B580277 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
@@ -406,6 +410,8 @@
 				CC16D0C39AA361A09737B45F /* Galavant.entitlements */,
 				43AABFB8B03E2303AECAF355 /* GalavantApp.swift */,
 				D8A01FBA56D01193ABBE48E6 /* Info.plist */,
+				208207E0BC551E1C0AA0E597 /* MapPlaceResolver.swift */,
+				C03BF0F90A008DC4A1E8E3BA /* MapPlaceSearchOverlay.swift */,
 				9D30DAE67801B102AE6F181F /* Browser */,
 				370543ACE0B28DE54D365B7E /* Calendar */,
 				1AF078CA6D50D1067E93FBCB /* Chat */,
@@ -657,6 +663,8 @@
 				3DF889FDCBE7A7C979E41F13 /* IdeasScreen.swift in Sources */,
 				474250E4E109ADF7680100C1 /* IdentityView.swift in Sources */,
 				4344BF96EA3F3DB017E4CCDF /* InterestView.swift in Sources */,
+				016DF429F8301AE8171A5C94 /* MapPlaceResolver.swift in Sources */,
+				6D4B81713C707877850A54BD /* MapPlaceSearchOverlay.swift in Sources */,
 				A3E2170E96CDF9C7D76B89E6 /* PlanningRow.swift in Sources */,
 				9C3779832B3D8728517D947A /* PoolMapView.swift in Sources */,
 				25A7842AF8875EEF8BFA2887 /* PrefersTabNavigation.swift in Sources */,

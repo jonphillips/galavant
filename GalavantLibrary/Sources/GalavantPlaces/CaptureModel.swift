@@ -183,7 +183,7 @@ public final class CaptureModel {
       var candidates: [CaptureDiagnostics.ScoredCandidate] = []
       if !query.isEmpty {
         do {
-          let hits = try await placeSearch.search(query, [])
+          let hits = try await placeSearch.search(query, .worldwide)
           candidates = hits.map { place in
             CaptureDiagnostics.ScoredCandidate(
               name: place.name,

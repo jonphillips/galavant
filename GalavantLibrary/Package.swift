@@ -15,6 +15,7 @@ let package = Package(
   dependencies: [
     .package(url: "https://github.com/pointfreeco/sqlite-data", from: "1.0.0"),
     .package(url: "https://github.com/pointfreeco/swift-dependencies", from: "1.0.0"),
+    .package(url: "https://github.com/pointfreeco/swift-custom-dump", from: "1.0.0"),
     .package(url: "https://github.com/scinfu/SwiftSoup", from: "2.7.0"),
     // The app-agnostic in-app browser, lifted out to jon-platform as a shared
     // package (jon-platform ADR-0002); consumed by local path.
@@ -84,6 +85,7 @@ let package = Package(
         "GalavantSchema",
         "GalavantCapture",
         .product(name: "LLMClientKit", package: "LLMClientKit"),
+        .product(name: "CustomDump", package: "swift-custom-dump"),
         .product(name: "DependenciesTestSupport", package: "swift-dependencies"),
       ]
     ),

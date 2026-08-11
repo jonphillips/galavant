@@ -52,6 +52,9 @@ struct TripCanvasMapView: View {
     .task(id: mapSelection) {
       await handleMapSelection()
     }
+    // The app presents its own confirm-and-tweak sheet after a POI selection, so
+    // don't put the system's Maps detail card in front of that flow.
+    .mapFeatureSelectionAccessory(nil)
     // The map's labels are useful only when they represent a place we can add.
     // Leave cities, regions, and physical geography nonselectable.
     .mapFeatureSelectionDisabled { feature in
@@ -69,10 +72,16 @@ struct TripCanvasMapView: View {
         ContentUnavailableView {
           Icon.map.label("Nothing on the map yet")
         } description: {
-          Text("Schedule stops that have a location to plot them here.")
+          Text("Tap an Apple Maps place to add an idea, or schedule a located stop.")
         }
-        .background(.background)
+        .allowsHitTesting(false)
       }
+    }
+    .overlay(alignment: .top) {
+      MapPlaceSearchOverlay(
+        visibleRegion: visibleRegion,
+        onSelect: model.mapPlaceTapped
+      )
     }
   }
 
@@ -132,11 +141,10 @@ struct TripCanvasMapView: View {
       return
     }
     guard let feature = mapSelection.feature, feature.kind == .pointOfInterest else { return }
-    guard
-      let item = try? await MKMapItemRequest(feature: feature).mapItem,
-      !Task.isCancelled
-    else { return }
-    model.addMapPlace(Place(mapItem: item))
+    let place = await MapPlaceResolver.place(for: feature)
+    guard !Task.isCancelled else { return }
+    await model.mapPlaceTapped(place)
+    guard !Task.isCancelled else { return }
     self.mapSelection = nil
   }
 

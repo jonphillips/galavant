@@ -19,6 +19,15 @@ final class PoolMapUITests: XCTestCase {
     // Flip the list/map segmented control to map.
     app.segmentedControls.buttons.element(boundBy: 1).tap()
 
+    let mapSearch = app.textFields["Search this map"]
+    XCTAssert(mapSearch.waitForExistence(timeout: 5))
+    XCTAssert(mapSearch.isHittable)
+    mapSearch.tap()
+    mapSearch.typeText("ca")
+    let clearSearch = app.buttons["Clear map search"]
+    XCTAssert(clearSearch.waitForExistence(timeout: 5))
+    clearSearch.tap()
+
     // With no pinned ideas, the map shows its empty state — proves the map
     // view renders and the toggle works without depending on live search.
     XCTAssert(

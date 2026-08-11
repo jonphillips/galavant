@@ -1,3 +1,4 @@
+import CustomDump
 import Dependencies
 import Foundation
 import GalavantSchema
@@ -21,16 +22,16 @@ import Testing
       address: "Refshalevej 96, Copenhagen"
     )
     await withDependencies {
-      $0.placeSearch.search = { query, regions in
-        #expect(query == "noma")
-        #expect(regions.isEmpty)
+      $0.placeSearch.search = { query, scope in
+        expectNoDifference(query, "noma")
+        expectNoDifference(scope, .worldwide)
         return [noma]
       }
     } operation: {
       let model = PlaceSearchModel()
       model.query = "noma"
       await model.searchTask?.value
-      #expect(model.results == [noma])
+      expectNoDifference(model.results, [noma])
     }
   }
 
@@ -56,15 +57,46 @@ import Testing
       latitudeDelta: 1, longitudeDelta: 1
     )
     await withDependencies {
-      $0.placeSearch.search = { query, regions in
-        #expect(query == "es:senz")
-        #expect(regions == [dolomites])
+      $0.placeSearch.search = { query, scope in
+        expectNoDifference(query, "es:senz")
+        expectNoDifference(scope, .regions([dolomites]))
         return []
       }
     } operation: {
       let model = PlaceSearchModel(regions: [dolomites])
       model.query = "es:senz"
       await model.searchTask?.value
+    }
+  }
+
+  @Test func changingTheViewportRerunsTheCurrentQuery() async {
+    let first = PlaceSearchViewport(
+      centerLatitude: 38.9,
+      centerLongitude: -77.0,
+      latitudeDelta: 0.5,
+      longitudeDelta: 0.5
+    )
+    let second = PlaceSearchViewport(
+      centerLatitude: 38.8,
+      centerLongitude: -77.1,
+      latitudeDelta: 0.25,
+      longitudeDelta: 0.25
+    )
+    let scopes = LockIsolated<[PlaceSearchScope]>([])
+    await withDependencies {
+      $0.placeSearch.search = { _, scope in
+        scopes.withValue { $0.append(scope) }
+        return []
+      }
+    } operation: {
+      let model = PlaceSearchModel(viewport: first)
+      model.query = "coffee"
+      await model.searchTask?.value
+
+      model.visibleRegionChanged(second)
+      await model.searchTask?.value
+
+      expectNoDifference(scopes.value, [.viewport(first), .viewport(second)])
     }
   }
 }

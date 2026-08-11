@@ -1,5 +1,6 @@
 import GalavantSchema
 import SwiftUI
+import SwiftUINavigation
 
 /// The list-based second projection of the trip canvas (M3d) — the same shared
 /// selection as the map, shown as a list. A segmented control swaps between the
@@ -18,6 +19,7 @@ struct TripDetailContent: View {
   var onChooseHeader: () -> Void = {}
 
   var body: some View {
+    @Bindable var model = model
     // The read-only detail drills down *within this panel* (the iPhone bottom
     // sheet / the iPad right column) so it never covers the map. It's an opaque
     // overlay swap keyed on `detailIdeaID`, deliberately *not* a nested
@@ -33,6 +35,9 @@ struct TripDetailContent: View {
       }
     }
     .animation(.snappy, value: model.detailIdeaID)
+    .sheet(item: $model.destination.mapPlaceIdea, id: \.id) { presentation in
+      MapPlaceIdeaSheet(model: model, presentation: presentation)
+    }
   }
 
   /// The drilled-in detail with its own back header (chevron labelled with the
@@ -120,6 +125,21 @@ struct TripDetailContent: View {
       } label: {
         Icon.add.label("Add")
       }
+    }
+  }
+}
+
+private struct MapPlaceIdeaSheet: View {
+  let model: TripPlanningModel
+  let presentation: MapPlaceIdea
+
+  var body: some View {
+    IdeaFormView(
+      draft: presentation.draft,
+      searchRegions: model.tripRegions,
+      saveTitle: "Save & Add to Trip"
+    ) { ideaID in
+      await model.mapPlaceIdeaSaved(ideaID)
     }
   }
 }
