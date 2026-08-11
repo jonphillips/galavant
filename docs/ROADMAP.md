@@ -416,14 +416,16 @@ the shipped export survives as a possible future deliberate "Add to Shared Calen
 Riskiest-unknown-first slices; nothing durable/synced is written until the semantics
 are proven locally. Full rationale + acceptance criteria in ADR-0034.
 
-- ⏳ **Slice 0 — spike (throwaway, gate).** Observe the shared calendar in a dated
+- ✅ **Slice 0 — spike (throwaway, gate).** Observed the shared calendar in a dated
   trip's scope, match one obvious event via `PlaceMatcher`, survive permission-revoked
   + moved-outside-trip, **no durable writes**. Confirms iOS 27 EventKit reality
-  against the SDK headers. Gates the rest. **Suggested executor: Opus** — past-cutoff
-  EventKit + the observation/permission edges are novel and foundational.
-- ⏳ **Slice 1 — read-only ingest + match + local view.** Trip-scoped ingestion;
+  against the SDK headers. Gate cleared by `codex/m7-s0-calendar-spike` (merged
+  2026-08-10). **Suggested executor: Opus** — past-cutoff EventKit + the
+  observation/permission edges are novel and foundational.
+- 🚧 **Slice 1 — read-only ingest + match + local view.** Trip-scoped ingestion;
   matching ladder + thresholds; a **local** (unsynced) reconciliation view. Proves
-  match quality on real calendars. **Opus.**
+  match quality on real calendars. Initial implementation: `codex/m7-s1-calendar-ingest`.
+  **Opus.**
 - ⏳ **Slice 2 — auto-apply + local history.** Unambiguous authoritative changes apply
   to linked stops; the `.linked`/`.manual` authority enum lands here (amends
   docs/trip-time-model.md §4); durable **local** review/resolution history. **Opus.**
