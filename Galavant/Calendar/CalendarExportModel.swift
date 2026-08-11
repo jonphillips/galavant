@@ -145,9 +145,16 @@ final class CalendarObservationSpikeModel {
     case failure(String)
   }
 
-  enum Notice: Equatable {
+  enum Notice: Equatable, Identifiable {
     case movedOutsideTrip(CalendarObservedEvent)
     case noLongerVisible(String)
+
+    var id: String {
+      switch self {
+      case let .movedOutsideTrip(event): "moved-\(event.id)"
+      case let .noLongerVisible(title): "gone-\(title)"
+      }
+    }
   }
 
   @ObservationIgnored @Dependency(\.calendarObservationClient) private var calendarClient
@@ -156,18 +163,38 @@ final class CalendarObservationSpikeModel {
 
   var state: State = .idle
   var candidates: [CalendarObservationCandidate] = []
-  var notice: Notice?
+  var notices: [Notice] = []
   /// Changes only when a user begins a fresh, ephemeral observation. The sheet's
   /// `.task(id:)` consumes the EventKit notification stream for this session and
   /// SwiftUI cancels it on dismissal.
   var observationSessionID: UUID?
-  private var watchedEvent: CalendarObservedEvent?
+  /// Every identifiable event this session has seen *while it was inside* the trip
+  /// window, keyed by `eventIdentifier`. This is the baseline the "moved vs.
+  /// deleted" safety check compares against. It is deliberately NOT limited to
+  /// events that matched an itinerary stop — the ADR-0034 property (loss of
+  /// visibility is never a deletion conclusion) must hold for *any* observed event,
+  /// and requiring a scheduled-stop match made the gate impossible to exercise.
+  /// Events without a stable identifier can be shown but never enter the baseline,
+  /// because the spike cannot honestly follow them after they leave the query.
+  private var baselineInScope: [String: CalendarObservedEvent] = [:]
+  /// The trip the baseline belongs to. This must outlive the sheet's view
+  /// lifecycle: the content is gated on a `@FetchAll`-derived `trip` that can
+  /// momentarily resolve nil on a foreground re-fetch and tear the sheet down
+  /// (firing `.onDisappear`). Keying the reset on trip identity — not on every
+  /// `begin()` — keeps the baseline across that churn, which is exactly the
+  /// fragility that argues for the durable reconciliation ledger in later slices.
+  private var lastObservedTripID: Trip.ID?
 
   func begin(trip: Trip, plan: TripPlan) async {
     observationSessionID = uuid()
-    watchedEvent = nil
+    if lastObservedTripID != trip.id {
+      // A genuinely different trip: start a fresh baseline. Re-entering the same
+      // trip (including a transient sheet-content rebuild) preserves it.
+      baselineInScope = [:]
+      lastObservedTripID = trip.id
+    }
     candidates = []
-    notice = nil
+    notices = []
     await refresh(trip: trip, plan: plan)
   }
 
@@ -189,12 +216,14 @@ final class CalendarObservationSpikeModel {
       guard !Task.isCancelled else { return }
 
       self.candidates = candidates
-      if watchedEvent == nil {
-        watchedEvent = candidates.first {
-          $0.itineraryStopTitle != nil && $0.event.eventIdentifier != nil
-        }?.event
+      // Grow the in-scope baseline with every identifiable event currently in the
+      // trip window, so any of them can later be recognized as moved-or-gone.
+      for event in events {
+        if let identifier = event.eventIdentifier {
+          baselineInScope[identifier] = event
+        }
       }
-      updateNotice(scope: scope, visibleEvents: events)
+      updateNotices(scope: scope, visibleEvents: events)
       state = .observed
     } catch is CancellationError {
       // Sheet dismissal is normal lifecycle cancellation, not a calendar failure.
@@ -214,8 +243,11 @@ final class CalendarObservationSpikeModel {
   }
 
   func end() {
+    // Only stop the EventKit change stream (via the session id the sheet's
+    // `.task(id:)` observes). Deliberately keep `baselineInScope`: `.onDisappear`
+    // also fires on transient content teardown, and clearing the baseline here is
+    // what previously erased the "moved outside trip" comparison mid-session.
     observationSessionID = nil
-    watchedEvent = nil
   }
 
   private func candidates(
@@ -266,21 +298,21 @@ final class CalendarObservationSpikeModel {
     }
   }
 
-  private func updateNotice(scope: DateInterval, visibleEvents: [CalendarObservedEvent]) {
-    guard let watchedEvent, let eventIdentifier = watchedEvent.eventIdentifier,
-      !visibleEvents.contains(where: { $0.eventIdentifier == eventIdentifier })
-    else {
-      notice = nil
-      return
-    }
-    if let current = calendarClient.event(eventIdentifier), !scope.contains(current.startDate) {
-      notice = .movedOutsideTrip(current)
-    } else {
-      // `event(withIdentifier:) == nil` can be a deletion, a changed EventKit
-      // identifier, unavailable account, or incomplete sync. Slice 0 proves that
-      // this loss of visibility cannot trigger a destructive conclusion.
-      notice = .noLongerVisible(watchedEvent.title)
-    }
+  private func updateNotices(scope: DateInterval, visibleEvents: [CalendarObservedEvent]) {
+    let visibleIdentifiers = Set(visibleEvents.compactMap(\.eventIdentifier))
+    notices = baselineInScope
+      .sorted { $0.value.startDate < $1.value.startDate }
+      .compactMap { identifier, seen -> Notice? in
+        // Still in the trip window — nothing to report.
+        guard !visibleIdentifiers.contains(identifier) else { return nil }
+        if let current = calendarClient.event(identifier), !scope.contains(current.startDate) {
+          return .movedOutsideTrip(current)
+        }
+        // `event(withIdentifier:) == nil` can be a deletion, a changed EventKit
+        // identifier, unavailable account, or incomplete sync. Slice 0 proves that
+        // this loss of visibility cannot trigger a destructive conclusion.
+        return .noLongerVisible(seen.title)
+      }
   }
 
   /// Full first and last civil days, as required by ADR-0034. The exact
@@ -305,6 +337,7 @@ struct CalendarObservationSpikeSheet: View {
   let trip: Trip
   let plan: TripPlan
   @Environment(\.dismiss) private var dismiss
+  @Environment(\.scenePhase) private var scenePhase
 
   var body: some View {
     @Bindable var model = model
@@ -314,6 +347,19 @@ struct CalendarObservationSpikeSheet: View {
           Text("M7 Slice 0 — read-only EventKit observation. Results stay only in memory; nothing is linked, written, or exported.")
             .font(.footnote)
             .foregroundStyle(.secondary)
+        }
+
+        if !model.notices.isEmpty {
+          Section("Observation Safety") {
+            ForEach(model.notices) { notice in
+              switch notice {
+              case let .movedOutsideTrip(event):
+                Text("\(event.title) moved outside this trip's dates. It is not treated as deleted.")
+              case let .noLongerVisible(title):
+                Text("\(title) is no longer visible to this observation. This is unknown, not a deletion.")
+              }
+            }
+          }
         }
 
         switch model.state {
@@ -350,17 +396,6 @@ struct CalendarObservationSpikeSheet: View {
             }
           }
         }
-
-        if let notice = model.notice {
-          Section("Observation Safety") {
-            switch notice {
-            case let .movedOutsideTrip(event):
-              Text("\(event.title) moved outside this trip's dates. It is not treated as deleted.")
-            case let .noLongerVisible(title):
-              Text("\(title) is no longer visible to this observation. This is unknown, not a deletion.")
-            }
-          }
-        }
       }
       .navigationTitle("Calendar Observation")
       .toolbar {
@@ -378,6 +413,14 @@ struct CalendarObservationSpikeSheet: View {
       .task(id: model.observationSessionID) {
         guard model.observationSessionID != nil else { return }
         await model.observeChanges(trip: trip, plan: plan)
+      }
+      // The async `EKEventStoreChanged` stream does not reliably deliver a change
+      // that happened while the app was backgrounded (e.g. the edit you just made
+      // in Calendar). Re-query deterministically whenever the app returns active.
+      .onChange(of: scenePhase) { _, phase in
+        if phase == .active {
+          Task { await model.refresh(trip: trip, plan: plan) }
+        }
       }
       .onDisappear { model.end() }
     }
