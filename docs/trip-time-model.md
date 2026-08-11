@@ -103,6 +103,24 @@ actually creates such a stop, and it pairs naturally with the metadata and the
 day-relative model; it does not re-open it. Until then, bookings are entered as
 day-relative `.timed` stops on a dated trip, which is faithful for display.
 
+**Amend — one time authority per stop (ADR-0034, 2026-08-10).** Once Galavant
+*ingests* the shared Apple Calendar (roadmap M7), a booked time has exactly **one**
+owner, not the three that were latent here (`pinnedDate`, a linked Calendar event, and
+a "last reconciled snapshot"):
+
+- **`.manual`** — `pinnedDate` (+ `confirmationNumber` / `bookingURL` / `partySize`)
+  is authoritative. A booking the user typed with no Calendar event. Editable in
+  Galavant, exactly as this section already describes.
+- **`.linked`** — a specific shared-Calendar event is authoritative for the time.
+  `pinnedDate` becomes a **read-only cache** of the last observed value, stamped with
+  an observed-at instant; the next observation refreshes it. Editing the time means
+  editing the Calendar event, not the Galavant copy.
+
+The M5-pinned principle stands (a confirmed booking keeps its real date when the trip
+slides); ADR-0034 only fixes *who owns* that date once a booking is Calendar-linked.
+The stored representation is an M7 slice decision (ADR-0006 flat columns; a nullable
+linked-event-identity + observed-at can discriminate the two without a stored enum).
+
 ## Staleness rule
 
 Opening days are scraped-or-typed snapshots and rot. The solver's output is

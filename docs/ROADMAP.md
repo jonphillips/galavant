@@ -259,37 +259,68 @@ opening a fresh Opus session is worth it.
 
 ## M5 — Polish & distribution
 
-Execution briefs for the "good daily two-person use" band — **sync health surface,
-pinned reservations, calendar export** — live in `docs/M5-EXECUTION.md` (paste one
-into a fresh session). They ride alongside the TestFlight / two-device push and are
-independent of the paused M6 AI thread.
+The daily-use implementation band is shipped: **sync health** and **pinned
+reservations**. The one-way **calendar export** also shipped, but its boundary is
+**superseded by ADR-0034** — the calendar story is now *ingest and reconcile* (M7),
+not *mirror out*; the shipped export is demoted to a possible future deliberate
+"Add to Shared Calendar" action, not a milestone gate. See `docs/M5-EXECUTION.md`
+for the remaining real-device/distribution verification spine.
 
-- iPad/Mac split-view layouts properly done
-- Weather chips on itinerary days: climate normals when far out/undated, WeatherKit forecast inside 10 days (docs/trip-canvas.md)
-- Unsplash header images (port GalavantLibrary's UnsplashSearch) if still wanted
-- Sync health surface: show whether CloudKit sync is active or local-only (silent degradation is fine for dev, not for two-person use)
-- TestFlight setup; app on wife's phone
-- Future/backlog: booking-window local notifications with time-of-day precision (the 3 a.m. hard-to-get-restaurant alarm — docs/recovered-requirements.md Q2)
-- ✅ Done when: both phones run it daily
+- ✅ Sync health clearly distinguishes active, local-only, syncing, and error states.
+- ✅ Confirmed reservations stay pinned to their absolute date when a trip moves.
+- ✅ One-way calendar export shipped (device-local `Galavant: <trip>`), then
+  **superseded as the calendar direction by ADR-0034**; its write machinery survives
+  as the future "Add to Shared Calendar" action.
+- ⏳ **M5 gate (calendar removed per ADR-0034):** complete the real two-device
+  CloudKit share-accept and change-sync test; ship a TestFlight build; deploy it to
+  Jon's wife's phone; verify image/BLOB round trips in CloudKit. This gate is now
+  independent of the calendar work.
+- Deferred polish remains optional: iPad/Mac refinement, weather, and any further
+  trip-header work. Booking-window notifications remain backlog, not an M5 gate.
+- ✅ Done when: both phones have used the TestFlight build against the same shared
+  travel party and the verification spine above has passed.
 
-## M6 — Intelligence *(designing)*
+## M6 — Intelligence *(rebaselined 2026-08-09)*
 
-The AI layer, from the 2026-06-22 design chat. Spine: **AI captures, enriches, and
-explains the pool — native-faithful and provenance-aware; it never silently becomes
-the authority and never makes the pull/route decision** (reinforces ADR-0004's
-explicit-pull boundary). Stays no-server (ADR-0001): on-device models + the user's
-own frontier key + on-device web fetch, never infra Jon runs. Slices are sequenced
-so each earns the next — substrate → knowledge model → enrichment → conversation.
-Per-slice hand-off prompts (precedents to clone, skill checkpoints, done-criteria)
-live in `docs/M6-EXECUTION.md` — paste one into a fresh session of the suggested
-model.
+M6 is no longer a presumed linear build sequence. Its durable posture remains:
+intelligence may capture, refine, and explain, but it does not silently become the
+authority or decide a pull/route (ADR-0004); it remains no-server (ADR-0001). The
+older ADRs record decisions and hypotheses, not a commitment to implement every
+remaining slice unchanged. `docs/M6-EXECUTION.md` is the current inventory and
+decision-gate brief.
 
-**Re-sequenced 2026-07-02:** a design pass split the remaining AI work into three
-threads — *discovery* (M6e / ADR-0018), *itinerary-aware suggestions* (M6g / ADR-0030),
-and *structured hours + the start-day solver* (M6f / ADR-0029). Despite the lettering,
-**build order is M6f → the M6e spike → M6g**: M6f is independent of discovery quality
-and the two-device beta and feeds M6g's "open that day" filter, so it's the safe first
-build; M6g is the synthesis and wants both M6e quality and M6f hours.
+**Current classes of intelligence:**
+
+- **Deterministic/domain computation:** scheduling/read models, the meal-aware
+  `StartDaySolver`, and domain queries stay ordinary tested application logic.
+- **Bounded on-device extraction/refinement:** `HoursExtractor` and
+  `EvaluationExtractor` are narrow fallbacks after deterministic page extraction;
+  `PlaceIntelligence` is a separate direct FoundationModels refinement surface.
+- **Embedded conversation:** chat is real and usable from the Ideas and Trip
+  surfaces. It remains in the product for now, but is subject to deliberate product
+  re-evaluation rather than automatic expansion.
+- **Frontier research/discovery:** `PlaceDiscoveryClient` exists as infrastructure
+  for a grounded frontier request. The downstream resolution, deduplication,
+  persistence, and discovery-review product have not shipped.
+- **External deliberation:** Yes Chef's late-bound conversational-product experiment
+  is useful dogfooding evidence only. It is not a Galavant requirement or an
+  implementation directive.
+
+**Questions to resolve only with real use:** whether embedded chat remains primary or
+becomes optional; whether chat's direct `create_idea` durable write survives a
+human-review-boundary review; whether frontier Place Discovery should proceed versus
+external conversational discovery; how `TravelProfile` becomes active domain
+preference state; and whether a richer authoritative trip-discussion projection is
+needed. Do not design a handoff schema or generalize the Yes Chef experiment before
+Galavant dogfooding earns it.
+
+### Historical M6 slice ledger — not an execution queue
+
+The entries retained below are an audit trail of the former planned sequence. Their
+old completion markers and suggested build order are not current status or approval
+to implement them. Use the rebaseline above and `docs/M6-EXECUTION.md` to select any
+future work; first establish the M5 real-device evidence, then take one decision-gated
+slice only.
 
 - ✅ **M6a — model-access substrate (ADR-0014, accepted 2026-06-22):** one
   injectable `ModelClient` boundary, two tiers — on-device `FoundationModels`
@@ -371,3 +402,47 @@ build; M6g is the synthesis and wants both M6e quality and M6f hours.
   pool/trip question on-device or with Jon's key; the start-day solver flags which trip
   start weekdays keep our restaurants open *for the meals we want*; and a day's "what
   could we do" suggestions add to the itinerary in one tap.
+
+## M7 — Calendar reconciliation *(proposed 2026-08-10, ADR-0034)*
+
+Reverses the shipped M5 calendar boundary: the couple's **existing shared Apple
+Calendar** is authoritative for real commitments; Galavant **ingests** in-scope
+events for a dated trip and **reconciles** them against the itinerary, rather than
+projecting a one-way `Galavant: <trip>` mirror. Intent stays Galavant's; commitment
+reality stays Calendar's; authoritative facts auto-apply, ambiguity and plan-repair
+are human decisions (ADR-0004). Trip-scoped, no privacy layer (two-person app, not
+the store), single time authority per stop (`.linked`/`.manual`). No auto-mirror-out;
+the shipped export survives as a possible future deliberate "Add to Shared Calendar."
+Riskiest-unknown-first slices; nothing durable/synced is written until the semantics
+are proven locally. Full rationale + acceptance criteria in ADR-0034.
+
+- ⏳ **Slice 0 — spike (throwaway, gate).** Observe the shared calendar in a dated
+  trip's scope, match one obvious event via `PlaceMatcher`, survive permission-revoked
+  + moved-outside-trip, **no durable writes**. Confirms iOS 27 EventKit reality
+  against the SDK headers. Gates the rest. **Suggested executor: Opus** — past-cutoff
+  EventKit + the observation/permission edges are novel and foundational.
+- ⏳ **Slice 1 — read-only ingest + match + local view.** Trip-scoped ingestion;
+  matching ladder + thresholds; a **local** (unsynced) reconciliation view. Proves
+  match quality on real calendars. **Opus.**
+- ⏳ **Slice 2 — auto-apply + local history.** Unambiguous authoritative changes apply
+  to linked stops; the `.linked`/`.manual` authority enum lands here (amends
+  docs/trip-time-model.md §4); durable **local** review/resolution history. **Opus.**
+- ⏳ **Slice 3 — synced shared ledger + cross-device dedup.** Promote the ledger to
+  CloudKit-shared state; the identity/fingerprint + dedup design. The hard one — only
+  after 1–2 prove the semantics. **Opus.**
+- ⏳ **Slice 4 — temporal subsystem.** Time-zone three-concept model, all-day / free /
+  tentative, recurrence-occurrence handling — pure core, heavily tested. **Opus.**
+- ⏳ **Slice 5 — Calendar-originated non-place constraints.** "Call Tax Advisor" as a
+  trip constraint with provenance-governed deletion; simplified by the no-privacy call.
+  **Suggested executor: Sonnet** if it reduces to a constraint record on precedent by
+  then; **Opus** if it still touches reconciliation semantics.
+- ⏳ **Slice 6 — plan-repair + anchors + freeze.** Surface conflicts from moved
+  commitments; feed anchors into `StartDaySolver` (ADR-0029); past-trip freeze on the
+  completion lifecycle. **Opus.**
+- ⏳ **Slice 7 — docs.** Flip ADR-0034 to accepted; final reconcile of ROADMAP /
+  M5-EXECUTION / trip-time-model / CURRENT_HANDOFF.
+- ⏳ Done when: a reservation booked in OpenTable (never entered in Galavant) appears
+  on the trip, its later time change auto-applies with a durable record, a
+  moved-outside-trip reservation is reported as moved (not deleted), a permission
+  failure infers no deletion, both phones converge on one shared reconciliation entry,
+  and a completed trip freezes so later calendar cleanup doesn't rewrite its history.
