@@ -78,6 +78,31 @@ public struct PlaceMatcher: Sendable {
     return await enriched(base, for: page)
   }
 
+  /// Resolve the place named by an external calendar event through the same Maps
+  /// ladder as web capture. Calendar reconciliation has no HTML document to parse,
+  /// but an event's title, optional structured-location coordinate, and free-form
+  /// location carry the equivalent signals. Keeping this adapter here means the M7
+  /// spike exercises `PlaceMatcher`, not a second name-matching implementation.
+  public func match(
+    calendarEventTitle title: String,
+    latitude: Double? = nil,
+    longitude: Double? = nil,
+    location: String? = nil
+  ) async -> LocationMatch? {
+    let coordinate: ParsedCoordinate? = if let latitude, let longitude {
+      ParsedCoordinate(latitude: latitude, longitude: longitude)
+    } else {
+      nil
+    }
+    return await match(
+      ParsedPage(
+        title: title,
+        coordinate: coordinate,
+        address: ParsedAddress(street: location)
+      )
+    )
+  }
+
   /// Walk the signal ladder to a first location, or nil if nothing pans out.
   private func resolve(_ page: ParsedPage, minimumScore: Int) async -> LocationMatch? {
     var searched: [String: [Place]] = [:]

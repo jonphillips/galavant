@@ -1,6 +1,8 @@
 import Dependencies
 import Foundation
+import GalavantPlaces
 import GalavantSchema
+import SwiftUI
 
 /// Drives the per-trip "Sync to Calendar" action (BACKLOG "Export itinerary to
 /// Apple Calendar / iCal"): compute this trip's calendar-export items (pure,
@@ -116,5 +118,268 @@ final class CalendarExportModel {
   /// the old one (v1 tradeoff, noted in the PR).
   private func calendarTitle(for trip: Trip) -> String {
     "Galavant: \(trip.name)"
+  }
+}
+
+// MARK: - M7 Slice 0 observation spike
+
+/// A candidate match the spike holds only while its sheet is on screen. This is
+/// deliberately a review value, not a binding: later slices decide the matching
+/// threshold and durable ledger semantics after this proves EventKit behavior.
+struct CalendarObservationCandidate: Equatable, Identifiable {
+  var event: CalendarObservedEvent
+  var placeName: String?
+  var itineraryStopTitle: String?
+
+  var id: String { event.id }
+}
+
+@MainActor
+@Observable
+final class CalendarObservationSpikeModel {
+  enum State: Equatable {
+    case idle
+    case observing
+    case accessDenied
+    case observed
+    case failure(String)
+  }
+
+  enum Notice: Equatable {
+    case movedOutsideTrip(CalendarObservedEvent)
+    case noLongerVisible(String)
+  }
+
+  @ObservationIgnored @Dependency(\.calendarObservationClient) private var calendarClient
+  @ObservationIgnored @Dependency(\.placeMatcher) private var placeMatcher
+  @ObservationIgnored @Dependency(\.uuid) private var uuid
+
+  var state: State = .idle
+  var candidates: [CalendarObservationCandidate] = []
+  var notice: Notice?
+  /// Changes only when a user begins a fresh, ephemeral observation. The sheet's
+  /// `.task(id:)` consumes the EventKit notification stream for this session and
+  /// SwiftUI cancels it on dismissal.
+  var observationSessionID: UUID?
+  private var watchedEvent: CalendarObservedEvent?
+
+  func begin(trip: Trip, plan: TripPlan) async {
+    observationSessionID = uuid()
+    watchedEvent = nil
+    candidates = []
+    notice = nil
+    await refresh(trip: trip, plan: plan)
+  }
+
+  func refresh(trip: Trip, plan: TripPlan) async {
+    guard let scope = scope(for: trip) else {
+      state = .failure("This spike only observes dated trips.")
+      return
+    }
+    state = .observing
+    do {
+      let granted = try await calendarClient.requestFullAccess()
+      guard granted, calendarClient.hasFullAccess() else {
+        state = .accessDenied
+        return
+      }
+
+      let events = try calendarClient.events(scope)
+      let candidates = await candidates(for: events, plan: plan)
+      guard !Task.isCancelled else { return }
+
+      self.candidates = candidates
+      if watchedEvent == nil {
+        watchedEvent = candidates.first {
+          $0.itineraryStopTitle != nil && $0.event.eventIdentifier != nil
+        }?.event
+      }
+      updateNotice(scope: scope, visibleEvents: events)
+      state = .observed
+    } catch is CancellationError {
+      // Sheet dismissal is normal lifecycle cancellation, not a calendar failure.
+    } catch {
+      state = .failure(error.localizedDescription)
+    }
+  }
+
+  /// Re-queries after EventKit says its database (including access) changed. This
+  /// does not retain an EventKit object: Apple's header says all fetched events are
+  /// invalid after the notification, so every pass starts from fresh value snapshots.
+  func observeChanges(trip: Trip, plan: TripPlan) async {
+    for await _ in calendarClient.changes() {
+      guard !Task.isCancelled else { return }
+      await refresh(trip: trip, plan: plan)
+    }
+  }
+
+  func end() {
+    observationSessionID = nil
+    watchedEvent = nil
+  }
+
+  private func candidates(
+    for events: [CalendarObservedEvent], plan: TripPlan
+  ) async -> [CalendarObservationCandidate] {
+    var result: [CalendarObservationCandidate] = []
+    for event in events {
+      guard !Task.isCancelled else { return [] }
+      let place = await placeMatcher.match(
+        calendarEventTitle: event.title,
+        latitude: event.latitude,
+        longitude: event.longitude,
+        location: event.location
+      )
+      let stop = matchingStop(
+        named: place?.name ?? event.title,
+        mapItemIdentifier: place?.mapItemIdentifier,
+        in: plan
+      )
+      result.append(
+        CalendarObservationCandidate(
+          event: event,
+          placeName: place?.name,
+          itineraryStopTitle: stop?.content.title
+        )
+      )
+    }
+    return result
+  }
+
+  /// The spike only displays an obvious candidate; it never establishes a link.
+  /// Exact Maps identity wins when both sides have it. The existing PlaceMatching
+  /// score is the fallback, so calendar does not grow a second text matcher.
+  private func matchingStop(
+    named name: String,
+    mapItemIdentifier: String?,
+    in plan: TripPlan
+  ) -> ResolvedStop? {
+    plan.scheduled.first { stop in
+      guard let idea = stop.idea else { return false }
+      if let mapItemIdentifier, idea.mapItemIdentifier == mapItemIdentifier { return true }
+      return PlaceMatching.score(
+        candidateName: name,
+        candidateStreet: "",
+        scrapedName: idea.name,
+        scrapedStreet: ""
+      ) > 0
+    }
+  }
+
+  private func updateNotice(scope: DateInterval, visibleEvents: [CalendarObservedEvent]) {
+    guard let watchedEvent, let eventIdentifier = watchedEvent.eventIdentifier,
+      !visibleEvents.contains(where: { $0.eventIdentifier == eventIdentifier })
+    else {
+      notice = nil
+      return
+    }
+    if let current = calendarClient.event(eventIdentifier), !scope.contains(current.startDate) {
+      notice = .movedOutsideTrip(current)
+    } else {
+      // `event(withIdentifier:) == nil` can be a deletion, a changed EventKit
+      // identifier, unavailable account, or incomplete sync. Slice 0 proves that
+      // this loss of visibility cannot trigger a destructive conclusion.
+      notice = .noLongerVisible(watchedEvent.title)
+    }
+  }
+
+  /// Full first and last civil days, as required by ADR-0034. The exact
+  /// trip-zone/floating-time model remains M7 Slice 4; this spike intentionally
+  /// exposes the installed EventKit query behavior before making that state durable.
+  private func scope(for trip: Trip) -> DateInterval? {
+    guard let startDate = trip.startDate else { return nil }
+    let calendar = Calendar.current
+    let start = calendar.startOfDay(for: startDate)
+    guard let end = calendar.date(byAdding: .day, value: trip.lengthInDays, to: start) else {
+      return nil
+    }
+    return DateInterval(start: start, end: end)
+  }
+}
+
+/// Small, removable M7 gate UI. It is intentionally a read-only diagnostics
+/// surface rather than the later reconciliation inbox: no action here writes the
+/// app database, links a stop, or changes Calendar.
+struct CalendarObservationSpikeSheet: View {
+  let model: CalendarObservationSpikeModel
+  let trip: Trip
+  let plan: TripPlan
+  @Environment(\.dismiss) private var dismiss
+
+  var body: some View {
+    @Bindable var model = model
+    NavigationStack {
+      List {
+        Section {
+          Text("M7 Slice 0 — read-only EventKit observation. Results stay only in memory; nothing is linked, written, or exported.")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
+
+        switch model.state {
+        case .idle, .observing:
+          Section { ProgressView("Observing shared calendars…") }
+        case .accessDenied:
+          Section("Calendar Access") {
+            Text("Full Calendar access is unavailable. This makes no deletion or plan-change decision.")
+          }
+        case let .failure(message):
+          Section("Observation Failed") { Text(message) }
+        case .observed:
+          if model.candidates.isEmpty {
+            ContentUnavailableView("No events in this trip's dates", systemImage: "calendar")
+          } else {
+            Section("Observed Events") {
+              ForEach(model.candidates) { candidate in
+                VStack(alignment: .leading, spacing: 4) {
+                  Text(candidate.event.title)
+                  Text(candidate.event.calendarTitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                  if let placeName = candidate.placeName {
+                    Text("PlaceMatcher: \(placeName)")
+                      .font(.caption)
+                  }
+                  if let stop = candidate.itineraryStopTitle {
+                    Text("Candidate itinerary match: \(stop)")
+                      .font(.caption)
+                      .foregroundStyle(.green)
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        if let notice = model.notice {
+          Section("Observation Safety") {
+            switch notice {
+            case let .movedOutsideTrip(event):
+              Text("\(event.title) moved outside this trip's dates. It is not treated as deleted.")
+            case let .noLongerVisible(title):
+              Text("\(title) is no longer visible to this observation. This is unknown, not a deletion.")
+            }
+          }
+        }
+      }
+      .navigationTitle("Calendar Observation")
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          Button("Done") { dismiss() }
+        }
+        ToolbarItem(placement: .primaryAction) {
+          Button("Refresh") {
+            Task { await model.refresh(trip: trip, plan: plan) }
+          }
+          .disabled(model.state == .observing)
+        }
+      }
+      .task { await model.begin(trip: trip, plan: plan) }
+      .task(id: model.observationSessionID) {
+        guard model.observationSessionID != nil else { return }
+        await model.observeChanges(trip: trip, plan: plan)
+      }
+      .onDisappear { model.end() }
+    }
   }
 }
