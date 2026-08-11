@@ -19,12 +19,13 @@ struct StopMenu: View {
   private var isFreeform: Bool {
     if case .freeform = stop.content { return true } else { return false }
   }
+  private var calendarLinked: Bool { model.calendarTimeAuthority(for: stopID) == .linked }
 
   var body: some View {
     let placed = schedule.dayNumber != nil
     let day = schedule.dayNumber ?? 1
     Menu {
-      if placed {
+      if placed, !calendarLinked {
         Menu("Time of Day") {
           Button {
             model.setSchedule(.day(day), for: stopID)
@@ -71,14 +72,18 @@ struct StopMenu: View {
       // number (docs/trip-time-model.md §4) — available whether the stop is
       // placed or still in the To-Be-Scheduled bucket, since pinning a dated
       // trip's stop places it immediately.
-      Button(
-        stop.entry.pinnedDate != nil ? "Edit Booking Details…" : "Pin Reservation…",
-        systemImage: Icon.pinnedReservation.systemName
-      ) {
-        model.editBooking(stop)
+      if calendarLinked {
+        Label("Time from Shared Calendar", systemImage: "calendar.badge.checkmark")
+      } else {
+        Button(
+          stop.entry.pinnedDate != nil ? "Edit Booking Details…" : "Pin Reservation…",
+          systemImage: Icon.pinnedReservation.systemName
+        ) {
+          model.editBooking(stop)
+        }
       }
       Divider()
-      if let length = model.trip?.lengthInDays {
+      if !calendarLinked, let length = model.trip?.lengthInDays {
         Menu(placed ? "Move to Day" : "Set Day") {
           ForEach(1...length, id: \.self) { n in
             Button {

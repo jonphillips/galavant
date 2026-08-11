@@ -648,6 +648,29 @@ struct TripTests {
     #expect(entry.dayNumber == 3)
   }
 
+  @Test func applyingCalendarCommitmentPinsAndTimesAStop() async throws {
+    let start = Date(timeIntervalSince1970: 1_700_000_000)
+    let commitmentStart = Calendar.current.date(byAdding: .day, value: 2, to: start)!
+    let commitmentEnd = Calendar.current.date(byAdding: .hour, value: 2, to: commitmentStart)!
+    let startComponents = Calendar.current.dateComponents([.hour, .minute], from: commitmentStart)
+    let endComponents = Calendar.current.dateComponents([.hour, .minute], from: commitmentEnd)
+    let expectedStart = String(format: "%02d:%02d", startComponents.hour!, startComponents.minute!)
+    let expectedEnd = String(format: "%02d:%02d", endComponents.hour!, endComponents.minute!)
+    let entry = try await database.write { db -> TripIdea in
+      let trip = try Trip.create(name: "Copenhagen", certainty: .dated(start: start), in: db)
+      let idea = try seedIdea(name: "Noma", in: db)
+      let pulled = try TripIdea.pull(ideaID: idea.id, into: trip.id, in: db)
+      try TripIdea.applyCalendarCommitment(
+        .timed(start: commitmentStart, end: commitmentEnd), stopID: pulled.id, in: db)
+      return try TripIdea.find(pulled.id).fetchOne(db)!
+    }
+
+    #expect(entry.pinnedDate == commitmentStart)
+    #expect(entry.status == .scheduled)
+    #expect(entry.dayNumber == 3)
+    #expect(entry.schedule == .timed(3, start: expectedStart, end: expectedEnd))
+  }
+
   // ADR-0004/§4: sliding a dated trip's start date re-derives every pinned
   // stop's dayNumber so it keeps landing on the same real date; a normal
   // day-relative stop (no pin) never moves.

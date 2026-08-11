@@ -156,9 +156,11 @@ extension CalendarObservedEvent {
       String(endDate.timeIntervalSinceReferenceDate), location ?? "",
     ].joined(separator: "|")
     let calendarItemIdentifier = event.calendarItemIdentifier
+    let stableIdentifier = eventIdentifier
+      ?? (calendarItemIdentifier.isEmpty ? nil : calendarItemIdentifier)
     self.init(
-      id: eventIdentifier
-        ?? (calendarItemIdentifier.isEmpty ? fallbackIdentifier : calendarItemIdentifier),
+      id: stableIdentifier ?? fallbackIdentifier,
+      hasStableLocalIdentity: stableIdentifier != nil,
       eventIdentifier: eventIdentifier,
       title: title,
       location: location,
@@ -179,6 +181,9 @@ struct CalendarIngestionClient: Sendable {
   var requestFullAccess: @Sendable () async throws -> Bool
   var hasFullAccess: @Sendable () -> Bool
   var events: @Sendable (_ interval: DateInterval) throws -> [CalendarObservedEvent]
+  /// Looks up one already-linked local EventKit event without treating a nil
+  /// result as deletion. This supports reporting a move beyond the trip window.
+  var event: @Sendable (_ identifier: String) -> CalendarObservedEvent?
 }
 
 extension CalendarIngestionClient: DependencyKey {
@@ -195,6 +200,11 @@ extension CalendarIngestionClient: DependencyKey {
         let predicate = box.store.predicateForEvents(
           withStart: interval.start, end: interval.end, calendars: nil)
         return box.store.events(matching: predicate).compactMap(CalendarObservedEvent.init(event:))
+      },
+      event: { identifier in
+        let event = box.store.event(withIdentifier: identifier)
+          ?? (box.store.calendarItem(withIdentifier: identifier) as? EKEvent)
+        return event.flatMap(CalendarObservedEvent.init(event:))
       }
     )
   }()
@@ -202,7 +212,8 @@ extension CalendarIngestionClient: DependencyKey {
   static let testValue = CalendarIngestionClient(
     requestFullAccess: { true },
     hasFullAccess: { true },
-    events: { _ in [] }
+    events: { _ in [] },
+    event: { _ in nil }
   )
 }
 

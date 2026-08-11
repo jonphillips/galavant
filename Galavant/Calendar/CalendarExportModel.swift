@@ -113,11 +113,12 @@ final class CalendarExportModel {
   }
 }
 
-// MARK: - M7 Slice 1 read-only ingest and reconciliation
+// MARK: - M7 Slice 2 reconciliation
 
 /// Coordinates a fresh trip-scoped Calendar read, an app-side `PlaceMatcher`
-/// pass, and the pure reconciliation ladder. Results are deliberately held only
-/// in memory: Slice 1 writes no EventKit record, app record, or local ledger.
+/// pass, the pure reconciliation ladder, and the local auto-apply plan. Only
+/// uniquely identified MapKit matches write an existing stop's Calendar-backed
+/// time; the EventKit binding and audit history remain device-local until Slice 3.
 @MainActor
 @Observable
 final class CalendarReconciliationModel {
@@ -131,9 +132,14 @@ final class CalendarReconciliationModel {
 
   @ObservationIgnored @Dependency(\.calendarIngestionClient) private var calendarClient
   @ObservationIgnored @Dependency(\.placeMatcher) private var placeMatcher
+  @ObservationIgnored @Dependency(\.calendarReconciliationHistoryStore) private var historyStore
+  @ObservationIgnored @Dependency(\.defaultDatabase) private var database
+  @ObservationIgnored @Dependency(\.date.now) private var now
+  @ObservationIgnored @Dependency(\.uuid) private var uuid
 
   var state: State = .idle
   var candidates: [CalendarReconciliationCandidate] = []
+  var localState = CalendarReconciliationLocalState()
 
   func refresh(trip: Trip, plan: TripPlan) async {
     guard let scope = scope(for: trip) else {
@@ -149,9 +155,34 @@ final class CalendarReconciliationModel {
         return
       }
 
+      localState = historyStore.state(trip.id)
       let events = try calendarClient.events(scope)
       let ingestedEvents = try await ingest(events)
       candidates = CalendarReconciliation.candidates(for: ingestedEvents, trip: trip, plan: plan)
+      let outsideTripObservations: [CalendarBoundEventObservation] = localState.linkedStops.compactMap { linked in
+        guard
+          let event = calendarClient.event(linked.eventID),
+          !overlaps(event, scope: scope)
+        else { return nil }
+        return CalendarBoundEventObservation(bindingID: linked.eventID, event: event)
+      }
+      let automaticPlan = CalendarReconciliation.automaticPlan(
+        candidates: candidates,
+        outsideTripObservations: outsideTripObservations,
+        localState: localState,
+        observedAt: now,
+        makeHistoryID: { uuid() })
+      if !automaticPlan.applications.isEmpty {
+        try await database.write { db in
+          for application in automaticPlan.applications {
+            try TripIdea.applyCalendarCommitment(application.commitment, stopID: application.stopID, in: db)
+          }
+        }
+      }
+      if automaticPlan.localState != localState {
+        historyStore.setState(trip.id, automaticPlan.localState)
+        localState = automaticPlan.localState
+      }
       state = .loaded
     } catch is CancellationError {
       // Sheet dismissal is normal view-lifecycle cancellation.
@@ -189,6 +220,10 @@ final class CalendarReconciliationModel {
     }
     return DateInterval(start: start, end: end)
   }
+
+  private func overlaps(_ event: CalendarObservedEvent, scope: DateInterval) -> Bool {
+    event.startDate < scope.end && event.endDate > scope.start
+  }
 }
 
 struct CalendarReconciliationSheet: View {
@@ -202,7 +237,7 @@ struct CalendarReconciliationSheet: View {
     NavigationStack {
       List {
         Section {
-          Text("Calendar is read-only here. These local results do not link, alter, or store anything yet.")
+          Text("Calendar is authoritative for high-confidence linked commitments. Applied updates are recorded locally on this device.")
             .font(.footnote)
             .foregroundStyle(.secondary)
         }
@@ -278,6 +313,37 @@ struct CalendarReconciliationSheet: View {
         }
       }
     }
+    if !model.localState.history.isEmpty {
+      Section("Calendar History") {
+        ForEach(model.localState.history.reversed()) { entry in
+          historyRow(entry)
+        }
+      }
+    }
+  }
+
+  private func historyRow(_ entry: CalendarReconciliationHistoryEntry) -> some View {
+    VStack(alignment: .leading, spacing: 4) {
+      Text(entry.eventTitle)
+      Text(historyDescription(entry.kind))
+        .font(.caption)
+        .foregroundStyle(.secondary)
+      Text(entry.current.pinnedDate, format: .dateTime.weekday().month().day().hour().minute())
+        .font(.caption)
+        .foregroundStyle(.secondary)
+    }
+    .accessibilityElement(children: .combine)
+  }
+
+  private func historyDescription(_ kind: CalendarReconciliationHistoryEntry.Kind) -> String {
+    switch kind {
+    case .linked:
+      "Linked to this itinerary stop."
+    case .updated:
+      "Calendar time updated automatically."
+    case .movedOutsideTrip:
+      "Moved outside this trip. Galavant kept the itinerary stop unchanged."
+    }
   }
 
   private func candidateRow(_ candidate: CalendarReconciliationCandidate) -> some View {
@@ -312,6 +378,7 @@ struct CalendarReconciliationSheet: View {
     switch basis {
     case .mapItemIdentifier: "the same Apple Maps place"
     case .exactName: "the exact place name"
+    case .nameAndProximity: "a nearby place with a shared name"
     }
   }
 }

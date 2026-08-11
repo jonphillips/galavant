@@ -164,7 +164,9 @@ struct TripPlanningView: View {
           )
         }
       }
-      .sheet(isPresented: $showingCalendarReconciliation) {
+      .sheet(isPresented: $showingCalendarReconciliation, onDismiss: {
+        model.reloadCalendarTimeAuthority()
+      }) {
         if let trip = model.trip {
           CalendarReconciliationSheet(
             model: calendarReconciliationModel,

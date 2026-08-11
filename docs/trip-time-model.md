@@ -118,8 +118,16 @@ a "last reconciled snapshot"):
 
 The M5-pinned principle stands (a confirmed booking keeps its real date when the trip
 slides); ADR-0034 only fixes *who owns* that date once a booking is Calendar-linked.
-The stored representation is an M7 slice decision (ADR-0006 flat columns; a nullable
-linked-event-identity + observed-at can discriminate the two without a stored enum).
+**Slice 2 representation (2026-08-11):** `TripIdea.pinnedDate` remains the synced,
+read-only cache of the applied Calendar date, while a device-local
+`CalendarReconciliationHistoryStore` holds the EventKit event identity, the last
+observed commitment, and observed-at instant keyed by stop. If the retained local
+identity explicitly finds the event outside the trip window, it records that observed
+commitment as moved outside the trip and leaves the itinerary cache unchanged; an
+unavailable lookup remains unknown. `CalendarTimeAuthority` is derived from that local
+binding (`.linked` when present, otherwise `.manual`), so an EventKit identifier never
+enters the CloudKit schema. Slice 3 will add the shared ledger/fingerprint; it must not
+turn this device-local binding into a synced identifier.
 
 ## Staleness rule
 

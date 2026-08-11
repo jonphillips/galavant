@@ -168,6 +168,7 @@ extension TripPlanningModel {
   /// Set a stop's day-relative placement (move it between days, add/clear a
   /// daypart or time). Marks it `scheduled`.
   func setSchedule(_ schedule: Schedule, for stopID: TripIdea.ID) {
+    guard calendarTimeAuthority(for: stopID) == .manual else { return }
     withErrorReporting {
       try database.write { db in
         try TripIdea.schedule(schedule, stopID: stopID, in: db)
@@ -183,6 +184,7 @@ extension TripPlanningModel {
   /// starts where it is. No-op for an unplaced stop (nothing to time). The write
   /// stays on the human tap: the sheet's Save calls `saveStopTime`.
   func editStopTime(_ stop: ResolvedStop) {
+    guard calendarTimeAuthority(for: stop.id) == .manual else { return }
     let schedule = stop.entry.schedule
     guard let day = schedule.dayNumber else { return }
     let seededStart: String
@@ -200,6 +202,7 @@ extension TripPlanningModel {
 
   /// Commit the clock-time editor: give the stop an exact `.timed` placement.
   func saveStopTime(_ draft: StopTimeDraft) {
+    guard calendarTimeAuthority(for: draft.stopID) == .manual else { return }
     setSchedule(.timed(draft.day, start: draft.start, end: draft.end), for: draft.stopID)
     destination = nil
   }
@@ -207,6 +210,7 @@ extension TripPlanningModel {
   /// Drop a stop's clock time, returning it to a bare "Anytime" placement on the
   /// same day (the editor's "Remove Time" affordance — mirrors StopMenu's Anytime).
   func clearStopTime(_ draft: StopTimeDraft) {
+    guard calendarTimeAuthority(for: draft.stopID) == .manual else { return }
     setSchedule(.day(draft.day), for: draft.stopID)
     destination = nil
   }
@@ -218,6 +222,7 @@ extension TripPlanningModel {
   /// calendar date on a dated trip, falling back to today — a reasonable first
   /// guess the human confirms or changes, never silently trusted.
   func editBooking(_ stop: ResolvedStop) {
+    guard calendarTimeAuthority(for: stop.id) == .manual else { return }
     let entry = stop.entry
     let seededDate =
       entry.pinnedDate
@@ -239,6 +244,7 @@ extension TripPlanningModel {
   /// `nil`). `TripIdea.setBooking` computes the resulting `dayNumber` when the
   /// trip is dated; on an undated trip the pin is stored inert.
   func saveBooking(_ draft: BookingDraft) {
+    guard calendarTimeAuthority(for: draft.stopID) == .manual else { return }
     let confirmation = draft.confirmationNumber.trimmingCharacters(in: .whitespacesAndNewlines)
     let url = draft.bookingURL.trimmingCharacters(in: .whitespacesAndNewlines)
     let partySize = Int(draft.partySize.trimmingCharacters(in: .whitespacesAndNewlines))
@@ -260,6 +266,7 @@ extension TripPlanningModel {
   /// Un-pin a stop's reservation (the editor's destructive "Remove Pin"),
   /// returning it to an ordinary day-relative stop sitting right where it was.
   func clearBooking(_ draft: BookingDraft) {
+    guard calendarTimeAuthority(for: draft.stopID) == .manual else { return }
     let stopID = draft.stopID
     withErrorReporting {
       try database.write { db in

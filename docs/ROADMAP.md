@@ -426,9 +426,10 @@ are proven locally. Full rationale + acceptance criteria in ADR-0034.
   matching ladder + thresholds; a **local** (unsynced) reconciliation view. Proves
   match quality on real calendars. Initial implementation: `codex/m7-s1-calendar-ingest`.
   **Opus.**
-- ⏳ **Slice 2 — auto-apply + local history.** Unambiguous authoritative changes apply
+- 🚧 **Slice 2 — auto-apply + local history.** Unambiguous authoritative changes apply
   to linked stops; the `.linked`/`.manual` authority enum lands here (amends
-  docs/trip-time-model.md §4); durable **local** review/resolution history. **Opus.**
+  docs/trip-time-model.md §4); durable **local** review/resolution history. Initial
+  implementation: `codex/m7-s2-auto-apply`. **Opus.**
 - ⏳ **Slice 3 — synced shared ledger + cross-device dedup.** Promote the ledger to
   CloudKit-shared state; the identity/fingerprint + dedup design. The hard one — only
   after 1–2 prove the semantics. **Opus.**
