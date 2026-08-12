@@ -167,9 +167,10 @@ free — a "lunch break" is the canonical floating stop.
 - **now-marker / travel legs (M3):** untimed stops remain timing-neutral (§4); no leg, no
   lateness — now made explicit rather than incidental.
 - **ADR-0006 (flat Trip/TripIdea columns):** `dayRank` is one additive flat column.
-- **ADR-0035 (itinerary backup plans):** the **primary** stop keeps all of this (`dayRank`,
-  anchored interleave) unchanged — it's an ordinary positioned stop; a **backup** is off-sequence
-  and carries no `dayRank` role, so `effectiveIntraDaySort` never sees it.
+- **ADR-0035 (itinerary alternatives):** the **active** member of an alternatives ring keeps all
+  of this (`dayRank`, anchored interleave) unchanged — it's an ordinary positioned stop; inactive
+  members share the slot but are off-sequence, so `effectiveIntraDaySort` only ever sees the
+  active one.
 
 ## Consequences
 

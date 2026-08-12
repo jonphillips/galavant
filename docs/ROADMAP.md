@@ -452,38 +452,40 @@ are proven locally. Full rationale + acceptance criteria in ADR-0034.
   failure infers no deletion, both phones converge on one shared reconciliation entry,
   and a completed trip freezes so later calendar cleanup doesn't rewrite its history.
 
-## M8 — Itinerary backup plans *(proposed 2026-08-12, ADR-0035; sequenced after M7)*
+## M8 — Itinerary alternatives *(proposed 2026-08-12, ADR-0035; sequenced after M7)*
 
-**Not started — finish M7 calendar reconciliation first.** A narrow itinerary feature,
-not a subsystem: **a stop may carry one or more off-sequence backups** — "plan on Baita Sanon
-Hütte; if it's closed/booked/we're not feeling it, Gostner Schwaige." Today the fallback can
-only be modeled as a second sequential stop, which fabricates a phantom travel leg between them
-and eats a second pin number. **Reframed 2026-08-12** from a symmetric "choice" (two co-equal
-candidates, one chosen, undecided until then) to an asymmetric **primary + backup**: the
-undecided state was the only thing forcing a read-model collapse fold and an "acknowledge
-uncertainty" routing gap. With an always-present primary, the day is always concretely linear —
-the **primary is an ordinary sequenced stop, unchanged; the backup is attached data that never
-enters the route** (filtered out at the scheduled-partition boundary), so `legs` /
+**Not started — finish M7 calendar reconciliation first.** A narrow itinerary feature, not a
+subsystem: **one itinerary slot may hold a ring of interchangeable options, exactly one active**
+— "lunch is Baita Sanon Hütte, or **cycle** to Gostner Schwaige and see how the day re-routes."
+Today the second option can only be a second sequential stop, which fabricates a phantom travel
+leg between them and eats a second pin number. **Twice-reframed 2026-08-12** — symmetric
+choice-with-undecided-state → primary+backup → **peer ring**: the expensive part was the
+*undecided* state (it forced a read-model collapse fold + an "acknowledge uncertainty" routing
+gap), not the grouping. Mandating **exactly one active member** removes both while keeping the
+options co-equal. The **active member is an ordinary sequenced stop, unchanged; inactive members
+are off-sequence** (filtered out at the scheduled-partition boundary), so `legs` /
 `locatedSequenceNumbers` / the weave are **untouched** and the phantom leg is structurally
-impossible. One additive loose `TripIdea.backupForStopID` column — no new table, no CloudKit
-registration change (ADR-0006/0007). Composes with the `StartDaySolver` (ADR-0029) and M7
-reconciliation: a backup is the ready-made fix when a primary fails a constraint. Distinct from
-Ideas (under consideration), optional/skippable stops, and branching. Full rationale + the 7
-acceptance criteria in ADR-0035.
+impossible. Two additive loose columns (`alternativeGroupID`, `isActive`); members share the
+slot, so **cycling is a single flag flip** — no slot copy, no preview (you cycle and see the real
+day). No new table, no CloudKit registration change (ADR-0006/0007). Composes with the
+`StartDaySolver` (ADR-0029) and M7 reconciliation: an alternative is the ready-made fix when the
+active option fails a constraint. Distinct from Ideas (under consideration), optional/skippable
+stops, and branching. Full rationale + the 7 acceptance criteria in ADR-0035.
 
-- ⏳ **Slice 1 — schema + off-sequence partition.** The `backupForStopID` column; a
-  `backupForStopID == nil` guard on `scheduled`/`itinerary`/`toBeScheduled`; a `backups(forStop:)`
-  projection; in-memory tests that a backup never appears in a day/bucket/leg and an ungrouped
-  trip is byte-identical to today. **Opus** — touches the read-model partition; wants the
-  byte-identical guardrail proven.
-- ⏳ **Slice 2 — write ops.** `addBackup` / `promoteBackup` (the slot swap) / `removeBackup`,
-  delete-primary-promotes-backup, and the orphan→To-Be-Scheduled reconcile. **Sonnet** — a
-  guarded ops slice on tested precedent; the swap + reconcile are the only judgment.
-- ⏳ **Slice 3 — UI.** The attached "Backup: …" timeline affordance (promote/edit/remove); the
-  muted-on-selection canvas pin (no polyline); `StopMenu` "Add as backup to…"; built and
-  installed on the iPad Pro 13-inch (M5) sim. **Opus** — SwiftUI row + canvas work.
+- ⏳ **Slice 1 — schema + active-only partition.** The two columns; an `&& isActive` guard on
+  `scheduled`/`itinerary`/`toBeScheduled`; an `alternatives(forStop:)` projection; in-memory tests
+  that an inactive member never appears in a day/bucket/leg, cycling changes only which member
+  routes, and an ungrouped trip is byte-identical to today. **Opus** — touches the read-model
+  partition; wants the byte-identical guardrail proven.
+- ⏳ **Slice 2 — write ops.** `addAlternative` / `cycleAlternative` / `setActiveAlternative` /
+  `removeAlternative`, delete-active-promotes-next, and the remnant/no-active reconcile;
+  exactly-one-active invariant tested. **Sonnet** — a guarded ops slice on tested precedent.
+- ⏳ **Slice 3 — UI.** The itinerary **disclosure row** (current choice + the alternatives,
+  tap-to-activate, add/remove) with an inline **cycle** (⟳) control + "N of M" badge; the
+  muted-on-expand canvas pins (no polyline); `StopMenu` "Add as alternative to…"; built and
+  installed on the iPad Pro 13-inch (M5) sim. **Opus** — SwiftUI expandable-row + canvas work.
 - ⏳ **Slice 4 — docs.** Flip ADR-0035 to accepted; ROADMAP / trip-canvas / trip-time-model notes.
-- ⏳ Done when: a stop carries a fallback that shows as a backup (not a second sequential stop),
-  no travel segment is drawn between them, the backup can be promoted later (incl. mid-trip) and
-  then drives the route, the demoted primary stays recoverable, and existing linear itineraries
-  are unchanged.
+- ⏳ Done when: a slot holds a ring of options shown as one active row with a disclosure to the
+  alternatives (not a second sequential stop), no travel segment is drawn between them, cycling
+  activates the next option (incl. mid-trip) and re-routes the day, the inactive options stay
+  recoverable, and existing linear itineraries are unchanged.
