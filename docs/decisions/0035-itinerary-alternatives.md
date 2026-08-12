@@ -1,221 +1,221 @@
-# ADR-0035: Itinerary alternatives — one itinerary position holds "A or B," exactly one chosen
+# ADR-0035: Itinerary backup plans — a primary stop with off-sequence fallbacks
 
-*Status: proposed — 2026-08-12. Extends ADR-0010 (freeform stops), ADR-0033 (floating untimed
-stops), and the M3 travel-leg timeline. Rides the ADR-0007 single-FK / reconcile-on-read pattern
-and ADR-0006 flat `TripIdea` columns — no new table. Prompted by a real Dolomites plan: lunch at
-**Baita Sanon Hütte OR Gostner Schwaige** — two candidates for one lunch slot that today can only
-be modeled as two sequential stops, which fabricates a travel leg between them.*
+*Status: proposed — 2026-08-12. **Reframed the same day** from a symmetric "choice" model
+(two co-equal candidates, exactly one chosen, an undecided state before resolution) to an
+**asymmetric primary + backup** after review: the undecided state was the sole source of the
+hard parts — a read-model collapse fold inside the tested leg/numbering core, and an
+"acknowledge uncertainty" routing gap. An always-present primary removes both. Extends
+ADR-0010 (freeform stops) and ADR-0033 (floating untimed stops); rides ADR-0007 (single-FK /
+reconcile-on-read) and ADR-0006 (flat `TripIdea` columns). Composes with ADR-0029
+(`StartDaySolver`) and M7 (calendar reconciliation) — a backup is the ready-made fix when a
+primary fails a constraint. Prompted by a real Dolomites plan: lunch at **Baita Sanon Hütte**
+with **Gostner Schwaige** as the fallback — today only expressible as two sequential stops,
+which fabricates a phantom travel leg between them.*
 
 ## Context
 
 The itinerary is a **flat list of `TripIdea` rows** projected into a linear day. Two of those
-projections are what make a day read as a line, and both are derived from **list adjacency**, not
-from any stored structure — so representing "A or B" as two rows breaks them:
+projections are what make a day read as a line, and both are derived from **list adjacency**:
 
 1. **Travel legs are zipped over consecutive located stops.** `TripPlan.legs(forDay:)`
    (GalavantSchema/TripPlan+Travel.swift:20) and the connector weave in
-   `TripPlan.itineraryItems(forDay:)` (TripPlan.swift:416) do `zip(stops, stops.dropFirst())` over
-   the day's located stops. Put Baita and Gostner adjacent in the list and the model **automatically
-   emits a Baita→Gostner leg** with an ETA — the exact falsehood we must not print. This is upstream
-   of the view; no UI treatment can suppress it.
+   `TripPlan.itineraryItems(forDay:)` (TripPlan.swift:416) do `zip(stops, stops.dropFirst())`
+   over the day's located stops. Put Baita and Gostner adjacent in the list and the model
+   **automatically emits a Baita→Gostner leg** with an ETA — the falsehood we must not print.
 
 2. **Pin/sequence numbers are positional.** `TripPlan.locatedSequenceNumbers(forDay:)`
-   (TripPlan.swift:312) numbers located stops by `enumerated()` position. Two alternatives eat two
-   numbers (3 *then* 4) instead of sharing one slot.
+   (TripPlan.swift:312) numbers located stops by `enumerated()` position — two stops eat two
+   numbers.
 
-Everything else that reads the itinerary — `itinerary`, `scheduled`, framing
-(`framingCoordinates`), the now-marker weave, the intra-day sort (`effectiveIntraDaySort`, ADR-0033)
-— also assumes **one row = one position**. There is no grouping concept between `TripIdea` rows
-today; `TripStay` (ADR-0011) and `TripDayRegion` (ADR-0012) are separate side-tables keyed by a loose
-UUID, not groupings *of* stops.
+The product need is narrow: *some stops have a fallback* — "plan on Baita; if it's closed,
+fully booked, or we're not feeling it, Gostner." The question is how to model the fallback so
+it doesn't lie about the route.
 
-This is not a new subsystem, and it is emphatically **not** a branching-itinerary graph. The product
-need is narrow: **one itinerary position may contain two or more candidate stops, exactly one of
-which is expected to be chosen.** The day stays linear. What's missing is a way to tell the read-model
-that a set of existing stops **collapse into a single slot** for ordering, numbering, and — the
-correctness core — leg generation.
+**The key design decision (reframed):** an earlier draft modeled this as a *symmetric choice* —
+two co-equal candidates sharing one slot, exactly one eventually chosen, **undecided** until
+then. That undecided state is what forced the machinery: because both candidates sat *in* the
+day sequence, every positional projection (`legs`, `locatedSequenceNumbers`, the weave) had to
+be taught to **collapse** a group to one slot; and because "chosen" could be empty, routing
+needed an "acknowledge uncertainty, omit the leg" branch. All of that is cost incurred to
+represent *not having decided yet*.
 
-Alternatives are also a **distinct concept** from the neighbours it could be confused with, and the
-schema should keep them distinct: **Ideas** (merely under consideration, not on the itinerary),
-**optional stops** (something we may skip *entirely* — no "instead-of" pairing), and general
-**conditional/branching** itineraries (arbitrary branches and convergence). This ADR solves only
-"we will do exactly one of these."
+Real trip planning rarely leaves a stop genuinely undecided — you usually have a **lean** and a
+**fallback**. Modeling that asymmetry directly (a primary you plan around, a backup you hold in
+reserve) removes the undecided state, and with it the collapse fold and the routing gap. The
+day always has a concrete linear answer.
+
+This is **not** a branching-itinerary graph, and it is distinct from **Ideas** (merely under
+consideration, not on the itinerary) and **optional/skippable stops** (something dropped
+entirely, with no "fall to this instead"). It solves exactly: *this stop has a fallback.*
 
 ## Decision
 
-**An alternatives group is a set of existing `TripIdea` stops that share one itinerary position,
-with at most one member marked chosen.** Unresolved = no member chosen (an open "choose one");
-resolved = exactly one chosen. It preserves the linear day: the group occupies a single slot, and no
-travel leg is ever created *between* its members.
+**A stop may carry one or more off-sequence backups. The primary is an ordinary sequenced
+stop; a backup is attached data that never enters the day's route.** There is no undecided
+state — the primary *is* the plan until a human promotes a backup.
 
-### 1. Two additive flat columns on `TripIdea` — no new table
+### 1. One additive column: `TripIdea.backupForStopID: UUID?`
 
-Per ADR-0006 (flat columns) and ADR-0007 (single real FK is to `Trip`; everything else is a loose,
-reconcile-on-read UUID):
-
-```swift
-public var alternativeGroupID: UUID?   // nil = ordinary stop; shared by a group's members
-public var isChosenAlternative = false // the selected member; unresolved = none true
-```
-
-- **`alternativeGroupID`** is a loose UUID, *not* a SQL FK — exactly like `ideaID`. It is minted
-  when a group forms and shared by its members. There is **no `AlternativeGroup` row**: the group is
-  *defined by* the set of members carrying the same id, and its "unresolved vs selected" state is the
-  fold of the members' `isChosenAlternative` flags. A one-member remnant (the other alternative
-  deleted) reconciles on read back to an ordinary stop — the same orphan-drop discipline
-  `resolve(_:)` already applies to a deleted `ideaID` (TripPlan.swift:128).
-- **`isChosenAlternative`** carries selection. Invariant enforced by the write op, not the schema:
-  at most one member of a group is true. Storing selection as a per-member flag (rather than a
-  "winner id" on a group row) is the sync-safest shape — each member's selection rides its own
-  `TripIdea` CloudKit record; there is no separate row to keep consistent, and a lost update
-  degrades to "no winner" (unresolved), never to a dangling pointer.
-
-Both columns ride `TripIdea`'s existing CloudKit registration — **no sync-registration change**
-(cf. ADR-0033's `dayRank`).
-
-### 2. The members share one slot — a grouped read-model unit
-
-Members of a group **share the slot's placement**: they carry the same `dayNumber` and the same
-intra-day position (`schedule` band + `dayRank`, ADR-0033), so they sort as a unit and never
-straddle other stops. The read-model gains a grouping fold that the day projections run **before**
-numbering and leg generation:
-
-- **Sequence numbers:** a group consumes **one** slot number. Its located members share that number
-  (rendered e.g. "4 · choose one", both map pins wearing 4). `locatedSequenceNumbers(forDay:)` counts
-  a group once.
-- **Ordering:** `orderedDayStops` / `effectiveIntraDaySort` treat the group as a single ordered unit
-  keyed by the shared slot.
-- **Framing:** unchanged — `framingCoordinates` already folds *all* located stops, so both candidates
-  stay in frame for free.
-
-A new `ItineraryItem` case carries the group to the view:
+Per ADR-0006 (flat columns) and ADR-0007 (the one real FK is to `Trip`; everything else is a
+loose, reconcile-on-read UUID):
 
 ```swift
-case choice(ResolvedChoice)   // ≥2 candidate ResolvedStops sharing one slot; optional chosen member
+public var backupForStopID: TripIdea.ID?   // nil = ordinary stop / primary; set = a backup for that stop
 ```
 
-where the ordinary `.stop` case is still what a **resolved** group renders through downstream
-(routing/now-marker) once a member is chosen — see §3.
+- **`nil`** — an ordinary stop. A *primary* is simply an ordinary stop that happens to have
+  backups pointing at it; nothing marks it specially (the read-model finds its backups by the
+  pointer).
+- **set** — this row is a backup *for* the named stop. A loose UUID, not a SQL FK (like
+  `ideaID`), reconciled on read. **N** backups may point at one primary (ordered by their
+  existing `shortlistRank`/`dayRank`); V1's UI shows a short fallback list.
+- **No "chosen" flag.** The primary is the plan by construction; there is nothing to resolve.
+  This is the whole simplification — one column, no selection state, no invariant to enforce
+  beyond "a backup points at a real primary."
 
-### 3. Legs: collapse each group to its chosen member; never A→B (the correctness core)
+Rides `TripIdea`'s existing CloudKit registration — **no sync-registration change**.
 
-Before the `zip`, every day projection **collapses each alternatives group to a single representative
-stop**:
+### 2. A backup is off-sequence — the tested linear core is untouched
 
-- **Resolved group** → its `isChosenAlternative` member. Routing is `prev → chosen → next`, exactly
-  as if the chosen candidate were an ordinary stop. This is the operational route (AC #5).
-- **Unresolved group** → **no representative; the leg is omitted.** We do *not* fabricate a single
-  linear route through an undecided choice, and — the hard invariant (AC #3) — we **never** emit a
-  member-to-member leg. `prev → (open choice) → next` shows the choice as a gap in the ETA chain, an
-  honest acknowledgement of uncertainty rather than a made-up number. (A future refinement could
-  route through a *nominated primary* candidate for continuity; V1 omits, as the least-wrong and
-  smallest option.)
+A backup carries **no slot of its own** (its `dayNumber`/schedule is inert; it belongs to its
+primary's position). It is excluded at the one partition boundary the read-model already has:
 
-Concretely, `legs(forDay:)`, `allLegs`, and the connector weave in `itineraryItems(forDay:)` run over
-the **collapsed** stop list, so a group's non-chosen members simply are not in the sequence the zip
-walks. `baseLegs` / lodging-to-first-stop routing (TripPlan+Travel.swift:35) target the chosen member
-(or, unresolved, skip to the next ordinary stop) the same way.
+- `TripPlan.scheduled`, `TripIdea.itinerary`, and `TripIdea.toBeScheduled` each add
+  `&& backupForStopID == nil` to their existing `status == .scheduled` filter. A backup never
+  lands in a day, in the To-Be-Scheduled bucket, or the Ideas "Scheduled" section.
+- A new projection `backups(forStop: TripIdea.ID) -> [ResolvedStop]` surfaces them, keyed by
+  the primary's id.
 
-### 4. Timeline & canvas: "choose one," both pins, no line between
+**Because a backup is never in the day's stop list, `legs`, `locatedSequenceNumbers`,
+`framingCoordinates`, and the `itineraryItems` weave never see it** — with *zero* changes to
+any of them. The primary flows through every one exactly as an ordinary stop does today. There
+is **no collapse fold**, and the phantom Baita→Gostner leg is **structurally impossible**: the
+two were never adjacent in the routed sequence to begin with (AC #3, now met for free rather
+than enforced).
 
-- **Timeline (`TripItineraryView`):** the `.choice` case renders a **"Choose one"** container — the
-  candidate rows grouped under one slot number, each with a select affordance; the chosen member
-  reads as active, the others as recoverable alternatives (AC #2, #6). No connector row is drawn
-  between candidates.
-- **Canvas:** **both** located candidates draw pins (sharing the slot number); **no polyline segment**
-  connects them. The polyline routes through the collapsed representative — the chosen member, or a
-  break at an unresolved group. Selection can happen from either surface, in planning **or during the
-  trip** (AC #4).
+### 3. Routing is always concrete — no uncertainty branch
 
-### 5. Creation is contextual — no "make a group first"
+The route always runs `prev → primary → next`. There is no undecided state, so there is no
+"omit the leg / acknowledge uncertainty" case (the symmetric model's thorniest sub-case, gone).
+`baseLegs` / lodging-to-first-stop routing is likewise unchanged — the primary is the first
+stop as today.
 
-Users never construct an abstract group. Grouping happens **behind the scenes** from a contextual
-action on an existing stop, in `StopMenu` (Galavant/Trips/StopMenu.swift):
+### 4. Selecting a backup later = a swap write (works mid-trip)
 
-- **"Add as alternative to…"** on a shortlisted/candidate idea → pulls it and joins the target stop's
-  slot, minting `alternativeGroupID` on both if the target wasn't already a group.
-- **"Add alternative"** from an existing itinerary stop → opens the add-stop path pre-bound to that
-  slot.
+Promotion is a single tested op, not a read-model resolution:
 
-Leaving a group (choosing one and dismissing the rest, or deleting a candidate) reconciles a
-one-member remnant back to an ordinary stop (§1).
+- `promoteBackup(_:)` — the chosen backup takes the primary's slot (copy `dayNumber` /
+  `schedule` / `dayRank`), the **old primary becomes a backup of it**, and any sibling backups
+  re-point to the new primary. The demoted primary is **retained** (AC #6); re-promoting flips
+  it back. Runnable during the trip (AC #4, #5 — the route follows because the new primary is
+  now the sequenced stop).
 
-### 6. What we explicitly do **not** build
+### 5. UI: a fallback attached to its primary — never a second row
 
-No generalized branches or convergence; no nested choices; no "optional/skippable" stop concept; no
-cross-alternative route optimization. `Idea`-level "considering" (the pool) stays the home for "maybe
-someday" — an alternatives group is strictly *scheduled* stops competing for one slot. Those can be
-revisited separately if a real use case demands them.
+- **Timeline (`TripItineraryView`):** the primary renders as an ordinary numbered stop; a
+  compact **"Backup: <name>"** affordance sits under it (tap → promote / edit / remove). No
+  second sequential row, no connector row between them.
+- **Canvas:** the primary wears its ordinary numbered pin; a backup draws **only when its
+  primary is selected**, as a muted, unnumbered pin, contributing **no** polyline segment
+  (AC #2, #3).
+- **Creation is contextual** (no abstract group to build): **"Add as backup to…"** on a
+  shortlisted idea, or **"Add backup"** on a stop, in `StopMenu` (Galavant/Trips/StopMenu.swift)
+  — it just sets the pointer.
+
+### 6. Deletion & orphans
+
+- Deleting a **primary** promotes its top-ranked backup in the same write, so the plan
+  survives; with no backup it deletes normally. Deleting a **backup** just removes it.
+- A backup **orphaned** by a cross-device primary delete (its `backupForStopID` points at a
+  gone/non-scheduled stop) reconciles on read to an ordinary **unscheduled** stop — it surfaces
+  in To-Be-Scheduled, **recoverable, never silently dropped** — the same reconcile discipline
+  `resolve(_:)` applies to a deleted `ideaID` (TripPlan.swift:128).
+
+### 7. What we explicitly do **not** build
+
+No symmetric undecided "choose one" state (§Why not); no branching/convergence; no
+optional/skippable concept; no cross-alternative optimization. The Ideas pool stays the home
+for "maybe someday" — a backup is a *scheduled fallback* for a specific slot.
 
 ## Why this and not the alternatives
 
 | Option | Verdict |
 | --- | --- |
-| **Two sequential stops** (today) | Rejected — the reported bug: fabricates an A→B travel leg and consumes two slot numbers, implying "A then B" when the truth is "A or B." |
-| **UI-only grouping** (view collapses adjacent rows, model unchanged) | Rejected — `legs(forDay:)`/`allLegs` still zip A→B upstream of the view (AC #3 unmet), and pre-warmed directions would request the phantom leg. The grouping must live in the pure read-model. |
-| **`AlternativeGroup` side-table** (like `TripStay`) holding group id + winner id + slot | Rejected for V1 — heavier: a second synced record per group to keep consistent, and a winner-id pointer that can dangle. The group needs no state beyond membership + selection, both of which live on the members. Revisit only if a group grows its own attributes. |
-| **A new `Schedule`/status enum case for "choice"** | Rejected — a group is a *relationship among stops*, not a placement of one stop; the members keep their ordinary `.scheduled` status and shared slot. A new case would force every switch to handle a redundant state (the ADR-0033 lesson). |
-| **Generalized branching graph** (arbitrary branches + convergence) | Rejected — out of all proportion to the need; the brief's explicit non-goal. Keeps the day linear. |
-| **Two loose columns on `TripIdea` + collapse-to-representative in the read-model (chosen)** | Leanest fit: two additive columns (no migration friction, no sync-registration change), reuses the orphan-reconcile discipline, and turns AC #3 into a pure-function assertion over the collapsed day. |
+| **Two sequential stops** (today) | Rejected — the reported bug: fabricates an A→B travel leg and consumes two pin numbers, implying "A then B" when the truth is "A, or else B." |
+| **Symmetric choice: two co-equal candidates, exactly one chosen, undecided until then** (this ADR's first draft) | Rejected for V1 — the undecided state is the *only* thing that forces both hard parts: a read-model **collapse fold** inside the tested `legs`/`locatedSequenceNumbers`/weave (both candidates sit in-sequence and must be squashed to one slot), and an **"acknowledge uncertainty" routing gap** (chosen may be empty). Real planning almost always has a lean + a fallback; paying that cost to model "we haven't decided" isn't earned. Kept available if genuinely-undecided stops prove common. |
+| **UI-only attachment** (view hides the second stop, model unchanged) | Rejected — `legs`/`allLegs` still zip A→B upstream of the view (AC #3 unmet) and directions pre-warm the phantom leg. The backup must be excluded in the read-model. |
+| **`AlternativeGroup` / backup side-table** (like `TripStay`) | Rejected — heavier: a second synced record and a pointer that can dangle, for a relationship that a single loose column on the backup already expresses. |
+| **A new `.backup` status** (vs. the `backupForStopID` column) | Rejected — touches the ADR-0004 status lifecycle and every status switch; the column guard is one `&& backupForStopID == nil` clause per partition and leaves the enum alone (the ADR-0033 "no redundant case" lesson). |
+| **Generalized branching graph** | Rejected — out of all proportion; the brief's explicit non-goal. |
+| **One loose `backupForStopID` column, backups off-sequence, promote-by-swap (chosen)** | Leanest fit: one additive column, **no changes to the tested leg/numbering core** (backups filter out before it), no undecided state, no collapse fold, and the fallback composes with the solver / reconciliation as a ready-made constraint fix. |
 
 ## Relationship to prior decisions
 
-- **ADR-0006 (flat `TripIdea` columns):** two additive flat columns; SQLiteData additive-column, no
-  migration friction, CloudKit-friendly.
-- **ADR-0007 (single-FK / reconcile-on-read):** `alternativeGroupID` is a loose UUID reconciled on
-  read exactly like `ideaID`; a one-member remnant drops back to an ordinary stop, as an orphaned
-  `ideaID` drops in `resolve(_:)`.
-- **ADR-0010 (freeform stops):** a freeform stop can be an alternative — "picnic we packed" vs. a
-  restaurant — with no extra work; it carries the grouping columns like any `TripIdea`.
-- **ADR-0033 (floating untimed stops):** members share the slot's `dayNumber`, band, and `dayRank`,
-  so `effectiveIntraDaySort` seats the whole group as one unit; the collapse runs before that sort's
-  consumers. An Anytime choice is legal.
-- **M3 travel legs / now-marker:** the leg generators run over the collapsed day; an unresolved group
-  is timing-neutral (no leg, no lateness), the same posture ADR-0033 gives an untimed stop.
-- **ADR-0011 (accommodations) / ADR-0012 (day region):** unaffected — stays and regions are
-  slot-independent; `baseLegs` routes lodging → the collapsed first stop.
+- **ADR-0006 (flat `TripIdea` columns):** one additive flat column; SQLiteData additive-column,
+  no migration friction, CloudKit-friendly.
+- **ADR-0007 (single-FK / reconcile-on-read):** `backupForStopID` is a loose UUID reconciled on
+  read like `ideaID`; a dangling backup degrades to an ordinary unscheduled stop.
+- **ADR-0010 (freeform stops):** a freeform stop can be a primary *or* a backup — "picnic we
+  packed" as the fallback to a restaurant — carrying `backupForStopID` like any `TripIdea`.
+- **ADR-0033 (floating untimed stops):** the **primary** is an ordinary positioned stop and
+  keeps all of ADR-0033 (`dayRank`, anchored interleave) unchanged; a **backup** is off-sequence
+  and carries no `dayRank` role, so `effectiveIntraDaySort` never sees it.
+- **ADR-0029 (`StartDaySolver`) / M7 (calendar reconciliation):** the composition payoff — a
+  backup is precisely *what you fall to when the primary fails a constraint* (a solver closed-day
+  for the intended meal; a reservation that moves or vanishes under reconciliation). Those
+  surfaces can point a "primary unavailable → promote backup" fix at an existing fallback. This
+  hook exists only because the model is asymmetric.
+- **M3 travel legs / now-marker:** unchanged — they run over the day's ordinary stops; a backup
+  is simply not among them.
 
 ## Consequences
 
-- **GalavantSchema (pure, test-first):** two additive `TripIdea` columns; a grouping fold
-  (`ResolvedChoice` + a collapse helper) applied in `itinerary`/`scheduled`, `locatedStops` /
-  `locatedSequenceNumbers`, `legs`/`allLegs`, and the `itineraryItems` weave; a new `ItineraryItem`
-  case. All unit-tested in-memory (STYLE functional core) — **AC #3 ("no A→B leg") is a direct
-  pure-function assertion** over a two-candidate day, which makes this a low-risk, test-first build.
-- **Ops:** `addAlternative(to:)` / `chooseAlternative(_:)` / `removeAlternative(_:)` writing the two
-  columns and enforcing the at-most-one-chosen invariant; group-aware delete (removing a member, and
-  the one-member-remnant reconcile). Reuses existing tested write paths otherwise.
-- **App:** the `.choice` "Choose one" container in `TripItineraryView`; both-pin / no-segment canvas
-  treatment; `StopMenu` "Add as alternative to…" / "Add alternative"; `swiftui-specialist`
-  checkpoint; device install on the iPad Pro 13-inch (M5) sim ([[preferred-review-sim]]).
-- **No CloudKit sync-registration change** — both columns ride `TripIdea`'s existing registration.
-- **AC #7 (existing linear itineraries unchanged):** a stop with `alternativeGroupID == nil` takes
-  every path exactly as today — the collapse is a no-op on ungrouped stops.
+- **GalavantSchema (pure, test-first):** one additive `TripIdea.backupForStopID` column; a
+  `backupForStopID == nil` guard added to the three scheduled partitions
+  (`scheduled` / `itinerary` / `toBeScheduled`); a new `backups(forStop:)` projection. **No
+  changes to `legs`/`allLegs`/`locatedSequenceNumbers`/`framingCoordinates`/`itineraryItems`** —
+  the correctness win (AC #3) is structural. All unit-tested in-memory (STYLE functional core):
+  a backup never appears in a day/bucket, never produces a leg, and an ungrouped trip is
+  byte-identical to today.
+- **Ops:** `addBackup(_:to:)` / `promoteBackup(_:)` (the slot swap) / `removeBackup(_:)`, plus
+  delete-primary-promotes-backup and the orphan reconcile. No selection invariant to police.
+- **App:** the attached "Backup: …" affordance in `TripItineraryView`; the muted-on-selection
+  canvas pin; `StopMenu` "Add as backup to…" / "Add backup"; `swiftui-specialist` checkpoint;
+  device install on the iPad Pro 13-inch (M5) sim ([[preferred-review-sim]]).
+- **No CloudKit sync-registration change** — the column rides `TripIdea`'s existing registration.
+- **AC #7 (existing linear itineraries unchanged):** a stop with `backupForStopID == nil` takes
+  every path exactly as today — the guard is a no-op on ordinary stops, and the routed core is
+  literally unmodified.
 
 ## Slices
 
-- **Slice 1 — schema + grouped read-model:** the two columns; `ResolvedChoice` + the collapse fold in
-  `itinerary`/`scheduled` and `locatedSequenceNumbers`; in-memory tests that two members share one
-  slot number and that an ungrouped day is byte-identical to today.
-- **Slice 2 — legs (the correctness core):** collapse-to-representative in `legs`/`allLegs`/`baseLegs`
-  and the `itineraryItems` weave; table-driven tests: unresolved group emits **no** member-to-member
-  leg and no phantom prev→member ETA; resolved group routes `prev → chosen → next`; `prev → (open) →
-  next` shows the expected gap.
-- **Slice 3 — write ops:** `addAlternative` / `chooseAlternative` / `removeAlternative` + the
-  at-most-one-chosen and one-member-remnant reconcile, unit-tested.
-- **Slice 4 — UI:** the `.choice` "Choose one" timeline container + selection; canvas both-pins /
-  no-segment; `StopMenu` contextual creation; built and installed on the iPad Pro 13-inch (M5) sim.
-- **Slice 5 — docs:** flip to accepted; ROADMAP / trip-canvas / trip-time-model notes.
+- **Slice 1 — schema + off-sequence partition:** the column; the `backupForStopID == nil` guard
+  on `scheduled` / `itinerary` / `toBeScheduled`; the `backups(forStop:)` projection; in-memory
+  tests that a backup never appears in a day, the bucket, or a leg, and that an ungrouped trip is
+  byte-identical to today. **Suggested executor: Opus** — small, but it touches the read-model
+  partition and wants the "byte-identical" guardrail proven.
+- **Slice 2 — write ops:** `addBackup` / `promoteBackup` (slot swap) / `removeBackup`,
+  delete-primary-promotes-backup, and the orphan→To-Be-Scheduled reconcile; unit-tested.
+  **Suggested executor: Sonnet** — a guarded ops slice on tested precedent; the swap + reconcile
+  are the only judgment, covered by tests.
+- **Slice 3 — UI:** the attached "Backup: …" timeline affordance + promote/edit/remove; the
+  muted-on-selection canvas pin (no polyline); `StopMenu` contextual creation; built and
+  installed on the iPad Pro 13-inch (M5) sim. **Suggested executor: Opus** — SwiftUI row/canvas
+  work.
+- **Slice 4 — docs:** flip to accepted; ROADMAP / trip-canvas / trip-time-model notes.
 
 ## Acceptance criteria (from the brief)
 
-1. Two alternatives occupy one logical itinerary position — §2 (shared slot, one sequence number).
-2. UI communicates A **or** B, not A then B — §4 ("Choose one" container; both pins, no line).
-3. No travel segment between alternatives — §3 (collapse before the zip; the pure-function assertion).
-4. Either alternative selectable later, incl. during the trip — §1/§4 (per-member flag; select from
-   timeline or canvas anytime).
-5. Selection determines the operational route — §3 (resolved group collapses to the chosen member).
-6. The rejected alternative stays recoverable/changeable — §1 (a non-chosen member is retained, not
-   deleted; re-choose flips the flag).
-7. Existing linear itineraries need no behavioral change — Consequences (collapse is a no-op on
-   `alternativeGroupID == nil`).
+1. Two alternatives occupy one logical itinerary position — §2 (the primary holds the slot and
+   its number; the backup is attached to it, not a second position).
+2. UI communicates A **or** B, not A then B — §5 (backup shown as a fallback under its primary /
+   a muted pin, never a second sequential row).
+3. No travel segment between alternatives — §2 (structural: the backup is never in the routed
+   sequence, so the zip cannot pair them).
+4. Either alternative selectable later, incl. during the trip — §4 (`promoteBackup` swap, anytime).
+5. Selection determines the operational route — §3/§4 (the primary is always the routed stop;
+   promotion swaps which stop that is).
+6. The rejected alternative stays recoverable/changeable — §4 (the demoted primary is retained
+   as a backup; re-promote flips it).
+7. Existing linear itineraries need no behavioral change — Consequences (the guard is a no-op on
+   `backupForStopID == nil`; the routed core is unmodified).

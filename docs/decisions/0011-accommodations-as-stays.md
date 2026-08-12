@@ -160,10 +160,10 @@ not hidden behind a discriminator on a shared one.
   optional `ideaID`. `TripStay` is a new leaf on the `TravelParty`-rooted tree.
 - **ADR-0010 (`StopContent`):** reused for `.idea` / `.freeform` resolution; its
   one-record reasoning is deliberately inverted here (see table above).
-- **ADR-0035 (itinerary alternatives):** weighs this sibling-record pattern and
-  **declines it** — an alternatives group needs no state beyond membership + selection, both
-  of which live on the members, so it uses two loose `TripIdea` columns rather than a
-  `TripStay`-style side table (see that ADR's "Why not" table).
+- **ADR-0035 (itinerary backup plans):** weighs this sibling-record pattern and
+  **declines it** — a backup's whole relationship is one pointer, so it uses a single loose
+  `TripIdea.backupForStopID` column rather than a `TripStay`-style side table (see that ADR's
+  "Why not" table).
 - **trip-time-model §2/§4:** day-relative span (§2-consistent); `pinnedDate` is the
   §4 seam, deferred.
 
