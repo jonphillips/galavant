@@ -147,15 +147,14 @@ final class CalendarReconciliationModel {
   var sharedHistory: [CalendarReconciliationLedgerEntry] { allLedgerEntries }
 
   func refresh(trip: Trip, plan: TripPlan) async {
-    guard let scope = scope(for: trip),
-      let startDate = trip.startDate,
-      let temporalContext = CalendarTripTemporalContext(
-        startDate: startDate, dayCount: trip.lengthInDays),
+    let tripCalendar = Calendar.current
+    guard let scope = scope(for: trip, calendar: tripCalendar),
       let queryInterval = scope.queryInterval(in: Self.storageTimeZone)
     else {
       state = .failure("Calendar reconciliation needs a dated trip.")
       return
     }
+    let temporalContext = CalendarTripTemporalContext(scope: scope)
 
     state = .loading
     do {
@@ -172,8 +171,13 @@ final class CalendarReconciliationModel {
       let events = try calendarClient.events(queryInterval).filter {
         scope.overlaps($0.temporal, absoluteTimeZone: nil) != false
       }
-      let ingestedEvents = try await ingest(events)
-      candidates = CalendarReconciliation.candidates(for: ingestedEvents, trip: trip, plan: plan)
+      let regionTimeZone = await regionTimeZone(for: trip)
+      let ingestedEvents = try await ingest(events, regionTimeZone: regionTimeZone)
+      candidates = CalendarReconciliation.candidates(
+        for: ingestedEvents,
+        trip: trip,
+        plan: plan,
+        temporalContext: temporalContext)
       let outsideTripObservations: [CalendarBoundEventObservation] = localState.linkedStops.compactMap { linked in
         guard
           let event = calendarClient.event(linked.eventID),
@@ -226,7 +230,10 @@ final class CalendarReconciliationModel {
     }
   }
 
-  private func ingest(_ events: [CalendarObservedEvent]) async throws -> [CalendarIngestedEvent] {
+  private func ingest(
+    _ events: [CalendarObservedEvent],
+    regionTimeZone: TimeZone?
+  ) async throws -> [CalendarIngestedEvent] {
     var ingested: [CalendarIngestedEvent] = []
     for event in events {
       try Task.checkCancellation()
@@ -239,20 +246,42 @@ final class CalendarReconciliationModel {
       let matchedPlace = match.map {
         CalendarMatchedPlace(name: $0.name ?? event.title, mapItemIdentifier: $0.mapItemIdentifier)
       }
+      // The trip's destination (region) zone is the projection frame for every
+      // event's trip day — ADR-0034's actual intent: place an absolute instant on
+      // the *destination's* civil day. A matched venue's own zone is only a fallback
+      // for a region-less trip; it must not override the destination, or a wrong
+      // worldwide name-match could push a just-after-midnight event onto the prior
+      // day and silently drop it. Only when neither resolves does the event stay
+      // `.unresolvedTimeZone` — still visible in the sheet, never dropped.
+      let itineraryTimeZone = regionTimeZone
+        ?? match?.timeZoneIdentifier.flatMap(TimeZone.init(identifier:))
       ingested.append(CalendarIngestedEvent(
         event: event,
         matchedPlace: matchedPlace,
-        itineraryTimeZone: match?.timeZoneIdentifier.flatMap(TimeZone.init(identifier:))))
+        itineraryTimeZone: itineraryTimeZone))
     }
     return ingested
   }
 
+  /// A principled destination zone for the whole trip, derived from its planning
+  /// region(s) by reverse-geocoding their bounding-box center. Used only as the
+  /// fallback when a matched place resolved no zone; never the device or event
+  /// zone (ADR-0034). Nil when the trip has no region or the lookup fails, which
+  /// keeps a genuinely unplaceable absolute event visibly unresolved.
+  private func regionTimeZone(for trip: Trip) async -> TimeZone? {
+    let regions = (try? await database.read { db -> [MapRegion] in
+      let ids = try TripRegion.regionIDs(forTrip: trip.id, in: db)
+      return try MapRegion.where { $0.id.in(ids) }.fetchAll(db)
+    }) ?? []
+    guard let box = MapRegion.boundingBox(of: regions) else { return nil }
+    return await placeMatcher.timeZone(
+      latitude: box.centerLatitude, longitude: box.centerLongitude)
+  }
+
   /// Full first and last civil days. EventKit querying is padded separately so
   /// this remains the pure semantic boundary for zoned, floating, and all-day time.
-  private func scope(for trip: Trip) -> CalendarTripScope? {
+  private func scope(for trip: Trip, calendar: Calendar) -> CalendarTripScope? {
     guard let startDate = trip.startDate else { return nil }
-    var calendar = Calendar(identifier: .gregorian)
-    calendar.timeZone = Self.storageTimeZone
     return CalendarTripScope(
       start: CalendarCivilDate(startDate, calendar: calendar),
       dayCount: trip.lengthInDays)
@@ -320,6 +349,9 @@ struct CalendarReconciliationSheet: View {
     let ambiguous = model.candidates.filter {
       if case .ambiguous = $0.result { true } else { false }
     }
+    let needsTimeZone = model.candidates.filter {
+      if case .unresolvedTimeZone = $0.result { true } else { false }
+    }
     let unmatched = model.candidates.filter {
       if case .unmatched = $0.result { true } else { false }
     }
@@ -340,6 +372,11 @@ struct CalendarReconciliationSheet: View {
       if !ambiguous.isEmpty {
         Section("Needs Later Review") {
           ForEach(ambiguous, content: candidateRow)
+        }
+      }
+      if !needsTimeZone.isEmpty {
+        Section("Time Zone Needs Review") {
+          ForEach(needsTimeZone, content: candidateRow)
         }
       }
       if !unmatched.isEmpty {

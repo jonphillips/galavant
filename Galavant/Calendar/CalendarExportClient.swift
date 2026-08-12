@@ -197,9 +197,17 @@ extension CalendarObservedEvent {
     calendar: Calendar
   ) -> CalendarEventTime {
     if event.isAllDay {
+      let start = CalendarCivilDate(startDate, calendar: calendar)
+      var endExclusive = CalendarCivilDate(endDate, calendar: calendar)
+      // EventKit feeds can report an inclusive final day (or the same midnight
+      // for a one-day event). Normalize both forms before the pure core rejects
+      // the range as empty.
+      if endExclusive <= start {
+        endExclusive = start.adding(days: 1)!
+      }
       return .allDay(
-        start: CalendarCivilDate(startDate, calendar: calendar),
-        endExclusive: CalendarCivilDate(endDate, calendar: calendar))
+        start: start,
+        endExclusive: endExclusive)
     }
     if let timeZone = event.timeZone {
       return .absolute(start: startDate, end: endDate, timeZone: timeZone)

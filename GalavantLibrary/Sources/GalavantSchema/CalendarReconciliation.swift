@@ -226,12 +226,17 @@ public struct CalendarReconciliationCandidate: Equatable, Sendable, Identifiable
 /// different day is not evidence that the event is the same commitment.
 public enum CalendarReconciliation {
   public static func candidates(
-    for events: [CalendarIngestedEvent], trip: Trip, plan: TripPlan
+    for events: [CalendarIngestedEvent],
+    trip: Trip,
+    plan: TripPlan,
+    temporalContext: CalendarTripTemporalContext? = nil
   ) -> [CalendarReconciliationCandidate] {
-    events.compactMap { event in
-      let context = trip.startDate.flatMap {
-        CalendarTripTemporalContext(startDate: $0, dayCount: trip.lengthInDays)
-      }
+    let context = temporalContext ?? trip.startDate.flatMap {
+      CalendarTripTemporalContext(
+        tripStart: CalendarCivilDate($0, calendar: .current),
+        dayCount: trip.lengthInDays)
+    }
+    return events.compactMap { event in
       let projection = context?.project(
         event.event.temporal,
         absoluteTimeZone: event.itineraryTimeZone) ?? .outsideTrip
@@ -249,7 +254,7 @@ public enum CalendarReconciliation {
   ) -> CalendarReconciliationResult {
     guard let startDate = trip.startDate,
       let context = CalendarTripTemporalContext(
-        startDate: startDate, dayCount: trip.lengthInDays)
+        tripStart: CalendarCivilDate(startDate, calendar: .current), dayCount: trip.lengthInDays)
     else { return .unmatched }
     let projection = context.project(
       input.event.temporal,
@@ -263,7 +268,9 @@ public enum CalendarReconciliation {
     projection: CalendarTripDayProjection
   ) -> CalendarReconciliationResult {
     guard case let .day(dayNumber, _) = projection else {
-      return projection == .unresolvedTimeZone ? .unresolvedTimeZone : .unmatched
+      return projection == .unresolvedTimeZone && hasPotentialMatchWithoutDay(input, plan: plan)
+        ? .unresolvedTimeZone
+        : .unmatched
     }
     let stops = plan.itinerary.first(where: { $0.number == dayNumber })?.stops ?? []
 
@@ -289,6 +296,23 @@ public enum CalendarReconciliation {
     }
     if nearbyNameMatches.count > 1 { return .ambiguous(nearbyNameMatches) }
     return .unmatched
+  }
+
+  /// A missing travel zone only needs review when the event otherwise resembles
+  /// an itinerary stop. Location-less commitments remain visible as unmatched
+  /// rather than asking the user to resolve a zone the app cannot infer.
+  private static func hasPotentialMatchWithoutDay(
+    _ input: CalendarIngestedEvent,
+    plan: TripPlan
+  ) -> Bool {
+    let stops = plan.itinerary.flatMap(\.stops)
+    if let mapItemIdentifier = input.matchedPlace?.mapItemIdentifier,
+      stops.contains(where: { $0.idea?.mapItemIdentifier == mapItemIdentifier })
+    {
+      return true
+    }
+    let name = normalizedName(input.matchedPlace?.name ?? input.event.title)
+    return !name.isEmpty && stops.contains { normalizedName($0.content.title) == name }
   }
 
   /// The pure auto-apply pass for Slice 2. A previously linked event remains

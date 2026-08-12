@@ -129,6 +129,21 @@ binding (`.linked` when present, otherwise `.manual`), so an EventKit identifier
 enters the CloudKit schema. Slice 3 will add the shared ledger/fingerprint; it must not
 turn this device-local binding into a synced identifier.
 
+**Slice 4 projection zone (2026-08-11).** An absolute Calendar instant is placed on
+a trip day in the trip's **destination (region) zone**, not the matched venue's zone.
+Earlier Slice 4 wording said to "project only through the matched travel place's
+explicit MapKit time zone"; dogfooding showed that to be fragile — a bare event title
+("Ruby") re-resolves worldwide and can match a same-named place in another zone, which
+pushes a just-after-midnight destination event onto the prior civil day and silently
+drops it. The region zone *is* the destination zone directly (this section's original
+intent: place a home-zone instant on the correct destination day), so it is now the
+single civil-day frame for every event shape. Implementation: the model reverse-geocodes
+the trip's planning-region bounding-box center (`PlaceMatcher.timeZone(latitude:longitude:)`)
+and passes it as the projection zone; a matched venue's own MapKit zone is only a fallback
+for a region-less trip, never an override. When neither resolves, the event stays a
+visible "Time Zone Needs Review" item rather than falling back to the event/device zone,
+and is never silently dropped. The `.manual`/`.linked` authority split above is unchanged.
+
 ## Staleness rule
 
 Opening days are scraped-or-typed snapshots and rot. The solver's output is

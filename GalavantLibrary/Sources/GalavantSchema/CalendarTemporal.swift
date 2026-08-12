@@ -214,11 +214,13 @@ public enum CalendarEventTime: Codable, Equatable, Sendable {
 public struct CalendarTripScope: Equatable, Sendable {
   public let start: CalendarCivilDate
   public let endExclusive: CalendarCivilDate
+  public let dayCount: Int
 
   public init?(start: CalendarCivilDate, dayCount: Int) {
     guard dayCount > 0, let endExclusive = start.adding(days: dayCount) else { return nil }
     self.start = start
     self.endExclusive = endExclusive
+    self.dayCount = dayCount
   }
 
   public func queryInterval(
@@ -278,17 +280,22 @@ public enum CalendarTripDayProjection: Equatable, Sendable {
 }
 
 /// The stable inputs needed to project Calendar values onto a dated itinerary.
-/// Absolute events interpret both the stored trip start and the event instant in
-/// the explicitly supplied itinerary/day zone. Civil values use UTC only as the
-/// deterministic storage calendar for `Trip.startDate`; their own date is retained.
+/// `tripStart` is captured in the same calendar frame that renders the itinerary.
+/// It remains one civil-day fact for every event type: absolute events alone use
+/// their matched travel zone to determine the event's own civil day.
 public struct CalendarTripTemporalContext: Equatable, Sendable {
-  public let startDate: Date
+  public let tripStart: CalendarCivilDate
   public let dayCount: Int
 
-  public init?(startDate: Date, dayCount: Int) {
+  public init?(tripStart: CalendarCivilDate, dayCount: Int) {
     guard dayCount > 0 else { return nil }
-    self.startDate = startDate
+    self.tripStart = tripStart
     self.dayCount = dayCount
+  }
+
+  public init(scope: CalendarTripScope) {
+    tripStart = scope.start
+    dayCount = scope.dayCount
   }
 
   public func project(
@@ -304,9 +311,6 @@ public struct CalendarTripTemporalContext: Equatable, Sendable {
       timeZone = TimeZone(secondsFromGMT: 0)!
     }
 
-    var calendar = Calendar(identifier: .gregorian)
-    calendar.timeZone = timeZone
-    let tripStart = CalendarCivilDate(startDate, calendar: calendar)
     let eventStart = temporal.startDate(in: timeZone)
     guard let day = eventStart.dayNumber(since: tripStart),
       (1...dayCount).contains(day)
@@ -336,6 +340,9 @@ public enum CalendarEventOccupancy: String, Codable, Equatable, Sendable {
   case unknown
 
   public var isHardOccupied: Bool {
+    // Sources that cannot report availability remain unknown instead of being
+    // promoted to busy. Plan repair must surface that uncertainty rather than
+    // inventing a hard constraint from an unsupported EventKit field.
     self == .busy || self == .unavailable
   }
 }

@@ -45,9 +45,14 @@ semantic values: absolute instants with their display zone, floating civil date-
 or all-day civil ranges. Availability remains distinct from occupancy, so all-day,
 free, and tentative events do not manufacture hard-busy intervals. Recurrence binds
 one occurrence by its original scheduled anchor (including a detached/moved instance),
-never the whole series. Absolute instants project onto trip days only through the
-matched travel place's explicit MapKit time zone; an unresolved zone stays visible as
-a reconciliation item rather than falling back to the event or device zone. Local
+never the whole series. Absolute instants project onto trip days in the trip's
+**destination (region) zone** — derived by reverse-geocoding the trip's planning
+region — which is the single civil-day frame for every event shape; a matched
+venue's own MapKit zone is only a fallback for a region-less trip, never an
+override (a wrong worldwide name-match must not push a just-after-midnight event
+onto the prior day). When neither a region nor a place zone resolves, the event
+stays a visible "Time Zone Needs Review" reconciliation item rather than falling
+back to the event or device zone, and is never silently dropped. Local
 recurring bindings retain source + occurrence identity and heal a replacement EventKit
 identifier before applying a detached occurrence's move. The complete semantic
 commitment round-trips through the shared ledger while legacy Slice 2 local history

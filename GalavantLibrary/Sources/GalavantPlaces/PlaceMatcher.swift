@@ -59,17 +59,32 @@ public struct PlaceMatcher: Sendable {
   /// point so we can merge the canonical kind/phone/link onto a match the page
   /// under-described. Defaults to none (no enrichment) for tests/previews.
   var lookupNear: @Sendable (_ query: String, _ coordinate: ParsedCoordinate) async -> [Place]
+  /// The civil-time zone at a bare coordinate. Calendar reconciliation uses it to
+  /// give an absolute commitment a *principled destination* zone — the trip's
+  /// planning region — when the matched venue resolved none. Never the device or
+  /// event zone (ADR-0034). Defaults to none for tests/previews.
+  var timeZoneLookup: @Sendable (_ latitude: Double, _ longitude: Double) async -> TimeZone?
 
   public init(
     geocode: @escaping @Sendable (_ address: String) async -> Place?,
     search: @escaping @Sendable (_ query: String) async -> [Place],
     lookupNear: @escaping @Sendable (_ query: String, _ coordinate: ParsedCoordinate) async -> [Place] = {
       _, _ in []
+    },
+    timeZone: @escaping @Sendable (_ latitude: Double, _ longitude: Double) async -> TimeZone? = {
+      _, _ in nil
     }
   ) {
     self.geocode = geocode
     self.search = search
     self.lookupNear = lookupNear
+    self.timeZoneLookup = timeZone
+  }
+
+  /// The civil-time zone at `latitude`/`longitude`, or nil if it can't be
+  /// resolved. Public entry point over the injected `timeZone` boundary.
+  public func timeZone(latitude: Double, longitude: Double) async -> TimeZone? {
+    await timeZoneLookup(latitude, longitude)
   }
 
   /// Resolve `page` to a location, or `nil` if no signal pans out (the caller
@@ -245,6 +260,15 @@ extension PlaceMatcher: DependencyKey {
       )
       let response = try? await MKLocalSearch(request: request).start()
       return response?.mapItems.prefix(10).map(Place.init(mapItem:)) ?? []
+    },
+    timeZone: { latitude, longitude in
+      // iOS 26 reverse-geocoding (CLGeocoder is deprecated): MKReverseGeocodingRequest
+      // exposes `mapItems` as an async getter (NS_SWIFT_ASYNC_NAME, per the SDK header).
+      // The nearest map item's `timeZone` is the region's civil zone.
+      let location = CLLocation(latitude: latitude, longitude: longitude)
+      guard let request = MKReverseGeocodingRequest(location: location) else { return nil }
+      let mapItems = try? await request.mapItems
+      return mapItems?.first?.timeZone
     }
   )
 

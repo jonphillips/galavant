@@ -130,9 +130,14 @@ import Testing
       matchedPlace: CalendarMatchedPlace(
         name: idea.name, mapItemIdentifier: idea.mapItemIdentifier),
       itineraryTimeZone: rome)
+    let startDate = try #require(trip.startDate)
+    let scope = try #require(CalendarTripScope(
+      start: CalendarCivilDate(startDate, calendar: romeCalendar),
+      dayCount: trip.lengthInDays))
+    let context = CalendarTripTemporalContext(scope: scope)
 
     let candidates = CalendarReconciliation.candidates(
-      for: [input], trip: trip, plan: plan([stop], ideas: [idea]))
+      for: [input], trip: trip, plan: plan([stop], ideas: [idea]), temporalContext: context)
     let automaticPlan = CalendarReconciliation.automaticPlan(
       candidates: candidates,
       localState: CalendarReconciliationLocalState(),
@@ -144,11 +149,25 @@ import Testing
     #expect(automaticPlan.applications.first?.stopID == stop.id)
   }
 
-  @Test func absoluteEventWithoutItineraryZoneRemainsAReconciliationItem() {
+  @Test func placeLessAbsoluteEventWithoutItineraryZoneIsUnmatched() {
     let input = CalendarIngestedEvent(event: event(title: "Call Tax Advisor"))
 
     let candidates = CalendarReconciliation.candidates(
       for: [input], trip: trip(), plan: plan([], ideas: []))
+
+    #expect(candidates.first?.result == .unmatched)
+    #expect(candidates.first?.projection == .unresolvedTimeZone)
+  }
+
+  @Test func otherwiseMatchingAbsoluteEventWithoutItineraryZoneNeedsReview() {
+    let idea = Idea(id: UUID(), name: "The French Laundry", mapItemIdentifier: "maps-french-laundry")
+    let stop = stop(idea: idea, day: 1)
+    let input = CalendarIngestedEvent(
+      event: event(title: "Dinner reservation"),
+      matchedPlace: CalendarMatchedPlace(name: idea.name, mapItemIdentifier: idea.mapItemIdentifier))
+
+    let candidates = CalendarReconciliation.candidates(
+      for: [input], trip: trip(), plan: plan([stop], ideas: [idea]))
 
     #expect(candidates.first?.result == .unresolvedTimeZone)
     #expect(candidates.first?.projection == .unresolvedTimeZone)

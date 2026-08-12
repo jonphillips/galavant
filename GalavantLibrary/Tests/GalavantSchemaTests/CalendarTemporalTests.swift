@@ -116,7 +116,7 @@ import Testing
   @Test func absoluteEventUsesItineraryZoneForScopeAndDayProjection() throws {
     let tripStart = date(2026, 8, 12, 0, 0, in: rome)
     let context = try #require(CalendarTripTemporalContext(
-      startDate: tripStart, dayCount: 3))
+      tripStart: CalendarCivilDate(tripStart, calendar: calendar(in: rome)), dayCount: 3))
     let scope = try #require(CalendarTripScope(
       start: civilDate(2026, 8, 12), dayCount: 3))
     let event = CalendarEventTime.absolute(
@@ -128,6 +128,29 @@ import Testing
     #expect(scope.overlaps(event, absoluteTimeZone: rome) == true)
     #expect(scope.overlaps(event, absoluteTimeZone: newYork) == false)
     #expect(scope.overlaps(event, absoluteTimeZone: nil) == nil)
+  }
+
+  @Test func tripStartCivilDayIsSharedByAllDayAndAbsoluteProjection() throws {
+    // A trip chosen as August 12 on a Rome device persists as August 11 in UTC.
+    // Its civil day must nevertheless remain August 12 for every event shape.
+    let storedTripStart = date(2026, 8, 12, 0, 0, in: rome)
+    let scope = try #require(CalendarTripScope(
+      start: CalendarCivilDate(storedTripStart, calendar: calendar(in: rome)), dayCount: 3))
+    let context = CalendarTripTemporalContext(scope: scope)
+    let firstDayAllDay = CalendarEventTime.allDay(
+      start: civilDate(2026, 8, 12), endExclusive: civilDate(2026, 8, 13))
+    let lastDayAllDay = CalendarEventTime.allDay(
+      start: civilDate(2026, 8, 14), endExclusive: civilDate(2026, 8, 15))
+    let firstDayAbsolute = CalendarEventTime.absolute(
+      start: date(2026, 8, 12, 10, 0, in: rome),
+      end: date(2026, 8, 12, 11, 0, in: rome),
+      timeZone: rome)
+
+    #expect(scope.overlaps(firstDayAllDay, absoluteTimeZone: nil) == true)
+    #expect(scope.overlaps(lastDayAllDay, absoluteTimeZone: nil) == true)
+    expectNoDifference(context.project(firstDayAllDay, absoluteTimeZone: nil), .day(1, timeZone: nil))
+    expectNoDifference(context.project(lastDayAllDay, absoluteTimeZone: nil), .day(3, timeZone: nil))
+    expectNoDifference(context.project(firstDayAbsolute, absoluteTimeZone: rome), .day(1, timeZone: rome))
   }
 
   @Test func recurrenceFingerprintIdentifiesOneOccurrenceNotTheSeries() throws {
