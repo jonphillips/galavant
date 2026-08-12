@@ -167,6 +167,19 @@ struct TripTests {
     #expect(count == 1)
   }
 
+  @Test func scheduledRepeatCreatesAnIndependentOccurrence() async throws {
+    let entries = try await database.write { db -> [TripIdea] in
+      let trip = try Trip.create(name: "Copenhagen", in: db)
+      let idea = try seedIdea(name: "Noma", in: db)
+      _ = try TripIdea.pull(ideaID: idea.id, into: trip.id, in: db)
+      _ = try TripIdea.repeatScheduled(ideaID: idea.id, into: trip.id, on: .day(1), in: db)
+      _ = try TripIdea.repeatScheduled(ideaID: idea.id, into: trip.id, on: .day(2), in: db)
+      return try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db)
+    }
+    #expect(entries.count == 3)  // one shortlist membership, two itinerary visits
+    #expect(entries.filter { $0.status == .scheduled }.compactMap(\.dayNumber).sorted() == [1, 2])
+  }
+
   @Test func statusAdvancesThroughLifecycle() async throws {
     let status = try await database.write { db -> TripIdeaStatus? in
       let trip = try Trip.create(name: "Copenhagen", in: db)

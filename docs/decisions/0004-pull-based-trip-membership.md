@@ -12,6 +12,11 @@
    nothing flows into a trip automatically.
 4. The shortlist is orderable (drag-to-rank) — V1's RankLists reborn as an ordering
    on the trip shortlist rather than a standalone entity.
+5. **Repeat occurrences (2026-08-11 refinement):** `pull` remains idempotent —
+   one pool idea earns one ordinary membership. A deliberate second visit is a
+   second scheduled occurrence created from the itinerary's “Already Scheduled”
+   section, with its own day/time/order; it is neither a duplicate pool idea nor a
+   second shortlist vote.
 
 ## Why
 

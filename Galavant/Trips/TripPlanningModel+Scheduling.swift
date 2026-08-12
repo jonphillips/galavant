@@ -26,6 +26,19 @@ extension TripPlanningModel {
     destination = nil
   }
 
+  /// Places a fresh occurrence of an already-scheduled idea. This deliberately
+  /// does not turn `pull` into a duplicate-producing operation: the repeat is a
+  /// user-authored itinerary fact, not a second shortlist membership.
+  func placeRepeat(of stop: ResolvedStop, on day: Int?) {
+    guard let day, let ideaID = stop.idea?.id else { return }
+    withErrorReporting {
+      try database.write { db in
+        try TripIdea.repeatScheduled(ideaID: ideaID, into: tripID, on: .day(day), in: db)
+      }
+    }
+    destination = nil
+  }
+
   /// Present the custom-stop editor to author a new freeform stop ("lunch",
   /// "train to Aarhus", "check in"). Defaults to the To-Be-Scheduled bucket; the
   /// sheet's day picker can land it on a day directly (ADR-0010).
@@ -69,7 +82,14 @@ extension TripPlanningModel {
   /// "Add lodging" — present the lodging editor for a new freeform stay. Defaults
   /// to nights 1→2; the sheet picks the span and (optionally) the hotel.
   func addLodgingButtonTapped() {
-    destination = .stay(StayDraft(checkOutDay: min(2, max(2, trip?.lengthInDays ?? 2))))
+    let length = max(2, trip?.lengthInDays ?? 2)
+    let maximumCheckIn = length - 1
+    let earliestUncoveredDay = (1...maximumCheckIn).first {
+      plan.stays(coveringDay: $0).isEmpty
+    } ?? 1
+    destination = .stay(StayDraft(
+      checkInDay: earliestUncoveredDay,
+      checkOutDay: earliestUncoveredDay + 1))
   }
 
   /// "Stay here" — present the lodging editor seeded from a pool hotel. The span
@@ -118,6 +138,12 @@ extension TripPlanningModel {
             tripID: tripID, ideaID: ideaID,
             checkInDay: draft.checkInDay, checkOutDay: draft.checkOutDay,
             checkInTime: draft.checkInTime, checkOutTime: draft.checkOutTime, in: db)
+          // A hotel is represented by its stay, not as an extra ordinary stop
+          // in the shortlist/timeline. Keep the reusable pool idea intact.
+          try TripIdea
+            .where { $0.tripID.eq(tripID) && $0.ideaID.eq(ideaID) }
+            .delete()
+            .execute(db)
         } else {
           guard !title.isEmpty else { return }
           try TripStay.createFreeform(
@@ -302,9 +328,8 @@ extension TripPlanningModel {
   // MARK: - Non-drag intra-day reorder (ADR-0033 Slice 4)
 
   /// Whether the stop can move one slot earlier in its day. Only a bare `.day`
-  /// "Anytime" stop carries a hand-order (`dayRank`); it can move up until it sits
-  /// right after the day's first timed/dayparted stop — it can't cross *above* the
-  /// first timed stop by order alone (ADR-0033 §2: give it a daypart for that).
+  /// "Anytime" stop carries a hand-order (`dayRank`), including ahead of the
+  /// day's first timed/dayparted stop.
   func canMoveStopEarlier(_ stop: ResolvedStop) -> Bool { reorderedIDs(stop, earlier: true) != nil }
 
   /// Whether the stop can move one slot later in its day (see `canMoveStopEarlier`).
@@ -319,40 +344,34 @@ extension TripPlanningModel {
 
   private func reorderDay(_ stop: ResolvedStop, earlier: Bool) {
     guard let ids = reorderedIDs(stop, earlier: earlier) else { return }
+    guard let day = stop.entry.dayNumber else { return }
+    let byID = Dictionary(uniqueKeysWithValues: orderedStops(onDay: day).map { ($0.id, $0) })
+    let leadingAnytimeIDs = Set(ids.prefix { id in
+      guard let entry = byID[id] else { return false }
+      if case .day = entry.entry.schedule { return true }
+      return false
+    })
     withErrorReporting {
       try database.write { db in
-        try TripIdea.reorderDayStops(ids, in: db)
+        try TripIdea.reorderDayStops(ids, leadingAnytimeIDs: leadingAnytimeIDs, in: db)
       }
     }
   }
 
   /// The day's stop IDs after moving `stop` one slot in `earlier`/later direction,
   /// or nil when the move isn't expressible by order alone. Only bare `.day`
-  /// stops reorder; a move earlier that would push the stop above the day's first
-  /// timed/dayparted stop is refused (it would teleport back to end-of-day —
-  /// ADR-0033 §2), leaving "Move Earlier" disabled at that boundary.
+  /// stops reorder, including before the day's first timed/dayparted stop. Such
+  /// explicitly-leading Anytime rows receive the core's negative-rank marker.
   private func reorderedIDs(_ stop: ResolvedStop, earlier: Bool) -> [TripIdea.ID]? {
     guard case .day = stop.entry.schedule, let day = stop.entry.schedule.dayNumber else { return nil }
     let stops = orderedStops(onDay: day)
     guard let from = stops.firstIndex(where: { $0.id == stop.id }) else { return nil }
     let to = earlier ? from - 1 : from + 1
     guard stops.indices.contains(to) else { return nil }
-    if earlier, let firstTimed = firstTimedIndex(stops), to <= firstTimed { return nil }
     var ids = stops.map(\.id)
     ids.remove(at: from)
     ids.insert(stop.id, at: to)
     return ids
-  }
-
-  /// The index of the day's first timed/dayparted stop, or nil when the day holds
-  /// only Anytime stops (then they reorder freely as a pile).
-  private func firstTimedIndex(_ stops: [ResolvedStop]) -> Int? {
-    stops.firstIndex {
-      switch $0.entry.schedule {
-      case .timed, .daypart: true
-      case .day, .unscheduled: false
-      }
-    }
   }
 
   // MARK: - Ordered-day helpers

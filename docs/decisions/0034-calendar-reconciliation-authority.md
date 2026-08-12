@@ -64,10 +64,15 @@ that value earlier.
 
 ### 2. Ingestion is trip-scoped; every in-scope event is reckoned with
 
-Galavant reads the shared calendar **only for a dated trip**, and only for events
+Galavant reads one **user-selected shared calendar** **only for a dated trip**, and only for events
 that fall within or materially overlap the trip's civil-day span (§ conservative
 first/last day, below). An undated / someday / targeted trip pulls **nothing** —
 "only when there are trips" is native to the scope, not a separate toggle.
+
+The selected EventKit calendar identifier is device-local configuration, never
+CloudKit state: it describes an account setup that may not exist on the other
+person's device. Until a planner selects a calendar, Galavant reads nothing; it
+does not search every visible calendar and infer intent from its contents.
 
 Within that scope, Galavant does **not** pre-classify events as "travel-related." A
 flight, French Laundry, a museum ticket, a hotel, "Call Tax Advisor," a doctor's

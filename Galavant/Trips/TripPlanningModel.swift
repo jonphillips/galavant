@@ -34,6 +34,18 @@ struct MapPlaceIdea: Identifiable {
   let draft: Idea.Draft
 }
 
+/// An existing pool idea opened from an itinerary row. The draft is wrapped so
+/// presentation has stable identity even before a new idea has been persisted.
+struct TripIdeaEditPresentation: Identifiable {
+  let id: UUID
+  let draft: Idea.Draft
+
+  init(_ idea: Idea) {
+    id = idea.id
+    draft = Idea.Draft(idea)
+  }
+}
+
 /// The editable state of the stop clock-time editor (ADR-0033 Slice 4) — give a
 /// placed stop an exact `.timed` start (and optional end) on its `day`. `start`
 /// is pre-filled from `Schedule.suggestedTime` over the stop's ordered-day
@@ -176,6 +188,7 @@ final class TripPlanningModel {
     case edit(Trip.Draft)
     case addIdeas
     case mapPlaceIdea(MapPlaceIdea)
+    case idea(TripIdeaEditPresentation)
     case placeIdea(PlaceIdeaTarget)
     case freeformStop(FreeformStopDraft)
     case stay(StayDraft)
@@ -466,6 +479,12 @@ final class TripPlanningModel {
   /// info button) — an in-panel push, not a sheet.
   func showDetail(_ idea: Idea) {
     detailIdeaID = idea.id
+  }
+
+  /// Edit the pool idea behind an itinerary row. The stop's placement remains
+  /// untouched; this is specifically for correcting a captured/display title.
+  func editIdea(_ idea: Idea) {
+    destination = .idea(TripIdeaEditPresentation(idea))
   }
 
   /// Resolve the pushed detail's idea, or nil if it was deleted while open

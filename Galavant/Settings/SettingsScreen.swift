@@ -22,6 +22,14 @@ struct SettingsScreen: View {
 
       AISettingsSections()
 
+      Section("Library") {
+        NavigationLink {
+          RegionManagementSettingsView()
+        } label: {
+          Icon.map.label("Map Regions")
+        }
+      }
+
       Section {
         Button {
           Task { await model.shareTravelPartyButtonTapped() }

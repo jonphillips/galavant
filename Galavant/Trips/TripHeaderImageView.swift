@@ -19,21 +19,28 @@ struct TripHeaderImageView: View {
   }
 
   var body: some View {
-    placeholder
-      .overlay {
+    ZStack {
+      placeholder
+        .allowsHitTesting(false)
+      Group {
         AsyncImage(url: URL(string: image.url)) { phase in
           switch phase {
           case .success(let img): img.resizable().scaledToFill()
           default: Color.clear
           }
         }
+        .allowsHitTesting(false)
       }
-      .frame(height: Self.height)
-      .frame(maxWidth: .infinity)
       .clipped()
-      .overlay(alignment: .bottomLeading) { attribution }
-      .overlay(alignment: .topTrailing) { changeButton }
-      .accessibilityElement(children: .contain)
+      VStack {
+        HStack { Spacer(); changeButton }
+        Spacer()
+        HStack { attribution; Spacer() }
+      }
+    }
+    .frame(height: Self.height)
+    .frame(maxWidth: .infinity)
+    .accessibilityElement(children: .contain)
   }
 
   /// "Photo by {name} on Unsplash" — real links, UTM-tagged per Unsplash's ToS. Built

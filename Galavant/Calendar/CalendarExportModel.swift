@@ -128,11 +128,13 @@ final class CalendarReconciliationModel {
     case idle
     case loading
     case accessDenied
+    case calendarSelectionRequired
     case loaded
     case failure(String)
   }
 
   @ObservationIgnored @Dependency(\.calendarIngestionClient) private var calendarClient
+  @ObservationIgnored @Dependency(\.calendarSelectionStore) private var calendarSelectionStore
   @ObservationIgnored @Dependency(\.placeMatcher) private var placeMatcher
   @ObservationIgnored @Dependency(\.calendarReconciliationHistoryStore) private var historyStore
   @ObservationIgnored @Dependency(\.defaultDatabase) private var database
@@ -143,6 +145,8 @@ final class CalendarReconciliationModel {
   var state: State = .idle
   var candidates: [CalendarReconciliationCandidate] = []
   var localState = CalendarReconciliationLocalState()
+  var calendars: [CalendarSource] = []
+  var selectedCalendarID: String? { calendarSelectionStore.calendarID() }
 
   var sharedHistory: [CalendarReconciliationLedgerEntry] { allLedgerEntries }
 
@@ -164,11 +168,17 @@ final class CalendarReconciliationModel {
         return
       }
 
+      calendars = calendarClient.calendars()
+      guard let selectedCalendarID, calendars.contains(where: { $0.id == selectedCalendarID }) else {
+        state = .calendarSelectionRequired
+        return
+      }
+
       localState = historyStore.state(trip.id)
       // Query two padded days on either side, then let the pure civil/absolute
       // scope discard the padding. Two days covers even the widest real-world
       // zone separation at a trip-day boundary.
-      let events = try calendarClient.events(queryInterval).filter {
+      let events = try calendarClient.events(queryInterval, [selectedCalendarID]).filter {
         scope.overlaps($0.temporal, absoluteTimeZone: nil) != false
       }
       let regionTimeZone = await regionTimeZone(for: trip)
@@ -200,6 +210,10 @@ final class CalendarReconciliationModel {
     } catch {
       state = .failure(error.localizedDescription)
     }
+  }
+
+  func selectCalendar(_ id: String?) {
+    calendarSelectionStore.setCalendarID(id)
   }
 
   private func persist(
@@ -306,12 +320,33 @@ struct CalendarReconciliationSheet: View {
             .foregroundStyle(.secondary)
         }
 
+        if !model.calendars.isEmpty {
+          Section("Calendar to Read") {
+            Picker("Calendar", selection: Binding(
+              get: { model.selectedCalendarID },
+              set: { id in
+                model.selectCalendar(id)
+                if id != nil { Task { await model.refresh(trip: trip, plan: plan) } }
+              }
+            )) {
+              Text("Choose a Calendar").tag(String?.none)
+              ForEach(model.calendars) { calendar in
+                Text(calendar.title).tag(String?.some(calendar.id))
+              }
+            }
+          }
+        }
+
         switch model.state {
         case .idle, .loading:
           Section { ProgressView("Reading shared calendars…") }
         case .accessDenied:
           Section("Calendar Access") {
             Text("Full Calendar access is unavailable. Galavant made no deletion or itinerary decision.")
+          }
+        case .calendarSelectionRequired:
+          Section("Choose a Calendar") {
+            Text("Select the one shared calendar Galavant may read. It will not inspect your other calendars.")
           }
         case let .failure(message):
           Section("Calendar Read Failed") { Text(message) }
