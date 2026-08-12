@@ -114,7 +114,7 @@ final class CalendarExportModel {
   }
 }
 
-// MARK: - M7 Slice 2 reconciliation
+// MARK: - M7 Calendar reconciliation
 
 /// Coordinates a fresh trip-scoped Calendar read, an app-side `PlaceMatcher`
 /// pass, the pure reconciliation ladder, and the local auto-apply plan. Only
@@ -147,10 +147,14 @@ final class CalendarReconciliationModel {
   var sharedHistory: [CalendarReconciliationLedgerEntry] { allLedgerEntries }
 
   func refresh(trip: Trip, plan: TripPlan) async {
-    guard let scope = scope(for: trip) else {
+    let tripCalendar = Calendar.current
+    guard let scope = scope(for: trip, calendar: tripCalendar),
+      let queryInterval = scope.queryInterval(in: Self.storageTimeZone)
+    else {
       state = .failure("Calendar reconciliation needs a dated trip.")
       return
     }
+    let temporalContext = CalendarTripTemporalContext(scope: scope)
 
     state = .loading
     do {
@@ -161,13 +165,25 @@ final class CalendarReconciliationModel {
       }
 
       localState = historyStore.state(trip.id)
-      let events = try calendarClient.events(scope)
-      let ingestedEvents = try await ingest(events)
-      candidates = CalendarReconciliation.candidates(for: ingestedEvents, trip: trip, plan: plan)
+      // Query two padded days on either side, then let the pure civil/absolute
+      // scope discard the padding. Two days covers even the widest real-world
+      // zone separation at a trip-day boundary.
+      let events = try calendarClient.events(queryInterval).filter {
+        scope.overlaps($0.temporal, absoluteTimeZone: nil) != false
+      }
+      let regionTimeZone = await regionTimeZone(for: trip)
+      let ingestedEvents = try await ingest(events, regionTimeZone: regionTimeZone)
+      candidates = CalendarReconciliation.candidates(
+        for: ingestedEvents,
+        trip: trip,
+        plan: plan,
+        temporalContext: temporalContext)
       let outsideTripObservations: [CalendarBoundEventObservation] = localState.linkedStops.compactMap { linked in
         guard
           let event = calendarClient.event(linked.eventID),
-          !overlaps(event, scope: scope)
+          temporalContext.project(
+            event.temporal,
+            absoluteTimeZone: linked.itineraryTimeZone) == .outsideTrip
         else { return nil }
         return CalendarBoundEventObservation(bindingID: linked.eventID, event: event)
       }
@@ -177,24 +193,7 @@ final class CalendarReconciliationModel {
         localState: localState,
         observedAt: now,
         makeHistoryID: { uuid() })
-      let newHistory = automaticPlan.localState.history.dropFirst(localState.history.count)
-      let ledgerEntries = newHistory.compactMap {
-        CalendarReconciliationLedgerEntry(tripID: trip.id, historyEntry: $0)
-      }
-      if !automaticPlan.applications.isEmpty || !ledgerEntries.isEmpty {
-        try await database.write { db in
-          for application in automaticPlan.applications {
-            try TripIdea.applyCalendarCommitment(application.commitment, stopID: application.stopID, in: db)
-          }
-          for entry in ledgerEntries {
-            try CalendarReconciliationLedgerEntry.record(entry, in: db)
-          }
-        }
-      }
-      if automaticPlan.localState != localState {
-        historyStore.setState(trip.id, automaticPlan.localState)
-        localState = automaticPlan.localState
-      }
+      try await persist(automaticPlan, tripID: trip.id)
       state = .loaded
     } catch is CancellationError {
       // Sheet dismissal is normal view-lifecycle cancellation.
@@ -203,7 +202,38 @@ final class CalendarReconciliationModel {
     }
   }
 
-  private func ingest(_ events: [CalendarObservedEvent]) async throws -> [CalendarIngestedEvent] {
+  private func persist(
+    _ plan: CalendarReconciliationAutomaticPlan,
+    tripID: Trip.ID
+  ) async throws {
+    let newHistory = plan.localState.history.dropFirst(localState.history.count)
+    let ledgerEntries = newHistory.compactMap {
+      CalendarReconciliationLedgerEntry(tripID: tripID, historyEntry: $0)
+    }
+    if !plan.applications.isEmpty || !ledgerEntries.isEmpty {
+      try await database.write { db in
+        for application in plan.applications {
+          try TripIdea.applyCalendarCommitment(
+            application.commitment,
+            stopID: application.stopID,
+            dayNumber: application.dayNumber,
+            in: db)
+        }
+        for entry in ledgerEntries {
+          try CalendarReconciliationLedgerEntry.record(entry, in: db)
+        }
+      }
+    }
+    if plan.localState != localState {
+      historyStore.setState(tripID, plan.localState)
+      localState = plan.localState
+    }
+  }
+
+  private func ingest(
+    _ events: [CalendarObservedEvent],
+    regionTimeZone: TimeZone?
+  ) async throws -> [CalendarIngestedEvent] {
     var ingested: [CalendarIngestedEvent] = []
     for event in events {
       try Task.checkCancellation()
@@ -216,26 +246,48 @@ final class CalendarReconciliationModel {
       let matchedPlace = match.map {
         CalendarMatchedPlace(name: $0.name ?? event.title, mapItemIdentifier: $0.mapItemIdentifier)
       }
-      ingested.append(CalendarIngestedEvent(event: event, matchedPlace: matchedPlace))
+      // The trip's destination (region) zone is the projection frame for every
+      // event's trip day — ADR-0034's actual intent: place an absolute instant on
+      // the *destination's* civil day. A matched venue's own zone is only a fallback
+      // for a region-less trip; it must not override the destination, or a wrong
+      // worldwide name-match could push a just-after-midnight event onto the prior
+      // day and silently drop it. Only when neither resolves does the event stay
+      // `.unresolvedTimeZone` — still visible in the sheet, never dropped.
+      let itineraryTimeZone = regionTimeZone
+        ?? match?.timeZoneIdentifier.flatMap(TimeZone.init(identifier:))
+      ingested.append(CalendarIngestedEvent(
+        event: event,
+        matchedPlace: matchedPlace,
+        itineraryTimeZone: itineraryTimeZone))
     }
     return ingested
   }
 
-  /// Full first and last civil days. M7 Slice 4 owns the durable travel-zone and
-  /// floating-time model; this read-only slice intentionally makes no such fact.
-  private func scope(for trip: Trip) -> DateInterval? {
-    guard let startDate = trip.startDate else { return nil }
-    let calendar = Calendar.current
-    let start = calendar.startOfDay(for: startDate)
-    guard let end = calendar.date(byAdding: .day, value: trip.lengthInDays, to: start) else {
-      return nil
-    }
-    return DateInterval(start: start, end: end)
+  /// A principled destination zone for the whole trip, derived from its planning
+  /// region(s) by reverse-geocoding their bounding-box center. Used only as the
+  /// fallback when a matched place resolved no zone; never the device or event
+  /// zone (ADR-0034). Nil when the trip has no region or the lookup fails, which
+  /// keeps a genuinely unplaceable absolute event visibly unresolved.
+  private func regionTimeZone(for trip: Trip) async -> TimeZone? {
+    let regions = (try? await database.read { db -> [MapRegion] in
+      let ids = try TripRegion.regionIDs(forTrip: trip.id, in: db)
+      return try MapRegion.where { $0.id.in(ids) }.fetchAll(db)
+    }) ?? []
+    guard let box = MapRegion.boundingBox(of: regions) else { return nil }
+    return await placeMatcher.timeZone(
+      latitude: box.centerLatitude, longitude: box.centerLongitude)
   }
 
-  private func overlaps(_ event: CalendarObservedEvent, scope: DateInterval) -> Bool {
-    event.startDate < scope.end && event.endDate > scope.start
+  /// Full first and last civil days. EventKit querying is padded separately so
+  /// this remains the pure semantic boundary for zoned, floating, and all-day time.
+  private func scope(for trip: Trip, calendar: Calendar) -> CalendarTripScope? {
+    guard let startDate = trip.startDate else { return nil }
+    return CalendarTripScope(
+      start: CalendarCivilDate(startDate, calendar: calendar),
+      dayCount: trip.lengthInDays)
   }
+
+  private static let storageTimeZone = TimeZone(secondsFromGMT: 0)!
 }
 
 struct CalendarReconciliationSheet: View {
@@ -297,6 +349,9 @@ struct CalendarReconciliationSheet: View {
     let ambiguous = model.candidates.filter {
       if case .ambiguous = $0.result { true } else { false }
     }
+    let needsTimeZone = model.candidates.filter {
+      if case .unresolvedTimeZone = $0.result { true } else { false }
+    }
     let unmatched = model.candidates.filter {
       if case .unmatched = $0.result { true } else { false }
     }
@@ -317,6 +372,11 @@ struct CalendarReconciliationSheet: View {
       if !ambiguous.isEmpty {
         Section("Needs Later Review") {
           ForEach(ambiguous, content: candidateRow)
+        }
+      }
+      if !needsTimeZone.isEmpty {
+        Section("Time Zone Needs Review") {
+          ForEach(needsTimeZone, content: candidateRow)
         }
       }
       if !unmatched.isEmpty {
@@ -342,7 +402,7 @@ struct CalendarReconciliationSheet: View {
         .font(.caption)
         .foregroundStyle(.secondary)
       if let current = entry.current {
-        Text(current.pinnedDate, format: .dateTime.weekday().month().day().hour().minute())
+        Text(temporalDescription(current.temporal))
           .font(.caption)
           .foregroundStyle(.secondary)
       }
@@ -356,7 +416,7 @@ struct CalendarReconciliationSheet: View {
       Text(candidate.input.event.calendarTitle)
         .font(.caption)
         .foregroundStyle(.secondary)
-      Text(candidate.input.event.startDate, format: .dateTime.weekday().month().day().hour().minute())
+      Text(temporalDescription(candidate.input.event.temporal))
         .font(.caption)
         .foregroundStyle(.secondary)
       switch candidate.result {
@@ -369,6 +429,9 @@ struct CalendarReconciliationSheet: View {
           .font(.caption)
       case let .ambiguous(stops):
         Text("Could be: \(stops.map(\.content.title).joined(separator: ", ")).")
+          .font(.caption)
+      case .unresolvedTimeZone:
+        Text("Travel time zone needs review before this event can be placed on a trip day.")
           .font(.caption)
       case .unmatched:
         Text("No same-day itinerary stop matches this event.")
@@ -383,6 +446,28 @@ struct CalendarReconciliationSheet: View {
     case .mapItemIdentifier: "the same Apple Maps place"
     case .exactName: "the exact place name"
     case .nameAndProximity: "a nearby place with a shared name"
+    }
+  }
+
+  private func temporalDescription(_ temporal: CalendarEventTime) -> String {
+    switch temporal {
+    case let .absolute(start, _, timeZone):
+      var style = Date.FormatStyle(date: .abbreviated, time: .shortened)
+      style.timeZone = timeZone
+      return start.formatted(style)
+    case let .floating(start, _):
+      return String(
+        format: "%d/%d/%04d %02d:%02d (floating)",
+        start.date.month, start.date.day, start.date.year, start.hour, start.minute)
+    case let .allDay(start, endExclusive):
+      if endExclusive == start.adding(days: 1) {
+        return String(format: "%d/%d/%04d (all day)", start.month, start.day, start.year)
+      }
+      let inclusiveEnd = endExclusive.adding(days: -1) ?? endExclusive
+      return String(
+        format: "%d/%d/%04d–%d/%d/%04d (all day)",
+        start.month, start.day, start.year,
+        inclusiveEnd.month, inclusiveEnd.day, inclusiveEnd.year)
     }
   }
 }

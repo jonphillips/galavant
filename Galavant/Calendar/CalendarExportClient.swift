@@ -160,12 +160,15 @@ extension CalendarObservedEvent {
     let latitude = event.structuredLocation?.geoLocation?.coordinate.latitude
     let longitude = event.structuredLocation?.geoLocation?.coordinate.longitude
     guard let startDate = event.startDate, let endDate = event.endDate else { return nil }
-    let isAllDay = event.isAllDay
+    let calendar = Calendar.current
+    let temporal = Self.temporal(
+      for: event, startDate: startDate, endDate: endDate, calendar: calendar)
+    let recurrence = Self.recurrence(for: event, temporal: temporal, calendar: calendar)
+    guard !(event.hasRecurrenceRules || event.isDetached) || recurrence != nil else { return nil }
     let rawCalendarTitle = event.calendar.title
     let calendarTitle = rawCalendarTitle.isEmpty ? "Untitled Calendar" : rawCalendarTitle
     let fallbackIdentifier = [
-      calendarTitle, title, String(startDate.timeIntervalSinceReferenceDate),
-      String(endDate.timeIntervalSinceReferenceDate), location ?? "",
+      calendarTitle, title, temporal.identityDescription, location ?? "",
     ].joined(separator: "|")
     let calendarItemIdentifier = event.calendarItemIdentifier
     let stableIdentifier = eventIdentifier
@@ -180,12 +183,69 @@ extension CalendarObservedEvent {
       location: location,
       latitude: latitude,
       longitude: longitude,
-      startDate: startDate,
-      endDate: endDate,
-      isAllDay: isAllDay,
-      isRecurring: event.hasRecurrenceRules,
+      temporal: temporal,
+      availability: Self.availability(for: event),
+      recurrence: recurrence,
       calendarTitle: calendarTitle
     )
+  }
+
+  private static func temporal(
+    for event: EKEvent,
+    startDate: Date,
+    endDate: Date,
+    calendar: Calendar
+  ) -> CalendarEventTime {
+    if event.isAllDay {
+      let start = CalendarCivilDate(startDate, calendar: calendar)
+      var endExclusive = CalendarCivilDate(endDate, calendar: calendar)
+      // EventKit feeds can report an inclusive final day (or the same midnight
+      // for a one-day event). Normalize both forms before the pure core rejects
+      // the range as empty.
+      if endExclusive <= start {
+        endExclusive = start.adding(days: 1)!
+      }
+      return .allDay(
+        start: start,
+        endExclusive: endExclusive)
+    }
+    if let timeZone = event.timeZone {
+      return .absolute(start: startDate, end: endDate, timeZone: timeZone)
+    }
+    return .floating(
+      start: CalendarCivilDateTime(startDate, calendar: calendar),
+      end: CalendarCivilDateTime(endDate, calendar: calendar))
+  }
+
+  private static func availability(for event: EKEvent) -> CalendarEventAvailability {
+    switch event.availability {
+    case .busy: .busy
+    case .free: .free
+    case .tentative: .tentative
+    case .unavailable: .unavailable
+    case .notSupported: .notSupported
+    @unknown default: .notSupported
+    }
+  }
+
+  private static func recurrence(
+    for event: EKEvent,
+    temporal: CalendarEventTime,
+    calendar: Calendar
+  ) -> CalendarEventRecurrence? {
+    guard event.hasRecurrenceRules || event.isDetached else { return nil }
+    guard let occurrenceDate = event.occurrenceDate else { return nil }
+    let originalOccurrence: CalendarOccurrenceAnchor = switch temporal {
+    case .absolute:
+      .absolute(occurrenceDate)
+    case .floating:
+      .floating(CalendarCivilDateTime(occurrenceDate, calendar: calendar))
+    case .allDay:
+      .allDay(CalendarCivilDate(occurrenceDate, calendar: calendar))
+    }
+    return CalendarEventRecurrence(
+      originalOccurrence: originalOccurrence,
+      isDetached: event.isDetached)
   }
 }
 

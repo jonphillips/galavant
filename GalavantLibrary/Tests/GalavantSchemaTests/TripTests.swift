@@ -661,7 +661,10 @@ struct TripTests {
       let idea = try seedIdea(name: "Noma", in: db)
       let pulled = try TripIdea.pull(ideaID: idea.id, into: trip.id, in: db)
       try TripIdea.applyCalendarCommitment(
-        .timed(start: commitmentStart, end: commitmentEnd), stopID: pulled.id, in: db)
+        .timed(start: commitmentStart, end: commitmentEnd),
+        stopID: pulled.id,
+        dayNumber: 3,
+        in: db)
       return try TripIdea.find(pulled.id).fetchOne(db)!
     }
 

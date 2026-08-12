@@ -35,6 +35,30 @@ import Testing
     #expect(match?.coordinate == ParsedCoordinate(latitude: 38.4043, longitude: -122.3630))
   }
 
+  @Test("Calendar event resolves its venue from the location, not a non-venue title")
+  func calendarEventResolvesVenueFromLocation() async {
+    let matcher = PlaceMatcher(
+      geocode: { _ in Issue.record("a structured coordinate wins"); return nil },
+      search: { _ in Issue.record("a structured coordinate wins"); return [] },
+      lookupNear: { _, _ in
+        [self.place("The French Laundry", 38.4043, -122.3630, mapItemIdentifier: "maps-tfl")]
+      }
+    )
+
+    // The event's subject line ("Dinner reservation") is not the venue; the venue
+    // lives in `location`. Resolution must adopt that POI's identity and name, or a
+    // real reservation never links to its itinerary stop.
+    let match = await matcher.match(
+      calendarEventTitle: "Dinner reservation",
+      latitude: 38.4043,
+      longitude: -122.3630,
+      location: "The French Laundry, 6640 Washington St, Yountville"
+    )
+
+    #expect(match?.name == "The French Laundry")
+    #expect(match?.mapItemIdentifier == "maps-tfl")
+  }
+
   @Test("Scraped coordinates are authoritative — no geocode or search")
   func coordinatesWinOutright() async {
     let matcher = PlaceMatcher(

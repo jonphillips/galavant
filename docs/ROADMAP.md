@@ -434,8 +434,9 @@ are proven locally. Full rationale + acceptance criteria in ADR-0034.
   CloudKit-shared state; the identity/fingerprint + dedup design. The hard one — only
   after 1–2 prove the semantics. Initial implementation: `codex/m7-s3-shared-ledger`.
   **Opus.**
-- ⏳ **Slice 4 — temporal subsystem.** Time-zone three-concept model, all-day / free /
-  tentative, recurrence-occurrence handling — pure core, heavily tested. **Opus.**
+- 🚧 **Slice 4 — temporal subsystem.** Time-zone three-concept model, all-day / free /
+  tentative, recurrence-occurrence handling — pure core, heavily tested. Initial
+  implementation: `codex/m7-s4-temporal-subsystem`. **Opus.**
 - ⏳ **Slice 5 — Calendar-originated non-place constraints.** "Call Tax Advisor" as a
   trip constraint with provenance-governed deletion; simplified by the no-privacy call.
   **Suggested executor: Sonnet** if it reduces to a constraint record on precedent by

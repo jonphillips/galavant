@@ -11,47 +11,6 @@ public enum CalendarTimeAuthority: String, Codable, Equatable, Sendable {
   case linked
 }
 
-/// The Calendar fact this device applied to a linked stop. This deliberately
-/// covers only the ordinary, representable EventKit shapes in Slice 2. Slice 4
-/// expands the temporal model for cross-day, recurrence, availability, and
-/// time-zone semantics rather than guessing at any of them here.
-public enum CalendarCommitment: Codable, Equatable, Sendable {
-  case allDay(date: Date)
-  case timed(start: Date, end: Date)
-
-  public init?(event: CalendarObservedEvent, calendar: Calendar = .current) {
-    if event.isAllDay {
-      self = .allDay(date: calendar.startOfDay(for: event.startDate))
-      return
-    }
-    guard event.endDate > event.startDate,
-      calendar.isDate(event.startDate, inSameDayAs: event.endDate)
-    else { return nil }
-    self = .timed(start: event.startDate, end: event.endDate)
-  }
-
-  public var pinnedDate: Date {
-    switch self {
-    case let .allDay(date): date
-    case let .timed(start, _): start
-    }
-  }
-
-  public func schedule(on day: DayNumber, calendar: Calendar = .current) -> Schedule {
-    switch self {
-    case .allDay:
-      .day(day)
-    case let .timed(start, end):
-      .timed(day, start: clockTime(start, calendar: calendar), end: clockTime(end, calendar: calendar))
-    }
-  }
-
-  private func clockTime(_ date: Date, calendar: Calendar) -> String {
-    let components = calendar.dateComponents([.hour, .minute], from: date)
-    return String(format: "%02d:%02d", components.hour ?? 0, components.minute ?? 0)
-  }
-}
-
 /// A device-local EventKit binding. `eventID` is never synced: it tells this
 /// device which observed event remains authoritative for one itinerary stop.
 public struct CalendarLinkedStop: Codable, Equatable, Sendable {
@@ -66,6 +25,14 @@ public struct CalendarLinkedStop: Codable, Equatable, Sendable {
   /// trip's dates. Keep the observed fact for review, but never turn absence or
   /// an out-of-scope date into a deletion or an itinerary write.
   public var movedOutsideTripCommitment: CalendarCommitment?
+  /// Stable source identity plus occurrence anchor heal an EventKit binding when
+  /// sync replaces the device-local event identifier for one recurring instance.
+  /// Optional fields keep existing Slice 2 payloads decodable.
+  public var sourceExternalIdentifier: String?
+  public var occurrenceAnchor: CalendarOccurrenceAnchor?
+  /// The explicit itinerary zone used when this binding was established. It is
+  /// local integration context, not a synced trip-wide time zone.
+  public var itineraryTimeZoneIdentifier: String?
 
   public init(
     stopID: TripIdea.ID,
@@ -73,7 +40,10 @@ public struct CalendarLinkedStop: Codable, Equatable, Sendable {
     commitment: CalendarCommitment,
     observedAt: Date,
     eventTitle: String? = nil,
-    movedOutsideTripCommitment: CalendarCommitment? = nil
+    movedOutsideTripCommitment: CalendarCommitment? = nil,
+    sourceExternalIdentifier: String? = nil,
+    occurrenceAnchor: CalendarOccurrenceAnchor? = nil,
+    itineraryTimeZoneIdentifier: String? = nil
   ) {
     self.stopID = stopID
     self.eventID = eventID
@@ -81,6 +51,13 @@ public struct CalendarLinkedStop: Codable, Equatable, Sendable {
     self.observedAt = observedAt
     self.eventTitle = eventTitle
     self.movedOutsideTripCommitment = movedOutsideTripCommitment
+    self.sourceExternalIdentifier = sourceExternalIdentifier
+    self.occurrenceAnchor = occurrenceAnchor
+    self.itineraryTimeZoneIdentifier = itineraryTimeZoneIdentifier
+  }
+
+  public var itineraryTimeZone: TimeZone? {
+    itineraryTimeZoneIdentifier.flatMap(TimeZone.init(identifier:))
   }
 }
 

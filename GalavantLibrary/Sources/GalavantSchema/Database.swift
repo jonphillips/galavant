@@ -565,6 +565,15 @@ extension DependencyValues {
       )
       .execute(db)
     }
+    migrator.registerMigration("Add temporal snapshot to calendar reconciliation ledger (ADR-0034)") { db in
+      // Slice 3's Date columns cannot represent floating civil times, all-day civil
+      // ranges, a presentation zone, or availability without silent loss. Keep them
+      // as a legacy projection and add the complete Codable interchange snapshot.
+      try #sql(
+        #"ALTER TABLE "calendarReconciliationLedgerEntries" ADD COLUMN "currentSnapshot" TEXT"#
+      )
+      .execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if case let .configured(startImmediately) = syncMode {
