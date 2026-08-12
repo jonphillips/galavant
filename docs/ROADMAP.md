@@ -467,9 +467,15 @@ are off-sequence** (filtered out at the scheduled-partition boundary), so `legs`
 `locatedSequenceNumbers` / the weave are **untouched** and the phantom leg is structurally
 impossible. Two additive loose columns (`alternativeGroupID`, `isActive`); members share the
 slot, so **cycling is a single flag flip** — no slot copy, no preview (you cycle and see the real
-day). No new table, no CloudKit registration change (ADR-0006/0007). Composes with the
-`StartDaySolver` (ADR-0029) and M7 reconciliation: an alternative is the ready-made fix when the
-active option fails a constraint. Distinct from Ideas (under consideration), optional/skippable
+day). No new table, no CloudKit registration change (ADR-0006/0007). **One concept, two
+presentations keyed off the slot's firmness:** a routed slot (timed lunch) shows a current-pick +
+alternatives (exactly one active); a loose slot (open afternoon, ADR-0033 Anytime) shows a
+**neutral menu** of peers (zero-or-one active) the app already navigates around — so the
+"backup" and "four-things-we-could-do" cases are the *same* feature, no "which kind?" label. A
+`promoteAlternative` op (the mirror of add) can graduate one — or several — options into their
+own real stops, so a menu resolves gracefully instead of "pick one, lose the rest." Composes with
+the `StartDaySolver` (ADR-0029) and M7 reconciliation: an alternative is the ready-made fix when
+the active option fails a constraint. Distinct from Ideas (under consideration), optional/skippable
 stops, and branching. Full rationale + the 7 acceptance criteria in ADR-0035.
 
 - ⏳ **Slice 1 — schema + active-only partition.** The two columns; an `&& isActive` guard on

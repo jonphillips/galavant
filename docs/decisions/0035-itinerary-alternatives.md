@@ -49,6 +49,17 @@ reveals the whole ring. This is **not** a branching graph, and it is distinct fr
 (under consideration, not on the itinerary) and **optional/skippable stops** (dropped entirely,
 no "instead"). It solves exactly: *this slot has a few interchangeable options, one active.*
 
+**Two moods, one mechanism (firmness-keyed presentation).** The ring covers two real situations
+that feel different but *are* the same object: a **committed slot with a fallback** ("lunch is
+Baita, backup Gostner") and an **open block with a menu** ("open afternoon — here are four things,
+what are we in the mood for?"). The only difference is *firmness*, which Galavant already models
+as the slot's schedule — so the ring inherits its mood from the slot rather than a new label. A
+**routed slot** (firmly scheduled) shows a **current pick + alternatives** and keeps *exactly one*
+member active; a **loose slot** (Anytime/unscheduled, ADR-0033) renders the ring **neutrally** —
+peers, no emphasized pick — and allows *zero-or-one* active, because nothing routes through it.
+The user never declares "backup" vs "consideration"; they drop options on a slot and decide when
+ready. Splitting these into two features would encode a *mood* as a type — the thing to resist.
+
 ## Decision
 
 **An alternatives group is a set of `TripIdea` stops that share one itinerary slot, with exactly
@@ -69,8 +80,10 @@ public var isActive = true             // the one member of the ring shown in th
 - **`alternativeGroupID`** is a loose UUID (like `ideaID`), shared by a ring's members, reconciled
   on read. An ordinary stop has `nil` and `isActive == true` (it is trivially "the active member
   of a ring of one" — so the common path needs no special-casing).
-- **`isActive`** — **exactly one** member of a group is true (invariant enforced by the ops, §4).
-  There is no "nobody active" state; that is the whole simplification.
+- **`isActive`** — on a **routed** (firmly scheduled) slot, **exactly one** member is true; on a
+  **loose** (Anytime/unscheduled) slot, **at most one** (a neutral menu may sit with none active).
+  There is never a "nobody active" state on a *routed* slot — draft 1's expensive case — and it
+  stays gone. Invariant enforced by the ops (§4).
 - **Members share the slot.** Every member of a ring carries the *same* `dayNumber`, `schedule`,
   and `dayRank` (ADR-0033) — they occupy one position. So **cycling never moves slot data**; it
   only flips `isActive`. Order *within* the ring (for a predictable cycle) uses the members'
@@ -97,9 +110,13 @@ the two are never both in the routed sequence (AC #3, met for free rather than e
 
 ### 3. Routing is always concrete — no uncertainty branch
 
-The route always runs `prev → active → next`. Exactly one member is active, always, so there is
-no "omit the leg / acknowledge uncertainty" case (draft 1's thorniest sub-case, gone). `baseLegs`
-/ lodging-to-first-stop routing is unchanged — the active member is the first stop as today.
+On a **routed** slot the route runs `prev → active → next` — exactly one member is active, so
+there is no "omit the leg / acknowledge uncertainty" case (draft 1's thorniest sub-case, gone). A
+**loose** slot with no active member contributes **no routed stop**; the app navigates around it
+exactly as it already does for any Anytime/timing-neutral stop (ADR-0033 §4) — no leg, no ETA.
+This **reuses shipped behavior rather than re-introducing the fold**: every member of a loose
+slot is *off*-sequence, so there is nothing to squash (the fold was about squashing members that
+sat *in* the routed sequence). `baseLegs` / lodging routing is unchanged.
 
 ### 4. Cycle / set-active — a flag flip, works mid-trip
 
@@ -109,20 +126,30 @@ slot — it **never copies slot columns**:
 - `cycleAlternative(_:)` — advance `isActive` from the current member to the **next in the ring**
   (by `shortlistRank`, wrapping). The quick "just show me the other one" gesture.
 - `setActiveAlternative(_:)` — make a **specific** member active (the disclosure's tap-to-choose).
+- `promoteAlternative(_:)` — the **mirror of `addAlternative`**: pull a member **out** of the ring
+  into its own standalone, routed stop (clear its `alternativeGroupID`, place it at its own
+  position on the day). Because add/remove already exist, promote is the same machinery run
+  backwards; and a ring left with one member reconciles to an ordinary stop (§6), so promoting
+  naturally dissolves the ring once you've decided.
 
-Both are two flag writes. The routing, ETAs, pin position, and start-day/reconciliation checks
-all recompute downstream because the active member's coordinates changed — **no preview is
-computed or needed** (the user cycles and sees the real re-routed day). Runnable during the trip
-(AC #4, #5).
+The first three are two flag writes; none copies slot columns. The routing, ETAs, pin position,
+and start-day/reconciliation checks all recompute downstream because the active member's
+coordinates changed — **no preview is computed or needed** (the user cycles and sees the real
+re-routed day). Runnable during the trip (AC #4, #5). **Promote is what lets a neutral menu
+resolve gracefully:** you needn't pick one and lose the rest — do one in the moment
+(`setActive`), or promote one **or several** into the real plan and drop the others ("we'll do
+the market *and* the castle"). A promoted stop lands on the same day beside its old slot and is
+scheduled like any stop.
 
 ### 5. UI: one active row, a disclosure to the ring, a cycle control
 
-- **Timeline (`TripItineraryView`):** a stop in a ring renders as its **active** member — an
-  ordinary numbered row — carrying (a) a small **"N of M"** ring badge with a **cycle** control
-  (⟳) for the quick rotate, and (b) a **disclosure arrow**. Expanding the disclosure reveals the
-  **current choice** (highlighted) above the **other alternatives**; tapping any makes it active
-  (`setActiveAlternative`), and the expanded panel is also where you **add / remove** alternatives.
-  It is never a second *sequential* row — the ring lives inside one slot.
+- **Timeline (`TripItineraryView`):** a **routed** slot renders as its **active** member — an
+  ordinary numbered row — carrying a small **"N of M"** badge with a **cycle** (⟳) control and a
+  **disclosure arrow**; a **loose** slot renders **neutrally** (e.g. "Open afternoon — 4 ideas")
+  with the same disclosure but no emphasized pick. Expanding reveals the ring — the **current
+  choice** highlighted (routed) or the options as peers (loose) — where you tap to make one active
+  (`setActiveAlternative`), **promote** one into the itinerary (`promoteAlternative`), or **add /
+  remove** options. It is never a second *sequential* row — the ring lives inside one slot.
 - **Canvas:** the active member wears its ordinary numbered pin; the inactive alternatives draw
   **only while the row's disclosure is expanded (or the stop is selected)**, as muted, unnumbered
   pins, contributing **no** polyline segment (AC #2, #3).
@@ -143,10 +170,11 @@ computed or needed** (the user cycles and sees the real re-routed day). Runnable
 
 ### 7. What we explicitly do **not** build
 
-No undecided "nobody chosen yet" state (§Why not); no branching/convergence; no
-optional/skippable concept; no cross-alternative route optimization; no routing *preview* (you
-cycle and see the real day). The Ideas pool stays the home for "maybe someday" — a ring member is
-a *scheduled* option for a specific slot.
+No undecided state on a **routed** slot (a firm position always has an answer — §Why not); no
+branching/convergence; no optional/skippable concept; no cross-alternative route optimization; no
+routing *preview* (you cycle and see the real day). A **loose** slot's neutral menu is **not** the
+draft-1 undecided state — nothing routes through it, so it costs nothing. The Ideas pool stays the
+home for "maybe someday" — a ring member is a *scheduled* option for a specific slot.
 
 ## Why this and not the alternatives
 
@@ -155,6 +183,7 @@ a *scheduled* option for a specific slot.
 | **Two sequential stops** (today) | Rejected — the reported bug: fabricates an A→B travel leg and consumes two pin numbers, implying "A then B" when the truth is "A **or** B." |
 | **Symmetric choice with an undecided state** (draft 1) | Rejected — the undecided state is the *sole* source of the hard parts: a read-model **collapse fold** inside the tested `legs`/`locatedSequenceNumbers`/weave, and an **"acknowledge uncertainty" routing gap**. Paying that to represent "we haven't decided" isn't earned; a live plan always has *something* penciled in. |
 | **Primary + off-sequence backups** (draft 2) | Considered, near-miss — removes the undecided state (one column, `backupForStopID`), but is **asymmetric**: it imposes a canonical "real plan" the product doesn't need, and a *cycle* interaction has to rotate a star of pointers (re-point every sibling per press). The ring makes cycling a single flag flip and the members true peers. |
+| **Two separate features — "alternatives" (a backup) vs "considerations" (a day menu)** | Rejected — identical structure (one slot, N candidates, one happens, no leg between); the only difference is *firmness/mood*, which the slot's schedule already carries. Two records + two UIs would encode a mood as a type and clutter the UI with a "which kind is this?" choice. One ring, presentation keyed off firmness (routed → current-pick + alternatives; loose → neutral menu). |
 | **UI-only grouping** (view hides inactive members, model unchanged) | Rejected — `legs`/`allLegs` still zip the hidden member upstream of the view (AC #3 unmet) and directions pre-warm the phantom leg. The exclusion must live in the read-model. |
 | **`AlternativeGroup` side-table** (like `TripStay`) | Rejected — a second synced record and a winner pointer that can dangle, for a relationship two loose columns on the members already express. |
 | **A new `.alternative`/`.inactive` status** (vs. the `isActive` column) | Rejected — touches the ADR-0004 status lifecycle and every status switch; the column guard is one `&& isActive` clause per partition and leaves the enum alone (the ADR-0033 "no redundant case" lesson). |
@@ -172,7 +201,10 @@ a *scheduled* option for a specific slot.
   alternative to a restaurant — carrying the two columns like any `TripIdea`.
 - **ADR-0033 (floating untimed stops):** the **active** member is an ordinary positioned stop and
   keeps all of ADR-0033 (`dayRank`, anchored interleave); inactive members share the slot but are
-  off-sequence, so `effectiveIntraDaySort` only ever sees the active one.
+  off-sequence, so `effectiveIntraDaySort` only ever sees the active one. A **loose** slot's
+  neutral menu (zero active) leans directly on ADR-0033's timing-neutral behavior — the app
+  already navigates around untimed stops with no leg/ETA, so nothing new is needed to route
+  around an undecided open block.
 - **ADR-0029 (`StartDaySolver`) / M7 (calendar reconciliation):** the composition payoff — an
   inactive alternative is precisely *what you cycle to when the active stop fails a constraint* (a
   solver closed-day for the intended meal; a reservation that moves or vanishes under
@@ -190,11 +222,13 @@ a *scheduled* option for a specific slot.
   inactive member never appears in a day/bucket/leg, cycling changes only which member routes, and
   an ungrouped trip is byte-identical to today.
 - **Ops:** `addAlternative(_:to:)` / `cycleAlternative(_:)` / `setActiveAlternative(_:)` /
-  `removeAlternative(_:)`, delete-active-promotes-next, one-member-remnant + no-active-member
-  reconcile. Invariant: exactly one active per group.
-- **App:** the disclosure ring row + cycle control in `TripItineraryView`; the muted-on-expand
-  canvas pins; `StopMenu` "Add as alternative to…" / "Add alternative"; `swiftui-specialist`
-  checkpoint; device install on the iPad Pro 13-inch (M5) sim ([[preferred-review-sim]]).
+  `promoteAlternative(_:)` (the mirror of add — extract to a standalone stop) / `removeAlternative(_:)`,
+  delete-active-promotes-next, one-member-remnant + no-active-member reconcile. Invariant: exactly
+  one active on a routed slot, at most one on a loose slot.
+- **App:** the disclosure ring row (routed: current-pick + alternatives; loose: a neutral menu)
+  with cycle + **promote** controls in `TripItineraryView`; the muted-on-expand canvas pins;
+  `StopMenu` "Add as alternative to…" / "Add alternative"; `swiftui-specialist` checkpoint; device
+  install on the iPad Pro 13-inch (M5) sim ([[preferred-review-sim]]).
 - **No CloudKit sync-registration change** — both columns ride `TripIdea`'s existing registration.
 - **AC #7 (existing linear itineraries unchanged):** an ordinary stop is `alternativeGroupID ==
   nil`, `isActive == true` and takes every path exactly as today — the guard is a no-op, and the
@@ -208,14 +242,15 @@ a *scheduled* option for a specific slot.
   member routes, and that an ungrouped trip is byte-identical to today. **Suggested executor:
   Opus** — touches the read-model partition; wants the byte-identical guardrail proven.
 - **Slice 2 — write ops:** `addAlternative` / `cycleAlternative` / `setActiveAlternative` /
-  `removeAlternative`, delete-active-promotes-next, and the remnant/no-active reconcile;
-  unit-tested for the exactly-one-active invariant. **Suggested executor: Sonnet** — a guarded ops
-  slice on tested precedent.
-- **Slice 3 — UI:** the itinerary **disclosure row** (current choice + the alternatives,
-  tap-to-activate, add/remove) with an inline **cycle** control and "N of M" badge; the
-  muted-on-expand canvas pins (no polyline); `StopMenu` contextual creation; built and installed on
-  the iPad Pro 13-inch (M5) sim. **Suggested executor: Opus** — SwiftUI expandable-row + canvas
-  work.
+  `promoteAlternative` (extract to a standalone stop) / `removeAlternative`, delete-active-promotes-next,
+  and the remnant/no-active reconcile; unit-tested for the invariant (exactly-one-active on a
+  routed slot, at-most-one on a loose one) and the multi-promote resolution. **Suggested executor:
+  Sonnet** — a guarded ops slice on tested precedent.
+- **Slice 3 — UI:** the itinerary **disclosure row** — a routed slot's current-pick + alternatives
+  and a loose slot's neutral menu — with tap-to-activate, **promote**, add/remove, an inline
+  **cycle** (⟳) control and "N of M" badge; the muted-on-expand canvas pins (no polyline);
+  `StopMenu` contextual creation; built and installed on the iPad Pro 13-inch (M5) sim. **Suggested
+  executor: Opus** — SwiftUI expandable-row + canvas work.
 - **Slice 4 — docs:** flip to accepted; ROADMAP / trip-canvas / trip-time-model notes.
 
 ## Acceptance criteria (from the brief)
