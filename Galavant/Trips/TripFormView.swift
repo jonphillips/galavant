@@ -59,6 +59,19 @@ struct TripFormView: View {
         }
 
         Section {
+          Picker("Main mode", selection: $model.draft.mainTransportMode) {
+            Text("Automatic").tag(String?.none)
+            ForEach(TransportMode.allCases, id: \.self) { mode in
+              Label(mode.label, systemImage: mode.systemImageName).tag(String?.some(mode.rawValue))
+            }
+          }
+        } header: {
+          Text("Transportation")
+        } footer: {
+          Text("Directions use this mode unless you choose a different one for a specific leg.")
+        }
+
+        Section {
           NavigationLink {
             TripRegionPicker(model: model)
           } label: {

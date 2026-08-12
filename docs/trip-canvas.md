@@ -35,7 +35,14 @@ trip interaction off maps). Rules:
   as the day's polylines. Derived feedback: daily walking total, and **gap
   conflicts** — a `timed`/`exact` stop pair whose gap < travel time gets
   flagged (same pure-function family as the start-day solver). Cache ETAs by
-  (from, to, transport mode); MKDirections throttles.
+  (from, to, transport mode); MKDirections throttles. A trip can name a shared
+  **Main mode of transportation**; it wins over the automatic walking/transit
+  choice, while an explicit per-leg selection wins over the trip default.
+- **Lodging moves:** on the All map lens, a neutral dashed line joins located
+  stays in chronological order. In the itinerary, a same-day check-out →
+  check-in with no scheduled stops between them gets one direct travel row. A
+  day with several lodging anchors otherwise gets no guessed hotel-to-stop ETA:
+  the app must not attribute a time to the wrong hotel.
 - **Handoff (M3, trivial):** `MKMapItem.openInMaps(launchOptions:)` with
   directions mode per stop — finishes what V1 PowerMap's `directions`
   capability + Maps URL scheme started. Apple Maps owns turn-by-turn.

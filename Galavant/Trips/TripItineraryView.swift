@@ -218,7 +218,7 @@ struct TripItineraryView: View {
     .onTapGesture { model.editStay(stay) }
   }
 
-  /// A stop row: the stop content, an optional info button (idea-backed only),
+  /// A stop row: the stop content, optional info/edit buttons (idea-backed only),
   /// a pinned-reservation indicator (docs/trip-time-model.md §4), its
   /// `StopMenu`, and a tap. An idea-backed row taps to select on the shared
   /// canvas (the info button is its own hit target); a freeform row has no map
@@ -246,6 +246,11 @@ struct TripItineraryView: View {
             Icon.info.image.foregroundStyle(.secondary)
           }
           .buttonStyle(.borderless)
+          Button { model.editIdea(idea) } label: {
+            Icon.edit.image.foregroundStyle(.secondary)
+          }
+          .buttonStyle(.borderless)
+          .accessibilityLabel("Edit title and details")
         }
         StopMenu(model: model, stop: resolved)
       }
@@ -287,19 +292,25 @@ struct TripItineraryView: View {
   /// A compact interstitial row showing the travel time and mode to the next stop.
   /// Tap (long press / context menu) to switch mode or open Apple Maps for that leg.
   private func connectorRow(_ connector: TravelConnector) -> some View {
-    HStack(spacing: 5) {
+    HStack(spacing: 7) {
       Image(systemName: connector.mode.systemImageName)
         .imageScale(.small)
         .foregroundStyle(.tertiary)
-      if let tt = connector.travelTime {
-        Text(tt.formatted(mode: connector.mode))
+      if connector.kind == .betweenLodgings {
+        Text("Travel to \(connector.to.title)")
           .font(.caption)
           .foregroundStyle(.secondary)
-      } else {
-        Text("…")
-          .font(.caption)
-          .foregroundStyle(.tertiary)
+          .lineLimit(1)
       }
+      Group {
+        if let tt = connector.travelTime {
+          Text(tt.formatted(mode: connector.mode))
+        } else {
+          Text("…")
+        }
+      }
+      .font(.caption)
+      .foregroundStyle(connector.travelTime == nil ? .tertiary : .secondary)
     }
     .padding(.vertical, 2)
     .listRowSeparator(.hidden)

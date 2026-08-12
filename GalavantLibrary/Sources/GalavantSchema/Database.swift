@@ -574,6 +574,12 @@ extension DependencyValues {
       )
       .execute(db)
     }
+    migrator.registerMigration("Add main transport mode to trips") { db in
+      // A nullable preference preserves the automatic walking/transit behavior
+      // for existing trips. A chosen mode is a small synced trip fact, not a
+      // per-device setting, so both planners see the same direction defaults.
+      try #sql(#"ALTER TABLE "trips" ADD COLUMN "mainTransportMode" TEXT"#).execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if case let .configured(startImmediately) = syncMode {

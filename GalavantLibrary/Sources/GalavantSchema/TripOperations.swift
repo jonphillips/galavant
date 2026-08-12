@@ -10,6 +10,7 @@ extension Trip {
     certainty: Certainty = .someday(rank: 0),
     lengthInDays: Int = 7,
     notes: String = "",
+    mainTransportMode: TransportMode? = nil,
     in db: Database
   ) throws -> Trip {
     let partyID = try TravelParty.ensureDefault(in: db).id
@@ -18,9 +19,8 @@ extension Trip {
       certainty = .someday(rank: try nextSomedayRank(in: db))
     }
     let id = UUID()
-    var draft = Trip.Draft(
-      Trip(id: id, name: name, notes: notes, lengthInDays: lengthInDays, travelPartyID: partyID)
-    )
+    var draft = Trip.Draft(Trip(id: id, name: name, notes: notes, lengthInDays: lengthInDays,
+      mainTransportMode: mainTransportMode, travelPartyID: partyID))
     draft.apply(certainty)
     try Trip.insert { draft }.execute(db)
     guard let created = try Trip.find(id).fetchOne(db) else {

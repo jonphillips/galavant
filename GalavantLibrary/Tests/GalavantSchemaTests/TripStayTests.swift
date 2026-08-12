@@ -164,12 +164,42 @@ import Testing
       ideas: [idea(h1), idea(h2), idea(s)])
     let items = p.itineraryItems(
       forDay: 2, travelTimes: [:], effectiveModes: [:], stays: p.stays(coveringDay: 2))
-    // check-out, base → first stop, stop, check-in
-    #expect(items.count == 4)
+    // A transition day has two lodging anchors. Do not guess which hotel's ETA
+    // belongs to the noon stop — that was the source of wrong travel rows.
+    #expect(items.count == 3)
     if case .checkOut(let r) = items[0] { #expect(r.id == leaving.id) } else { Issue.record("want check-out first") }
-    if case .connector = items[1] {} else { Issue.record("want directions after check-out") }
-    if case .stop = items[2] {} else { Issue.record("want stop after directions") }
-    if case .checkIn(let r) = items[3] { #expect(r.id == arriving.id) } else { Issue.record("want check-in last") }
+    if case .stop = items[1] {} else { Issue.record("want stop between lodging boundaries") }
+    if case .checkIn(let r) = items[2] { #expect(r.id == arriving.id) } else { Issue.record("want check-in last") }
+  }
+
+  @Test func emptyLodgingTransitionShowsOnlyTheDirectTravelRow() {
+    let (h1, h2) = (UUID(), UUID())
+    let leaving = stay(idea: h1, checkIn: 1, checkOut: 2)
+    let arriving = stay(idea: h2, checkIn: 2, checkOut: 4)
+    let p = plan(
+      stays: [leaving, arriving],
+      ideas: [idea(h1, name: "Uberfahrt", lat: 1, lon: 2), idea(h2, name: "Dichter", lat: 3, lon: 4)])
+    let leg = LegKey(fromLat: 1, fromLon: 2, toLat: 3, toLon: 4)
+    let travelTime = TravelTime(seconds: 3_600, meters: 55_000)
+    let items = p.itineraryItems(
+      forDay: 2,
+      travelTimes: [leg: [.driving: travelTime]],
+      effectiveModes: [leg: .driving],
+      stays: p.stays(coveringDay: 2))
+
+    #expect(p.stayTransferLegs(forDay: 2) == [leg])
+    #expect(p.allLegs == [leg])
+    #expect(items.count == 3)
+    if case .checkOut(let stay) = items[0] { #expect(stay.id == leaving.id) }
+    else { Issue.record("want check-out first") }
+    if case .connector(let connector) = items[1] {
+      #expect(connector.kind == .betweenLodgings)
+      #expect(connector.from.title == "Uberfahrt")
+      #expect(connector.to.title == "Dichter")
+      #expect(connector.travelTime == travelTime)
+    } else { Issue.record("want direct lodging travel row") }
+    if case .checkIn(let stay) = items[2] { #expect(stay.id == arriving.id) }
+    else { Issue.record("want check-in last") }
   }
 
   @Test func middleDayShowsAHomeBaseRowAtopItsStops() {
@@ -246,6 +276,23 @@ import Testing
     // "All" lens: every located stay, once each.
     #expect(p.baseStays(forDay: nil).map(\.id) == [located.id])
     #expect(p.baseCoordinates(forDay: 2).count == 1)
+  }
+
+  @Test func lodgingPathFollowsChronologicalLocatedStays() {
+    let (firstID, secondID, unlocatedID) = (UUID(), UUID(), UUID())
+    let first = stay(idea: firstID, checkIn: 1, checkOut: 3)
+    let second = stay(idea: secondID, checkIn: 3, checkOut: 5)
+    let unlocated = stay(idea: unlocatedID, checkIn: 5, checkOut: 6)
+    let p = plan(
+      stays: [second, unlocated, first],
+      ideas: [
+        idea(firstID, name: "First", lat: 10, lon: 20),
+        idea(secondID, name: "Second", lat: 30, lon: 40),
+        idea(unlocatedID, name: "No pin", lat: nil, lon: nil),
+      ],
+      lengthInDays: 6)
+    #expect(p.lodgingPathCoordinates.map(\.latitude) == [10, 30])
+    #expect(p.lodgingPathCoordinates.map(\.longitude) == [20, 40])
   }
 
   @Test func overlappingStayIDsIgnoresDroppedOrphans() {

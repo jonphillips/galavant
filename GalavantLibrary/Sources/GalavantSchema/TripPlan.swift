@@ -258,6 +258,11 @@ public struct TripPlan: Equatable, Sendable {
     }
   }
 
+  /// The chronological path through the trip's located lodging stays. This is
+  /// deliberately separate from the day-stop routes: it is shown only on the
+  /// canvas's All lens as the overnight movement story, never as numbered stops.
+  public var lodgingPathCoordinates: [(latitude: Double, longitude: Double)] { baseCoordinates(forDay: nil) }
+
   // MARK: - Per-day region (ADR-0012)
 
   /// The `MapRegion` assigned to `day`, if any — resolved from the day's
@@ -318,7 +323,11 @@ public struct TripPlan: Equatable, Sendable {
   /// the directions client should pre-warm. Only pairs where both stops are
   /// located produce a leg.
   public var allLegs: [LegKey] {
-    itinerary.flatMap { legs(forDay: $0.number) + baseLegs(forDay: $0.number) }
+    itinerary.flatMap {
+      legs(forDay: $0.number)
+        + baseLegs(forDay: $0.number)
+        + stayTransferLegs(forDay: $0.number)
+    }
   }
 
   /// Directed route segments between consecutive located stops on `day`.
@@ -340,12 +349,23 @@ public struct TripPlan: Equatable, Sendable {
   /// direction to the first plan item is real planning information.
   public func baseLegs(forDay day: Int) -> [LegKey] {
     guard
-      let stay = stays(coveringDay: day).first,
+      let stay = baseStay(in: stays(coveringDay: day)),
       let fromLat = stay.content.latitude, let fromLon = stay.content.longitude,
       let first = locatedStops(forDay: day).first,
       let toLat = first.content.latitude, let toLon = first.content.longitude
     else { return [] }
     return [LegKey(fromLat: fromLat, fromLon: fromLon, toLat: toLat, toLon: toLon)]
+  }
+
+  /// A same-day lodging move belongs in the timeline only when it is the whole
+  /// day's movement: exactly one check-out, exactly one check-in, no scheduled
+  /// stops, and both lodging places located. More involved move days deliberately
+  /// avoid an inferred hotel leg until their actual itinerary has enough context.
+  public func stayTransferLegs(forDay day: Int) -> [LegKey] {
+    let stops = itinerary.first(where: { $0.number == day })?.stops ?? []
+    guard let transfer = stayTransfer(forDay: day, stops: stops, stays: stays(coveringDay: day))
+    else { return [] }
+    return [transfer.leg]
   }
 
   /// The interleaved rows for one day's timeline: stops, travel-time connectors
@@ -414,12 +434,23 @@ public struct TripPlan: Equatable, Sendable {
     let baseConnector = baseConnector(
       forDay: day, stops: stops, stays: stays,
       travelTimes: travelTimes, effectiveModes: effectiveModes)
+    let stayTransferConnector = stayTransferConnector(
+      forDay: day, stops: stops, stays: stays,
+      travelTimes: travelTimes, effectiveModes: effectiveModes)
     var markerInserted = false
     var baseConnectorInserted = false
+    var stayTransferInserted = false
     for entry in stream {
       switch entry.slot {
       case let .boundary(item):
         items.append(item)
+        if case let .checkOut(stay) = item,
+          !stayTransferInserted,
+          stayTransferConnector?.from.id == "stay-\(stay.id)",
+          let stayTransferConnector {
+          items.append(.connector(stayTransferConnector))
+          stayTransferInserted = true
+        }
       case let .stop(i):
         if let at = markerAt, i == at, !markerInserted {
           items.append(.nowMarker)
@@ -462,22 +493,74 @@ public struct TripPlan: Equatable, Sendable {
     effectiveModes: [LegKey: TransportMode]
   ) -> TravelConnector? {
     guard
-      let stay = stays.first,
-      let fromLat = stay.content.latitude, let fromLon = stay.content.longitude,
-      let first = stops.first(where: { $0.content.latitude != nil && $0.content.longitude != nil }),
-      let toLat = first.content.latitude, let toLon = first.content.longitude
+      let stay = baseStay(in: stays),
+      let from = endpoint(for: stay),
+      let first = stops.first(where: { $0.content.latitude != nil && $0.content.longitude != nil })
     else { return nil }
-    let key = LegKey(fromLat: fromLat, fromLon: fromLon, toLat: toLat, toLon: toLon)
+    let to = endpoint(for: first)
+    let key = LegKey(fromLat: from.latitude, fromLon: from.longitude, toLat: to.latitude, toLon: to.longitude)
     let mode = effectiveModes[key] ?? .walking
     return TravelConnector(
-      from: TravelEndpoint(id: "stay-\(stay.id)", title: stay.content.title, latitude: fromLat, longitude: fromLon),
-      to: endpoint(for: first), leg: key, mode: mode, travelTime: travelTimes[key]?[mode])
+      from: from, to: to, leg: key, mode: mode, travelTime: travelTimes[key]?[mode], kind: .fromLodging)
+  }
+
+  private func stayTransferConnector(
+    forDay day: Int,
+    stops: [ResolvedStop],
+    stays: [ResolvedStay],
+    travelTimes: [LegKey: [TransportMode: TravelTime]],
+    effectiveModes: [LegKey: TransportMode]
+  ) -> TravelConnector? {
+    guard let transfer = stayTransfer(forDay: day, stops: stops, stays: stays) else { return nil }
+    let mode = effectiveModes[transfer.leg] ?? .walking
+    return TravelConnector(
+      from: transfer.from,
+      to: transfer.to,
+      leg: transfer.leg,
+      mode: mode,
+      travelTime: travelTimes[transfer.leg]?[mode],
+      kind: .betweenLodgings
+    )
+  }
+
+  /// A base is unambiguous only when one stay covers the day. On a move day,
+  /// `stays(coveringDay:)` contains both hotels; choosing its first element was
+  /// the source of stale-looking ETAs attached to the wrong lodging.
+  private func baseStay(in stays: [ResolvedStay]) -> ResolvedStay? { stays.count == 1 ? stays[0] : nil }
+
+  private func stayTransfer(
+    forDay day: Int, stops: [ResolvedStop], stays: [ResolvedStay]
+  ) -> (from: TravelEndpoint, to: TravelEndpoint, leg: LegKey)? {
+    guard stops.isEmpty else { return nil }
+    let leaving = stays.filter { $0.stay.checkOutDay == day }
+    let arriving = stays.filter { $0.stay.checkInDay == day }
+    guard
+      leaving.count == 1,
+      arriving.count == 1,
+      leaving[0].id != arriving[0].id,
+      let from = endpoint(for: leaving[0]),
+      let to = endpoint(for: arriving[0])
+    else { return nil }
+    return (
+      from: from,
+      to: to,
+      leg: LegKey(
+        fromLat: from.latitude, fromLon: from.longitude,
+        toLat: to.latitude, toLon: to.longitude)
+    )
   }
 
   private func endpoint(for stop: ResolvedStop) -> TravelEndpoint {
     TravelEndpoint(
       id: "stop-\(stop.id)", title: stop.content.title,
       latitude: stop.content.latitude!, longitude: stop.content.longitude!)
+  }
+
+  private func endpoint(for stay: ResolvedStay) -> TravelEndpoint? {
+    guard let latitude = stay.content.latitude, let longitude = stay.content.longitude else { return nil }
+    return TravelEndpoint(
+      id: "stay-\(stay.id)", title: stay.content.title,
+      latitude: latitude, longitude: longitude)
   }
 
   /// Index in `stops` before which the "now" marker belongs, or `stops.count` to
