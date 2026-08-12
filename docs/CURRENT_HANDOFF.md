@@ -252,16 +252,17 @@ iOS-26→27 correction. The rest, in rough priority order:
   to one region (e.g. New York) and verifies the swiped row — not the
   global-alphabetical-first idea — is the one deleted.
 
-- **Complete ADR-0008 sync-dedup hardening.** The picker/bind UI shipped, but the
-  ADR's other half is not implemented and code comments imply otherwise. (1)
-  `IdeaInterest`/`IdeaTag`/`TripRegion` need a schema-level **dedup-on-read**
-  helper that deterministically collapses logical duplicates (lowest-UUID-wins),
-  with all read models calling it instead of rebuilding "first wins" dicts
-  locally (`IdeasListModel.swift:145`, `TripPlanningModel.swift:226`); add
-  seeded-duplicate tests. (2) `TravelParty.ensureDefault` + `Planner.create`
-  should implement the ADR's **prefer-shared/non-empty party, clean the empty
-  stray** rule rather than "first party by UUID." Slated for the M2 tail per the
-  ADR. Adjacent to the existing "Planner identity feels fly-by-night" item.
+- **ADR-0008 sync-dedup hardening.** — DONE (2026-08-12, PR #20). Shipped the
+  `LogicalUniqueness.convergingByKey` pure helper (lowest-UUID survivor), IdeaInterest
+  non-mutating dedup-on-read + owning-write loser cleanup, IdeaTag/TripRegion cleanup,
+  and `TravelParty.ensureDefault` prefer-populated + repoint-before-delete (all 7 child
+  tables) + single-party fast path; 9 seeded-duplicate tests. See `docs/DONE_LOG.md`.
+  **Two follow-ups still open:** (1) real two-device dogfooding of the TravelParty merge
+  — it deletes party rows and repoints children, and that convergence only manifests on a
+  genuine offline race; (2) `Planner.create` **planner-level** dedup — merging two
+  *populated* parties currently repoints blindly and can leave duplicate planners/tags
+  (extreme edge; merge-with-dup beats data loss). Adjacent to "Planner identity feels
+  fly-by-night."
 
 - **Schedule doc-drift sweep.** — DONE (2026-06-23). Updated `docs/PRODUCT.md`,
   `docs/STYLE.md`, and `docs/decisions/0004-pull-based-trip-membership.md` to the

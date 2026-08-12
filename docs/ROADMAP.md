@@ -29,7 +29,7 @@ opening a fresh Opus session is worth it.
 - ✅ M2b: MapKit location search in the form (idea gets coordinates) + pool map with pins + list/map toggle
 - ✅ M2c: first-class MapRegion (containment-based), pool filter (region/kind/visited), filter UI + define-region-from-map, filter-summary bar
 - ✅ Capture polish: **search-first form** — place search leads, auto-populates name/kind/link/address/phone from MapKit (`MKMapItem` + pure `IdeaKind` POI mapping); ⏳ Tags (first-class?); ✅ location-search robustness (worldwide `MKLocalSearch` natural-language query — DONE 2026-06-16, docs/DONE_LOG.md)
-- ⏳ Second-device identity hardening (ADR-0008): bind-or-create planner picker, stray-party cleanup, IdeaInterest dedup-on-read
+- ✅ Second-device identity hardening (ADR-0008): bind-or-create planner picker, stray-party cleanup, IdeaInterest dedup-on-read — convergence + dedup-on-read shipped 2026-08-12 (PR #20, docs/DONE_LOG.md); follow-ups: device-verify the party merge + `Planner.create` planner-level dedup
 - Full Idea model: kinds, visited state, tags, URLs, images, opening days/hours and reservable-from (manual entry)
   - **Image storage strategy** (cross-cutting; inherited by M4 scraped images + M5
     Unsplash headers) — now settled in **ADR-0009**: CloudKit-native (no S3),
