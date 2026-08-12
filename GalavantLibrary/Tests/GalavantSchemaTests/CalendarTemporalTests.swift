@@ -196,6 +196,21 @@ import Testing
     expectNoDifference(entry.current, commitment)
   }
 
+  @Test func moveOutsideTripIsNotPromotedToTheSharedLedger() throws {
+    // A move-outside applied nothing to the shared itinerary; it stays device-local.
+    let commitment = try #require(CalendarCommitment(
+      temporal: .absolute(
+        start: date(2026, 11, 5, 19, 0, in: rome),
+        end: date(2026, 11, 5, 22, 0, in: rome),
+        timeZone: rome),
+      availability: .busy))
+    let moved = CalendarReconciliationHistoryEntry(
+      id: UUID(), kind: .movedOutsideTrip, stopID: UUID(), eventID: "local-event",
+      eventTitle: "Geranium", current: commitment, sourceFingerprint: "source", appliedAt: .now)
+
+    #expect(CalendarReconciliationLedgerEntry(tripID: UUID(), historyEntry: moved) == nil)
+  }
+
   @Test func commitmentDecodesSliceTwoHistory() throws {
     enum LegacyCalendarCommitment: Codable {
       case allDay(date: Date)
