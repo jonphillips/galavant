@@ -122,7 +122,10 @@ struct StopMenu: View {
   @ViewBuilder private var timeLabel: some View {
     switch schedule {
     case .timed:
-      Text(schedule.display).font(.subheadline.monospaced()).foregroundStyle(.primary)
+      Text(schedule.display)
+        .font(.subheadline.monospaced())
+        .foregroundStyle(.primary)
+        .fixedSize(horizontal: true, vertical: false)
     case let .daypart(_, part):
       Text(part.label).font(.subheadline).foregroundStyle(.secondary)
     case .day:

@@ -118,6 +118,7 @@ final class TripPlanningModel {
   @ObservationIgnored @FetchAll(TripStay.all) var allTripStays
   @ObservationIgnored @FetchAll(TripRegion.all) var allTripRegions
   @ObservationIgnored @FetchAll(TripDayRegion.all) var allTripDayRegions
+  @ObservationIgnored @FetchAll(TripTravelModeOverride.all) var allTravelModeOverrides
   @ObservationIgnored @FetchAll(MapRegion.order(by: \.name)) var regions
   @ObservationIgnored @FetchAll(Tag.order(by: \.name)) var tags
   @ObservationIgnored @FetchAll(IdeaTag.all) var ideaTags
@@ -155,6 +156,7 @@ final class TripPlanningModel {
   // main mode is the shared default; the per-leg menu remains a local override.
   // Trips without a main mode retain the original walking→transit auto choice.
   var travelTimes: [LegKey: [TransportMode: TravelTime]] = [:]
+  /// Immediate local projection of a choice while the persisted query refreshes.
   var modeOverrides: [LegKey: TransportMode] = [:]
   private var isFetchingETAs = false
   private var pendingETAFetch = false
@@ -371,6 +373,7 @@ final class TripPlanningModel {
   /// behavior for existing trips whose shared default is still unset.
   func effectiveMode(for leg: LegKey) -> TransportMode {
     if let override = modeOverrides[leg] { return override }
+    if let override = persistedModeOverrides[leg] { return override }
     if let mainMode = trip?.mainTransportationMode { return mainMode }
     if let walking = travelTimes[leg]?[.walking],
       walking.seconds >= Self.autoSwitchThreshold {
@@ -384,13 +387,6 @@ final class TripPlanningModel {
   var effectiveModes: [LegKey: TransportMode] {
     Dictionary(plan.allLegs.map { ($0, effectiveMode(for: $0)) },
                uniquingKeysWith: { first, _ in first })
-  }
-
-  /// User-override the transport mode for a leg. Triggers an ETA fetch for
-  /// the new mode if it isn't already cached.
-  func setMode(_ mode: TransportMode, for leg: LegKey) {
-    modeOverrides[leg] = mode
-    Task { await fetchMissingETAs() }
   }
 
   // MARK: - ETA fetch
@@ -412,7 +408,7 @@ final class TripPlanningModel {
     }
     for leg in plan.allLegs {
       guard !Task.isCancelled else { break }
-      if let chosenMode = modeOverrides[leg] ?? trip?.mainTransportationMode {
+      if let chosenMode = modeOverrides[leg] ?? persistedModeOverrides[leg] ?? trip?.mainTransportationMode {
         if travelTimes[leg]?[chosenMode] == nil,
           let tt = try? await directionsClient.calculateETA(leg, chosenMode) {
           travelTimes[leg, default: [:]][chosenMode] = tt

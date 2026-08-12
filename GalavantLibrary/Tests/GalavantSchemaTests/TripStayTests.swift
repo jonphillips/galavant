@@ -164,12 +164,17 @@ import Testing
       ideas: [idea(h1), idea(h2), idea(s)])
     let items = p.itineraryItems(
       forDay: 2, travelTimes: [:], effectiveModes: [:], stays: p.stays(coveringDay: 2))
-    // A transition day has two lodging anchors. Do not guess which hotel's ETA
-    // belongs to the noon stop — that was the source of wrong travel rows.
-    #expect(items.count == 3)
+    // The noon stop is before the 18:00 arrival, so it correctly starts at the
+    // departing hotel. The direct hotel-transfer row stays absent because this
+    // stop is genuinely between checkout and check-in.
+    #expect(items.count == 4)
     if case .checkOut(let r) = items[0] { #expect(r.id == leaving.id) } else { Issue.record("want check-out first") }
-    if case .stop = items[1] {} else { Issue.record("want stop between lodging boundaries") }
-    if case .checkIn(let r) = items[2] { #expect(r.id == arriving.id) } else { Issue.record("want check-in last") }
+    if case .connector(let connector) = items[1] {
+      #expect(connector.kind == .fromLodging)
+      #expect(connector.from.title == "Hotel")
+    } else { Issue.record("want departing-hotel directions") }
+    if case .stop = items[2] {} else { Issue.record("want stop between lodging boundaries") }
+    if case .checkIn(let r) = items[3] { #expect(r.id == arriving.id) } else { Issue.record("want check-in last") }
   }
 
   @Test func emptyLodgingTransitionShowsOnlyTheDirectTravelRow() {
@@ -200,6 +205,42 @@ import Testing
     } else { Issue.record("want direct lodging travel row") }
     if case .checkIn(let stay) = items[2] { #expect(stay.id == arriving.id) }
     else { Issue.record("want check-in last") }
+  }
+
+  @Test func lodgingTransitionShowsTransferAndArrivalToFirstStop() {
+    let (h1, h2, stopID) = (UUID(), UUID(), UUID())
+    let leaving = stay(idea: h1, checkIn: 1, checkOut: 2)
+    let arriving = stay(idea: h2, checkIn: 2, checkOut: 4, checkInTime: "15:00")
+    let stop = scheduledStop(stopID, at: "18:30")
+    let p = planWith(
+      stops: [stop],
+      stays: [leaving, arriving],
+      ideas: [
+        idea(h1, name: "Old lodge", lat: 1, lon: 2),
+        idea(h2, name: "New lodge", lat: 3, lon: 4),
+        idea(stopID, name: "Dinner", lat: 5, lon: 6),
+      ])
+    let transfer = LegKey(fromLat: 1, fromLon: 2, toLat: 3, toLon: 4)
+    let arrivalLeg = LegKey(fromLat: 3, fromLon: 4, toLat: 5, toLon: 6)
+    let items = p.itineraryItems(
+      forDay: 2,
+      travelTimes: [:],
+      effectiveModes: [:],
+      stays: p.stays(coveringDay: 2))
+
+    #expect(p.stayTransferLegs(forDay: 2) == [transfer])
+    #expect(p.baseLegs(forDay: 2) == [arrivalLeg])
+    #expect(items.count == 5)
+    if case .checkOut = items[0] {} else { Issue.record("want check-out first") }
+    if case .connector(let connector) = items[1] { #expect(connector.kind == .betweenLodgings) }
+    else { Issue.record("want hotel transfer") }
+    if case .checkIn = items[2] {} else { Issue.record("want check-in after transfer") }
+    if case .connector(let connector) = items[3] {
+      #expect(connector.kind == .fromLodging)
+      #expect(connector.from.title == "New lodge")
+      #expect(connector.to.title == "Dinner")
+    } else { Issue.record("want arriving-hotel directions") }
+    if case .stop = items[4] {} else { Issue.record("want dinner last") }
   }
 
   @Test func middleDayShowsAHomeBaseRowAtopItsStops() {
