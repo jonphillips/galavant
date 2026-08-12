@@ -451,3 +451,37 @@ are proven locally. Full rationale + acceptance criteria in ADR-0034.
   moved-outside-trip reservation is reported as moved (not deleted), a permission
   failure infers no deletion, both phones converge on one shared reconciliation entry,
   and a completed trip freezes so later calendar cleanup doesn't rewrite its history.
+
+## M8 — Itinerary alternatives *(proposed 2026-08-12, ADR-0035; sequenced after M7)*
+
+**Not started — finish M7 calendar reconciliation first.** A narrow itinerary feature,
+not a subsystem: **one itinerary position may hold two or more candidate stops, exactly
+one chosen** ("lunch at Baita Sanon Hütte **or** Gostner Schwaige"). Today that can only be
+modeled as two sequential stops, which fabricates a phantom A→B travel leg and eats two pin
+numbers. Explicitly **not** a branching-itinerary graph — the day stays linear; the group
+collapses to a single slot for numbering/ordering and to its chosen member (or nothing, when
+unresolved) before leg generation. Two additive loose `TripIdea` columns
+(`alternativeGroupID`, `isChosenAlternative`) — no new table, no CloudKit registration change
+(rides ADR-0006/0007). Distinct from Ideas (under consideration), optional/skippable stops,
+and general branching. Full rationale + the 7 acceptance criteria in ADR-0035. Test-first:
+"no member-to-member leg" is a direct pure-function assertion over the collapsed day.
+
+- ⏳ **Slice 1 — schema + grouped read-model.** Two columns; `ResolvedChoice` + the collapse
+  fold in `itinerary`/`scheduled` and `locatedSequenceNumbers`; in-memory tests that two
+  members share one slot number and an ungrouped day is byte-identical to today. **Opus** —
+  the read-model fold touches the tested itinerary/leg core.
+- ⏳ **Slice 2 — legs (the correctness core).** Collapse-to-representative in
+  `legs`/`allLegs`/`baseLegs` and the `itineraryItems` weave; table-driven tests: unresolved
+  group emits **no** member-to-member leg and no phantom ETA; resolved group routes
+  `prev → chosen → next`. **Opus.**
+- ⏳ **Slice 3 — write ops.** `addAlternative` / `chooseAlternative` / `removeAlternative` +
+  the at-most-one-chosen invariant and one-member-remnant reconcile. **Sonnet** — a guarded
+  ops slice on tested precedent.
+- ⏳ **Slice 4 — UI.** The `.choice` "Choose one" timeline container + selection; canvas
+  both-pins / no-segment; `StopMenu` "Add as alternative to…"; built and installed on the
+  iPad Pro 13-inch (M5) sim. **Opus** — SwiftUI heterogeneous-row + canvas work.
+- ⏳ **Slice 5 — docs.** Flip ADR-0035 to accepted; ROADMAP / trip-canvas / trip-time-model notes.
+- ⏳ Done when: two alternatives occupy one slot with one pin number, the UI reads "A **or** B,"
+  no travel segment is drawn between them, either can be chosen later (incl. mid-trip), the
+  chosen one drives the route, the rejected one stays recoverable, and existing linear
+  itineraries are unchanged.

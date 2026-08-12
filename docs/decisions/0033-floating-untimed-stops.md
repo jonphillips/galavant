@@ -167,6 +167,9 @@ free — a "lunch break" is the canonical floating stop.
 - **now-marker / travel legs (M3):** untimed stops remain timing-neutral (§4); no leg, no
   lateness — now made explicit rather than incidental.
 - **ADR-0006 (flat Trip/TripIdea columns):** `dayRank` is one additive flat column.
+- **ADR-0035 (itinerary alternatives):** an alternatives group's members share one slot —
+  the same `dayNumber`, band, and `dayRank` — so `effectiveIntraDaySort` seats the whole group
+  as a single unit; the group collapse runs *before* this sort's consumers.
 
 ## Consequences
 
