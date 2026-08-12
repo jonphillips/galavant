@@ -98,7 +98,7 @@ struct TripPlanningView: View {
             Button {
               showingStartDay = true
             } label: {
-              Label("Start Day", systemImage: "calendar.badge.clock")
+              Label("Start Day", systemImage: "calendar.day")
             }
           }
         }
@@ -182,7 +182,7 @@ struct TripPlanningView: View {
         Button {
           showingCalendarReconciliation = true
         } label: {
-          Label("Reconcile Calendar", systemImage: "calendar.badge.clock")
+          Label("Reconcile Calendar", systemImage: "clock.arrow.trianglehead.2.counterclockwise.rotate.90")
         }
       }
     }
