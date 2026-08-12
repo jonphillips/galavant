@@ -119,6 +119,7 @@ final class TripPlanningModel {
   @ObservationIgnored @FetchAll(TripRegion.all) var allTripRegions
   @ObservationIgnored @FetchAll(TripDayRegion.all) var allTripDayRegions
   @ObservationIgnored @FetchAll(TripTravelModeOverride.all) var allTravelModeOverrides
+  @ObservationIgnored @FetchAll(CalendarTripConstraint.all) var allCalendarConstraints
   @ObservationIgnored @FetchAll(MapRegion.order(by: \.name)) var regions
   @ObservationIgnored @FetchAll(Tag.order(by: \.name)) var tags
   @ObservationIgnored @FetchAll(IdeaTag.all) var ideaTags
@@ -213,6 +214,9 @@ final class TripPlanningModel {
   private var entries: [TripIdea] { allTripIdeas.filter { $0.tripID == tripID } }
   private var stays: [TripStay] { allTripStays.filter { $0.tripID == tripID } }
   private var dayRegions: [TripDayRegion] { allTripDayRegions.filter { $0.tripID == tripID } }
+  private var calendarConstraints: [CalendarTripConstraint] {
+    allCalendarConstraints.filter { $0.tripID == tripID }
+  }
   private var ideaByID: [Idea.ID: Idea] {
     Dictionary(ideas.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
   }
@@ -228,7 +232,8 @@ final class TripPlanningModel {
     TripPlan(
       entries: entries, ideasByID: ideaByID,
       lengthInDays: trip?.lengthInDays ?? 1, tripStays: stays,
-      dayRegions: dayRegions, regionsByID: regionByID)
+      dayRegions: dayRegions, regionsByID: regionByID,
+      calendarConstraints: calendarConstraints)
   }
 
   // MARK: - Start-day solver (ADR-0029 §5)

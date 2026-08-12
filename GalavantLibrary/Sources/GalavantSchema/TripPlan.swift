@@ -108,6 +108,10 @@ public struct TripPlan: Equatable, Sendable {
   public var dayRegions: [TripDayRegion]
   /// The pool of map regions a day assignment can resolve to. Defaults empty.
   public var regionsByID: [MapRegion.ID: MapRegion]
+  /// Calendar-authored obligations with no place/stop match. They are already
+  /// trip-scoped shared domain state and weave into the itinerary by their
+  /// projected trip day and civil time.
+  public var calendarConstraints: [CalendarTripConstraint]
 
   public init(
     entries: [TripIdea],
@@ -115,7 +119,8 @@ public struct TripPlan: Equatable, Sendable {
     lengthInDays: Int,
     tripStays: [TripStay] = [],
     dayRegions: [TripDayRegion] = [],
-    regionsByID: [MapRegion.ID: MapRegion] = [:]
+    regionsByID: [MapRegion.ID: MapRegion] = [:],
+    calendarConstraints: [CalendarTripConstraint] = []
   ) {
     self.entries = entries
     self.ideasByID = ideasByID
@@ -123,6 +128,7 @@ public struct TripPlan: Equatable, Sendable {
     self.tripStays = tripStays
     self.dayRegions = dayRegions
     self.regionsByID = regionsByID
+    self.calendarConstraints = calendarConstraints
   }
 
   func resolve(_ entry: TripIdea) -> ResolvedStop? {
@@ -343,23 +349,39 @@ public struct TripPlan: Equatable, Sendable {
     // Rank orders ties against a same-minute stop: check-out (0) before, check-in
     // (2) after, stops sit at rank 1. A *middle* day a stay covers (neither
     // boundary) instead gets a persistent home-base row, pinned to the top.
-    struct Boundary { let key: Int; let rank: Int; let item: ItineraryItem }
+    enum TieBreak: Int {
+      case allDayContext
+      case checkOut
+      case calendarConstraint
+      case stop
+      case checkIn
+    }
+    struct Boundary { let key: Int; let rank: TieBreak; let item: ItineraryItem }
     var boundaries: [Boundary] = []
     var homeBaseRows: [ItineraryItem] = []
     for resolved in stays {
       let stay = resolved.stay
       if stay.checkOutDay == day {
-        boundaries.append(Boundary(key: stay.checkOutSortMinutes, rank: 0, item: .checkOut(resolved)))
+        boundaries.append(Boundary(
+          key: stay.checkOutSortMinutes, rank: .checkOut, item: .checkOut(resolved)))
       }
       if stay.checkInDay == day {
-        boundaries.append(Boundary(key: stay.checkInSortMinutes, rank: 2, item: .checkIn(resolved)))
+        boundaries.append(Boundary(
+          key: stay.checkInSortMinutes, rank: .checkIn, item: .checkIn(resolved)))
       }
       if stay.checkInDay != day, stay.checkOutDay != day {
         homeBaseRows.append(.homeBase(resolved))  // covered middle day
       }
     }
+    let constraints = calendarConstraints.filter { $0.dayNumber == day }
+    boundaries += constraints.map { constraint in
+      Boundary(
+        key: constraint.startTime.map { Schedule.minutes(from: $0) ?? constraint.schedule.intraDaySort } ?? 0,
+        rank: constraint.startTime == nil ? .allDayContext : .calendarConstraint,
+        item: .calendarConstraint(constraint))
+    }
 
-    // A day with no stops, boundaries, or home base has no timeline.
+    // A day with no stops, constraints, stay boundaries, or home base has no timeline.
     guard !stops.isEmpty || !boundaries.isEmpty || !homeBaseRows.isEmpty else { return [] }
 
     let markerAt = nowMarkerIndex(
@@ -371,12 +393,14 @@ public struct TripPlan: Equatable, Sendable {
     // sort keeps stops in their existing order on ties.
     let effectiveKey = TripIdea.effectiveIntraDaySort(stops.map(\.entry))
     enum Slot { case stop(Int); case boundary(ItineraryItem) }
-    var stream: [(key: Int, rank: Int, slot: Slot)] =
+    var stream: [(key: Int, rank: TieBreak, slot: Slot)] =
       stops.enumerated().map { (i, stop) in
-        (effectiveKey[stop.id] ?? stop.entry.schedule.intraDaySort, 1, .stop(i))
+        (effectiveKey[stop.id] ?? stop.entry.schedule.intraDaySort, .stop, .stop(i))
       }
     stream += boundaries.map { ($0.key, $0.rank, .boundary($0.item)) }
-    stream.sort { ($0.key, $0.rank) < ($1.key, $1.rank) }
+    stream.sort {
+      ($0.key, $0.rank.rawValue) < ($1.key, $1.rank.rawValue)
+    }
 
     // Home-base rows lead the day (the persistent "you're staying here" anchor).
     var items: [ItineraryItem] = homeBaseRows

@@ -29,3 +29,19 @@ public struct CalendarReconciliationAutomaticPlan: Equatable, Sendable {
     self.localState = localState
   }
 }
+
+public struct CalendarConstraintAutomaticPlan: Equatable, Sendable {
+  public var upserts: [CalendarTripConstraint]
+  public var deletions: [CalendarTripConstraint.ID]
+  public var localState: CalendarReconciliationLocalState
+
+  public init(
+    upserts: [CalendarTripConstraint],
+    deletions: [CalendarTripConstraint.ID],
+    localState: CalendarReconciliationLocalState
+  ) {
+    self.upserts = upserts
+    self.deletions = deletions
+    self.localState = localState
+  }
+}

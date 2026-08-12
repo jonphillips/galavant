@@ -605,6 +605,34 @@ extension DependencyValues {
       )
       .execute(db)
     }
+    migrator.registerMigration("Create calendarTripConstraints table (ADR-0034)") { db in
+      // The table is provenance by construction: every row is a Calendar-only
+      // obligation and may die with its event. It rides the trip through its one
+      // real FK; raw EventKit identity stays device-local while a one-way hash and
+      // the complete temporal snapshot synchronize as shared domain state.
+      try #sql(
+        """
+        CREATE TABLE "calendarTripConstraints" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE,
+          "tripID" TEXT NOT NULL REFERENCES "trips"("id") ON DELETE CASCADE,
+          "sourceIdentityHash" TEXT NOT NULL,
+          "title" TEXT NOT NULL DEFAULT '',
+          "dayNumber" INTEGER NOT NULL,
+          "startTime" TEXT,
+          "endTime" TEXT,
+          "commitmentSnapshot" TEXT NOT NULL
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_calendarTripConstraints_on_tripID"
+        ON "calendarTripConstraints"("tripID")
+        """
+      )
+      .execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if case let .configured(startImmediately) = syncMode {

@@ -115,6 +115,8 @@ public struct TravelConnector: Identifiable, Equatable, Sendable {
 /// two consecutive located stops, or the "Now" marker divider.
 public enum ItineraryItem: Identifiable, Equatable, Sendable {
   case stop(ResolvedStop)
+  /// A fully shared Calendar-originated obligation with no itinerary-place match.
+  case calendarConstraint(CalendarTripConstraint)
   case connector(TravelConnector)
   /// A divider that reads "Now" — inserted at the current moment in time within
   /// today's day section. Only appears on dated trips while the trip is active.
@@ -133,6 +135,7 @@ public enum ItineraryItem: Identifiable, Equatable, Sendable {
   public var id: String {
     switch self {
     case .stop(let s): "stop-\(s.id)"
+    case .calendarConstraint(let constraint): "calendarConstraint-\(constraint.id)"
     case .connector(let c): "connector-\(c.id)"
     case .nowMarker: "now-marker"
     case .checkIn(let s): "checkIn-\(s.id)"
