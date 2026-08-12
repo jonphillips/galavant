@@ -7,9 +7,17 @@ import SwiftUI
 /// first (ADR-0004). The Add button (in the parent shell) opens the pool sheet.
 struct TripIdeasView: View {
   let model: TripPlanningModel
+  /// On compact layouts this is the first list section, so it scrolls with the
+  /// pool instead of taking permanent vertical space above it.
+  var showsInlineAdd = false
 
   var body: some View {
     List {
+      if showsInlineAdd {
+        Section {
+          TripAddButton(model: model, tab: .ideas)
+        }
+      }
       if let trip = model.trip {
         Section {
           HStack(spacing: 6) {

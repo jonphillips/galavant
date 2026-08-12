@@ -187,7 +187,6 @@ final class TripPlanningModel {
 
   @CasePathable
   enum Destination {
-    case edit(Trip.Draft)
     case addIdeas
     case mapPlaceIdea(MapPlaceIdea)
     case idea(TripIdeaEditPresentation)
@@ -432,11 +431,6 @@ final class TripPlanningModel {
   }
 
   // MARK: - Actions
-
-  func editButtonTapped() {
-    guard let trip else { return }
-    destination = .edit(Trip.Draft(trip))
-  }
 
   /// Present the filterable pool sheet for adding ideas to the shortlist.
   func addIdeasButtonTapped() {

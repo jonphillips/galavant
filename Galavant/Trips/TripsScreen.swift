@@ -6,6 +6,7 @@ import SwiftUINavigation
 
 struct TripsScreen: View {
   @State private var model = TripsListModel()
+  @State private var editingDraft: Trip.Draft?
   @Environment(AppRouter.self) private var router
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
@@ -36,6 +37,9 @@ struct TripsScreen: View {
             TripPlanningView(trip: trip)
           }
       }
+    }
+    .sheet(item: $editingDraft, id: \.id) { draft in
+      TripFormView(draft: draft)
     }
   }
 
@@ -123,18 +127,45 @@ struct TripsScreen: View {
   }
 
   private func tripCard(_ trip: Trip) -> some View {
-    Button {
-      router.openTrip = trip
-    } label: {
-      TripCard(trip: trip)
-    }
-    .buttonStyle(.plain)
-    .contextMenu {
-      Button(role: .destructive) {
-        model.deleteTrip(trip)
+    ZStack(alignment: .topTrailing) {
+      Button {
+        router.openTrip = trip
       } label: {
-        Label("Delete", systemImage: "trash")
+        TripCard(trip: trip)
       }
+      .buttonStyle(.plain)
+
+      Menu {
+        editMenuItem(trip)
+        deleteMenuItem(trip)
+      } label: {
+        Image(systemName: "ellipsis.circle")
+          .font(.title3)
+          .padding(8)
+          .contentShape(Rectangle())
+      }
+      .buttonStyle(.borderless)
+      .accessibilityLabel("Trip actions")
+    }
+    .contextMenu {
+      editMenuItem(trip)
+      deleteMenuItem(trip)
+    }
+  }
+
+  private func editMenuItem(_ trip: Trip) -> some View {
+    Button {
+      editingDraft = Trip.Draft(trip)
+    } label: {
+      Label("Edit", systemImage: "pencil")
+    }
+  }
+
+  private func deleteMenuItem(_ trip: Trip) -> some View {
+    Button(role: .destructive) {
+      model.deleteTrip(trip)
+    } label: {
+      Label("Delete", systemImage: "trash")
     }
   }
 }

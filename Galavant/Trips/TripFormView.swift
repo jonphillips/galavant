@@ -3,6 +3,7 @@ import SwiftUI
 
 struct TripFormView: View {
   @State private var model: TripFormModel
+  @State private var showingHeaderPicker = false
   @Environment(\.dismiss) private var dismiss
 
   init(draft: Trip.Draft) {
@@ -81,11 +82,33 @@ struct TripFormView: View {
           Text("The Add list pre-selects these when you plan the trip.")
         }
 
+        if !model.isNew {
+          Section("Header Photo") {
+            Button {
+              showingHeaderPicker = true
+            } label: {
+              LabeledContent("Header Photo", value: model.hasHeaderPhoto ? "Change" : "Choose")
+            }
+          }
+        }
+
         Section {
           StackedTextEditor(title: "Notes", text: $model.draft.notes, minHeight: 120)
         }
       }
       .task { await model.task() }
+      .sheet(isPresented: $showingHeaderPicker) {
+        if let tripID = model.draft.id {
+          TripHeaderPickerSheet(
+            tripID: tripID,
+            tripName: model.draft.name,
+            primaryRegionName: model.primaryRegionName,
+            hasHeader: model.hasHeaderPhoto
+          ) {
+            Task { await model.headerPhotoDidChange() }
+          }
+        }
+      }
       .navigationTitle(model.isNew ? "New Trip" : "Edit Trip")
       .toolbar {
         ToolbarItem(placement: .confirmationAction) {

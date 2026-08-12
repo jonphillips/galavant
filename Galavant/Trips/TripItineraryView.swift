@@ -9,6 +9,9 @@ import SwiftUI
 /// selection) and carries the `StopMenu` to set/move its day and time.
 struct TripItineraryView: View {
   let model: TripPlanningModel
+  /// On compact layouts this is the first list section, so it scrolls with the
+  /// timeline instead of taking permanent vertical space above it.
+  var showsInlineAdd = false
   /// When set, render only this day's stops (the canvas day lens). Nil = the
   /// whole trip.
   var focusedDay: Int?
@@ -42,6 +45,7 @@ struct TripItineraryView: View {
       stays: model.plan.stays(coveringDay: day))
     let sequence = model.plan.locatedSequenceNumbers(forDay: day)
     return List {
+      inlineAddSection
       Section {
         if items.isEmpty {
           Text("No stops on this day yet")
@@ -64,6 +68,7 @@ struct TripItineraryView: View {
   /// See KNOWN-ISSUES.)
   private var fullItinerary: some View {
     List {
+      inlineAddSection
       let bucket = model.plan.toBeScheduled
       if !bucket.isEmpty {
         Section {
@@ -89,6 +94,14 @@ struct TripItineraryView: View {
         } header: {
           sectionHeader(dayLabel(day.number, trip: model.trip), day: day.number)
         }
+      }
+    }
+  }
+
+  @ViewBuilder private var inlineAddSection: some View {
+    if showsInlineAdd {
+      Section {
+        TripAddButton(model: model, tab: .itinerary)
       }
     }
   }
