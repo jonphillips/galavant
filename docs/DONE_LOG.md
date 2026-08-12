@@ -567,3 +567,32 @@ so the row can't say "paused by iCloud, will resume" and may briefly flash "Up t
 date" *between* throttled fetch batches. Accepted limitation, same as Yes Chef; a
 truthful pause state would need an upstream SQLiteData change. See
 `yes-chef/docs/decisions/ADR-0028-*.md` for the full write-up.
+
+## ADR-0008 logical-uniqueness convergence — sync dedup hardening — DONE
+
+Shipped 2026-08-12 (PR #20, branch `codex/adr-0008-logical-uniqueness-dedup`).
+Closes the open half of ADR-0008: SQLiteData's CloudKit sync has no unique indexes, so
+two devices editing offline can each insert a row for the same logical key, syncing into
+a logical duplicate. Added:
+
+- **`GalavantSchema/LogicalUniqueness.swift`** — pure `Sequence.convergingByKey`, generic
+  over `Identifiable where ID == UUID`, keeps the lowest-`id` survivor (a total, stable
+  order so every device independently converges), returns `(survivors, losers)`. These
+  tables carry only `id`, so lowest-UUID *is* the order — no new synced column (contrast
+  Yes Chef's recipe convergence, which orders by `dateCreated` → `id`).
+- **IdeaInterest** — his/hers reads collapse duplicates **non-mutatingly** (a duplicated
+  opinion no longer double-counts into the match projection); `IdeaInterest.set` does the
+  deterministic pick + loser-delete on the owning write, merging any distinct loser notes.
+- **IdeaTag / TripRegion** — cleanup on the owning write path; reads were already `Set`-safe.
+- **`TravelParty.ensureDefault`** — prefers a populated party over an empty first-run stray,
+  repoints all 7 direct child tables (Idea/Planner/MapRegion/Tag/TravelProfile/Trip/
+  IdeaEvaluation) to the survivor **before** deleting losers, and fast-paths the common
+  single-party case.
+
+Invariants held: read paths never delete (only owning writes do); survivor is deterministic
+and order-independent; no new synced columns. 9 seeded-duplicate/convergence tests in
+`GalavantSchemaTests`, run with `swift test --filter "LogicalUniqueness|Convergence"` to
+avoid the FoundationModels host-gap abort. Reference: Yes Chef's shipped
+`RecipeRepository+Import.swift` convergence + jon-platform `persistence-and-sync.md` law 3.
+Follow-ups tracked in `CURRENT_HANDOFF.md`: real two-device dogfooding of the party merge;
+`Planner.create` planner-level dedup for the two-populated-parties edge.

@@ -33,7 +33,12 @@ extension TripRegion {
     forTrip tripID: Trip.ID,
     in db: Database
   ) throws {
-    let existing = Set(try TripRegion.regionIDs(forTrip: tripID, in: db))
+    let rows = try TripRegion.where { $0.tripID.eq(tripID) }.fetchAll(db)
+    let converged = rows.convergingByKey(\.regionID)
+    for loser in converged.losers {
+      try TripRegion.find(loser.id).delete().execute(db)
+    }
+    let existing = Set(converged.survivors.map(\.regionID))
     for regionID in regionIDs.subtracting(existing) {
       try TripRegion.insert {
         TripRegion.Draft(TripRegion(id: UUID(), tripID: tripID, regionID: regionID))
