@@ -6,7 +6,8 @@ import SwiftUINavigation
 /// selection as the map, shown as a list. A segmented control swaps between the
 /// **Itinerary** (the day timeline, focused to the day chip's lens) and **Ideas**
 /// (the pulled pool: Shortlist / Scheduled / Considering). The context-sensitive
-/// Add lives in its top bar; **Edit** lives in the trip's navigation toolbar.
+/// Add lives in its top bar; trip administration lives in Edit Trip from the
+/// Trips collection.
 ///
 /// This content is layout-agnostic: `TripPlanningView` hosts it as the persistent
 /// bottom sheet on iPhone and as the right-hand column on iPad. The modal sheets
@@ -14,9 +15,9 @@ import SwiftUINavigation
 /// above either layout.
 struct TripDetailContent: View {
   let model: TripPlanningModel
-  /// Open the "romance" header-photo picker (ADR-0032). Hoisted to the host so the
-  /// sheet stacks above either layout, like the other trip sheets.
-  var onChooseHeader: () -> Void = {}
+  let usesColumn: Bool
+  var onShowStartDay: () -> Void = {}
+  var onShowCalendarReconciliation: () -> Void = {}
 
   var body: some View {
     @Bindable var model = model
@@ -70,36 +71,42 @@ struct TripDetailContent: View {
     return Group {
       switch model.sheetTab {
       case .itinerary:
-        TripItineraryView(model: model, focusedDay: model.canvasSelectedDay)
+        TripItineraryView(
+          model: model,
+          showsInlineAdd: !usesColumn,
+          focusedDay: model.canvasSelectedDay
+        )
       case .ideas:
-        TripIdeasView(model: model)
+        TripIdeasView(model: model, showsInlineAdd: !usesColumn)
       }
     }
     .safeAreaInset(edge: .top, spacing: 0) {
       VStack(spacing: 0) {
-        // The trip's "romance" header photo, when one is chosen (ADR-0032) — the
-        // band that makes the trip feel like its place. Absent → the toolbar strip
-        // sits at the top as before; the photo is added from the trip's nav bar.
-        if let header = model.trip?.headerImage {
-          TripHeaderImageView(image: header, onChange: onChooseHeader)
+        // The trip's "romance" header remains part of the planning column, but
+        // not the compact in-trip surface where vertical space is scarce.
+        if usesColumn, let header = model.trip?.headerImage {
+          TripHeaderImageView(image: header)
         }
-        // The "toolbar" strip: just the context-sensitive Add (Edit lives in the
-        // trip's nav bar).
-        HStack {
-          Spacer()
-          addButton
+        if usesColumn {
+          HStack {
+            Spacer()
+            TripAddButton(model: model, tab: model.sheetTab)
+          }
+          .padding(.horizontal)
+          .padding(.vertical, 8)
+          .background(.bar)
         }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
-        .background(.bar)
         // The Itinerary/Ideas switcher, pinned at the top of the content area so
         // it stays put while the list scrolls.
-        Picker("View", selection: $model.sheetTab) {
-          ForEach(TripPlanningModel.SheetTab.allCases) { tab in
-            Text(tab.label).tag(tab)
+        HStack(spacing: 8) {
+          Picker("View", selection: $model.sheetTab) {
+            ForEach(TripPlanningModel.SheetTab.allCases) { tab in
+              Text(tab.label).tag(tab)
+            }
           }
+          .pickerStyle(.segmented)
+          tripSettingsMenu
         }
-        .pickerStyle(.segmented)
         .padding(.horizontal)
         .padding(.vertical, 8)
         .background(Color(.systemGroupedBackground))
@@ -107,24 +114,24 @@ struct TripDetailContent: View {
     }
   }
 
-  /// Add a pool idea on the Ideas tab. On the Itinerary tab a menu offers the two
-  /// born-on-the-trip records: a freeform stop (ADR-0010) or lodging (ADR-0011) —
-  /// a shortlisted idea is still added onto a day via that section's own "+".
-  @ViewBuilder private var addButton: some View {
-    switch model.sheetTab {
-    case .ideas:
-      Button { model.addIdeasButtonTapped() } label: { Icon.add.label("Add Ideas") }
-    case .itinerary:
+  @ViewBuilder private var tripSettingsMenu: some View {
+    if !model.startDaySolverStops.isEmpty || model.trip?.certainty.stage == .dated {
       Menu {
-        Button { model.addCustomStopButtonTapped() } label: {
-          Label("Custom Stop", systemImage: "mappin.and.ellipse")
+        if !model.startDaySolverStops.isEmpty {
+          Button(action: onShowStartDay) {
+            Label("Start Day", systemImage: "calendar.day")
+          }
         }
-        Button { model.addLodgingButtonTapped() } label: {
-          Icon.stay.label("Lodging")
+        if model.trip?.certainty.stage == .dated {
+          Button(action: onShowCalendarReconciliation) {
+            Label("Reconcile Calendar", systemImage: "clock.arrow.trianglehead.2.counterclockwise.rotate.90")
+          }
         }
       } label: {
-        Icon.add.label("Add")
+        Image(systemName: "ellipsis.circle")
+          .imageScale(.large)
       }
+      .accessibilityLabel("Trip settings")
     }
   }
 }

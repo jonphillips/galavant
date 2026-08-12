@@ -13,9 +13,8 @@ import SwiftUINavigation
 /// - **iPad (regular):** a solid right-hand column beside the map, so the map and
 ///   the itinerary can be panned/scrolled at the same time while planning.
 ///
-/// Edit lives in the trip's navigation toolbar; the context Add lives on the
-/// sheet/column; the modal sheets are presented from here so they stack over
-/// either layout.
+/// The context Add lives on the sheet/column; the modal sheets are presented
+/// from here so they stack over either layout.
 struct TripPlanningView: View {
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @Environment(AppRouter.self) private var router
@@ -27,7 +26,6 @@ struct TripPlanningView: View {
   @State private var showDetailSheet = false
   @State private var showingChat = false
   @State private var showingStartDay = false
-  @State private var showingHeaderPicker = false
   /// M7's local, read-only reconciliation view. Its results never leave this
   /// per-view model until later slices prove the durable authority semantics.
   @State private var showingCalendarReconciliation = false
@@ -64,25 +62,13 @@ struct TripPlanningView: View {
       reconciliationModel: calendarReconciliationModel,
       isPresented: $showingCalendarReconciliation
     ) {
-      TripHeaderPresentationHost(model: model, isPresented: $showingHeaderPicker) {
-        layout
+      layout
       // Inspector nested *below* the toolbar host: an `.inspector` applied outside a
       // toolbar-bearing view swallows its `.toolbar` on iPad (docs/KNOWN-ISSUES.md).
       .chatPanel(isPresented: $showingChat, context: .trip(model.plan))
       .navigationTitle(model.trip?.name ?? "Trip")
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
-        ToolbarItem(placement: .primaryAction) {
-          Button("Edit") { model.editButtonTapped() }
-        }
-        // Choose/change the trip's "romance" header photo (ADR-0032).
-        ToolbarItem {
-          Button {
-            showingHeaderPicker = true
-          } label: {
-            Icon.headerImage.label("Header Photo")
-          }
-        }
         // Discuss this trip's itinerary with the model (ADR-0017).
         ToolbarItem {
           Button {
@@ -91,18 +77,6 @@ struct TripPlanningView: View {
             Icon.chat.label("Discuss")
           }
         }
-        // Start-day check: which start weekdays keep every keyed stop open (ADR-0029).
-        // Shown only once some stop carries structured hours to constrain the start.
-        if !model.startDaySolverStops.isEmpty {
-          ToolbarItem {
-            Button {
-              showingStartDay = true
-            } label: {
-              Label("Start Day", systemImage: "calendar.day")
-            }
-          }
-        }
-        calendarReconciliationToolbarItem
       }
       .task {
         model.pickInitialSheetTabIfNeeded()
@@ -126,9 +100,6 @@ struct TripPlanningView: View {
         sheetDetent = .medium
       }
       // Modal sheets, hoisted to the host so they stack above either layout.
-      .sheet(item: $model.destination.edit, id: \.id) { draft in
-        TripFormView(draft: draft)
-      }
       .sheet(item: $model.destination.idea, id: \.id) { draft in
         IdeaFormView(draft: draft.draft)
       }
@@ -158,7 +129,6 @@ struct TripPlanningView: View {
       .sheet(isPresented: $showingStartDay) {
         StartDayPanel(model: model)
       }
-      }
     }
   }
 
@@ -172,20 +142,6 @@ struct TripPlanningView: View {
     model.sheetTab = .itinerary
     // On iPhone, nudge the sheet up from its peek so the timeline shows.
     if !usesColumn, sheetDetent == Self.peek { sheetDetent = .medium }
-  }
-
-  /// Calendar is now authoritative for real commitments (ADR-0034), so the
-  /// former automatic mirror is intentionally absent from this toolbar.
-  @ToolbarContentBuilder private var calendarReconciliationToolbarItem: some ToolbarContent {
-    if let trip = model.trip, trip.certainty.stage == .dated {
-      ToolbarItem {
-        Button {
-          showingCalendarReconciliation = true
-        } label: {
-          Label("Reconcile Calendar", systemImage: "clock.arrow.trianglehead.2.counterclockwise.rotate.90")
-        }
-      }
-    }
   }
 
   @ViewBuilder private var layout: some View {
@@ -202,7 +158,12 @@ struct TripPlanningView: View {
     HStack(spacing: 0) {
       canvas
       Divider()
-      TripDetailContent(model: model, onChooseHeader: { showingHeaderPicker = true })
+      TripDetailContent(
+        model: model,
+        usesColumn: usesColumn,
+        onShowStartDay: { showingStartDay = true },
+        onShowCalendarReconciliation: { showingCalendarReconciliation = true }
+      )
         .frame(width: Self.columnWidth)
         .background(.background)
     }
@@ -215,7 +176,12 @@ struct TripPlanningView: View {
       .ignoresSafeArea(.container, edges: .bottom)
       .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { mapHeight = $0 }
       .sheet(isPresented: $showDetailSheet) {
-        TripDetailContent(model: model, onChooseHeader: { showingHeaderPicker = true })
+        TripDetailContent(
+          model: model,
+          usesColumn: usesColumn,
+          onShowStartDay: { showingStartDay = true },
+          onShowCalendarReconciliation: { showingCalendarReconciliation = true }
+        )
           .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { sheetHeight = $0 }
           .presentationDetents([Self.peek, .medium, .large], selection: $sheetDetent)
           .presentationBackgroundInteraction(.enabled(upThrough: .medium))
@@ -253,26 +219,5 @@ private struct CalendarReconciliationPresentationHost<Content: View>: View {
           )
         }
     }
-  }
-}
-
-/// Keeps the image-picker presentation out of the already-dense planning host.
-private struct TripHeaderPresentationHost<Content: View>: View {
-  let model: TripPlanningModel
-  @Binding var isPresented: Bool
-  @ViewBuilder let content: Content
-
-  var body: some View {
-    content
-      .sheet(isPresented: $isPresented) {
-        if let trip = model.trip {
-          TripHeaderPickerSheet(
-            tripID: trip.id,
-            tripName: trip.name,
-            primaryRegionName: model.tripRegions.first?.name,
-            hasHeader: trip.headerImage != nil
-          )
-        }
-      }
   }
 }

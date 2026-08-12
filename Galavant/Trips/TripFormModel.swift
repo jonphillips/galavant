@@ -21,6 +21,9 @@ final class TripFormModel {
   var lengthInDays: Int
   /// The regions this trip spans — the persistent planning lens (M3b.1).
   var selectedRegionIDs: Set<MapRegion.ID> = []
+  /// Kept in sync after the picker writes directly to the persisted trip, so a
+  /// subsequent form save preserves the picker change.
+  var hasHeaderPhoto: Bool
   private var didLoadRegions = false
 
   init(draft: Trip.Draft) {
@@ -32,6 +35,7 @@ final class TripFormModel {
     self.targetQuarter = draft.targetQuarter
     self.startDate = draft.startDate ?? now
     self.lengthInDays = max(1, draft.lengthInDays)
+    self.hasHeaderPhoto = draft.headerImageURL != nil
   }
 
   var isNew: Bool { draft.id == nil }
@@ -45,6 +49,10 @@ final class TripFormModel {
   var selectedRegionsSummary: String {
     let names = sortedRegions.filter { selectedRegionIDs.contains($0.id) }.map(\.name)
     return names.isEmpty ? "None" : names.joined(separator: ", ")
+  }
+
+  var primaryRegionName: String? {
+    sortedRegions.first { selectedRegionIDs.contains($0.id) }?.name
   }
 
   /// Load the editing trip's existing regions into the multi-select — once.
@@ -67,6 +75,22 @@ final class TripFormModel {
       selectedRegionIDs.remove(id)
     } else {
       selectedRegionIDs.insert(id)
+    }
+  }
+
+  /// Merge the picker’s immediate header-image write into this edit draft so
+  /// saving other form fields cannot overwrite it with stale columns.
+  func headerPhotoDidChange() async {
+    guard let id = draft.id else { return }
+    await withErrorReporting {
+      guard let trip = try await database.read({ db in
+        try Trip.find(id).fetchOne(db)
+      }) else { return }
+      draft.headerImageURL = trip.headerImageURL
+      draft.headerImageColor = trip.headerImageColor
+      draft.headerPhotographerName = trip.headerPhotographerName
+      draft.headerPhotographerUsername = trip.headerPhotographerUsername
+      hasHeaderPhoto = trip.headerImage != nil
     }
   }
 

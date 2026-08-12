@@ -5,12 +5,9 @@ import SwiftUI
 /// hero band at the top of the detail panel so a trip *feels like its place*. Renders
 /// from the CDN via `AsyncImage`, falling back to the stored placeholder color while
 /// it loads (or offline). Carries the mandatory Unsplash attribution — "Photo by … on
-/// Unsplash" — as real, UTM-tagged links, per the API guidelines. The corner button
-/// (not the whole band) opens the picker, so the attribution links stay tappable.
+/// Unsplash" — as real, UTM-tagged links, per the API guidelines.
 struct TripHeaderImageView: View {
   let image: TripHeaderImage
-  /// Open the picker to change/remove the header.
-  let onChange: () -> Void
 
   private static let height: CGFloat = 160
 
@@ -35,7 +32,6 @@ struct TripHeaderImageView: View {
     .accessibilityElement(children: .contain)
     .clipped()
     .overlay(alignment: .bottomLeading) { attribution }
-    .overlay(alignment: .topTrailing) { changeButton }
   }
 
   /// "Photo by {name} on Unsplash" — real links, UTM-tagged per Unsplash's ToS. Built
@@ -66,18 +62,6 @@ struct TripHeaderImageView: View {
     return try? AttributedString(markdown: markdown)
   }
 
-  private var changeButton: some View {
-    Button(action: onChange) {
-      Icon.headerImage.image
-        .font(.caption)
-        .foregroundStyle(.white)
-        .padding(7)
-        .background(.black.opacity(0.28), in: .circle)
-    }
-    .buttonStyle(.plain)
-    .padding(8)
-    .accessibilityLabel("Change header photo")
-  }
 }
 
 extension Color {

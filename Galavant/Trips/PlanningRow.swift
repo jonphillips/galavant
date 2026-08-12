@@ -93,3 +93,13 @@ func dayLabel(_ number: Int, trip: Trip?) -> String {
   return "Day \(number) · "
     + date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
 }
+
+/// Compact day label for the chip strip: "M 8/24" on a dated trip, "Day N"
+/// when undated. Weekday is narrow (single letter) by design — the M/D
+/// disambiguates the repeated S's and T's.
+func dayChipLabel(_ number: Int, trip: Trip?) -> String {
+  guard let date = trip?.date(forDay: number) else { return "Day \(number)" }
+  let weekday = date.formatted(.dateTime.weekday(.narrow))
+  let monthDay = date.formatted(.dateTime.month(.defaultDigits).day())
+  return "\(weekday) \(monthDay)"
+}

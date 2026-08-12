@@ -19,7 +19,7 @@ struct DayChipBar: View {
         }
         ForEach(1...dayCount, id: \.self) { day in
           chip(
-            label: "Day \(day)",
+            label: dayChipLabel(day, trip: model.trip),
             color: DayPalette.color(forDay: day),
             selected: model.canvasSelectedDay == day
           ) {

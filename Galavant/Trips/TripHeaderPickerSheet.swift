@@ -11,15 +11,23 @@ struct TripHeaderPickerSheet: View {
   @State private var picker: TripHeaderPicker
   /// Whether the trip currently has a header (drives the "Remove" affordance).
   let hasHeader: Bool
+  let onChange: () -> Void
   @Environment(\.dismiss) private var dismiss
 
-  init(tripID: Trip.ID, tripName: String, primaryRegionName: String?, hasHeader: Bool) {
+  init(
+    tripID: Trip.ID,
+    tripName: String,
+    primaryRegionName: String?,
+    hasHeader: Bool,
+    onChange: @escaping () -> Void = {}
+  ) {
     _picker = State(
       wrappedValue: TripHeaderPicker(
         tripID: tripID, tripName: tripName, primaryRegionName: primaryRegionName
       )
     )
     self.hasHeader = hasHeader
+    self.onChange = onChange
   }
 
   private let columns = [GridItem(.adaptive(minimum: 110), spacing: 8)]
@@ -46,7 +54,11 @@ struct TripHeaderPickerSheet: View {
         if hasHeader {
           ToolbarItem(placement: .destructiveAction) {
             Button("Remove", role: .destructive) {
-              Task { await picker.clear(); dismiss() }
+              Task {
+                await picker.clear()
+                onChange()
+                dismiss()
+              }
             }
           }
         }
@@ -60,7 +72,11 @@ struct TripHeaderPickerSheet: View {
 
   private func cell(_ photo: UnsplashPhoto) -> some View {
     Button {
-      Task { await picker.choose(photo); dismiss() }
+      Task {
+        await picker.choose(photo)
+        onChange()
+        dismiss()
+      }
     } label: {
       AsyncImage(url: URL(string: photo.thumbURL)) { phase in
         switch phase {
