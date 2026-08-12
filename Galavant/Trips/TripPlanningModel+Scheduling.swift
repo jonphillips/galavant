@@ -1,6 +1,7 @@
 import Dependencies
 import Foundation
 import GalavantSchema
+import SQLiteData
 
 /// Scheduling, freeform-stop, accommodation (ADR-0011), and per-day region
 /// (ADR-0012) write actions — the itinerary-mutating half of the planning model.
@@ -31,7 +32,7 @@ extension TripPlanningModel {
   /// user-authored itinerary fact, not a second shortlist membership.
   func placeRepeat(of stop: ResolvedStop, on day: Int?) {
     guard let day, let ideaID = stop.idea?.id else { return }
-    withErrorReporting {
+    _ = withErrorReporting {
       try database.write { db in
         try TripIdea.repeatScheduled(ideaID: ideaID, into: tripID, on: .day(day), in: db)
       }

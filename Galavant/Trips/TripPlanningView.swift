@@ -117,12 +117,7 @@ struct TripPlanningView: View {
       }
       .onChange(of: model.tripRegionIDs) { _, _ in model.reseedLens() }
       .onChange(of: model.canvasSelectedStopID) { _, id in
-        guard id != nil else { return }
-        // A selected stop lives on the Itinerary, so surface that tab — otherwise
-        // tapping a pin while on Ideas would scroll a list it isn't in.
-        model.sheetTab = .itinerary
-        // On iPhone, nudge the sheet up from its peek so the timeline shows.
-        if !usesColumn, sheetDetent == Self.peek { sheetDetent = .medium }
+        handleCanvasSelection(id)
       }
       .onChange(of: model.detailIdeaID) { _, id in
         // Drilling into a stop's detail pushes within the sheet — raise it off the
@@ -165,6 +160,18 @@ struct TripPlanningView: View {
       }
       }
     }
+  }
+
+  /// Surface the itinerary when a map pin selects a stop. Keeping this out of the
+  /// modifier closure avoids an Xcode 27 type-checker timeout in the large view
+  /// builder above.
+  private func handleCanvasSelection(_ id: TripIdea.ID?) {
+    guard id != nil else { return }
+    // A selected stop lives on the Itinerary, so surface that tab — otherwise
+    // tapping a pin while on Ideas would scroll a list it isn't in.
+    model.sheetTab = .itinerary
+    // On iPhone, nudge the sheet up from its peek so the timeline shows.
+    if !usesColumn, sheetDetent == Self.peek { sheetDetent = .medium }
   }
 
   /// Calendar is now authoritative for real commitments (ADR-0034), so the

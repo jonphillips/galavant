@@ -37,8 +37,10 @@ struct PlaceIdeaSheet: View {
               }
             }
             if target.day != nil, !model.plan.scheduled.isEmpty {
-              Section("Already Scheduled") {
+              Section {
                 ForEach(model.plan.scheduled) { ideaButton($0, isRepeat: true) }
+              } header: {
+                Text("Already Scheduled")
               } footer: {
                 Text("Choosing one creates another visit without changing the existing one.")
               }
