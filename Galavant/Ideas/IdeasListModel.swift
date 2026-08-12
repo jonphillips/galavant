@@ -212,14 +212,22 @@ final class IdeasListModel {
 
   // MARK: - His/hers ratings + match projection
 
+  /// Logical duplicates can arrive when two devices insert the same planner's
+  /// opinion offline. Reads converge without mutating; `IdeaInterest.set` owns
+  /// loser cleanup on the next write (ADR-0008).
+  private var convergedInterests: [IdeaInterest] {
+    interests.convergingByKey { [$0.ideaID, $0.plannerID] }.survivors
+  }
+
   /// Every travel-party planner with their level for an idea (nil = pending),
   /// name-ordered — but only when *someone* has rated, so a fully-unrated idea
   /// shows no his/hers row (keeps the firehose quiet while still distinguishing
   /// Decide Later from pending).
   func ratingRow(for idea: Idea) -> [(planner: Planner, level: Interest?)] {
     let byPlanner = Dictionary(
-      interests.filter { $0.ideaID == idea.id }.map { ($0.plannerID, $0.level) },
-      uniquingKeysWith: { first, _ in first }
+      uniqueKeysWithValues: convergedInterests
+        .filter { $0.ideaID == idea.id }
+        .map { ($0.plannerID, $0.level) }
     )
     let sorted = planners.sorted { $0.displayName < $1.displayName }
     guard sorted.contains(where: { (byPlanner[$0.id] ?? nil) != nil }) else { return [] }
@@ -227,7 +235,7 @@ final class IdeasListModel {
   }
 
   private var standingByIdea: [Idea.ID: MatchStanding] {
-    Dictionary(grouping: interests.filter { $0.level != nil }, by: \.ideaID)
+    Dictionary(grouping: convergedInterests.filter { $0.level != nil }, by: \.ideaID)
       .mapValues { Interest.standing($0.map(\.level)) }
   }
 
@@ -362,7 +370,7 @@ final class IdeasListModel {
 
   func myInterest(for idea: Idea) -> Interest? {
     guard let me = currentPlanner else { return nil }
-    return interests.first { $0.ideaID == idea.id && $0.plannerID == me.id }?.level
+    return convergedInterests.first { $0.ideaID == idea.id && $0.plannerID == me.id }?.level
   }
 
   func setMyInterest(_ level: Interest?, for idea: Idea) {

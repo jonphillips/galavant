@@ -132,15 +132,35 @@ extension IdeaInterest {
     plannerID: Planner.ID,
     in db: Database
   ) throws {
-    let existing = try IdeaInterest
+    let matching = try IdeaInterest
       .where { $0.ideaID.eq(ideaID) && $0.plannerID.eq(plannerID) }
-      .fetchOne(db)
-    if let existing {
-      if level == nil, existing.note.isEmpty {
+      .fetchAll(db)
+    let converged = matching.convergingByKey { [$0.ideaID, $0.plannerID] }
+
+    if let existing = converged.survivors.first {
+      // Preserve every distinct non-empty note before deleting sync-race losers.
+      // Lowest row id defines the stable merge order, matching survivor selection.
+      let note = matching
+        .sorted { $0.id.uuidString < $1.id.uuidString }
+        .map(\.note)
+        .filter { !$0.isEmpty }
+        .reduce(into: [String]()) { notes, note in
+          if !notes.contains(note) { notes.append(note) }
+        }
+        .joined(separator: "\n\n")
+
+      for loser in converged.losers {
+        try IdeaInterest.find(loser.id).delete().execute(db)
+      }
+
+      if level == nil, note.isEmpty {
         try IdeaInterest.find(existing.id).delete().execute(db)
       } else {
         try IdeaInterest.find(existing.id)
-          .update { $0.level = level }
+          .update {
+            $0.level = #bind(level)
+            $0.note = #bind(note)
+          }
           .execute(db)
       }
     } else if level != nil {
