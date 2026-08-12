@@ -112,9 +112,15 @@ public struct PlaceMatcher: Sendable {
     } else {
       nil
     }
+    // A calendar event names its venue in `location`; the title is the subject
+    // ("Museum Day", "Dinner"), not the place. Resolve from the location when present
+    // so an event with a real Maps location adopts that venue's identity and name —
+    // otherwise a coordinate-only match self-identifies by the title and a non-venue
+    // title gates out the correct POI sitting directly under the pin.
+    let placeName = location.flatMap { $0.isEmpty ? nil : $0 } ?? title
     return await match(
       ParsedPage(
-        title: title,
+        title: placeName,
         coordinate: coordinate,
         address: ParsedAddress(street: location)
       )
