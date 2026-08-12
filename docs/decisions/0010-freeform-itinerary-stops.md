@@ -114,7 +114,9 @@ sketch where the global button branched into both).
   bottom of the trip's intra-day order (`nextStopRank`). *(Superseded by ADR-0033:
   a stop's day position is now `dayRank`, a per-stop intra-day order; `shortlistRank`/
   `nextStopRank` orders only the shortlist pile. A freeform stop is the archetypal
-  floating "Anytime" stop and inherits `dayRank` + `suggestedTime` for free.)*
+  floating "Anytime" stop and inherits `dayRank` + `suggestedTime` for free.)* *(ADR-0035:
+  a freeform stop can also be an **alternative** — "picnic we packed" vs. a restaurant — by
+  carrying the alternatives-group columns like any `TripIdea`.)*
 
 ## Consequences
 
