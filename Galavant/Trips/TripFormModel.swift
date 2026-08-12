@@ -100,6 +100,7 @@ final class TripFormModel {
             certainty: certainty,
             lengthInDays: lengthInDays,
             notes: draft.notes,
+            mainTransportMode: draft.mainTransportMode.flatMap(TransportMode.init(rawValue:)),
             in: db
           ).id
         }

@@ -20,6 +20,9 @@ public struct Trip: Identifiable, Equatable, Hashable, Sendable {
   public var targetQuarter: Quarter?
   public var startDate: Date?
   public var lengthInDays = 7
+  /// The trip-wide transport preference for itinerary directions. `nil` keeps
+  /// the automatic walking/transit choice used by older trips.
+  public var mainTransportMode: String?
   public var travelPartyID: TravelParty.ID?
 
   // MARK: Header image (ADR-0032, "romance")
@@ -48,6 +51,7 @@ public struct Trip: Identifiable, Equatable, Hashable, Sendable {
     targetQuarter: Quarter? = nil,
     startDate: Date? = nil,
     lengthInDays: Int = 7,
+    mainTransportMode: TransportMode? = nil,
     travelPartyID: TravelParty.ID? = nil,
     headerImageURL: String? = nil,
     headerImageColor: String? = nil,
@@ -63,6 +67,7 @@ public struct Trip: Identifiable, Equatable, Hashable, Sendable {
     self.targetQuarter = targetQuarter
     self.startDate = startDate
     self.lengthInDays = lengthInDays
+    self.mainTransportMode = mainTransportMode?.rawValue
     self.travelPartyID = travelPartyID
     self.headerImageURL = headerImageURL
     self.headerImageColor = headerImageColor
@@ -72,6 +77,13 @@ public struct Trip: Identifiable, Equatable, Hashable, Sendable {
 }
 
 extension Trip {
+  /// Typed facade over the persisted transport-mode string. Unknown values from
+  /// a future client degrade to Automatic rather than breaking the trip form.
+  public var mainTransportationMode: TransportMode? {
+    get { mainTransportMode.flatMap(TransportMode.init(rawValue:)) }
+    set { mainTransportMode = newValue?.rawValue }
+  }
+
   /// The header image as a single value, folding the four flat columns into an
   /// all-or-nothing reference (ADR-0032). `nil` when no header URL is set — the
   /// trip screen shows a plain title; otherwise the render URL, its placeholder

@@ -574,6 +574,37 @@ extension DependencyValues {
       )
       .execute(db)
     }
+    migrator.registerMigration("Add main transport mode to trips") { db in
+      // A nullable preference preserves the automatic walking/transit behavior
+      // for existing trips. A chosen mode is a small synced trip fact, not a
+      // per-device setting, so both planners see the same direction defaults.
+      try #sql(#"ALTER TABLE "trips" ADD COLUMN "mainTransportMode" TEXT"#).execute(db)
+    }
+    migrator.registerMigration("Create trip travel mode overrides table") { db in
+      // Per-leg choices are shared trip facts. The route coordinates are copied
+      // from `LegKey`; that keeps this record MapKit-free and CloudKit-legal.
+      try #sql(
+        """
+        CREATE TABLE "tripTravelModeOverrides" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "tripID" TEXT NOT NULL REFERENCES "trips"("id") ON DELETE CASCADE,
+          "fromLat" REAL NOT NULL,
+          "fromLon" REAL NOT NULL,
+          "toLat" REAL NOT NULL,
+          "toLon" REAL NOT NULL,
+          "transportMode" TEXT NOT NULL
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_tripTravelModeOverrides_on_tripID"
+        ON "tripTravelModeOverrides"("tripID")
+        """
+      )
+      .execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if case let .configured(startImmediately) = syncMode {

@@ -34,6 +34,7 @@ struct TripCanvasMapView: View {
   var body: some View {
     @Bindable var model = model
     Map(position: $cameraPosition, selection: $mapSelection) {
+      lodgingPathContent
       ForEach(visibleDays) { day in
         dayContent(day)
       }
@@ -61,6 +62,9 @@ struct TripCanvasMapView: View {
       feature.kind != .pointOfInterest
     }
     .onChange(of: model.canvasSelectedDay, initial: true) { _, _ in frameSelection() }
+    .onChange(of: model.trip?.mainTransportationMode) { _, _ in
+      Task { await model.fetchMissingETAs() }
+    }
     // Re-reveal when the sheet grows/shrinks over the map: a pin that the rising
     // sheet would swallow pans back into the clear (and `reveal` no-ops when the
     // pin is already above the sheet, so shrinking it never jerks the map).
@@ -82,6 +86,22 @@ struct TripCanvasMapView: View {
         visibleRegion: visibleRegion,
         onSelect: model.mapPlaceTapped
       )
+    }
+  }
+
+  /// On the All lens, show the lodging sequence as a subtle neutral path behind
+  /// the day-coloured stop routes. It tells the overnight story without turning
+  /// hotel stays into numbered itinerary stops.
+  @MapContentBuilder
+  private var lodgingPathContent: some MapContent {
+    if model.canvasSelectedDay == nil {
+      let route = model.plan.lodgingPathCoordinates.map {
+        CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
+      }
+      if route.count >= 2 {
+        MapPolyline(coordinates: route)
+          .stroke(.gray.opacity(0.7), style: StrokeStyle(lineWidth: 3, dash: [7, 5]))
+      }
     }
   }
 

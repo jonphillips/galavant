@@ -258,6 +258,11 @@ public struct TripPlan: Equatable, Sendable {
     }
   }
 
+  /// The chronological path through the trip's located lodging stays. This is
+  /// deliberately separate from the day-stop routes: it is shown only on the
+  /// canvas's All lens as the overnight movement story, never as numbered stops.
+  public var lodgingPathCoordinates: [(latitude: Double, longitude: Double)] { baseCoordinates(forDay: nil) }
+
   // MARK: - Per-day region (ADR-0012)
 
   /// The `MapRegion` assigned to `day`, if any — resolved from the day's
@@ -310,42 +315,6 @@ public struct TripPlan: Equatable, Sendable {
       result[stop.id] = index + 1
     }
     return result
-  }
-
-  // MARK: - Travel-time connectors (docs/trip-canvas.md)
-
-  /// All directed route segments across every day, in itinerary order — the set
-  /// the directions client should pre-warm. Only pairs where both stops are
-  /// located produce a leg.
-  public var allLegs: [LegKey] {
-    itinerary.flatMap { legs(forDay: $0.number) + baseLegs(forDay: $0.number) }
-  }
-
-  /// Directed route segments between consecutive located stops on `day`.
-  /// Iterates all stops in order — an unlocated stop between two located ones
-  /// breaks the chain on both sides (no phantom A→C leg when B has no coords).
-  public func legs(forDay day: Int) -> [LegKey] {
-    let stops = itinerary.first(where: { $0.number == day })?.stops ?? []
-    return zip(stops, stops.dropFirst()).compactMap { a, b in
-      guard
-        let fromLat = a.content.latitude, let fromLon = a.content.longitude,
-        let toLat = b.content.latitude, let toLon = b.content.longitude
-      else { return nil }
-      return LegKey(fromLat: fromLat, fromLon: fromLon, toLat: toLat, toLon: toLon)
-    }
-  }
-
-  /// The morning leg from the day's home base to its first located itinerary
-  /// stop. A stay is an anchor rather than a numbered route point, but its
-  /// direction to the first plan item is real planning information.
-  public func baseLegs(forDay day: Int) -> [LegKey] {
-    guard
-      let stay = stays(coveringDay: day).first,
-      let fromLat = stay.content.latitude, let fromLon = stay.content.longitude,
-      let first = locatedStops(forDay: day).first,
-      let toLat = first.content.latitude, let toLon = first.content.longitude
-    else { return [] }
-    return [LegKey(fromLat: fromLat, fromLon: fromLon, toLat: toLat, toLon: toLon)]
   }
 
   /// The interleaved rows for one day's timeline: stops, travel-time connectors
@@ -414,12 +383,23 @@ public struct TripPlan: Equatable, Sendable {
     let baseConnector = baseConnector(
       forDay: day, stops: stops, stays: stays,
       travelTimes: travelTimes, effectiveModes: effectiveModes)
+    let stayTransferConnector = stayTransferConnector(
+      forDay: day, stops: stops, stays: stays,
+      travelTimes: travelTimes, effectiveModes: effectiveModes)
     var markerInserted = false
     var baseConnectorInserted = false
+    var stayTransferInserted = false
     for entry in stream {
       switch entry.slot {
       case let .boundary(item):
         items.append(item)
+        if case let .checkOut(stay) = item,
+          !stayTransferInserted,
+          stayTransferConnector?.from.id == "stay-\(stay.id)",
+          let stayTransferConnector {
+          items.append(.connector(stayTransferConnector))
+          stayTransferInserted = true
+        }
       case let .stop(i):
         if let at = markerAt, i == at, !markerInserted {
           items.append(.nowMarker)
@@ -452,32 +432,6 @@ public struct TripPlan: Equatable, Sendable {
       items.append(.nowMarker)
     }
     return items
-  }
-
-  private func baseConnector(
-    forDay day: Int,
-    stops: [ResolvedStop],
-    stays: [ResolvedStay],
-    travelTimes: [LegKey: [TransportMode: TravelTime]],
-    effectiveModes: [LegKey: TransportMode]
-  ) -> TravelConnector? {
-    guard
-      let stay = stays.first,
-      let fromLat = stay.content.latitude, let fromLon = stay.content.longitude,
-      let first = stops.first(where: { $0.content.latitude != nil && $0.content.longitude != nil }),
-      let toLat = first.content.latitude, let toLon = first.content.longitude
-    else { return nil }
-    let key = LegKey(fromLat: fromLat, fromLon: fromLon, toLat: toLat, toLon: toLon)
-    let mode = effectiveModes[key] ?? .walking
-    return TravelConnector(
-      from: TravelEndpoint(id: "stay-\(stay.id)", title: stay.content.title, latitude: fromLat, longitude: fromLon),
-      to: endpoint(for: first), leg: key, mode: mode, travelTime: travelTimes[key]?[mode])
-  }
-
-  private func endpoint(for stop: ResolvedStop) -> TravelEndpoint {
-    TravelEndpoint(
-      id: "stop-\(stop.id)", title: stop.content.title,
-      latitude: stop.content.latitude!, longitude: stop.content.longitude!)
   }
 
   /// Index in `stops` before which the "now" marker belongs, or `stops.count` to

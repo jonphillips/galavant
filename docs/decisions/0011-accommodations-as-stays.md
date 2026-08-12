@@ -144,9 +144,13 @@ not hidden behind a discriminator on a shared one.
 - **"Stays" summary band (I4)** and **spanning banner (I2)**: not now (Q7).
 - **Hotel-anchored routing (M2):** the broad base → all stops → base route remains
   deferred. **Refined 2026-08-11:** the small but high-value first leg is now in
-  scope: on a covered day, a located base stay supplies directions to the first
-  located itinerary stop. It is a normal ETA/open-in-Maps connector, not a sequence
-  pin or a claim that every day begins at the hotel.
+  scope: a located lodging supplies directions to the first located itinerary
+  stop. A transition day resolves the source from timeline order: before check-in
+  it is the departing stay; afterward it is the arriving stay. Its check-out →
+  check-in transfer gets its own ETA/open-in-Maps row whenever those boundary
+  events are adjacent (a stop genuinely between them suppresses only that direct
+  transfer). Neither connector is a sequence pin or a claim that every day begins
+  at the hotel.
 
 ## Relationship to prior decisions
 

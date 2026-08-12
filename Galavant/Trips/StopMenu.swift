@@ -82,11 +82,6 @@ struct StopMenu: View {
           model.editBooking(stop)
         }
       }
-      if let idea = stop.idea {
-        Button("Edit Idea…", systemImage: Icon.edit.systemName) {
-          model.editIdea(idea)
-        }
-      }
       Divider()
       if !calendarLinked, let length = model.trip?.lengthInDays {
         Menu(placed ? "Move to Day" : "Set Day") {
@@ -127,7 +122,10 @@ struct StopMenu: View {
   @ViewBuilder private var timeLabel: some View {
     switch schedule {
     case .timed:
-      Text(schedule.display).font(.subheadline.monospaced()).foregroundStyle(.primary)
+      Text(schedule.display)
+        .font(.subheadline.monospaced())
+        .foregroundStyle(.primary)
+        .fixedSize(horizontal: true, vertical: false)
     case let .daypart(_, part):
       Text(part.label).font(.subheadline).foregroundStyle(.secondary)
     case .day:

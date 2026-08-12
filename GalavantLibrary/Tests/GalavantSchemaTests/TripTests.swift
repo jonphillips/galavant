@@ -117,6 +117,32 @@ struct TripTests {
     #expect(dated.lengthInDays == 9)
   }
 
+  @Test func mainTransportModeRoundTripsThroughCreateAndUpdate() async throws {
+    let mode = try await database.write { db -> TransportMode? in
+      let trip = try Trip.create(name: "Italy", mainTransportMode: .driving, in: db)
+      #expect(trip.mainTransportationMode == .driving)
+      var draft = Trip.Draft(trip)
+      draft.mainTransportMode = TransportMode.transit.rawValue
+      try Trip.update(draft, certainty: trip.certainty, in: db)
+      return try Trip.find(trip.id).fetchOne(db)?.mainTransportationMode
+    }
+    #expect(mode == .transit)
+  }
+
+  @Test func travelModeOverridePersistsPerTripAndLeg() async throws {
+    let modes = try await database.write { db -> [TransportMode?] in
+      let trip = try Trip.create(name: "Italy", in: db)
+      let leg = LegKey(fromLat: 1, fromLon: 2, toLat: 3, toLon: 4)
+      try TripTravelModeOverride.setMode(.transit, for: leg, tripID: trip.id, in: db)
+      try TripTravelModeOverride.setMode(.driving, for: leg, tripID: trip.id, in: db)
+      return try TripTravelModeOverride
+        .where { $0.tripID.eq(trip.id) }
+        .fetchAll(db)
+        .map(\.mode)
+    }
+    #expect(modes == [.driving])
+  }
+
   @Test func reorderSomedayPersistsNewRanks() async throws {
     let reordered = try await database.write { db -> [String] in
       let a = try Trip.create(name: "A", in: db)

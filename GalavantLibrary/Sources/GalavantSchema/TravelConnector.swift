@@ -79,23 +79,35 @@ public struct TravelEndpoint: Identifiable, Equatable, Sendable {
 /// An interstitial travel-time row between two consecutive itinerary locations.
 /// `travelTime` is nil while the ETA is loading or unavailable.
 public struct TravelConnector: Identifiable, Equatable, Sendable {
+  public enum Kind: Equatable, Sendable {
+    /// Directions between consecutive scheduled itinerary stops.
+    case betweenStops
+    /// Directions from a day's unambiguous lodging base to its first stop.
+    case fromLodging
+    /// A direct same-day lodging change with no stops in between.
+    case betweenLodgings
+  }
+
   public var from: TravelEndpoint
   public var to: TravelEndpoint
   public var leg: LegKey
   public var mode: TransportMode
   public var travelTime: TravelTime?
+  public var kind: Kind
 
   public var id: String { "\(from.id)-\(to.id)" }
 
   public init(
     from: TravelEndpoint, to: TravelEndpoint,
-    leg: LegKey, mode: TransportMode, travelTime: TravelTime?
+    leg: LegKey, mode: TransportMode, travelTime: TravelTime?,
+    kind: Kind = .betweenStops
   ) {
     self.from = from
     self.to = to
     self.leg = leg
     self.mode = mode
     self.travelTime = travelTime
+    self.kind = kind
   }
 }
 
