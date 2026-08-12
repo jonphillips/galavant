@@ -95,11 +95,20 @@ func dayLabel(_ number: Int, trip: Trip?) -> String {
 }
 
 /// Compact day label for the chip strip: "M 8/24" on a dated trip, "Day N"
-/// when undated. Weekday is narrow (single letter) by design — the M/D
-/// disambiguates the repeated S's and T's.
+/// when undated. The ambiguous Tuesday/Thursday and Saturday/Sunday initials
+/// expand to two letters while the other weekdays stay at one.
 func dayChipLabel(_ number: Int, trip: Trip?) -> String {
   guard let date = trip?.date(forDay: number) else { return "Day \(number)" }
-  let weekday = date.formatted(.dateTime.weekday(.narrow))
+  let weekday = switch Calendar.current.component(.weekday, from: date) {
+  case 1: "Su"
+  case 2: "M"
+  case 3: "Tu"
+  case 4: "W"
+  case 5: "Th"
+  case 6: "F"
+  case 7: "Sa"
+  default: ""
+  }
   let monthDay = date.formatted(.dateTime.month(.defaultDigits).day())
   return "\(weekday) \(monthDay)"
 }

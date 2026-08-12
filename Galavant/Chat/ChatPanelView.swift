@@ -221,14 +221,38 @@ private struct ChatBubble: View {
 }
 
 extension View {
-  /// Attach the chat panel as an inspector keyed off `isPresented`, seeded with
-  /// the screen's `ChatContext`.
+  /// Attach the chat panel keyed off `isPresented`, seeded with the screen's
+  /// `ChatContext`. Compact layouts use an explicit sheet: unlike an inspector,
+  /// it reliably presents from the iPhone tab-navigation hierarchy.
   func chatPanel(isPresented: Binding<Bool>, context: @autoclosure @escaping () -> ChatContext)
     -> some View
   {
-    inspector(isPresented: isPresented) {
-      ChatPanelView(isPresented: isPresented, context: context())
-        .inspectorColumnWidth(min: 320, ideal: 380, max: 520)
+    ChatPanelPresentation(content: self, isPresented: isPresented, context: context)
+  }
+}
+
+/// Gives chat the platform shape promised by ADR-0017: a conventional sheet on
+/// iPhone (and narrow iPad) and a side inspector wherever there is room for one.
+/// The explicit compact sheet avoids relying on `.inspector`'s adaptive behavior
+/// inside the iPhone `TabView` + `NavigationStack` hierarchy.
+private struct ChatPanelPresentation<Content: View>: View {
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+  let content: Content
+  @Binding var isPresented: Bool
+  let context: () -> ChatContext
+
+  var body: some View {
+    if horizontalSizeClass == .compact {
+      content
+        .sheet(isPresented: $isPresented) {
+          ChatPanelView(isPresented: $isPresented, context: context())
+        }
+    } else {
+      content
+        .inspector(isPresented: $isPresented) {
+          ChatPanelView(isPresented: $isPresented, context: context())
+            .inspectorColumnWidth(min: 320, ideal: 380, max: 520)
+        }
     }
   }
 }
