@@ -4,10 +4,11 @@
 (Slices 1–3, 5) shipped and unit-tested; the **UI (Slice 4)** shipped 2026-07-10 — a stop
 clock-time editor (`StopTimeSheet`) that pre-fills `suggestedTime`, and a **menu-based**
 "Move Earlier / Later in Day" that writes `dayRank` via `reorderDayStops` (drag stays blocked by
-the Xcode 27 beta 1 `List` drop-timeout, docs/KNOWN-ISSUES.md). The §2 "before the first timed
-stop" limitation was **kept, not lifted** (see §2): "Move Earlier" simply disables at that
-boundary, and a daypart remains the way to seat a stop ahead of the day's first timed stop — so
-nothing regresses for the shipped end-of-day core or dogfooded data. Refines the day-relative time
+the Xcode 27 beta 1 `List` drop-timeout, docs/KNOWN-ISSUES.md). **Refined 2026-08-11:** dogfooding
+showed that refusing to put an Anytime stop before the first scheduled event was a real planning
+failure. An explicitly moved leading Anytime stop receives a negative `dayRank` marker and sorts
+one minute before the first timed/daypart anchor; untouched existing stops retain their historical
+end-of-day behavior. Refines the day-relative time
 model (docs/trip-time-model.md §2, ADR-0004)
 and ADR-0010 (freeform stops). Feeds ADR-0030's one-tap pull+schedule and the now-marker/travel-leg
 timeline. Prompted by a review of Tripsy's activity docs (untimed activities "can be placed

@@ -164,11 +164,12 @@ import Testing
       ideas: [idea(h1), idea(h2), idea(s)])
     let items = p.itineraryItems(
       forDay: 2, travelTimes: [:], effectiveModes: [:], stays: p.stays(coveringDay: 2))
-    // check-out, stop, check-in
-    #expect(items.count == 3)
+    // check-out, base → first stop, stop, check-in
+    #expect(items.count == 4)
     if case .checkOut(let r) = items[0] { #expect(r.id == leaving.id) } else { Issue.record("want check-out first") }
-    if case .stop = items[1] {} else { Issue.record("want stop in the middle") }
-    if case .checkIn(let r) = items[2] { #expect(r.id == arriving.id) } else { Issue.record("want check-in last") }
+    if case .connector = items[1] {} else { Issue.record("want directions after check-out") }
+    if case .stop = items[2] {} else { Issue.record("want stop after directions") }
+    if case .checkIn(let r) = items[3] { #expect(r.id == arriving.id) } else { Issue.record("want check-in last") }
   }
 
   @Test func middleDayShowsAHomeBaseRowAtopItsStops() {
@@ -182,10 +183,11 @@ import Testing
     let p = planWith(stops: [stop], stays: [spanning], ideas: [idea(h), idea(s)])
     let items = p.itineraryItems(
       forDay: 3, travelTimes: [:], effectiveModes: [:], stays: p.stays(coveringDay: 3))
-    #expect(items.count == 2)
+    #expect(items.count == 3)
     if case .homeBase(let r) = items[0] { #expect(r.id == spanning.id) }
     else { Issue.record("middle day should lead with the home-base row") }
-    if case .stop = items[1] {} else { Issue.record("then the day's stop") }
+    if case .connector = items[1] {} else { Issue.record("then the base directions") }
+    if case .stop = items[2] {} else { Issue.record("then the day's stop") }
   }
 
   @Test func boundaryDaysGetTheirEventRowNotAHomeBaseRow() {

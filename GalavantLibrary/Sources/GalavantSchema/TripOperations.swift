@@ -193,6 +193,35 @@ extension TripIdea {
     return created
   }
 
+  /// Creates another itinerary occurrence for an idea that is already on this
+  /// trip. Pulling remains idempotent — the shortlist is still one deliberate
+  /// membership decision — while this explicit operation models "eat here
+  /// again" as a second stop with its own placement and ordering.
+  @discardableResult
+  public static func repeatScheduled(
+    ideaID: Idea.ID,
+    into tripID: Trip.ID,
+    on schedule: Schedule,
+    in db: Database
+  ) throws -> TripIdea {
+    guard schedule.dayNumber != nil else { throw TripError.invalidSchedule }
+    let rank = try nextStopRank(tripID: tripID, in: db)
+    let id = UUID()
+    var occurrence = TripIdea(
+      id: id,
+      tripID: tripID,
+      ideaID: ideaID,
+      status: .scheduled,
+      shortlistRank: rank,
+      dayRank: Double(rank))
+    occurrence.apply(schedule)
+    try TripIdea.insert { TripIdea.Draft(occurrence) }.execute(db)
+    guard let created = try TripIdea.find(id).fetchOne(db) else {
+      throw TripError.creationFailed
+    }
+    return created
+  }
+
   /// Advance (or retreat) an idea's lifecycle status on a trip. No-op if the
   /// idea isn't on the trip. Promoting *onto* the shortlist (from a status that
   /// wasn't on it) appends it to the bottom of the shortlist order; demoting
@@ -495,17 +524,6 @@ extension TripIdea {
     }
   }
 
-  /// Persist a new intra-day order (ADR-0033): each stop's `dayRank` becomes its
-  /// index in `orderedIDs` — the day's stops top to bottom as the user dragged
-  /// them. Call after a drag-to-reorder within a single day. Distinct from
-  /// `reorderShortlist`, which orders the shortlist pile; this orders one day's
-  /// stops, letting an untimed stop sit between timed ones.
-  public static func reorderDayStops(_ orderedIDs: [TripIdea.ID], in db: Database) throws {
-    for (index, id) in orderedIDs.enumerated() {
-      try TripIdea.find(id).update { $0.dayRank = Double(index) }.execute(db)
-    }
-  }
-
   // MARK: - Pure partitioning (functional core)
 
   /// This trip's shortlist — entries that earned a place (shortlisted onward),
@@ -552,9 +570,10 @@ extension TripIdea {
   /// "Anytime" stop is the floating case: rather than piling at the day's end, it
   /// **adopts the `intraDaySort` of the last timed/dayparted stop before it in
   /// manual `dayRank` order** — so dropping it after the 10:00 stop makes it sort
-  /// after 10:00 and before 14:00. An Anytime stop with no timed/dayparted stop
-  /// before it keeps end-of-day (today's behavior — nothing regresses for stops the
-  /// user never positions; give it a daypart or time to anchor it earlier).
+  /// after 10:00 and before 14:00. A deliberately moved pre-first Anytime stop
+  /// carries a negative `dayRank` marker and takes the minute immediately before
+  /// the first timed/dayparted anchor, so "Move Earlier" genuinely works at the
+  /// start of the day without re-seating old untouched data.
   /// `dayRank` is the final tiebreak: it keeps stops that share an anchor (or an
   /// equal clock time) in the user's manual order. Pure — the densely-tested core.
   ///
@@ -573,21 +592,29 @@ extension TripIdea {
   /// The **effective** intra-day sort minute for each stop on a day (ADR-0033),
   /// keyed by stop ID: a stop's own `intraDaySort`, except a bare `.day` "Anytime"
   /// stop adopts its **anchor** — the `intraDaySort` of the most recent
-  /// timed/dayparted stop before it in manual `dayRank` order (end-of-day when none
-  /// precedes it). Resolved in one `dayRank`-ordered pass, so an anchor always has a
+  /// timed/dayparted stop before it in manual `dayRank` order (or, only when its
+  /// rank is negative, the minute before the first timed/dayparted stop; otherwise
+  /// end-of-day). Resolved in one `dayRank`-ordered pass, so an anchor always has a
   /// lower `dayRank` than the Anytime stop it anchors and the stop seats right after
   /// it. Shared by `orderedDayStops` and the timeline weave (`TripPlan.itineraryItems`)
   /// so a boundary row and an anchored Anytime stop interleave by the same key. Pure.
   public static func effectiveIntraDaySort(_ stops: [TripIdea]) -> [TripIdea.ID: Int] {
     var result: [TripIdea.ID: Int] = [:]
     var running: Int?
-    for stop in stops.sorted(by: { $0.dayRank < $1.dayRank }) {
+    let manuallyOrderedStops = stops.sorted(by: { $0.dayRank < $1.dayRank })
+    let firstAnchor = manuallyOrderedStops.compactMap { stop -> Int? in
+      switch stop.schedule {
+      case .timed, .daypart: stop.schedule.intraDaySort
+      case .day, .unscheduled: nil
+      }
+    }.first
+    for stop in manuallyOrderedStops {
       switch stop.schedule {
       case .timed, .daypart:
         running = stop.schedule.intraDaySort
         result[stop.id] = stop.schedule.intraDaySort
       case .day:
-        result[stop.id] = running ?? stop.schedule.intraDaySort  // anchor, else end-of-day
+        result[stop.id] = running ?? (stop.dayRank < 0 ? firstAnchor.map { $0 - 1 } : nil) ?? stop.schedule.intraDaySort
       case .unscheduled:
         result[stop.id] = stop.schedule.intraDaySort
       }
@@ -611,4 +638,5 @@ public struct ItineraryDay: Equatable, Identifiable, Sendable {
 
 public enum TripError: Error {
   case creationFailed
+  case invalidSchedule
 }

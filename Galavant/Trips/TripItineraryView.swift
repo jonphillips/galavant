@@ -326,20 +326,14 @@ struct TripItineraryView: View {
 
   /// Hands off to Apple Maps with the connector's from→to pair and chosen mode.
   private func openInMaps(connector: TravelConnector) {
-    guard
-      let from = model.plan.idea(forStopID: connector.fromStopID),
-      let to = model.plan.idea(forStopID: connector.toStopID),
-      let fromCoord = from.coordinate,
-      let toCoord = to.coordinate
-    else { return }
     let source = MKMapItem(
-      location: CLLocation(latitude: fromCoord.latitude, longitude: fromCoord.longitude),
+      location: CLLocation(latitude: connector.from.latitude, longitude: connector.from.longitude),
       address: nil)
-    source.name = from.name
+    source.name = connector.from.title
     let dest = MKMapItem(
-      location: CLLocation(latitude: toCoord.latitude, longitude: toCoord.longitude),
+      location: CLLocation(latitude: connector.to.latitude, longitude: connector.to.longitude),
       address: nil)
-    dest.name = to.name
+    dest.name = connector.to.title
     MKMapItem.openMaps(with: [source, dest], launchOptions: [
       MKLaunchOptionsDirectionsModeKey: connector.mode.mkDirectionsMode
     ])

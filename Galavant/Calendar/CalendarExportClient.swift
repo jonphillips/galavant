@@ -255,7 +255,8 @@ extension CalendarObservedEvent {
 struct CalendarIngestionClient: Sendable {
   var requestFullAccess: @Sendable () async throws -> Bool
   var hasFullAccess: @Sendable () -> Bool
-  var events: @Sendable (_ interval: DateInterval) throws -> [CalendarObservedEvent]
+  var calendars: @Sendable () -> [CalendarSource]
+  var events: @Sendable (_ interval: DateInterval, _ calendarIDs: Set<String>) throws -> [CalendarObservedEvent]
   /// Looks up one already-linked local EventKit event without treating a nil
   /// result as deletion. This supports reporting a move beyond the trip window.
   var event: @Sendable (_ identifier: String) -> CalendarObservedEvent?
@@ -271,9 +272,15 @@ extension CalendarIngestionClient: DependencyKey {
       hasFullAccess: {
         EKEventStore.authorizationStatus(for: .event) == .fullAccess
       },
-      events: { interval in
+      calendars: {
+        box.store.calendars(for: .event).map {
+          CalendarSource(id: $0.calendarIdentifier, title: $0.title)
+        }
+      },
+      events: { interval, calendarIDs in
+        let calendars = box.store.calendars(for: .event).filter { calendarIDs.contains($0.calendarIdentifier) }
         let predicate = box.store.predicateForEvents(
-          withStart: interval.start, end: interval.end, calendars: nil)
+          withStart: interval.start, end: interval.end, calendars: calendars)
         return box.store.events(matching: predicate).compactMap(CalendarObservedEvent.init(event:))
       },
       event: { identifier in
@@ -287,9 +294,48 @@ extension CalendarIngestionClient: DependencyKey {
   static let testValue = CalendarIngestionClient(
     requestFullAccess: { true },
     hasFullAccess: { true },
-    events: { _ in [] },
+    calendars: { [] },
+    events: { _, _ in [] },
     event: { _ in nil }
   )
+}
+
+/// A device-local EventKit calendar. Its identifier must never sync: EventKit
+/// identifiers describe one device's account configuration, not shared domain
+/// state.
+struct CalendarSource: Identifiable, Equatable, Sendable {
+  let id: String
+  let title: String
+}
+
+/// The chosen Calendar source for reconciliation. This is a privacy/control
+/// boundary local to the device, analogous to an EventKit binding — the shared
+/// trip graph never learns which accounts a device can see.
+struct CalendarSelectionStore: Sendable {
+  var calendarID: @Sendable () -> String?
+  var setCalendarID: @Sendable (_ id: String?) -> Void
+}
+
+private final class CalendarSelectionDefaults: @unchecked Sendable {
+  let defaults = UserDefaults.standard
+}
+
+extension CalendarSelectionStore: DependencyKey {
+  static let liveValue: CalendarSelectionStore = {
+    let box = CalendarSelectionDefaults()
+    return CalendarSelectionStore(
+      calendarID: { box.defaults.string(forKey: "calendarReconciliationCalendarID") },
+      setCalendarID: { id in box.defaults.set(id, forKey: "calendarReconciliationCalendarID") })
+  }()
+
+  static let testValue = CalendarSelectionStore(calendarID: { nil }, setCalendarID: { _ in })
+}
+
+extension DependencyValues {
+  var calendarSelectionStore: CalendarSelectionStore {
+    get { self[CalendarSelectionStore.self] }
+    set { self[CalendarSelectionStore.self] = newValue }
+  }
 }
 
 extension DependencyValues {

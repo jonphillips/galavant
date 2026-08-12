@@ -161,6 +161,16 @@ import Testing
     #expect(p.itinerary[0].stops.map { $0.idea!.id } == [early, late, wander])
   }
 
+  @Test func explicitlyLeadingAnytimeStopPrecedesTheFirstTimedStop() {
+    let (wander, early) = (UUID(), UUID())
+    let entries = [
+      entry(idea: wander, status: .scheduled, dayRank: -1, schedule: .day(1)),
+      entry(idea: early, status: .scheduled, dayRank: 0, schedule: .timed(1, start: "09:00", end: nil)),
+    ]
+    let p = plan(entries, ideas: [idea(wander), idea(early)])
+    #expect(p.itinerary[0].stops.map { $0.idea!.id } == [wander, early])
+  }
+
   @Test func orphanEntriesAreDroppedFromEveryProjection() {
     // An entry whose idea isn't in the pool lookup (deleted, ADR-0007) resolves
     // to nothing and must not appear anywhere.

@@ -134,6 +134,9 @@ struct TripPlanningView: View {
       .sheet(item: $model.destination.edit, id: \.id) { draft in
         TripFormView(draft: draft)
       }
+      .sheet(item: $model.destination.idea, id: \.id) { draft in
+        IdeaFormView(draft: draft.draft)
+      }
       .sheet(
         isPresented: Binding(
           get: { model.destination?.is(\.addIdeas) ?? false },

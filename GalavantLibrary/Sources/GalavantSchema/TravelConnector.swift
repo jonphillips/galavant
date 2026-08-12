@@ -59,23 +59,40 @@ public struct LegKey: Hashable, Sendable {
   }
 }
 
-/// An interstitial travel-time row between two consecutive itinerary stops.
+/// A location participating in a travel-time connector. Keeping the resolved
+/// title and coordinate on the value lets a base stay and a regular stop share
+/// exactly one direction-row representation.
+public struct TravelEndpoint: Identifiable, Equatable, Sendable {
+  public var id: String
+  public var title: String
+  public var latitude: Double
+  public var longitude: Double
+
+  public init(id: String, title: String, latitude: Double, longitude: Double) {
+    self.id = id
+    self.title = title
+    self.latitude = latitude
+    self.longitude = longitude
+  }
+}
+
+/// An interstitial travel-time row between two consecutive itinerary locations.
 /// `travelTime` is nil while the ETA is loading or unavailable.
 public struct TravelConnector: Identifiable, Equatable, Sendable {
-  public var fromStopID: TripIdea.ID
-  public var toStopID: TripIdea.ID
+  public var from: TravelEndpoint
+  public var to: TravelEndpoint
   public var leg: LegKey
   public var mode: TransportMode
   public var travelTime: TravelTime?
 
-  public var id: String { "\(fromStopID)-\(toStopID)" }
+  public var id: String { "\(from.id)-\(to.id)" }
 
   public init(
-    fromStopID: TripIdea.ID, toStopID: TripIdea.ID,
+    from: TravelEndpoint, to: TravelEndpoint,
     leg: LegKey, mode: TransportMode, travelTime: TravelTime?
   ) {
-    self.fromStopID = fromStopID
-    self.toStopID = toStopID
+    self.from = from
+    self.to = to
     self.leg = leg
     self.mode = mode
     self.travelTime = travelTime

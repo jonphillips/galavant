@@ -142,7 +142,11 @@ not hidden behind a discriminator on a shared one.
   *shows* the base; the deferred per-day-regions design consumes it later (it does
   not yet drive the day's map framing).
 - **"Stays" summary band (I4)** and **spanning banner (I2)**: not now (Q7).
-- **Hotel-anchored routing (M2):** future layer.
+- **Hotel-anchored routing (M2):** the broad base → all stops → base route remains
+  deferred. **Refined 2026-08-11:** the small but high-value first leg is now in
+  scope: on a covered day, a located base stay supplies directions to the first
+  located itinerary stop. It is a normal ETA/open-in-Maps connector, not a sequence
+  pin or a claim that every day begins at the hotel.
 
 ## Relationship to prior decisions
 
