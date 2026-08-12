@@ -258,8 +258,16 @@ struct CalendarIngestionClient: Sendable {
   var calendars: @Sendable () -> [CalendarSource]
   var events: @Sendable (_ interval: DateInterval, _ calendarIDs: Set<String>) throws -> [CalendarObservedEvent]
   /// Looks up one already-linked local EventKit event without treating a nil
-  /// result as deletion. This supports reporting a move beyond the trip window.
+  /// result as deletion by itself. This supports reporting a move beyond the trip
+  /// window and is one input to the stronger constraint-deletion check below.
   var event: @Sendable (_ identifier: String) -> CalendarObservedEvent?
+  /// Re-resolves a server identity when EventKit replaced its device-local ID.
+  /// Snapshot conversion can fail for unusual recurring-series records, so raw
+  /// item existence below remains the final conservative deletion guard.
+  var eventsWithExternalIdentifier: @Sendable (_ identifier: String) -> [CalendarObservedEvent]
+  /// Whether EventKit still contains any item with a server identity. Only false
+  /// after a healthy full-access read corroborates Calendar-originated deletion.
+  var hasCalendarItemsWithExternalIdentifier: @Sendable (_ identifier: String) -> Bool
 }
 
 extension CalendarIngestionClient: DependencyKey {
@@ -287,6 +295,14 @@ extension CalendarIngestionClient: DependencyKey {
         let event = box.store.event(withIdentifier: identifier)
           ?? (box.store.calendarItem(withIdentifier: identifier) as? EKEvent)
         return event.flatMap(CalendarObservedEvent.init(event:))
+      },
+      eventsWithExternalIdentifier: { identifier in
+        box.store.calendarItems(withExternalIdentifier: identifier)
+          .compactMap { $0 as? EKEvent }
+          .compactMap(CalendarObservedEvent.init(event:))
+      },
+      hasCalendarItemsWithExternalIdentifier: { identifier in
+        !box.store.calendarItems(withExternalIdentifier: identifier).isEmpty
       }
     )
   }()
@@ -296,7 +312,9 @@ extension CalendarIngestionClient: DependencyKey {
     hasFullAccess: { true },
     calendars: { [] },
     events: { _, _ in [] },
-    event: { _ in nil }
+    event: { _ in nil },
+    eventsWithExternalIdentifier: { _ in [] },
+    hasCalendarItemsWithExternalIdentifier: { _ in false }
   )
 }
 

@@ -64,6 +64,7 @@ let package = Package(
         "GalavantSchema",
         .product(name: "CustomDump", package: "swift-custom-dump"),
         .product(name: "DependenciesTestSupport", package: "swift-dependencies"),
+        .product(name: "GRDB", package: "GRDB.swift"),
       ]
     ),
     .target(

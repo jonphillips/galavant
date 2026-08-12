@@ -196,11 +196,53 @@ struct TripItineraryView: View {
   ) -> some View {
     switch item {
     case .stop(let resolved): stopRow(resolved, sequence: sequence)
+    case .calendarConstraint(let constraint): calendarConstraintRow(constraint)
     case .connector(let connector): connectorRow(connector)
     case .nowMarker: nowMarkerRow
     case .checkIn(let stay): checkRow(stay, isCheckIn: true)
     case .checkOut(let stay): checkRow(stay, isCheckIn: false)
     case .homeBase(let stay): homeBaseRow(stay)
+    }
+  }
+
+  private func calendarConstraintRow(_ constraint: CalendarTripConstraint) -> some View {
+    HStack(spacing: 12) {
+      Image(systemName: "calendar.badge.clock")
+        .foregroundStyle(.secondary)
+        .frame(width: 24)
+      VStack(alignment: .leading, spacing: 2) {
+        Text(constraint.title)
+          .font(.subheadline.weight(.medium))
+        if let detail = calendarConstraintDetail(constraint) {
+          Text(detail)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+      }
+      Spacer()
+      Text(constraintTime(constraint))
+        .font(.subheadline.monospaced())
+        .foregroundStyle(.secondary)
+    }
+    .padding(.vertical, 2)
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel("Calendar constraint, \(constraint.title), \(constraintTime(constraint))")
+  }
+
+  private func constraintTime(_ constraint: CalendarTripConstraint) -> String {
+    guard let start = constraint.startTime else { return "All day" }
+    return constraint.endTime.map { "\(start)–\($0)" } ?? start
+  }
+
+  private func calendarConstraintDetail(_ constraint: CalendarTripConstraint) -> String? {
+    switch constraint.commitment?.occupancy {
+    case .dayContext: nil
+    case .busy: nil
+    case .free: "Marked free in Calendar"
+    case .tentative: "Tentative"
+    case .unavailable: "Unavailable"
+    case .unknown: "Availability unknown"
+    case nil: "Calendar timing needs review"
     }
   }
 

@@ -437,8 +437,9 @@ are proven locally. Full rationale + acceptance criteria in ADR-0034.
 - 🚧 **Slice 4 — temporal subsystem.** Time-zone three-concept model, all-day / free /
   tentative, recurrence-occurrence handling — pure core, heavily tested. Initial
   implementation: `codex/m7-s4-temporal-subsystem`. **Opus.**
-- ⏳ **Slice 5 — Calendar-originated non-place constraints.** "Call Tax Advisor" as a
+- 🚧 **Slice 5 — Calendar-originated non-place constraints.** "Call Tax Advisor" as a
   trip constraint with provenance-governed deletion; simplified by the no-privacy call.
+  Initial implementation: `codex/m7-s5-calendar-constraints`.
   **Suggested executor: Sonnet** if it reduces to a constraint record on precedent by
   then; **Opus** if it still touches reconciliation semantics.
 - ⏳ **Slice 6 — plan-repair + anchors + freeze.** Surface conflicts from moved

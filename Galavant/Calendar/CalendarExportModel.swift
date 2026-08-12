@@ -119,8 +119,8 @@ final class CalendarExportModel {
 /// Coordinates a fresh trip-scoped Calendar read, an app-side `PlaceMatcher`
 /// pass, the pure reconciliation ladder, and the local auto-apply plan. Only
 /// uniquely identified MapKit matches write an existing stop's Calendar-backed
-/// time. EventKit bindings remain device-local, while the resulting review ledger
-/// is shared through the trip's CloudKit graph (Slice 3).
+/// time; unmatched events become shared trip constraints. EventKit bindings remain
+/// device-local, while domain outcomes ride the trip's CloudKit graph.
 @MainActor
 @Observable
 final class CalendarReconciliationModel {
@@ -151,6 +151,7 @@ final class CalendarReconciliationModel {
   var sharedHistory: [CalendarReconciliationLedgerEntry] { allLedgerEntries }
 
   func refresh(trip: Trip, plan: TripPlan) async {
+    guard state != .loading else { return }
     let tripCalendar = Calendar.current
     guard let scope = scope(for: trip, calendar: tripCalendar),
       let queryInterval = scope.queryInterval(in: Self.storageTimeZone)
@@ -158,8 +159,6 @@ final class CalendarReconciliationModel {
       state = .failure("Calendar reconciliation needs a dated trip.")
       return
     }
-    let temporalContext = CalendarTripTemporalContext(scope: scope)
-
     state = .loading
     do {
       let granted = try await calendarClient.requestFullAccess()
@@ -174,36 +173,12 @@ final class CalendarReconciliationModel {
         return
       }
 
-      localState = historyStore.state(trip.id)
-      // Query two padded days on either side, then let the pure civil/absolute
-      // scope discard the padding. Two days covers even the widest real-world
-      // zone separation at a trip-day boundary.
-      let events = try calendarClient.events(queryInterval, [selectedCalendarID]).filter {
-        scope.overlaps($0.temporal, absoluteTimeZone: nil) != false
-      }
-      let regionTimeZone = await regionTimeZone(for: trip)
-      let ingestedEvents = try await ingest(events, regionTimeZone: regionTimeZone)
-      candidates = CalendarReconciliation.candidates(
-        for: ingestedEvents,
+      try await reconcile(
         trip: trip,
         plan: plan,
-        temporalContext: temporalContext)
-      let outsideTripObservations: [CalendarBoundEventObservation] = localState.linkedStops.compactMap { linked in
-        guard
-          let event = calendarClient.event(linked.eventID),
-          temporalContext.project(
-            event.temporal,
-            absoluteTimeZone: linked.itineraryTimeZone) == .outsideTrip
-        else { return nil }
-        return CalendarBoundEventObservation(bindingID: linked.eventID, event: event)
-      }
-      let automaticPlan = CalendarReconciliation.automaticPlan(
-        candidates: candidates,
-        outsideTripObservations: outsideTripObservations,
-        localState: localState,
-        observedAt: now,
-        makeHistoryID: { uuid() })
-      try await persist(automaticPlan, tripID: trip.id)
+        scope: scope,
+        queryInterval: queryInterval,
+        selectedCalendarID: selectedCalendarID)
       state = .loaded
     } catch is CancellationError {
       // Sheet dismissal is normal view-lifecycle cancellation.
@@ -216,15 +191,68 @@ final class CalendarReconciliationModel {
     calendarSelectionStore.setCalendarID(id)
   }
 
+  private func reconcile(
+    trip: Trip,
+    plan: TripPlan,
+    scope: CalendarTripScope,
+    queryInterval: DateInterval,
+    selectedCalendarID: String
+  ) async throws {
+    localState = historyStore.state(trip.id)
+    // Query two padded days on either side, then let the pure civil/absolute
+    // scope discard the padding. Two days covers even the widest real-world
+    // zone separation at a trip-day boundary.
+    let events = try calendarClient.events(queryInterval, [selectedCalendarID]).filter {
+      scope.overlaps($0.temporal, absoluteTimeZone: nil) != false
+    }
+    let temporalContext = CalendarTripTemporalContext(scope: scope)
+    let regionTimeZone = await regionTimeZone(for: trip)
+    let ingestedEvents = try await ingest(events, regionTimeZone: regionTimeZone)
+    candidates = CalendarReconciliation.candidates(
+      for: ingestedEvents,
+      trip: trip,
+      plan: plan,
+      temporalContext: temporalContext)
+    let outsideTripObservations: [CalendarBoundEventObservation] = localState.linkedStops.compactMap { linked in
+      guard
+        let event = calendarClient.event(linked.eventID),
+        temporalContext.project(
+          event.temporal,
+          absoluteTimeZone: linked.itineraryTimeZone) == .outsideTrip
+      else { return nil }
+      return CalendarBoundEventObservation(bindingID: linked.eventID, event: event)
+    }
+    let automaticPlan = CalendarReconciliation.automaticPlan(
+      candidates: candidates,
+      outsideTripObservations: outsideTripObservations,
+      localState: localState,
+      observedAt: now,
+      makeHistoryID: { uuid() })
+    let constraintPlan = CalendarReconciliation.constraintPlan(
+      candidates: candidates,
+      tripID: trip.id,
+      calendarID: selectedCalendarID,
+      localState: automaticPlan.localState,
+      deletedEventIDs: deletedConstraintEventIDs(
+        observedEvents: events,
+        selectedCalendarID: selectedCalendarID))
+    try await persist(automaticPlan, constraintPlan: constraintPlan, tripID: trip.id)
+  }
+
   private func persist(
     _ plan: CalendarReconciliationAutomaticPlan,
+    constraintPlan: CalendarConstraintAutomaticPlan,
     tripID: Trip.ID
   ) async throws {
-    let newHistory = plan.localState.history.dropFirst(localState.history.count)
+    let newHistory = constraintPlan.localState.history.dropFirst(localState.history.count)
     let ledgerEntries = newHistory.compactMap {
       CalendarReconciliationLedgerEntry(tripID: tripID, historyEntry: $0)
     }
-    if !plan.applications.isEmpty || !ledgerEntries.isEmpty {
+    if !plan.applications.isEmpty
+      || !ledgerEntries.isEmpty
+      || !constraintPlan.upserts.isEmpty
+      || !constraintPlan.deletions.isEmpty
+    {
       try await database.write { db in
         for application in plan.applications {
           try TripIdea.applyCalendarCommitment(
@@ -236,12 +264,42 @@ final class CalendarReconciliationModel {
         for entry in ledgerEntries {
           try CalendarReconciliationLedgerEntry.record(entry, in: db)
         }
+        for constraint in constraintPlan.upserts {
+          try CalendarTripConstraint.upsert(constraint, in: db)
+        }
+        for id in constraintPlan.deletions {
+          try CalendarTripConstraint.remove(id: id, in: db)
+        }
       }
     }
-    if plan.localState != localState {
-      historyStore.setState(tripID, plan.localState)
-      localState = plan.localState
+    if constraintPlan.localState != localState {
+      historyStore.setState(tripID, constraintPlan.localState)
+      localState = constraintPlan.localState
     }
+  }
+
+  /// A missing device-local EventKit identifier is necessary but insufficient
+  /// deletion evidence because sync may replace that identifier. A healthy
+  /// full-access read therefore corroborates absence through the event's server
+  /// identity before a Calendar-originated constraint is removed. A missing
+  /// recurring occurrence stays unknown while its series remains visible.
+  private func deletedConstraintEventIDs(
+    observedEvents: [CalendarObservedEvent],
+    selectedCalendarID: String
+  ) -> Set<String> {
+    Set(localState.linkedConstraints.compactMap { binding in
+      guard binding.calendarID == selectedCalendarID,
+        !observedEvents.contains(where: binding.matches),
+        calendarClient.event(binding.eventID) == nil
+      else { return nil }
+
+      let serverMatches = calendarClient.eventsWithExternalIdentifier(
+        binding.sourceExternalIdentifier)
+      guard !serverMatches.contains(where: binding.matches) else { return nil }
+      guard !calendarClient.hasCalendarItemsWithExternalIdentifier(
+        binding.sourceExternalIdentifier) else { return nil }
+      return binding.eventID
+    })
   }
 
   private func ingest(
@@ -315,7 +373,7 @@ struct CalendarReconciliationSheet: View {
     NavigationStack {
       List {
         Section {
-          Text("Calendar is authoritative for high-confidence linked commitments. Applied updates are shared with your travel party.")
+          Text("Calendar is authoritative for linked commitments and unmatched trip constraints. Applied updates are shared with your travel party.")
             .font(.footnote)
             .foregroundStyle(.secondary)
         }
@@ -334,6 +392,7 @@ struct CalendarReconciliationSheet: View {
                 Text(calendar.title).tag(String?.some(calendar.id))
               }
             }
+            .disabled(model.state == .loading)
           }
         }
 
@@ -440,94 +499,4 @@ struct CalendarReconciliationSheet: View {
     }
   }
 
-  private func movedOutsideRow(_ linked: CalendarLinkedStop) -> some View {
-    VStack(alignment: .leading, spacing: 4) {
-      Text(linked.eventTitle ?? "Linked calendar event")
-      Text("Its calendar event moved outside the trip dates. The itinerary stop was kept unchanged.")
-        .font(.caption)
-        .foregroundStyle(.secondary)
-      if let moved = linked.movedOutsideTripCommitment {
-        Text(temporalDescription(moved.temporal))
-          .font(.caption)
-          .foregroundStyle(.secondary)
-      }
-    }
-    .accessibilityElement(children: .combine)
-  }
-
-  private func historyRow(_ entry: CalendarReconciliationLedgerEntry) -> some View {
-    VStack(alignment: .leading, spacing: 4) {
-      Text(entry.eventTitle)
-      Text("Calendar commitment recorded.")
-        .font(.caption)
-        .foregroundStyle(.secondary)
-      if let current = entry.current {
-        Text(temporalDescription(current.temporal))
-          .font(.caption)
-          .foregroundStyle(.secondary)
-      }
-    }
-    .accessibilityElement(children: .combine)
-  }
-
-  private func candidateRow(_ candidate: CalendarReconciliationCandidate) -> some View {
-    VStack(alignment: .leading, spacing: 4) {
-      Text(candidate.input.event.title)
-      Text(candidate.input.event.calendarTitle)
-        .font(.caption)
-        .foregroundStyle(.secondary)
-      Text(temporalDescription(candidate.input.event.temporal))
-        .font(.caption)
-        .foregroundStyle(.secondary)
-      switch candidate.result {
-      case let .automatic(stop, basis):
-        Text("Matches \(stop.content.title) by \(basisDescription(basis)).")
-          .font(.caption)
-          .foregroundStyle(.green)
-      case let .proposed(stop, basis):
-        Text("Possible match: \(stop.content.title) by \(basisDescription(basis)).")
-          .font(.caption)
-      case let .ambiguous(stops):
-        Text("Could be: \(stops.map(\.content.title).joined(separator: ", ")).")
-          .font(.caption)
-      case .unresolvedTimeZone:
-        Text("Travel time zone needs review before this event can be placed on a trip day.")
-          .font(.caption)
-      case .unmatched:
-        Text("No same-day itinerary stop matches this event.")
-          .font(.caption)
-      }
-    }
-    .accessibilityElement(children: .combine)
-  }
-
-  private func basisDescription(_ basis: CalendarMatchBasis) -> String {
-    switch basis {
-    case .mapItemIdentifier: "the same Apple Maps place"
-    case .exactName: "the exact place name"
-    case .nameAndProximity: "a nearby place with a shared name"
-    }
-  }
-
-  private func temporalDescription(_ temporal: CalendarEventTime) -> String {
-    switch temporal {
-    case let .absolute(start, _, timeZone):
-      var style = Date.FormatStyle(date: .abbreviated, time: .shortened)
-      style.timeZone = timeZone
-      return start.formatted(style)
-    case let .floating(start, _):
-      return String(
-        format: "%d/%d/%04d %02d:%02d (floating)",
-        start.date.month, start.date.day, start.date.year, start.hour, start.minute)
-    case let .allDay(start, endExclusive):
-      if endExclusive == start.adding(days: 1) {
-        return String(format: "%d/%d/%04d (all day)", start.month, start.day, start.year)
-      }
-      let inclusiveEnd = endExclusive.adding(days: -1) ?? endExclusive
-      return String(
-        format: "%d/%d/%04d–%d/%d/%04d (all day)",
-        start.month, start.day, start.year,
-        inclusiveEnd.month, inclusiveEnd.day, inclusiveEnd.year)
-    }
-  }
 }

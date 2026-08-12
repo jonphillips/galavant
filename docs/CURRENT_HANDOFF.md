@@ -59,6 +59,20 @@ commitment round-trips through the shared ledger while legacy Slice 2 local hist
 and Slice 3 ledger rows still decode. The remaining gate is the slice PR plus real
 Calendar dogfooding across home/travel zones and a modified recurring occurrence.
 
+## In progress — M7 Slice 5 Calendar-originated constraints (ADR-0034)
+
+Slice 5 (`codex/m7-s5-calendar-constraints`) promotes an eligible unmatched shared-
+Calendar event into a synced `CalendarTripConstraint`: a deterministic, cross-device
+identity; full temporal/availability snapshot; trip-day projection; and a device-local
+EventKit binding. Constraints render in the itinerary timeline without becoming pool
+ideas or Galavant-authored stops. A healthy full-access read may remove one only after
+both its local EventKit ID and server identity corroborate absence; permission loss,
+calendar-selection loss, moved events, replacement local IDs, and an individually
+missing recurrence while its series remains visible infer no deletion. Existing
+Galavant-originated linked stops never enter this deletion path. The remaining gate is
+the slice PR plus real shared-Calendar dogfooding of create, edit, move-outside, and
+delete for a non-place obligation.
+
 ## Dogfood gate — M7 Slice 2 auto-apply + local history (ADR-0034)
 
 Slice 2 (`codex/m7-s2-auto-apply`) establishes only a device-local EventKit binding:

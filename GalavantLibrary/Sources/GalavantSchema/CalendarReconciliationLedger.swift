@@ -165,6 +165,20 @@ enum CalendarReconciliationFingerprint {
       ].joined(separator: "|"))
   }
 
+  static func constraintSource(for event: CalendarObservedEvent) -> String? {
+    guard let sourceIdentity = nonEmpty(event.externalIdentifier) else { return nil }
+    let occurrence = event.recurrence?.originalOccurrence.stableDescription ?? "standalone"
+    return digest("calendar-constraint-source-v1|\(sourceIdentity)|\(occurrence)")
+  }
+
+  static func constraintID(
+    tripID: Trip.ID,
+    sourceIdentityHash: String
+  ) -> UUID {
+    uuid(from: digest(
+      "calendar-constraint-v1|\(tripID.uuidString)|\(sourceIdentityHash)"))
+  }
+
   static func uuid(from fingerprint: String) -> UUID {
     let hex = String(fingerprint.prefix(32))
     let uuidString = "\(hex.prefix(8))-\(hex.dropFirst(8).prefix(4))-\(hex.dropFirst(12).prefix(4))-\(hex.dropFirst(16).prefix(4))-\(hex.dropFirst(20).prefix(12))"

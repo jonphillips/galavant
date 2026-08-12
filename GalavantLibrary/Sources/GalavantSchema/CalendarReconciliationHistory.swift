@@ -61,6 +61,38 @@ public struct CalendarLinkedStop: Codable, Equatable, Sendable {
   }
 }
 
+/// A device-local binding from an EventKit event to its shared, Calendar-only
+/// trip constraint. Unlike `CalendarLinkedStop`, this binding has no Galavant
+/// intention underneath it: confirmed event deletion can therefore remove the
+/// constraint without a keep/remove question.
+public struct CalendarLinkedConstraint: Codable, Equatable, Sendable {
+  public var constraintID: CalendarTripConstraint.ID
+  public var eventID: String
+  public var calendarID: String
+  public var sourceExternalIdentifier: String
+  public var occurrenceAnchor: CalendarOccurrenceAnchor?
+
+  public init(
+    constraintID: CalendarTripConstraint.ID,
+    eventID: String,
+    calendarID: String,
+    sourceExternalIdentifier: String,
+    occurrenceAnchor: CalendarOccurrenceAnchor? = nil
+  ) {
+    self.constraintID = constraintID
+    self.eventID = eventID
+    self.calendarID = calendarID
+    self.sourceExternalIdentifier = sourceExternalIdentifier
+    self.occurrenceAnchor = occurrenceAnchor
+  }
+
+  public func matches(_ event: CalendarObservedEvent) -> Bool {
+    eventID == event.id
+      || (sourceExternalIdentifier == event.externalIdentifier
+        && occurrenceAnchor == event.recurrence?.originalOccurrence)
+  }
+}
+
 /// A reviewable, device-local audit record of an authoritative Calendar update.
 /// It retains the EventKit binding ID needed on this device; Slice 3 derives a
 /// separate shared ledger outcome from its semantic source fingerprint.
@@ -114,18 +146,36 @@ public struct CalendarReconciliationHistoryEntry: Codable, Equatable, Sendable, 
 /// remain local even after Slice 3 promotes the matching outcome to CloudKit.
 public struct CalendarReconciliationLocalState: Codable, Equatable, Sendable {
   public var linkedStops: [CalendarLinkedStop]
+  public var linkedConstraints: [CalendarLinkedConstraint]
   public var history: [CalendarReconciliationHistoryEntry]
 
   public init(
     linkedStops: [CalendarLinkedStop] = [],
+    linkedConstraints: [CalendarLinkedConstraint] = [],
     history: [CalendarReconciliationHistoryEntry] = []
   ) {
     self.linkedStops = linkedStops
+    self.linkedConstraints = linkedConstraints
     self.history = history
   }
 
   public func authority(for stopID: TripIdea.ID) -> CalendarTimeAuthority {
     linkedStops.contains { $0.stopID == stopID } ? .linked : .manual
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case linkedStops
+    case linkedConstraints
+    case history
+  }
+
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    linkedStops = try container.decodeIfPresent([CalendarLinkedStop].self, forKey: .linkedStops) ?? []
+    linkedConstraints = try container.decodeIfPresent(
+      [CalendarLinkedConstraint].self, forKey: .linkedConstraints) ?? []
+    history = try container.decodeIfPresent(
+      [CalendarReconciliationHistoryEntry].self, forKey: .history) ?? []
   }
 }
 
