@@ -420,6 +420,16 @@ struct CalendarReconciliationSheet: View {
         }
       }
     }
+    // Device-local: a linked stop whose event drifted out of the trip window. The
+    // itinerary cache is deliberately preserved and the binding retained (so it heals
+    // if the event returns), so this is not promoted to the shared ledger. Surfacing
+    // it as a party-wide conflict is Slice 6 (plan-repair).
+    let movedOutside = model.localState.linkedStops.filter { $0.movedOutsideTripCommitment != nil }
+    if !movedOutside.isEmpty {
+      Section("Moved Outside This Trip") {
+        ForEach(movedOutside, id: \.stopID, content: movedOutsideRow)
+      }
+    }
     let history = model.sharedHistory.filter { $0.tripID == trip.id }
     if !history.isEmpty {
       Section("Calendar History") {
@@ -428,6 +438,21 @@ struct CalendarReconciliationSheet: View {
         }
       }
     }
+  }
+
+  private func movedOutsideRow(_ linked: CalendarLinkedStop) -> some View {
+    VStack(alignment: .leading, spacing: 4) {
+      Text(linked.eventTitle ?? "Linked calendar event")
+      Text("Its calendar event moved outside the trip dates. The itinerary stop was kept unchanged.")
+        .font(.caption)
+        .foregroundStyle(.secondary)
+      if let moved = linked.movedOutsideTripCommitment {
+        Text(temporalDescription(moved.temporal))
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
+    }
+    .accessibilityElement(children: .combine)
   }
 
   private func historyRow(_ entry: CalendarReconciliationLedgerEntry) -> some View {
