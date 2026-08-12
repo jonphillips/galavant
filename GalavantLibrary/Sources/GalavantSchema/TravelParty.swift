@@ -22,6 +22,10 @@ extension TravelParty {
   /// first-run stray; ties resolve to the lowest id. Created once on first use.
   public static func ensureDefault(in db: Database) throws -> TravelParty {
     let parties = try TravelParty.order(by: \.id).fetchAll(db)
+    // Fast path: the steady state is exactly one party, and this runs on every
+    // idea/tag/trip create — skip the per-child content probe + repoint dance
+    // unless there's an actual duplicate to converge.
+    if parties.count == 1 { return parties[0] }
     if let lowestParty = parties.first {
       let survivor = try parties.first { try $0.hasContent(in: db) } ?? lowestParty
       let losers = parties.filter { $0.id != survivor.id }
