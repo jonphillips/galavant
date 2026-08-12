@@ -3,8 +3,8 @@ import SwiftUI
 /// Top-level sections of the app. The adaptive shell renders these as tabs on
 /// iPhone and a sidebar+detail split on iPad/Mac.
 enum AppScreen: Codable, Hashable, Identifiable, CaseIterable {
-  case ideas
   case trips
+  case ideas
   case browser
   case settings
 

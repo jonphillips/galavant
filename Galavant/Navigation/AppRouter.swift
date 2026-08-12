@@ -18,7 +18,7 @@ struct IdeasScopeRequest: Equatable, Identifiable {
 @MainActor
 @Observable
 final class AppRouter {
-  var selection: AppScreen? = .ideas
+  var selection: AppScreen? = .trips
   /// The open trip, owned here (above the screen) so flipping to Ideas and back
   /// reopens it — the iPad detail rebuilds on selection change, which would
   /// otherwise drop the push. Driven via `navigationDestination(item:)` rather than

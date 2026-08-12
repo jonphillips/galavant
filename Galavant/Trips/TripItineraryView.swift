@@ -234,25 +234,29 @@ struct TripItineraryView: View {
       .sequence($0, DayPalette.color(forDay: resolved.entry.dayNumber ?? 1))
     } ?? .kind
     return PlanningRow(content: resolved.content, subtitle: .category, marker: marker) {
-      HStack(spacing: 14) {
-        if resolved.entry.pinnedDate != nil {
-          Icon.pinnedReservation.image
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .accessibilityLabel("Pinned reservation")
+      VStack(alignment: .trailing, spacing: 8) {
+        HStack(spacing: 14) {
+          if resolved.entry.pinnedDate != nil {
+            Icon.pinnedReservation.image
+              .font(.caption)
+              .foregroundStyle(.secondary)
+              .accessibilityLabel("Pinned reservation")
+          }
+          StopMenu(model: model, stop: resolved)
         }
         if let idea = resolved.idea {
-          Button { model.showDetail(idea) } label: {
-            Icon.info.image.foregroundStyle(.secondary)
+          HStack(spacing: 14) {
+            Button { model.showDetail(idea) } label: {
+              Icon.info.image.foregroundStyle(.secondary)
+            }
+            .buttonStyle(.borderless)
+            Button { model.editIdea(idea) } label: {
+              Icon.edit.image.foregroundStyle(.secondary)
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel("Edit title and details")
           }
-          .buttonStyle(.borderless)
-          Button { model.editIdea(idea) } label: {
-            Icon.edit.image.foregroundStyle(.secondary)
-          }
-          .buttonStyle(.borderless)
-          .accessibilityLabel("Edit title and details")
         }
-        StopMenu(model: model, stop: resolved)
       }
     }
     .listRowBackground(
