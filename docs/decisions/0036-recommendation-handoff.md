@@ -310,11 +310,26 @@ back-fill, and Jon works both apps daily (learning flows both ways). The ADR's s
 
 ## Open questions
 
-- **OQ1 — `scopeKey` encoding.** Day → `dayNumber`; stay/transfer → the record ID. Confirm
-  the encoding at Slice 1 (a single opaque `String?` the app owns, per §The lift).
-- **OQ2 — lift sequencing.** Lift-first (Slice 3 before Slice 1) vs. copy-then-lift. Leaning
-  copy-then-lift: yes-chef's edges are still churning, and a small ported spine lets Galavant
-  ship without gating on a multi-repo extraction. Decide at dispatch.
+- **OQ1 — `scopeKey` encoding. — Resolved 2026-08-13 (Jon).** `scopeKey` is a single
+  opaque `String?` that **Galavant owns**; `LLMHandoffKit` treats it as an uninterpreted
+  token (per §The lift). Encoding by `sourceType`: `day` → the day number as a string
+  (`"3"`); `stay` / `transfer` → the record's UUID string; `trip` → `nil` (the source UUID
+  already fully scopes it — a trip-wide session has no sub-scope, per D2). Encode/decode
+  lives in one Galavant Core helper next to the handoff-record construction, unit-tested
+  round-trip; the kit never parses it. This keeps the spine generic (yes-chef's `dayOffset`
+  + `variationID` both collapse into the same `String?` slot) while Galavant retains full
+  control of the meaning.
+- **OQ2 — lift sequencing. — Resolved 2026-08-13 (Jon): copy-then-lift.** Slice 1 ships on a
+  **small spine ported locally into Galavant** (the session record + routing token +
+  contract-marker mechanism), so Galavant is not gated on the multi-repo yes-chef extraction
+  whose edges are still churning (contract v2.1, Amd 6). The local spine's home is
+  `GalavantAI` (the domain-free model substrate already destined for yes-chef), which makes
+  the eventual lift a clean cut. The lift to `jon-platform/packages/LLMHandoffKit` is
+  **Slice 3**, a separate later PR that swaps the local spine for the shared package and
+  rewires yes-chef — a refactor with no behavior change, verifiable against the Slice 1
+  tests. The ADR's *stance* remains lift; this only fixes the *sequence*. (ADR-0037's
+  workspace consumes the ops, not the spine, so it is unaffected by which side of the lift
+  Slice 1 lands on.)
 - **OQ3 — JSON-slice helper home.** Galavant's candidate decode is the 3rd/4th consumer of
   the messy-text→JSON pattern (`HoursExtractor`, `EvaluationExtractor`, this). Does it trip
   the `ai-model-access.md` rule-of-three lift of a structured-output helper into

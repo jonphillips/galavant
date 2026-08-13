@@ -503,9 +503,12 @@ the itinerary. The handoff core lifts to a shared jon-platform package (Galavant
 - ⏳ **Evaluation workspace (ADR-0037).** The three-surface iPad inbox and iPhone sequential
   variant; three-layer map; state-driven browser + field-capture write-back enrichment;
   Save-to-Ideas (shortlist, no resolution required) / Add-to-itinerary (freeform → upgrade on
-  resolve) / dismiss-with-undo.
+  resolve) / dismiss-with-undo. Codex handoff:
+  [docs/handoff/m9-adr0037-evaluation-workspace.md](handoff/m9-adr0037-evaluation-workspace.md)
+  (Phase 1–4 over the ADR-0036 substrate; hard ordering pinned).
 - ⏳ **The lift (ADR-0036 S3).** Extract the handoff spine to
   `jon-platform/packages/LLMHandoffKit`; rewire yes-chef; Galavant consumes. Sequencing
-  (lift-first vs copy-then-lift) is a dispatch-time call.
+  resolved (ADR-0036 OQ2): **copy-then-lift** — Slice 1 ships a local spine in `GalavantAI`;
+  this lift is a later behavior-neutral refactor, not a gate.
 - ⏳ **Deferred (designed, not built).** Two-part return with a synced `Learning` home; App
   Intents / hands-free `Ask ChatGPT` transport.
