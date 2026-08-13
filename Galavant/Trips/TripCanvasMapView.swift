@@ -127,6 +127,24 @@ struct TripCanvasMapView: View {
         }
         .tag(resolved.id)
       }
+      alternativePinContent(for: resolved, color: color)
+    }
+  }
+
+  /// Inactive peers are deliberately annotations only: no sequence number, no
+  /// selection tag, and no route segment. They appear while their timeline slot is
+  /// open (or its active stop is selected), so the planner can compare choices
+  /// without turning an "or" into an accidental second itinerary stop.
+  @MapContentBuilder
+  private func alternativePinContent(for activeStop: ResolvedStop, color: Color) -> some MapContent {
+    if let ring = model.plan.alternatives(forStop: activeStop.id), model.alternativesAreVisible(for: ring) {
+      ForEach(ring.members) { member in
+        if member.id != ring.activeMember.id, let coordinate = member.coordinate {
+          Annotation(member.content.title, coordinate: coordinate, anchor: .bottom) {
+            AlternativePin(color: color)
+          }
+        }
+      }
     }
   }
 
@@ -255,6 +273,18 @@ private struct BasePin: View {
       .foregroundStyle(.white)
       .frame(width: 28, height: 28)
       .background(Circle().fill(.gray))
+      .overlay(Circle().strokeBorder(.white, lineWidth: 2))
+      .shadow(radius: 1)
+  }
+}
+
+private struct AlternativePin: View {
+  let color: Color
+
+  var body: some View {
+    Circle()
+      .fill(color.opacity(0.45))
+      .frame(width: 18, height: 18)
       .overlay(Circle().strokeBorder(.white, lineWidth: 2))
       .shadow(radius: 1)
   }

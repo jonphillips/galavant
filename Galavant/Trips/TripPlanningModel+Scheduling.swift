@@ -8,6 +8,17 @@ import SQLiteData
 /// Split out of `TripPlanningModel` so the core file stays focused on state and the
 /// derived read-model; the operations themselves live in the tested schema core.
 extension TripPlanningModel {
+  /// The local EventKit binding governs time edits on this device. The applied
+  /// reservation cache is still in the synced trip row; Slice 3 supplies the
+  /// shared review ledger and cross-device reconciliation identity.
+  func calendarTimeAuthority(for stopID: TripIdea.ID) -> CalendarTimeAuthority {
+    calendarLocalState.authority(for: stopID)
+  }
+
+  func reloadCalendarTimeAuthority() {
+    calendarLocalState = calendarHistoryStore.state(tripID)
+  }
+
   // MARK: - Scheduling actions
 
   /// Present the per-section idea picker — pick a shortlisted idea to drop into
@@ -47,6 +58,75 @@ extension TripPlanningModel {
     destination = .freeformStop(FreeformStopDraft())
   }
 
+  func addAlternativeButtonTapped(to stopID: TripIdea.ID) {
+    destination = .alternativeSource(AlternativeSourceTarget(targetStopID: stopID))
+  }
+
+  func addAsAlternativeButtonTapped(sourceStopID: TripIdea.ID) {
+    destination = .alternativeSlot(AlternativeSlotTarget(sourceStopID: sourceStopID))
+  }
+
+  func addCustomAlternativeButtonTapped(to targetStopID: TripIdea.ID) {
+    destination = .freeformStop(FreeformStopDraft(alternativeToStopID: targetStopID))
+  }
+
+  func shortlistAlternativeSelected(_ sourceStopID: TripIdea.ID, for targetStopID: TripIdea.ID) {
+    _ = withErrorReporting {
+      try database.write { db in
+        try TripIdea.addAlternative(sourceStopID: sourceStopID, to: targetStopID, in: db)
+      }
+    }
+    destination = nil
+  }
+
+  func alternativeSlotSelected(_ targetStopID: TripIdea.ID, for sourceStopID: TripIdea.ID) {
+    shortlistAlternativeSelected(sourceStopID, for: targetStopID)
+  }
+
+  func cycleAlternativeButtonTapped(_ stopID: TripIdea.ID) {
+    var activeID: TripIdea.ID?
+    _ = withErrorReporting {
+      activeID = try database.write { db in
+        try TripIdea.cycleAlternative(stopID: stopID, in: db)
+      }
+    }
+    if let activeID { selectStop(activeID) }
+  }
+
+  func alternativeButtonTapped(_ stopID: TripIdea.ID) {
+    _ = withErrorReporting {
+      try database.write { db in
+        try TripIdea.setActiveAlternative(stopID: stopID, in: db)
+      }
+    }
+    selectStop(stopID)
+  }
+
+  func promoteAlternativeButtonTapped(_ stopID: TripIdea.ID) {
+    _ = withErrorReporting {
+      try database.write { db in
+        try TripIdea.promoteAlternative(stopID: stopID, in: db)
+      }
+    }
+    selectStop(stopID)
+  }
+
+  func toggleAlternativeDisclosure(_ groupID: UUID) {
+    if expandedAlternativeGroupIDs.contains(groupID) {
+      expandedAlternativeGroupIDs.remove(groupID)
+    } else {
+      expandedAlternativeGroupIDs.insert(groupID)
+    }
+  }
+
+  func isAlternativeDisclosureExpanded(_ groupID: UUID) -> Bool {
+    expandedAlternativeGroupIDs.contains(groupID)
+  }
+
+  func alternativesAreVisible(for ring: ResolvedAlternativeRing) -> Bool {
+    isAlternativeDisclosureExpanded(ring.groupID) || canvasSelectedStopID == ring.activeMember.id
+  }
+
   /// Re-open the editor seeded from an existing freeform stop. No-op on an
   /// idea-backed stop (those edit through the pool idea, not here).
   func editFreeform(_ stop: ResolvedStop) {
@@ -67,6 +147,8 @@ extension TripPlanningModel {
       try database.write { db in
         if let stopID = draft.stopID {
           try TripIdea.editFreeform(stopID: stopID, title: title, note: note, in: db)
+        } else if let targetStopID = draft.alternativeToStopID {
+          try TripIdea.addFreeformAlternative(title: title, note: note, to: targetStopID, in: db)
         } else {
           let id = try TripIdea.createFreeform(tripID: tripID, title: title, note: note, in: db)
           if let day = draft.day {

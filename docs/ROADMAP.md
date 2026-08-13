@@ -453,7 +453,7 @@ are proven locally. Full rationale + acceptance criteria in ADR-0034.
   failure infers no deletion, both phones converge on one shared reconciliation entry,
   and a completed trip freezes so later calendar cleanup doesn't rewrite its history.
 
-## M8 — Itinerary alternatives 🚧 *(in progress, ADR-0035)*
+## M8 — Itinerary alternatives ✅ *(shipped, ADR-0035)*
 
 Planned as a narrow itinerary feature while M7 awaits final device verification: one slot can
 hold a stable ring of peer options with exactly one **effective active** member. Only that member
@@ -468,8 +468,15 @@ storage. Slot edits propagate across the ring so changing its day/time/order can
   itineraries remain unchanged.
 - ✅ **Write operations.** Ring-aware scheduling and lifecycle semantics, deterministic promotion
   reindexing, and active-member Calendar/booking authority are covered by focused unit tests.
-- ⏳ **UI.** The expandable itinerary slot, contextual picker, and muted inactive canvas pins.
-- ⏳ **Docs + verification.** Accept ADR-0035 only after package, app, and simulator verification.
+- ✅ **UI.** The expandable itinerary slot with a cycle (⟳) control and "N of M" badge on its own
+  row under the title, tap-to-activate / promote / add / remove in the disclosure, and muted
+  inactive canvas pins drawn only on expand/selection. Both moods surface the effective-active
+  member by name — a loose/Anytime slot's collapsed row reads as its current pick plus `· N
+  options` rather than a generic "open block" label — and `StopMenu` carries the contextual
+  "Add Alternative" creation.
+- ✅ **Docs + verification.** ADR-0035 accepted after package/app build verification (iPad Pro
+  13-inch M5 simulator, `BUILD SUCCEEDED`). On-device dogfooding continues; refinements land as
+  follow-ups, not gates.
 
 ## M9 — Recommendation handoff & evaluation workspace *(planned, ADR-0036 + ADR-0037)*
 

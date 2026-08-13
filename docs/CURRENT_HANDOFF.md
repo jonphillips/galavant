@@ -252,6 +252,27 @@ Fast-follow; the menus cover the cross-day function until then.
 `docs/DONE_LOG.md` for what already shipped (the in-panel drill-down + the first
 content growth, 2026-06-15).
 
+## Itinerary stop menu is overloaded — split display from actions (from Jon, 2026-08-13)
+
+The itinerary stop row's time control (`StopMenu`, `Galavant/Trips/StopMenu.swift`)
+is doing two jobs at once: its **label** displays the stop's time (a clock glyph,
+`"Lunch"`, or a `HH:MM` range — `timeLabel`), while tapping it opens a menu that is
+really the stop's *entire* context menu — Time of Day, Set Time, Move Earlier/Later,
+Move to Day, To Be Scheduled, **Add Alternative**, Pin Reservation, Mark Skipped,
+Remove / Move to Shortlist. So a glyph that reads as "when" secretly holds every
+lifecycle action, none of it advertised (Jon, seeing it during M8 Slice 3: "that
+clock menu is doing A LOT").
+
+Two smells: (1) the trigger is mislabeled — a *value display* doubling as the
+action trigger for everything; (2) the contents span two mental models jammed
+together — **when** (time-of-day / set-time / move-day / reorder) vs
+**what/lifecycle** (add-alternative / pin / skip / remove). Direction whenever this
+is touched: let the time label just *be the time* (tap → set time), and move
+lifecycle/day/alternatives to a proper `⋯` on the row or swipe actions. That also
+un-buries **Add Alternative**, which is currently three levels deep behind a clock
+even though it's the M8 feature. Not urgent; explicitly **not** folded into M8
+Slice 3.
+
 ## Itinerary completion model: trip-level done→visited rollup (from Jon, 2026-06-13)
 
 **Still deferred:** the inferred completion / **trip-level done→visited rollup**

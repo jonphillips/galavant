@@ -229,23 +229,6 @@ struct TripItineraryView: View {
     .accessibilityLabel("Calendar constraint, \(constraint.title), \(constraintTime(constraint))")
   }
 
-  private func constraintTime(_ constraint: CalendarTripConstraint) -> String {
-    guard let start = constraint.startTime else { return "All day" }
-    return constraint.endTime.map { "\(start)–\($0)" } ?? start
-  }
-
-  private func calendarConstraintDetail(_ constraint: CalendarTripConstraint) -> String? {
-    switch constraint.commitment?.occupancy {
-    case .dayContext: nil
-    case .busy: nil
-    case .free: "Marked free in Calendar"
-    case .tentative: "Tentative"
-    case .unavailable: "Unavailable"
-    case .unknown: "Availability unknown"
-    case nil: "Calendar timing needs review"
-    }
-  }
-
   /// A stay boundary row — "Check in" on the stay's check-in day, "Check out" on
   /// its check-out day, with the hotel name and the optional clock time. Taps to
   /// edit the stay. Reads as an event in the timeline, distinct from a point stop.
@@ -282,36 +265,63 @@ struct TripItineraryView: View {
     _ resolved: ResolvedStop, sequence: [TripIdea.ID: Int] = [:]
   ) -> some View {
     let isFreeform = resolved.idea == nil
+    let ring = model.plan.alternatives(forStop: resolved.id)
+    let looseRing = ring.map { isLooseAlternativeSlot($0.activeMember.entry.schedule) } ?? false
     // A located stop wears its day-coloured map-pin number; everything else
     // (unlocated/freeform stops, and every non-day caller — the To-Be-Scheduled
     // bucket — passing an empty `sequence`) keeps the kind icon.
     let marker: PlanningRowMarker = sequence[resolved.id].map {
       .sequence($0, DayPalette.color(forDay: resolved.entry.dayNumber ?? 1))
     } ?? .kind
-    return PlanningRow(content: resolved.content, subtitle: .category, marker: marker) {
-      VStack(alignment: .trailing, spacing: 8) {
-        HStack(spacing: 14) {
-          if resolved.entry.pinnedDate != nil {
-            Icon.pinnedReservation.image
-              .font(.caption)
-              .foregroundStyle(.secondary)
-              .accessibilityLabel("Pinned reservation")
-          }
-          StopMenu(model: model, stop: resolved)
-        }
-        if let idea = resolved.idea {
+    // A loose ring still surfaces its effective-active member by name — the
+    // collapsed row shows the current pick, with "· N options" signalling the
+    // menu (ADR-0035 §5: the neutral rendering is presentation, and every ring
+    // always has one effective-active member). A firm slot keeps the plain
+    // active name (title == nil → content.title).
+    let looseTitle = looseRing
+      ? "\(resolved.content.title) · \(ring?.members.count ?? 0) options"
+      : nil
+    return VStack(alignment: .leading, spacing: 8) {
+      PlanningRow(
+        content: resolved.content,
+        title: looseTitle,
+        subtitle: .category,
+        marker: marker
+      ) {
+        VStack(alignment: .trailing, spacing: 8) {
           HStack(spacing: 14) {
-            Button { model.showDetail(idea) } label: {
-              Icon.info.image.foregroundStyle(.secondary)
+            if resolved.entry.pinnedDate != nil {
+              Icon.pinnedReservation.image
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .accessibilityLabel("Pinned reservation")
             }
-            .buttonStyle(.borderless)
-            Button { model.editIdea(idea) } label: {
-              Icon.edit.image.foregroundStyle(.secondary)
+            StopMenu(model: model, stop: resolved)
+          }
+          if let idea = resolved.idea {
+            HStack(spacing: 14) {
+              Button { model.showDetail(idea) } label: {
+                Icon.info.image.foregroundStyle(.secondary)
+              }
+              .buttonStyle(.borderless)
+              Button { model.editIdea(idea) } label: {
+                Icon.edit.image.foregroundStyle(.secondary)
+              }
+              .buttonStyle(.borderless)
+              .accessibilityLabel("Edit title and details")
             }
-            .buttonStyle(.borderless)
-            .accessibilityLabel("Edit title and details")
           }
         }
+      }
+      // The alternatives affordance (cycle + "N of M" + disclosure) gets its own
+      // row under the title, aligned past the pin marker — in the trailing cluster
+      // it fought the schedule label ("Lunch") for width and the badge collapsed.
+      if let ring {
+        AlternativeSlotControls(model: model, ring: ring)
+          .padding(.leading, 38)
+      }
+      if let ring, model.isAlternativeDisclosureExpanded(ring.groupID) {
+        AlternativeSlotDisclosure(model: model, ring: ring)
       }
     }
     .listRowBackground(
@@ -407,5 +417,29 @@ struct TripItineraryView: View {
     MKMapItem.openMaps(with: [source, dest], launchOptions: [
       MKLaunchOptionsDirectionsModeKey: connector.mode.mkDirectionsMode
     ])
+  }
+}
+
+private func isLooseAlternativeSlot(_ schedule: Schedule) -> Bool {
+  switch schedule {
+  case .day, .unscheduled: true
+  case .daypart, .timed: false
+  }
+}
+
+private func constraintTime(_ constraint: CalendarTripConstraint) -> String {
+  guard let start = constraint.startTime else { return "All day" }
+  return constraint.endTime.map { "\(start)–\($0)" } ?? start
+}
+
+private func calendarConstraintDetail(_ constraint: CalendarTripConstraint) -> String? {
+  switch constraint.commitment?.occupancy {
+  case .dayContext: nil
+  case .busy: nil
+  case .free: "Marked free in Calendar"
+  case .tentative: "Tentative"
+  case .unavailable: "Unavailable"
+  case .unknown: "Availability unknown"
+  case nil: "Calendar timing needs review"
   }
 }

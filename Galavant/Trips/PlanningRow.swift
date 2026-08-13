@@ -23,6 +23,7 @@ struct PlanningRow<Trailing: View>: View {
   enum Subtitle { case region, category }
 
   let content: StopContent
+  var title: String?
   var subtitle: Subtitle = .region
   /// The leading glyph — the kind icon by default; the day itinerary passes a
   /// `.sequence` to mirror the map pins.
@@ -31,11 +32,13 @@ struct PlanningRow<Trailing: View>: View {
 
   init(
     content: StopContent,
+    title: String? = nil,
     subtitle: Subtitle = .region,
     marker: PlanningRowMarker = .kind,
     @ViewBuilder trailing: () -> Trailing
   ) {
     self.content = content
+    self.title = title
     self.subtitle = subtitle
     self.marker = marker
     self.trailing = trailing()
@@ -58,7 +61,7 @@ struct PlanningRow<Trailing: View>: View {
     HStack(alignment: .top, spacing: 12) {
       leadingMarker
       VStack(alignment: .leading, spacing: 2) {
-        Text(content.title)
+        Text(title ?? content.title)
         if let subtitleText {
           Text(subtitleText).font(.subheadline).foregroundStyle(.secondary)
         }
@@ -111,4 +114,99 @@ func dayChipLabel(_ number: Int, trip: Trip?) -> String {
   }
   let monthDay = date.formatted(.dateTime.month(.defaultDigits).day())
   return "\(weekday) \(monthDay)"
+}
+
+struct AlternativeSlotControls: View {
+  let model: TripPlanningModel
+  let ring: ResolvedAlternativeRing
+
+  var body: some View {
+    HStack(spacing: 8) {
+      Button {
+        model.cycleAlternativeButtonTapped(ring.activeMember.id)
+      } label: {
+        Icon.cycleAlternative.image
+      }
+      .buttonStyle(.borderless)
+      .accessibilityLabel("Cycle alternatives")
+      Button {
+        model.toggleAlternativeDisclosure(ring.groupID)
+      } label: {
+        HStack(spacing: 4) {
+          Text("\(ring.activeIndex + 1) of \(ring.members.count)")
+          Icon.disclosure.image
+            .rotationEffect(.degrees(model.isAlternativeDisclosureExpanded(ring.groupID) ? 90 : 0))
+        }
+        .font(.caption.weight(.medium))
+        .foregroundStyle(.secondary)
+      }
+      .buttonStyle(.borderless)
+      .accessibilityLabel("\(ring.members.count) alternatives")
+      .accessibilityValue(model.isAlternativeDisclosureExpanded(ring.groupID) ? "Expanded" : "Collapsed")
+    }
+  }
+}
+
+struct AlternativeSlotDisclosure: View {
+  let model: TripPlanningModel
+  let ring: ResolvedAlternativeRing
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      ForEach(ring.members) { member in
+        alternativeRow(member)
+      }
+      Button("Add Alternative", systemImage: Icon.addInline.systemName) {
+        model.addAlternativeButtonTapped(to: ring.activeMember.id)
+      }
+      .buttonStyle(.borderless)
+    }
+    .padding(.leading, 38)
+    .padding(.vertical, 4)
+    .accessibilityElement(children: .contain)
+  }
+
+  private func alternativeRow(_ member: ResolvedStop) -> some View {
+    HStack(spacing: 10) {
+      Button {
+        model.alternativeButtonTapped(member.id)
+      } label: {
+        HStack(spacing: 8) {
+          Image(systemName: member.idea?.kind?.systemImage ?? "mappin.and.ellipse")
+            .foregroundStyle(
+              member.id == ring.activeMember.id
+                ? AnyShapeStyle(.tint)
+                : AnyShapeStyle(.secondary))
+          Text(member.content.title)
+            .foregroundStyle(.primary)
+          Spacer()
+          if member.id == ring.activeMember.id {
+            Icon.checkmark.image
+              .foregroundStyle(.tint)
+              .accessibilityLabel("Current choice")
+          }
+        }
+      }
+      .buttonStyle(.borderless)
+      .accessibilityLabel(
+        member.id == ring.activeMember.id
+          ? "Current alternative, \(member.content.title)"
+          : "Choose \(member.content.title)")
+      Button {
+        model.promoteAlternativeButtonTapped(member.id)
+      } label: {
+        Icon.promoteAlternative.image
+      }
+      .buttonStyle(.borderless)
+      .accessibilityLabel("Promote \(member.content.title) to its own itinerary stop")
+      Button(role: .destructive) {
+        model.remove(member.id)
+      } label: {
+        Icon.remove.image
+      }
+      .buttonStyle(.borderless)
+      .accessibilityLabel("Remove \(member.content.title) from alternatives")
+    }
+    .padding(.vertical, 2)
+  }
 }

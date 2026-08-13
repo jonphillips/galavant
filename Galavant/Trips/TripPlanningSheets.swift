@@ -130,6 +130,7 @@ struct FreeformStopSheet: View {
   }
 
   private var isEditing: Bool { draft.stopID != nil }
+  private var isAlternative: Bool { draft.alternativeToStopID != nil }
   private var canSave: Bool {
     !draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
   }
@@ -147,7 +148,7 @@ struct FreeformStopSheet: View {
         }
         // Placement is offered only at create time; editing leaves it to the
         // StopMenu, as for any stop.
-        if !isEditing {
+        if !isEditing && !isAlternative {
           Section("When") {
             Picker("Day", selection: $draft.day) {
               Text("To Be Scheduled").tag(Int?.none)
@@ -158,7 +159,7 @@ struct FreeformStopSheet: View {
           }
         }
       }
-      .navigationTitle(isEditing ? "Edit Stop" : "Add Custom Stop")
+      .navigationTitle(isEditing ? "Edit Stop" : isAlternative ? "Add Alternative" : "Add Custom Stop")
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
