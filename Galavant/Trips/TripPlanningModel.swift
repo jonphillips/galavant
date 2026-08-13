@@ -118,12 +118,19 @@ struct RecommendationHandoffPresentation: Identifiable {
   var id: HandoffSession.ID { session.id }
 }
 
+struct RecommendationWorkspacePresentation: Identifiable {
+  let sessionID: HandoffSession.ID
+  var id: HandoffSession.ID { sessionID }
+}
+
 struct RecommendationCandidateDraft: Identifiable {
   let id: UUID
   var name: String
   var locality: String
   var searchHint: String
-  var rationale: String
+  var why: String
+  var fit: String
+  var visit: String
   let dayRef: String?
   let placementAfter: String?
   let priority: Int?
@@ -133,7 +140,9 @@ struct RecommendationCandidateDraft: Identifiable {
     name = candidate.name ?? ""
     locality = candidate.locality ?? ""
     searchHint = candidate.searchHint ?? ""
-    rationale = candidate.rationale ?? ""
+    why = candidate.why ?? ""
+    fit = candidate.fit ?? ""
+    visit = candidate.visit ?? ""
     dayRef = candidate.dayRef
     placementAfter = candidate.placementAfter
     priority = candidate.priority
@@ -145,7 +154,9 @@ struct RecommendationCandidateDraft: Identifiable {
       name: name,
       locality: locality,
       searchHint: searchHint,
-      why: rationale,
+      why: why,
+      fit: fit,
+      visit: visit,
       priority: priority,
       dayRef: dayRef,
       placementAfter: placementAfter
@@ -247,6 +258,7 @@ final class TripPlanningModel {
     case stopTime(StopTimeDraft)
     case booking(BookingDraft)
     case recommendationHandoff(RecommendationHandoffPresentation)
+    case recommendationWorkspace(RecommendationWorkspacePresentation)
   }
 
   init(tripID: Trip.ID) {
@@ -306,6 +318,9 @@ final class TripPlanningModel {
       }
       let marked = try RecommendationHandoffContract.marker.strippingMarker(from: routed.text)
       let candidates = try TripCandidate.decodeReturn(marked)
+      var updatedSession = session
+      try updatedSession.storeRecommendationCandidates(candidates)
+      try handoffSessionStore.save(updatedSession)
       recommendationReview = candidates.map(RecommendationCandidateDraft.init(candidate:))
     } catch {
       recommendationHandoffError = error.localizedDescription
@@ -315,17 +330,37 @@ final class TripPlanningModel {
   func commitRecommendationCandidate(_ candidate: RecommendationCandidateDraft, from session: HandoffSession) {
     guard candidate.canCommit else { return }
     withErrorReporting {
-      _ = try database.write { db in
+      let committed = try database.write { db in
         try TripIdea.commit(candidate: candidate.candidate, into: tripID, in: db)
       }
-      var updatedSession = session
+      var updatedSession = handoffSessionStore.session(session.id) ?? session
       // `.imported` records that this session has produced a durable row, rather
       // than claiming every row in its review sheet has been consumed.
       updatedSession.importedAt = .now
       updatedSession.status = .imported
+      try updatedSession.replaceRecommendationCandidate(candidate.candidate)
+      updatedSession.link(candidateID: candidate.id, to: committed.id)
       try handoffSessionStore.save(updatedSession)
       recommendationReview.removeAll { $0.id == candidate.id }
     }
+  }
+
+  var mostRecentRecommendationWorkspaceSession: HandoffSession? {
+    handoffSessionStore.sessions()
+      .filter {
+          $0.sourceID == tripID
+          && $0.taskType == RecommendationHandoffTask.candidatePlaces
+          && $0.hasCommittedRecommendationCandidates
+      }
+      .max { $0.createdAt < $1.createdAt }
+  }
+
+  func recommendationWorkspaceButtonTapped(sessionID: HandoffSession.ID) {
+    destination = .recommendationWorkspace(RecommendationWorkspacePresentation(sessionID: sessionID))
+  }
+
+  func recommendationWorkspaceIsAvailable(for sessionID: HandoffSession.ID) -> Bool {
+    handoffSessionStore.session(sessionID)?.hasCommittedRecommendationCandidates ?? false
   }
 
   private var entries: [TripIdea] { allTripIdeas.filter { $0.tripID == tripID } }

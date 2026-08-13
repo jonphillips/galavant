@@ -89,6 +89,59 @@ struct RecommendationHandoffTests {
     #expect(committed.shortlistRank == 4)
   }
 
+  @Test func sessionRetainsTheCandidateSetAndItsCommittedStopLinksLocally() throws {
+    let candidate = TripCandidate(name: "Lumiere Brasserie", locality: "Bolzano")
+    let otherCandidate = TripCandidate(name: "Plose", locality: "Brixen")
+    let linkedStopID = UUID()
+    var session = HandoffSession(
+      sourceType: "trip",
+      sourceID: UUID(),
+      taskType: RecommendationHandoffTask.candidatePlaces,
+      exportedPrompt: "Prompt"
+    )
+
+    try session.storeRecommendationCandidates([candidate, otherCandidate])
+    session.link(candidateID: candidate.id, to: linkedStopID)
+    try session.replaceRecommendationCandidate(TripCandidate(id: otherCandidate.id, name: "Plose Cable Car"))
+
+    #expect(try session.recommendationCandidates().map(\.name) == ["Lumiere Brasserie", "Plose Cable Car"])
+    #expect(session.candidateLinks.count == 2)
+    #expect(session.candidateLinks.first(where: { $0.candidateID == candidate.id })?.tripIdeaID == linkedStopID)
+    #expect(session.hasCommittedRecommendationCandidates)
+  }
+
+  @Test func sessionIsNotEvaluatableUntilAReviewedCandidateIsCommitted() throws {
+    let candidate = TripCandidate(name: "Lumiere Brasserie")
+    var session = HandoffSession(
+      sourceType: "trip",
+      sourceID: UUID(),
+      taskType: RecommendationHandoffTask.candidatePlaces,
+      exportedPrompt: "Prompt"
+    )
+
+    try session.storeRecommendationCandidates([candidate])
+    #expect(!session.hasCommittedRecommendationCandidates)
+
+    session.link(candidateID: candidate.id, to: UUID())
+    #expect(session.hasCommittedRecommendationCandidates)
+  }
+
+  @Test func savingAnUnresolvedCandidateMovesItToTheShortlistWithoutMintingAnIdea() async throws {
+    let saved = try await database.write { db -> TripIdea in
+      let trip = try Trip.create(name: "South Tyrol", in: db)
+      let candidate = try TripIdea.commit(
+        candidate: TripCandidate(name: "Lumiere Brasserie", why: "A relaxed dinner after the museum."),
+        into: trip.id,
+        in: db
+      )
+      try TripIdea.setStatus(.shortlisted, stopID: candidate.id, in: db)
+      return try #require(try TripIdea.find(candidate.id).fetchOne(db))
+    }
+
+    #expect(saved.status == .shortlisted)
+    #expect(saved.ideaID == nil)
+  }
+
   @Test func confirmingACandidateReusesCaptureDedupAndPreservesItsRationale() async throws {
     let result = try await database.write { db -> (TripIdea, [Idea]) in
       let trip = try Trip.create(name: "South Tyrol", in: db)
@@ -164,6 +217,32 @@ struct RecommendationHandoffTests {
     #expect(result.1.map(\.alternativeGroupID).allSatisfy { $0 == result.0 })
     #expect(result.1.first(where: { $0.isActive })?.inlineTitle == "Seceda")
     #expect(result.1.allSatisfy { $0.status == .considering })
+  }
+
+  @Test func restoringADismissedCandidateReconstitutesItsAlternativesRing() async throws {
+    let restored = try await database.write { db -> (UUID, TripIdea.ID, [TripIdea]) in
+      let trip = try Trip.create(name: "South Tyrol", in: db)
+      let first = try TripIdea.commit(candidate: TripCandidate(name: "Plose"), into: trip.id, in: db)
+      let second = try TripIdea.commit(candidate: TripCandidate(name: "Seceda"), into: trip.id, in: db)
+      let groupID = try #require(
+        try TripIdea.chooseOne(among: [first.id, second.id], activeStopID: first.id, in: db)
+      )
+      let originalFirst = try #require(try TripIdea.find(first.id).fetchOne(db))
+      try TripIdea.remove(stopID: first.id, in: db)
+      try TripIdea.insert { TripIdea.Draft(originalFirst) }.execute(db)
+      #expect(
+        try TripIdea.restoreAlternativeRing(
+          memberIDs: [first.id, second.id],
+          activeStopID: first.id,
+          groupID: groupID,
+          in: db
+        )
+      )
+      return (groupID, first.id, try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db))
+    }
+
+    #expect(restored.2.map(\.alternativeGroupID).allSatisfy { $0 == restored.0 })
+    #expect(restored.2.first(where: \.isActive)?.id == restored.1)
   }
 }
 

@@ -8,6 +8,16 @@ public enum HandoffStatus: String, Codable, Equatable, Sendable {
   case imported
 }
 
+public struct HandoffCandidateLink: Codable, Equatable, Sendable {
+  public let candidateID: UUID
+  public var tripIdeaID: UUID?
+
+  public init(candidateID: UUID, tripIdeaID: UUID? = nil) {
+    self.candidateID = candidateID
+    self.tripIdeaID = tripIdeaID
+  }
+}
+
 /// A device-local handoff session. The app owns the meaning of the source/task
 /// strings; this small spine treats them as opaque tokens for its later lift.
 public struct HandoffSession: Identifiable, Codable, Equatable, Sendable {
@@ -21,6 +31,8 @@ public struct HandoffSession: Identifiable, Codable, Equatable, Sendable {
   public var status: HandoffStatus
   public let schemaVersion: Int
   public let exportedPrompt: String
+  public var candidatePayload: String?
+  public var candidateLinks: [HandoffCandidateLink]
 
   public init(
     id: UUID = UUID(),
@@ -32,7 +44,9 @@ public struct HandoffSession: Identifiable, Codable, Equatable, Sendable {
     importedAt: Date? = nil,
     status: HandoffStatus = .awaitingReturn,
     schemaVersion: Int = 1,
-    exportedPrompt: String
+    exportedPrompt: String,
+    candidatePayload: String? = nil,
+    candidateLinks: [HandoffCandidateLink] = []
   ) {
     self.id = id
     self.sourceType = sourceType
@@ -44,9 +58,32 @@ public struct HandoffSession: Identifiable, Codable, Equatable, Sendable {
     self.status = status
     self.schemaVersion = schemaVersion
     self.exportedPrompt = exportedPrompt
+    self.candidatePayload = candidatePayload
+    self.candidateLinks = candidateLinks
   }
 
   public var header: String { "GV-HANDOFF: \(id.uuidString)" }
+
+  enum CodingKeys: String, CodingKey {
+    case id, sourceType, sourceID, taskType, scopeKey, createdAt, importedAt, status, schemaVersion
+    case exportedPrompt, candidatePayload, candidateLinks
+  }
+
+  public init(from decoder: any Decoder) throws {
+    let values = try decoder.container(keyedBy: CodingKeys.self)
+    id = try values.decode(UUID.self, forKey: .id)
+    sourceType = try values.decode(String.self, forKey: .sourceType)
+    sourceID = try values.decode(UUID.self, forKey: .sourceID)
+    taskType = try values.decode(String.self, forKey: .taskType)
+    scopeKey = try values.decodeIfPresent(String.self, forKey: .scopeKey)
+    createdAt = try values.decode(Date.self, forKey: .createdAt)
+    importedAt = try values.decodeIfPresent(Date.self, forKey: .importedAt)
+    status = try values.decode(HandoffStatus.self, forKey: .status)
+    schemaVersion = try values.decode(Int.self, forKey: .schemaVersion)
+    exportedPrompt = try values.decode(String.self, forKey: .exportedPrompt)
+    candidatePayload = try values.decodeIfPresent(String.self, forKey: .candidatePayload)
+    candidateLinks = try values.decodeIfPresent([HandoffCandidateLink].self, forKey: .candidateLinks) ?? []
+  }
 }
 
 public struct RoutedText: Equatable, Sendable {
@@ -136,6 +173,7 @@ public enum HandoffContractError: Error, Equatable, LocalizedError, Sendable {
 public struct HandoffSessionStore: Sendable {
   public var save: @Sendable (HandoffSession) throws -> Void
   public var session: @Sendable (HandoffSession.ID) -> HandoffSession?
+  public var sessions: @Sendable () -> [HandoffSession]
 }
 
 extension HandoffSessionStore: DependencyKey {
@@ -146,12 +184,14 @@ extension HandoffSessionStore: DependencyKey {
       let data = try JSONEncoder().encode(sessions)
       UserDefaults.standard.set(data, forKey: HandoffSessionStore.storageKey)
     },
-    session: { id in HandoffSessionStore.loadSessions()[id] }
+    session: { id in HandoffSessionStore.loadSessions()[id] },
+    sessions: { Array(HandoffSessionStore.loadSessions().values) }
   )
 
   public static let testValue = HandoffSessionStore(
     save: { _ in },
-    session: { _ in nil }
+    session: { _ in nil },
+    sessions: { [] }
   )
 
   private static let storageKey = "GalavantDeviceLocalHandoffSessions"

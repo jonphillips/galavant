@@ -33,6 +33,13 @@ struct RecommendationHandoffSheet: View {
         ToolbarItem(placement: .cancellationAction) {
           Button(model.recommendationReview.isEmpty ? "Done" : "Close") { dismiss() }
         }
+        if model.recommendationWorkspaceIsAvailable(for: session.id) {
+          ToolbarItem(placement: .primaryAction) {
+            Button("Evaluate") {
+              model.recommendationWorkspaceButtonTapped(sessionID: session.id)
+            }
+          }
+        }
       }
     }
     .presentationDetents([.medium, .large])
@@ -106,8 +113,11 @@ private struct RecommendationCandidateReviewRow: View {
       TextField("Place name", text: $candidate.name)
       TextField("Locality", text: $candidate.locality)
       TextField("Search hint", text: $candidate.searchHint)
-      TextField("Why it fits", text: $candidate.rationale, axis: .vertical)
+      TextField("Why it fits", text: $candidate.why, axis: .vertical)
         .lineLimit(2...5)
+      TextField("Fit", text: $candidate.fit, axis: .vertical)
+        .lineLimit(2...5)
+      TextField("Rough time", text: $candidate.visit)
       if let dayRef = candidate.dayRef {
         LabeledContent("Suggested day", value: dayRef)
       }
