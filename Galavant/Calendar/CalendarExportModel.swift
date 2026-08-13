@@ -235,7 +235,12 @@ final class CalendarReconciliationModel {
       localState: automaticPlan.localState,
       deletedEventIDs: deletedConstraintEventIDs(
         observedEvents: events,
-        selectedCalendarID: selectedCalendarID))
+        selectedCalendarID: selectedCalendarID),
+      movedOutsideEventIDs: movedOutsideConstraintEventIDs(
+        selectedCalendarID: selectedCalendarID,
+        temporalContext: temporalContext,
+        regionTimeZone: regionTimeZone),
+      regionTimeZone: regionTimeZone)
     try await persist(automaticPlan, constraintPlan: constraintPlan, tripID: trip.id)
   }
 
@@ -298,6 +303,29 @@ final class CalendarReconciliationModel {
       guard !serverMatches.contains(where: binding.matches) else { return nil }
       guard !calendarClient.hasCalendarItemsWithExternalIdentifier(
         binding.sourceExternalIdentifier) else { return nil }
+      return binding.eventID
+    })
+  }
+
+  /// A Calendar-originated constraint whose event is confirmed present but now
+  /// projects outside the trip window is no longer a current trip constraint: its
+  /// shared row is dropped while the device-local binding is retained, so a move
+  /// back into the trip recreates the same deterministic constraint. This is
+  /// distinct from deletion (§6, the check above) and from mere non-observation
+  /// (§10): only a healthy full-access read that resolves the event and projects it
+  /// outside the trip triggers it. Unmatched constraints were projected in the
+  /// trip's region zone, so that is the frame used here.
+  private func movedOutsideConstraintEventIDs(
+    selectedCalendarID: String,
+    temporalContext: CalendarTripTemporalContext,
+    regionTimeZone: TimeZone?
+  ) -> Set<String> {
+    Set(localState.linkedConstraints.compactMap { binding in
+      guard binding.calendarID == selectedCalendarID,
+        let event = calendarClient.event(binding.eventID),
+        temporalContext.project(
+          event.temporal, absoluteTimeZone: regionTimeZone) == .outsideTrip
+      else { return nil }
       return binding.eventID
     })
   }

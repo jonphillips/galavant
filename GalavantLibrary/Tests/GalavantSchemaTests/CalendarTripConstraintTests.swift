@@ -165,6 +165,53 @@ struct CalendarTripConstraintTests {
     #expect(deleted.localState.linkedConstraints.isEmpty)
   }
 
+  @Test func movedOutsideConstraintRemovesRowButRetainsBinding() throws {
+    let event = observedEvent(identifier: "moved-local-id")
+    let initial = CalendarReconciliation.constraintPlan(
+      candidates: [candidate(event)],
+      tripID: tripID,
+      calendarID: calendarID,
+      localState: CalendarReconciliationLocalState())
+    let constraintID = try #require(initial.upserts.first?.id)
+
+    let moved = CalendarReconciliation.constraintPlan(
+      candidates: [],
+      tripID: tripID,
+      calendarID: calendarID,
+      localState: initial.localState,
+      movedOutsideEventIDs: [event.id])
+
+    expectNoDifference(moved.deletions, [constraintID])
+    // The binding survives so a move back into the trip can heal it.
+    #expect(moved.localState.linkedConstraints.count == 1)
+  }
+
+  @Test func constraintMovingBackIntoTripIsRecreatedWithSameIdentity() throws {
+    let event = observedEvent(identifier: "moved-local-id")
+    let initial = CalendarReconciliation.constraintPlan(
+      candidates: [candidate(event)],
+      tripID: tripID,
+      calendarID: calendarID,
+      localState: CalendarReconciliationLocalState())
+    let constraintID = try #require(initial.upserts.first?.id)
+    let moved = CalendarReconciliation.constraintPlan(
+      candidates: [],
+      tripID: tripID,
+      calendarID: calendarID,
+      localState: initial.localState,
+      movedOutsideEventIDs: [event.id])
+
+    let returned = CalendarReconciliation.constraintPlan(
+      candidates: [candidate(event)],
+      tripID: tripID,
+      calendarID: calendarID,
+      localState: moved.localState)
+
+    expectNoDifference(returned.upserts.map(\.id), [constraintID])
+    #expect(returned.deletions.isEmpty)
+    #expect(returned.localState.linkedConstraints.count == 1)
+  }
+
   @Test func anotherCalendarsDeletionEvidenceCannotRemoveConstraint() throws {
     let event = observedEvent(identifier: "deleted-local-id")
     let initial = CalendarReconciliation.constraintPlan(
@@ -226,6 +273,53 @@ struct CalendarTripConstraintTests {
       localState: CalendarReconciliationLocalState())
 
     #expect(try #require(firstPlan.upserts.first).id != secondPlan.upserts.first?.id)
+  }
+
+  @Test func recurringOccurrenceRekeyedAllDayToTimedSupersedesStaleConstraint() throws {
+    let day2 = CalendarCivilDate(year: 2026, month: 8, day: 12)!
+    let allDayOccurrence = CalendarObservedEvent(
+      id: "allday-local",
+      eventIdentifier: "allday-local",
+      externalIdentifier: "series-1",
+      title: "Morning Check-in",
+      temporal: .allDay(
+        start: day2, endExclusive: CalendarCivilDate(year: 2026, month: 8, day: 13)!),
+      recurrence: CalendarEventRecurrence(
+        originalOccurrence: .allDay(day2), isDetached: false),
+      calendarTitle: "Family")
+    let initial = CalendarReconciliation.constraintPlan(
+      candidates: [candidate(allDayOccurrence)],
+      tripID: tripID,
+      calendarID: calendarID,
+      localState: CalendarReconciliationLocalState(),
+      regionTimeZone: timeZone)
+    let allDayID = try #require(initial.upserts.first?.id)
+
+    // Assigning a time to the recurring series re-keys the occurrence anchor
+    // (all-day → absolute), so the same slot reappears under a new identity.
+    let timedStart = date(day: 12, hour: 8)
+    let timedOccurrence = CalendarObservedEvent(
+      id: "timed-local",
+      eventIdentifier: "timed-local",
+      externalIdentifier: "series-1",
+      title: "Morning Check-in",
+      temporal: .absolute(
+        start: timedStart, end: timedStart.addingTimeInterval(3600), timeZone: timeZone),
+      availability: .busy,
+      recurrence: CalendarEventRecurrence(
+        originalOccurrence: .absolute(timedStart), isDetached: false),
+      calendarTitle: "Family")
+    let rekeyed = CalendarReconciliation.constraintPlan(
+      candidates: [candidate(timedOccurrence)],
+      tripID: tripID,
+      calendarID: calendarID,
+      localState: initial.localState,
+      regionTimeZone: timeZone)
+
+    let timedID = try #require(rekeyed.upserts.first?.id)
+    #expect(timedID != allDayID)
+    expectNoDifference(rekeyed.deletions, [allDayID])
+    #expect(rekeyed.localState.linkedConstraints.count == 1)
   }
 
   @Test func constraintUpsertAndProvenanceDeletionRoundTrip() async throws {
