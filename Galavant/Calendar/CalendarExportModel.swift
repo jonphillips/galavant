@@ -263,8 +263,9 @@ final class CalendarReconciliationModel {
     var tripCalendar = Calendar(identifier: .gregorian)
     tripCalendar.timeZone = Self.storageTimeZone
     if trip.isPast(at: now, calendar: tripCalendar) {
+      let frozenAt = now
       try await database.write { db in
-        try Trip.completeCalendarReconciliation(tripID: trip.id, frozenAt: now, in: db)
+        try Trip.completeCalendarReconciliation(tripID: trip.id, frozenAt: frozenAt, in: db)
       }
     }
   }
@@ -315,9 +316,10 @@ final class CalendarReconciliationModel {
 
   func resolvePlanRepair(_ repair: CalendarPlanRepair) {
     guard !repair.isResolved else { return }
+    let resolvedAt = now
     withErrorReporting {
       try database.write { db in
-        try CalendarPlanRepair.resolve(id: repair.id, at: now, in: db)
+        try CalendarPlanRepair.resolve(id: repair.id, at: resolvedAt, in: db)
       }
     }
   }
@@ -450,16 +452,9 @@ struct CalendarReconciliationSheet: View {
         }
       }
     }
-    // Device-local: a linked stop whose event drifted out of the trip window. The
-    // itinerary cache is deliberately preserved and the binding retained (so it heals
-    // if the event returns), so this is not promoted to the shared ledger. Surfacing
-    // it as a party-wide conflict is Slice 6 (plan-repair).
-    let movedOutside = model.localState.linkedStops.filter { $0.movedOutsideTripCommitment != nil }
-    if !movedOutside.isEmpty {
-      Section("Moved Outside This Trip") {
-        ForEach(movedOutside, id: \.stopID, content: movedOutsideRow)
-      }
-    }
+    // A linked stop whose event drifted out of the trip window is surfaced as a
+    // party-wide, actionable "Plan Repair" (below), not a separate device-local
+    // notice — the shared repair supersedes the old informational section.
     let history = model.sharedHistory.filter { $0.tripID == trip.id }
     if !history.isEmpty {
       Section("Calendar History") {

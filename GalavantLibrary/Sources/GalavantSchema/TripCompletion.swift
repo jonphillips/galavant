@@ -13,10 +13,12 @@ extension Trip {
     return date >= firstInstantAfterTrip
   }
 
-  /// Freeze a trip only after its final successful Calendar read. The inferred
-  /// completion lifecycle also rolls scheduled, non-skipped stops into the pool's
-  /// visited signal, reusing the existing `markDone` mechanism rather than adding
-  /// a second per-stop completion workflow.
+  /// Freeze a trip's Calendar authority after its final successful read: past this
+  /// boundary, later Calendar edits no longer rewrite the trip (ADR-0034 §12). This
+  /// deliberately does **not** roll scheduled stops into the pool's visited signal —
+  /// that trip-level done→visited rollup is its own lifecycle feature (see
+  /// docs/CURRENT_HANDOFF.md), not a side effect of a Calendar read. Freezing is
+  /// idempotent: the first successful post-trip read wins the boundary.
   public static func completeCalendarReconciliation(
     tripID: Trip.ID,
     frozenAt: Date,
@@ -24,14 +26,6 @@ extension Trip {
   ) throws {
     guard let trip = try Trip.find(tripID).fetchOne(db), trip.calendarReconciliationFrozenAt == nil else {
       return
-    }
-    let scheduledStopIDs = try TripIdea
-      .where { $0.tripID.eq(tripID) }
-      .fetchAll(db)
-      .filter { $0.status == .scheduled }
-      .map(\.id)
-    for stopID in scheduledStopIDs {
-      try TripIdea.markDone(stopID: stopID, in: db)
     }
     try Trip.find(tripID)
       .update { $0.calendarReconciliationFrozenAt = #bind(frozenAt) }

@@ -105,7 +105,7 @@ struct CalendarPlanRepairTests {
     #expect(trip.isPast(at: firstMomentAfter, calendar: calendar))
   }
 
-  @Test func finalReconciliationFreezesOnceAndCompletesScheduledStops() async throws {
+  @Test func finalReconciliationFreezesOnceWithoutTouchingStops() async throws {
     let trip = try await database.write { db in
       try Trip.create(name: "Rome", in: db)
     }
@@ -124,6 +124,7 @@ struct CalendarPlanRepairTests {
     }
 
     #expect(saved.0?.calendarReconciliationFrozenAt == .distantFuture)
-    #expect(saved.1?.status == .done)
+    // Freezing ends Calendar authority only; it must not roll stops into visited.
+    #expect(saved.1?.status == .scheduled)
   }
 }

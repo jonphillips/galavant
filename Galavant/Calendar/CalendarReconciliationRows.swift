@@ -21,21 +21,6 @@ extension CalendarReconciliationSheet {
     .accessibilityElement(children: .combine)
   }
 
-  func movedOutsideRow(_ linked: CalendarLinkedStop) -> some View {
-    VStack(alignment: .leading, spacing: 4) {
-      Text(linked.eventTitle ?? "Linked calendar event")
-      Text("Its calendar event moved outside the trip dates. The itinerary stop was kept unchanged.")
-        .font(.caption)
-        .foregroundStyle(.secondary)
-      if let moved = linked.movedOutsideTripCommitment {
-        Text(temporalDescription(moved.temporal))
-          .font(.caption)
-          .foregroundStyle(.secondary)
-      }
-    }
-    .accessibilityElement(children: .combine)
-  }
-
   func historyRow(_ entry: CalendarReconciliationLedgerEntry) -> some View {
     VStack(alignment: .leading, spacing: 4) {
       Text(entry.eventTitle)
