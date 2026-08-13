@@ -1,7 +1,9 @@
 import LLMClientKit
 import GalavantChat
+import GalavantSchema
 import Sharing
 import SwiftUI
+import UIKit
 
 /// The AI portion of Settings: the BYO-key frontier tier (ADR-0014 §4 + the
 /// multi-provider amendment). Enter or clear a key per provider (Claude, ChatGPT);
@@ -15,6 +17,7 @@ struct AISettingsSections: View {
   /// The editable chat pre-prompt (ADR-0031 §6). Persisted to the same shared-defaults
   /// key `ChatModel` reads live, so an edit here shapes the next conversation.
   @Shared(.appStorage(chatCustomInstructionsKey)) private var chatInstructions = ""
+  @State private var copiedRecommendationContract = false
 
   var body: some View {
     Group {
@@ -23,8 +26,27 @@ struct AISettingsSections: View {
         keySection(for: provider)
       }
       instructionsSection
+      recommendationHandoffSection
     }
     .onAppear { model.onAppear() }
+  }
+
+  private var recommendationHandoffSection: some View {
+    Section {
+      Button {
+        UIPasteboard.general.string = RecommendationHandoffContract.projectInstructions
+        copiedRecommendationContract = true
+      } label: {
+        Label(
+          copiedRecommendationContract ? "Project Instructions Copied" : "Copy Project Instructions",
+          systemImage: "doc.on.doc"
+        )
+      }
+    } header: {
+      Text("Recommendation handoff")
+    } footer: {
+      Text("Paste these once into your ChatGPT or Claude project instructions. Galavant’s recommendation brief stays short and the returned JSON is version-checked.")
+    }
   }
 
   /// A free-text pre-prompt spliced into every chat's system prompt — Jon's "let me

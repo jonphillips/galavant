@@ -1,6 +1,7 @@
 import CasePaths
 import Dependencies
 import Foundation
+import GalavantAI
 import GalavantPlaces
 import GalavantSchema
 import SQLiteData
@@ -112,6 +113,48 @@ struct BookingDraft: Identifiable {
   var id: TripIdea.ID { stopID }
 }
 
+struct RecommendationHandoffPresentation: Identifiable {
+  let session: HandoffSession
+  var id: HandoffSession.ID { session.id }
+}
+
+struct RecommendationCandidateDraft: Identifiable {
+  let id: UUID
+  var name: String
+  var locality: String
+  var searchHint: String
+  var rationale: String
+  let dayRef: String?
+  let placementAfter: String?
+  let priority: Int?
+
+  init(candidate: TripCandidate) {
+    id = candidate.id
+    name = candidate.name ?? ""
+    locality = candidate.locality ?? ""
+    searchHint = candidate.searchHint ?? ""
+    rationale = candidate.rationale ?? ""
+    dayRef = candidate.dayRef
+    placementAfter = candidate.placementAfter
+    priority = candidate.priority
+  }
+
+  var candidate: TripCandidate {
+    TripCandidate(
+      id: id,
+      name: name,
+      locality: locality,
+      searchHint: searchHint,
+      why: rationale,
+      priority: priority,
+      dayRef: dayRef,
+      placementAfter: placementAfter
+    )
+  }
+
+  var canCommit: Bool { !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+}
+
 /// Owns one trip's planning surface (ADR-0004): the shortlist + considering
 /// pile of pulled ideas, and the filtered pool you pull *from*. Persistence
 /// delegates to the tested `TripIdea` operations; pool scoping reuses the pure
@@ -123,6 +166,7 @@ final class TripPlanningModel {
   @ObservationIgnored @Dependency(\.recentTripStore) var recentTripStore
   @ObservationIgnored @Dependency(\.directionsClient) var directionsClient
   @ObservationIgnored @Dependency(\.calendarReconciliationHistoryStore) var calendarHistoryStore
+  @ObservationIgnored @Dependency(\.handoffSessionStore) var handoffSessionStore
   @ObservationIgnored @FetchAll(Trip.all) var trips
   @ObservationIgnored @FetchAll(Idea.order(by: \.name)) var ideas
   @ObservationIgnored @FetchAll(TripIdea.all) var allTripIdeas
@@ -141,6 +185,8 @@ final class TripPlanningModel {
 
   let tripID: Trip.ID
   var destination: Destination?
+  var recommendationReview: [RecommendationCandidateDraft] = []
+  var recommendationHandoffError: String?
   var calendarLocalState: CalendarReconciliationLocalState
 
   /// The idea drilled into on the in-panel detail push (nil = the list root). A
@@ -200,6 +246,7 @@ final class TripPlanningModel {
     case stay(StayDraft)
     case stopTime(StopTimeDraft)
     case booking(BookingDraft)
+    case recommendationHandoff(RecommendationHandoffPresentation)
   }
 
   init(tripID: Trip.ID) {
@@ -214,6 +261,72 @@ final class TripPlanningModel {
   // MARK: - Derived state
 
   var trip: Trip? { trips.first { $0.id == tripID } }
+
+  func startRecommendationHandoff() {
+    guard let trip else { return }
+    let scope = RecommendationHandoffScope.trip
+    let promptSession = HandoffSession(
+      sourceType: scope.sourceType,
+      sourceID: trip.id,
+      taskType: RecommendationHandoffTask.candidatePlaces,
+      scopeKey: scope.scopeKey,
+      exportedPrompt: ""
+    )
+    let session = HandoffSession(
+      id: promptSession.id,
+      sourceType: promptSession.sourceType,
+      sourceID: promptSession.sourceID,
+      taskType: promptSession.taskType,
+      scopeKey: promptSession.scopeKey,
+      createdAt: promptSession.createdAt,
+      exportedPrompt: RecommendationHandoffContract.brief(
+        session: promptSession,
+        tripName: trip.name,
+        tripNotes: trip.notes
+      )
+    )
+    do {
+      try handoffSessionStore.save(session)
+      recommendationReview = []
+      destination = .recommendationHandoff(RecommendationHandoffPresentation(session: session))
+    } catch {
+      recommendationHandoffError = error.localizedDescription
+    }
+  }
+
+  func pasteRecommendationResult(_ strings: [String], for session: HandoffSession) {
+    guard let pasted = strings.first else { return }
+    do {
+      let routed = try HandoffRouting.route(pasted)
+      guard routed.sessionID == session.id else {
+        throw RecommendationHandoffPresentationError.wrongSession
+      }
+      guard handoffSessionStore.session(routed.sessionID) != nil else {
+        throw RecommendationHandoffPresentationError.unknownSession
+      }
+      let marked = try RecommendationHandoffContract.marker.strippingMarker(from: routed.text)
+      let candidates = try TripCandidate.decodeReturn(marked)
+      recommendationReview = candidates.map(RecommendationCandidateDraft.init(candidate:))
+    } catch {
+      recommendationHandoffError = error.localizedDescription
+    }
+  }
+
+  func commitRecommendationCandidate(_ candidate: RecommendationCandidateDraft, from session: HandoffSession) {
+    guard candidate.canCommit else { return }
+    withErrorReporting {
+      _ = try database.write { db in
+        try TripIdea.commit(candidate: candidate.candidate, into: tripID, in: db)
+      }
+      var updatedSession = session
+      // `.imported` records that this session has produced a durable row, rather
+      // than claiming every row in its review sheet has been consumed.
+      updatedSession.importedAt = .now
+      updatedSession.status = .imported
+      try handoffSessionStore.save(updatedSession)
+      recommendationReview.removeAll { $0.id == candidate.id }
+    }
+  }
 
   private var entries: [TripIdea] { allTripIdeas.filter { $0.tripID == tripID } }
   private var stays: [TripStay] { allTripStays.filter { $0.tripID == tripID } }
@@ -621,6 +734,18 @@ final class TripPlanningModel {
 
   // Scheduling, stays, and per-day region actions live in
   // TripPlanningModel+Scheduling.swift.
+}
+
+private enum RecommendationHandoffPresentationError: LocalizedError {
+  case wrongSession
+  case unknownSession
+
+  var errorDescription: String? {
+    switch self {
+    case .wrongSession: "This result belongs to a different recommendation handoff."
+    case .unknownSession: "This handoff is not available on this device. Copy a new brief here first."
+    }
+  }
 }
 
 // MARK: - Calendar-derived start anchors (ADR-0034 §8)

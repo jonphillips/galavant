@@ -9,6 +9,7 @@ let package = Package(
     .library(name: "GalavantPlaces", targets: ["GalavantPlaces"]),
     .library(name: "GalavantCapture", targets: ["GalavantCapture"]),
     .library(name: "GalavantImaging", targets: ["GalavantImaging"]),
+    .library(name: "GalavantAI", targets: ["GalavantAI"]),
     .library(name: "GalavantChat", targets: ["GalavantChat"]),
     .library(name: "GalavantCaptureUI", targets: ["GalavantCaptureUI"]),
   ],
@@ -52,20 +53,33 @@ let package = Package(
     .target(
       name: "GalavantSchema",
       dependencies: [
+        "GalavantAI",
         .product(name: "CloudSyncKit", package: "CloudSyncKit"),
         .product(name: "GRDB", package: "GRDB.swift"),
         .product(name: "SQLiteData", package: "sqlite-data"),
         .product(name: "Dependencies", package: "swift-dependencies"),
       ]
     ),
+    .target(
+      name: "GalavantAI",
+      dependencies: [
+        .product(name: "Dependencies", package: "swift-dependencies"),
+      ]
+    ),
+    .testTarget(
+      name: "GalavantAITests",
+      dependencies: ["GalavantAI"]
+    ),
     .testTarget(
       name: "GalavantSchemaTests",
       dependencies: [
         "GalavantSchema",
+        "GalavantAI",
         .product(name: "CustomDump", package: "swift-custom-dump"),
         .product(name: "DependenciesTestSupport", package: "swift-dependencies"),
         .product(name: "GRDB", package: "GRDB.swift"),
-      ]
+      ],
+      resources: [.process("Fixtures")]
     ),
     .target(
       name: "GalavantPlaces",

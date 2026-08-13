@@ -70,6 +70,13 @@ struct TripPlanningView: View {
       .navigationTitle(model.trip?.name ?? "Trip")
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
+        ToolbarItem(placement: .topBarTrailing) {
+          Button {
+            model.startRecommendationHandoff()
+          } label: {
+            Icon.recommend.label("Recommend")
+          }
+        }
         // Discuss this trip's itinerary with the model (ADR-0017).
         ToolbarItem {
           Button {
@@ -235,6 +242,9 @@ private struct TripPlanningPresentationHost<Content: View>: View {
       }
       .sheet(item: $model.destination.booking, id: \.id) { draft in
         BookingSheet(model: model, draft: draft)
+      }
+      .sheet(item: $model.destination.recommendationHandoff, id: \.id) { presentation in
+        RecommendationHandoffSheet(model: model, session: presentation.session)
       }
       .sheet(isPresented: $showingStartDay) {
         StartDayPanel(model: model)
