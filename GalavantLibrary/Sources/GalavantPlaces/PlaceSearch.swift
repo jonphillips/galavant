@@ -2,6 +2,7 @@ import Dependencies
 import Foundation
 import GalavantSchema
 import MapKit
+import SQLiteData
 
 /// A place we found by searching — the search hit *and* everything MapKit knows
 /// about it (kind, link, address, phone), so picking one fully populates an idea.
@@ -195,6 +196,24 @@ extension DependencyValues {
 }
 
 extension Place {
+  /// Convert a human-confirmed Maps result into the capture merge's value boundary.
+  /// Keeping this adapter beside `Place(mapItem:)` ensures the same provider facts
+  /// reach web capture, map capture, and recommendation resolution.
+  public func ideaCapture(id: Idea.ID? = nil) -> IdeaCapture {
+    IdeaCapture(
+      id: id,
+      name: name,
+      kind: kind,
+      regionName: regionName,
+      address: address,
+      phone: phone,
+      latitude: latitude,
+      longitude: longitude,
+      url: url ?? "",
+      mapItemIdentifier: mapItemIdentifier
+    )
+  }
+
   /// MapKit's persistent ID is the best de-duplication key. A coordinate fallback
   /// keeps searches across overlapping trip regions from displaying one place twice.
   fileprivate var searchIdentity: String {
@@ -226,6 +245,30 @@ extension Place {
       mapItemIdentifier: item.identifier?.rawValue,
       timeZoneIdentifier: item.timeZone?.identifier
     )
+  }
+}
+
+/// The callable recommendation-resolution operation. A future evaluation workspace
+/// supplies the selected `Place`; this core performs the existing capture merge and
+/// then links the already-committed candidate stop, in the caller's transaction.
+public enum RecommendationResolution {
+  @discardableResult
+  public static func confirm(
+    candidateStopID: TripIdea.ID,
+    place: Place,
+    in db: Database
+  ) throws -> Idea.ID? {
+    guard try TripIdea.find(candidateStopID).fetchOne(db) != nil else { return nil }
+    let party = try TravelParty.ensureDefault(in: db)
+    let resolution = try Idea.resolveCapture(
+      place.ideaCapture(),
+      travelPartyID: party.id,
+      in: db
+    )
+    guard try TripIdea.attachResolvedIdea(resolution.ideaID, to: candidateStopID, in: db) != nil else {
+      return nil
+    }
+    return resolution.ideaID
   }
 }
 

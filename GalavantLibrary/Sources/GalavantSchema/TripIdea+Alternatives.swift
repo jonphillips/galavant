@@ -2,6 +2,47 @@ import Foundation
 import SQLiteData
 
 extension TripIdea {
+  /// Mark a set of still-considering candidate stops as interchangeable options.
+  /// This reuses ADR-0035's existing `alternativeGroupID` ring rather than adding a
+  /// recommendation-specific relation. The caller can make the currently selected
+  /// candidate active; otherwise canonical order provides a stable default.
+  @discardableResult
+  public static func chooseOne(
+    among candidateStopIDs: [TripIdea.ID],
+    activeStopID: TripIdea.ID? = nil,
+    groupID: UUID = UUID(),
+    in db: Database
+  ) throws -> UUID? {
+    var seen = Set<TripIdea.ID>()
+    let uniqueIDs = candidateStopIDs.filter { seen.insert($0).inserted }
+    guard uniqueIDs.count > 1 else { return nil }
+
+    let candidates = try uniqueIDs.compactMap { try TripIdea.find($0).fetchOne(db) }
+    guard
+      candidates.count == uniqueIDs.count,
+      let tripID = candidates.first?.tripID,
+      candidates.allSatisfy({ $0.tripID == tripID && $0.status == .considering })
+    else { return nil }
+
+    let existingGroups = Set(candidates.compactMap(\.alternativeGroupID))
+    if existingGroups.count == 1, candidates.allSatisfy({ $0.alternativeGroupID != nil }) {
+      return existingGroups.first
+    }
+    guard existingGroups.isEmpty else { return nil }
+
+    let resolvedActiveID = activeStopID ?? canonicalAlternativeOrder(candidates).first?.id
+    guard let resolvedActiveID, uniqueIDs.contains(resolvedActiveID) else { return nil }
+    for candidate in candidates {
+      try TripIdea.find(candidate.id)
+        .update {
+          $0.alternativeGroupID = #bind(groupID)
+          $0.isActive = #bind(candidate.id == resolvedActiveID)
+        }
+        .execute(db)
+    }
+    return groupID
+  }
+
   /// The stable order of peers in an alternatives ring. `shortlistRank` keeps a
   /// ring's usual shortlist intent, while the UUID tiebreak makes concurrent
   /// same-rank writes converge identically on every device (ADR-0035).

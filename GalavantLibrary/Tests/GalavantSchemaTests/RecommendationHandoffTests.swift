@@ -2,6 +2,7 @@ import Dependencies
 import DependenciesTestSupport
 import Foundation
 import GalavantAI
+import GalavantPlaces
 import GalavantSchema
 import SQLiteData
 import Testing
@@ -86,6 +87,83 @@ struct RecommendationHandoffTests {
     #expect(committed.inlineNote == "A relaxed dinner after the museum.\n\nWalkable from the old town.")
     #expect(committed.status == .considering)
     #expect(committed.shortlistRank == 4)
+  }
+
+  @Test func confirmingACandidateReusesCaptureDedupAndPreservesItsRationale() async throws {
+    let result = try await database.write { db -> (TripIdea, [Idea]) in
+      let trip = try Trip.create(name: "South Tyrol", in: db)
+      let candidate = try TripIdea.commit(
+        candidate: TripCandidate(name: "Lumiere Brasserie", why: "A relaxed dinner after the museum."),
+        into: trip.id,
+        in: db
+      )
+      let party = try TravelParty.ensureDefault(in: db)
+      let existingID = UUID()
+      try Idea.insert {
+        Idea.Draft(Idea(
+          id: existingID,
+          name: "Lumiere Brasserie",
+          mapItemIdentifier: "maps:lumiere-bolzano",
+          travelPartyID: party.id
+        ))
+      }
+      .execute(db)
+
+      let resolvedID = try RecommendationResolution.confirm(
+        candidateStopID: candidate.id,
+        place: Place(
+          id: UUID(),
+          name: "Lumiere Brasserie",
+          latitude: 46.4983,
+          longitude: 11.3548,
+          regionName: "Bolzano",
+          kind: .food,
+          url: "https://lumiere.example",
+          address: "Piazza Walther 1, Bolzano",
+          mapItemIdentifier: "maps:lumiere-bolzano"
+        ),
+        in: db
+      )
+      #expect(resolvedID == existingID)
+      return (
+        try #require(try TripIdea.find(candidate.id).fetchOne(db)),
+        try Idea.all.fetchAll(db)
+      )
+    }
+
+    #expect(result.0.ideaID == result.1.only?.id)
+    #expect(result.0.inlineNote == "A relaxed dinner after the museum.")
+    #expect(result.1.count == 1)
+    #expect(result.1.only?.name == "Lumiere Brasserie")
+    #expect(result.1.only?.regionName == "Bolzano")
+    #expect(result.1.only?.kind == .food)
+    #expect(result.1.only?.latitude == 46.4983)
+    #expect(result.1.only?.address == "Piazza Walther 1, Bolzano")
+    #expect(result.1.only?.url == "https://lumiere.example")
+  }
+
+  @Test func chooseOneBuildsAnAlternativesRingForCandidates() async throws {
+    let result = try await database.write { db -> (UUID, [TripIdea]) in
+      let trip = try Trip.create(name: "South Tyrol", in: db)
+      let first = try TripIdea.commit(
+        candidate: TripCandidate(name: "Plose", why: "Mountain day."),
+        into: trip.id,
+        in: db
+      )
+      let second = try TripIdea.commit(
+        candidate: TripCandidate(name: "Seceda", why: "Another mountain day."),
+        into: trip.id,
+        in: db
+      )
+      let groupID = try #require(
+        try TripIdea.chooseOne(among: [first.id, second.id], activeStopID: second.id, in: db)
+      )
+      return (groupID, try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db))
+    }
+
+    #expect(result.1.map(\.alternativeGroupID).allSatisfy { $0 == result.0 })
+    #expect(result.1.first(where: { $0.isActive })?.inlineTitle == "Seceda")
+    #expect(result.1.allSatisfy { $0.status == .considering })
   }
 }
 
