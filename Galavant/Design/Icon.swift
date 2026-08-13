@@ -29,6 +29,9 @@ enum Icon {
   case aiOnDevice     // on-device (private) AI tier
   case aiFrontier     // frontier (networked, BYO-key) AI tier
   case chat           // open the context-aware chat panel (ADR-0017)
+  case alternatives   // an itinerary slot with interchangeable options (ADR-0035)
+  case cycleAlternative // rotate the active option in an alternatives ring (ADR-0035)
+  case promoteAlternative // turn an option into an independent itinerary stop (ADR-0035)
 
   // Scheduling
   case calendar       // generic / "nothing scheduled"
@@ -110,6 +113,9 @@ enum Icon {
     case .travelParty: "person.2"
     case .emptyPool: "tray"
     case .chat: "bubble.left.and.text.bubble.right"
+    case .alternatives: "arrow.triangle.2.circlepath"
+    case .cycleAlternative: "arrow.triangle.2.circlepath"
+    case .promoteAlternative: "arrow.up.right.square"
     }
   }
 

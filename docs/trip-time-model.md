@@ -44,9 +44,11 @@ commitment. Exactly one member is **effective active** and therefore enters the
 itinerary order; inactive peers remain stored but cannot consume an additional
 position, pin number, or travel adjacency. Ring order and concurrent
 winner reconciliation use the stable total order `(shortlistRank, id.uuidString)`.
-A firm/timed ring may emphasize its current choice while a loose/Anytime ring
-may present all peers neutrally, but that is UI mood only — it does not create an
-undecided or zero-effective-active state. A `.day(n)` Anytime winner is still a
+Both moods surface the effective-active member by name: a firm/timed ring shows
+the current pick plainly, while a loose/Anytime ring reads as that pick plus a
+`· N options` menu affordance (not a generic "open block" label) and marks the
+same pick inside its expanded disclosure. That is UI presentation only — it does
+not create an undecided or zero-effective-active state. A `.day(n)` Anytime winner is still a
 geographic member of the day's route; only a day-less To-Be-Scheduled ring has no
 day route yet.
 

@@ -1,8 +1,14 @@
 # ADR-0035: Itinerary alternatives — a ring of stops sharing one slot, exactly one active
 
-*Status: proposed — Slices 1 (schema + active-only partition) and 2 (write ops) landed and
-unit-tested; Slice 3 (UI) and final device verification pending before this flips to accepted.
-**Twice-reframed the same day.**
+*Status: accepted — Slices 1 (schema + active-only partition), 2 (write ops), and 3 (UI) landed
+and unit-tested; package/app verified (iPad Pro 13-inch M5 simulator, `BUILD SUCCEEDED`). Slice 3
+added two presentation refinements beyond the original §5 sketch: a loose/Anytime slot's collapsed
+row surfaces its effective-active member **by name** (`"<pick> · N options"`) rather than a generic
+"open block" label, and the disclosure marks the current pick in both moods — the neutral-loose
+styling of the draft proved unhelpful when collapsed, since every ring always has one effective
+active member anyway. The cycle/badge controls moved to their own row under the title (in the
+trailing cluster they collided with the schedule label). On-device dogfooding continues; further
+tweaks are follow-ups, not accept-gates. **Twice-reframed the same day.**
 Draft 1 was a symmetric
 "choice" (two co-equal candidates, one eventually chosen, **undecided** until then); draft 2 an
 asymmetric **primary + backup**. The clarifying insight, reached via a "cycle through the
@@ -164,13 +170,15 @@ scheduled like any stop.
 
 ### 5. UI: one active row, a disclosure to the ring, a cycle control
 
-- **Timeline (`TripItineraryView`):** a firm/timed slot renders as its **active** member — an
-  ordinary numbered row — carrying a small **"N of M"** badge with a **cycle** (⟳) control and a
-  **disclosure arrow**; a **loose** slot renders **neutrally** (e.g. "Open afternoon — 4 ideas")
-  with the same disclosure but need not emphasize its effective winner. Expanding reveals the ring
-  — the **current choice** highlighted for a firm slot or the options as peers for a loose one —
-  where you tap to make one active (`setActiveAlternative`), **promote** one into the itinerary
-  (`promoteAlternative`), or **add /
+- **Timeline (`TripItineraryView`):** every slot renders as its **effective-active** member —
+  an ordinary numbered row named for the current pick. A firm/timed slot shows that name plainly;
+  a **loose**/Anytime slot appends **`· N options`** (e.g. "Baita Sanon Hütte · 2 options") rather
+  than a generic "open block" label — the draft's neutral rendering proved unhelpful when collapsed,
+  and every ring always has one effective active member to name. The **cycle** (⟳) control and
+  **"N of M"** badge + **disclosure arrow** sit on their **own row under the title** (in the row's
+  trailing cluster they collided with the schedule label and the badge wrapped). Expanding reveals
+  the ring with the **current pick marked in both moods**, where you tap to make one active
+  (`setActiveAlternative`), **promote** one into the itinerary (`promoteAlternative`), or **add /
   remove** options. It is never a second *sequential* row — the ring lives inside one slot.
 - **Canvas:** the active member wears its ordinary numbered pin; the inactive alternatives draw
   **only while the row's disclosure is expanded (or the stop is selected)**, as muted, unnumbered

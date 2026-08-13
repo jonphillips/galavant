@@ -99,6 +99,16 @@ struct StopMenu: View {
           }
         }
       }
+      if stop.entry.status == .scheduled {
+        Menu("Add Alternative", systemImage: Icon.alternatives.systemName) {
+          Button("From Shortlist…", systemImage: Icon.shortlist.systemName) {
+            model.addAlternativeButtonTapped(to: stopID)
+          }
+          Button("Custom Stop…", systemImage: Icon.addInline.systemName) {
+            model.addCustomAlternativeButtonTapped(to: stopID)
+          }
+        }
+      }
       Button("Mark Skipped", systemImage: Icon.skip.systemName) { model.markSkipped(stopID) }
       if isFreeform {
         Button("Remove", systemImage: Icon.delete.systemName, role: .destructive) {

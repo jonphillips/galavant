@@ -33,9 +33,18 @@ struct TripIdeasView: View {
         Section("Shortlist") {
           ForEach(model.plan.shortlist) { resolved in
             PlanningRow(content: resolved.content, subtitle: .category) {
-              // Lit star = shortlisted; tap demotes it back to Considering.
-              starButton(filled: true) {
-                model.setStatus(.considering, for: resolved.id)
+              HStack(spacing: 14) {
+                // Lit star = shortlisted; tap demotes it back to Considering.
+                starButton(filled: true) {
+                  model.setStatus(.considering, for: resolved.id)
+                }
+                Button {
+                  model.addAsAlternativeButtonTapped(sourceStopID: resolved.id)
+                } label: {
+                  Icon.alternatives.image.foregroundStyle(.secondary)
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Add as alternative to an itinerary stop")
               }
             }
             .contentShape(Rectangle())

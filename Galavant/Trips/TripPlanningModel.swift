@@ -14,9 +14,20 @@ import SQLiteData
 struct FreeformStopDraft: Identifiable {
   let id = UUID()
   var stopID: TripIdea.ID?
+  var alternativeToStopID: TripIdea.ID?
   var title = ""
   var note = ""
   var day: Int?
+}
+
+struct AlternativeSourceTarget: Identifiable {
+  let id = UUID()
+  let targetStopID: TripIdea.ID
+}
+
+struct AlternativeSlotTarget: Identifiable {
+  let id = UUID()
+  let sourceStopID: TripIdea.ID
 }
 
 /// Which itinerary section a per-section "+" is adding into — a day, or the To
@@ -130,18 +141,7 @@ final class TripPlanningModel {
 
   let tripID: Trip.ID
   var destination: Destination?
-  private var calendarLocalState: CalendarReconciliationLocalState
-
-  /// The local EventKit binding governs time edits on this device. The applied
-  /// reservation cache is still in the synced trip row; Slice 3 supplies the
-  /// shared review ledger and cross-device reconciliation identity.
-  func calendarTimeAuthority(for stopID: TripIdea.ID) -> CalendarTimeAuthority {
-    calendarLocalState.authority(for: stopID)
-  }
-
-  func reloadCalendarTimeAuthority() {
-    calendarLocalState = calendarHistoryStore.state(tripID)
-  }
+  var calendarLocalState: CalendarReconciliationLocalState
 
   /// The idea drilled into on the in-panel detail push (nil = the list root). A
   /// push within the panel, not a sheet, so it never covers the map; driven by ID
@@ -153,6 +153,7 @@ final class TripPlanningModel {
   // is the one selection the map pins and the timeline rows both project.
   var canvasSelectedDay: Int?
   var canvasSelectedStopID: TripIdea.ID?
+  var expandedAlternativeGroupIDs: Set<UUID> = []
 
   // ETA cache (docs/trip-canvas.md): travel times keyed by leg + mode. A trip's
   // main mode is the shared default; the per-leg menu remains a local override.
@@ -194,6 +195,8 @@ final class TripPlanningModel {
     case idea(TripIdeaEditPresentation)
     case placeIdea(PlaceIdeaTarget)
     case freeformStop(FreeformStopDraft)
+    case alternativeSource(AlternativeSourceTarget)
+    case alternativeSlot(AlternativeSlotTarget)
     case stay(StayDraft)
     case stopTime(StopTimeDraft)
     case booking(BookingDraft)
