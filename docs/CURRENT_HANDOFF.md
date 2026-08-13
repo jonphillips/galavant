@@ -69,9 +69,32 @@ ideas or Galavant-authored stops. A healthy full-access read may remove one only
 both its local EventKit ID and server identity corroborate absence; permission loss,
 calendar-selection loss, moved events, replacement local IDs, and an individually
 missing recurrence while its series remains visible infer no deletion. Existing
-Galavant-originated linked stops never enter this deletion path. The remaining gate is
-the slice PR plus real shared-Calendar dogfooding of create, edit, move-outside, and
-delete for a non-place obligation.
+Galavant-originated linked stops never enter this deletion path.
+
+Slice 5 merged via PR #22. An architect review + two dogfood passes then surfaced two
+reap gaps where a constraint orphaned in the itinerary and never self-healed, both
+fixed in **PR #23** (branch `fix/m7-s5-constraint-moved-outside-and-rekey`): (1)
+**moved-outside** — a constraint whose event moves past the trip window now drops its
+shared row while keeping the device-local binding (recreates on return), instead of
+lingering on its old day; (2) **re-keyed recurrence** — converting a recurring series
+between all-day and timed re-keyed the occurrence anchor and left permanent duplicates,
+now superseded by a `(series externalIdentifier + trip day)` slot key (verified stable
+against the EventKit headers). Pure-core tests cover both; suite green 16/16.
+
+Remaining gate: real shared-Calendar (iCloud/CalDAV, **not** a local calendar — only
+those carry the stable `externalIdentifier` a constraint needs) dogfooding of create,
+edit, move-within, move-outside, delete, two-device convergence, and the all-day→timed
+recurrence conversion, for a non-place obligation.
+
+Deferred product notes from the review (non-blocking, revisit after dogfooding):
+- **No dismiss/convert affordance.** Every eligible in-scope event becomes an itinerary
+  row with no way to hide it or promote it to a real stop. Justified by ADR-0034 §2
+  ("reckon with every event"), but a recurring daily commitment during a trip can
+  clutter; watch during dogfooding.
+- **`free`/`tentative` events still render as rows** (with a detail line). Correct per
+  §2, but consider whether a `free` obligation deserves an itinerary row at all.
+- **24-hour clock.** `constraintTime` renders `HH:MM`; confirm it matches the rest of
+  the itinerary's clock style.
 
 ## Dogfood gate — M7 Slice 2 auto-apply + local history (ADR-0034)
 
