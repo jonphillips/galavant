@@ -537,6 +537,10 @@ extension DependencyValues {
       try #sql(#"ALTER TABLE "tripIdeas" ADD COLUMN "bookingURL" TEXT"#).execute(db)
       try #sql(#"ALTER TABLE "tripIdeas" ADD COLUMN "partySize" INTEGER"#).execute(db)
     }
+    migrator.registerMigration("Add itinerary alternatives to tripIdeas (ADR-0035)") { db in
+      try #sql(#"ALTER TABLE "tripIdeas" ADD COLUMN "alternativeGroupID" TEXT"#).execute(db)
+      try #sql(#"ALTER TABLE "tripIdeas" ADD COLUMN "isActive" INTEGER NOT NULL DEFAULT 1"#).execute(db)
+    }
     migrator.registerMigration("Create calendarReconciliationLedgerEntries table (ADR-0034)") { db in
       // The shared reconciliation outcome rides its trip (one real FK); stopID is
       // a loose UUID so history survives later stop deletion. `id` is a

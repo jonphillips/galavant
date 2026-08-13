@@ -32,6 +32,24 @@ per-stop `dayRank` (a `Double`, midpoint-insertable) and interleaves by anchorin
 to the timed stop it sits after, rather than piling at the day's end. `dayRank` is
 intra-day order, not a date — still fully day-relative.
 
+**Alternative slots (ADR-0035).** Interchangeable stops may share a slot. Every
+ring member carries the same shared placement (`status`, `dayNumber`, `dayPart`,
+`startTime`, `endTime`, and `dayRank`), and writes to that placement propagate to
+the full ring in one transaction. Pulling the whole slot back to the shortlist
+(`unschedule`) dissolves the ring; a per-member terminal (`markDone` / `markSkipped`)
+extracts only that member and leaves the rest a scheduled ring-minus-one.
+Reservation facts remain per member — `pinnedDate`, booking metadata, and Calendar
+authority do not propagate — so cycling may surface a different option's own
+commitment. Exactly one member is **effective active** and therefore enters the
+itinerary order; inactive peers remain stored but cannot consume an additional
+position, pin number, or travel adjacency. Ring order and concurrent
+winner reconciliation use the stable total order `(shortlistRank, id.uuidString)`.
+A firm/timed ring may emphasize its current choice while a loose/Anytime ring
+may present all peers neutrally, but that is UI mood only — it does not create an
+undecided or zero-effective-active state. A `.day(n)` Anytime winner is still a
+geographic member of the day's route; only a day-less To-Be-Scheduled ring has no
+day route yet.
+
 ## 3. The start-day solver (the payoff)
 
 Because the itinerary is day-relative, the start date becomes a **free

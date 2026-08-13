@@ -453,46 +453,20 @@ are proven locally. Full rationale + acceptance criteria in ADR-0034.
   failure infers no deletion, both phones converge on one shared reconciliation entry,
   and a completed trip freezes so later calendar cleanup doesn't rewrite its history.
 
-## M8 — Itinerary alternatives *(proposed 2026-08-12, ADR-0035; sequenced after M7)*
+## M8 — Itinerary alternatives 🚧 *(in progress, ADR-0035)*
 
-**Not started — finish M7 calendar reconciliation first.** A narrow itinerary feature, not a
-subsystem: **one itinerary slot may hold a ring of interchangeable options, exactly one active**
-— "lunch is Baita Sanon Hütte, or **cycle** to Gostner Schwaige and see how the day re-routes."
-Today the second option can only be a second sequential stop, which fabricates a phantom travel
-leg between them and eats a second pin number. **Twice-reframed 2026-08-12** — symmetric
-choice-with-undecided-state → primary+backup → **peer ring**: the expensive part was the
-*undecided* state (it forced a read-model collapse fold + an "acknowledge uncertainty" routing
-gap), not the grouping. Mandating **exactly one active member** removes both while keeping the
-options co-equal. The **active member is an ordinary sequenced stop, unchanged; inactive members
-are off-sequence** (filtered out at the scheduled-partition boundary), so `legs` /
-`locatedSequenceNumbers` / the weave are **untouched** and the phantom leg is structurally
-impossible. Two additive loose columns (`alternativeGroupID`, `isActive`); members share the
-slot, so **cycling is a single flag flip** — no slot copy, no preview (you cycle and see the real
-day). No new table, no CloudKit registration change (ADR-0006/0007). **One concept, two
-presentations keyed off the slot's firmness:** a routed slot (timed lunch) shows a current-pick +
-alternatives (exactly one active); a loose slot (open afternoon, ADR-0033 Anytime) shows a
-**neutral menu** of peers (zero-or-one active) the app already navigates around — so the
-"backup" and "four-things-we-could-do" cases are the *same* feature, no "which kind?" label. A
-`promoteAlternative` op (the mirror of add) can graduate one — or several — options into their
-own real stops, so a menu resolves gracefully instead of "pick one, lose the rest." Composes with
-the `StartDaySolver` (ADR-0029) and M7 reconciliation: an alternative is the ready-made fix when
-the active option fails a constraint. Distinct from Ideas (under consideration), optional/skippable
-stops, and branching. Full rationale + the 7 acceptance criteria in ADR-0035.
+Planned as a narrow itinerary feature while M7 awaits final device verification: one slot can
+hold a stable ring of peer options with exactly one **effective active** member. Only that member
+enters the scheduled/TBS/day projections, so it receives the slot's one row and pin number and
+the unchanged leg/weave core can never draw a segment between alternatives. Cycling or choosing
+a peer immediately recomputes the real route; inactive peers remain recoverable. Concurrent
+zero/multi-active flags converge on the same deterministic winner, and later ring writes repair
+storage. Slot edits propagate across the ring so changing its day/time/order cannot split it.
 
-- ⏳ **Slice 1 — schema + active-only partition.** The two columns; an `&& isActive` guard on
-  `scheduled`/`itinerary`/`toBeScheduled`; an `alternatives(forStop:)` projection; in-memory tests
-  that an inactive member never appears in a day/bucket/leg, cycling changes only which member
-  routes, and an ungrouped trip is byte-identical to today. **Opus** — touches the read-model
-  partition; wants the byte-identical guardrail proven.
-- ⏳ **Slice 2 — write ops.** `addAlternative` / `cycleAlternative` / `setActiveAlternative` /
-  `removeAlternative`, delete-active-promotes-next, and the remnant/no-active reconcile;
-  exactly-one-active invariant tested. **Sonnet** — a guarded ops slice on tested precedent.
-- ⏳ **Slice 3 — UI.** The itinerary **disclosure row** (current choice + the alternatives,
-  tap-to-activate, add/remove) with an inline **cycle** (⟳) control + "N of M" badge; the
-  muted-on-expand canvas pins (no polyline); `StopMenu` "Add as alternative to…"; built and
-  installed on the iPad Pro 13-inch (M5) sim. **Opus** — SwiftUI expandable-row + canvas work.
-- ⏳ **Slice 4 — docs.** Flip ADR-0035 to accepted; ROADMAP / trip-canvas / trip-time-model notes.
-- ⏳ Done when: a slot holds a ring of options shown as one active row with a disclosure to the
-  alternatives (not a second sequential stop), no travel segment is drawn between them, cycling
-  activates the next option (incl. mid-trip) and re-routes the day, the inactive options stay
-  recoverable, and existing linear itineraries are unchanged.
+- ✅ **Schema + projection.** Added `alternativeGroupID` / `isActive`, deterministic effective
+  winner and total ring order, active-only partitions, and the ring projection; existing linear
+  itineraries remain unchanged.
+- ✅ **Write operations.** Ring-aware scheduling and lifecycle semantics, deterministic promotion
+  reindexing, and active-member Calendar/booking authority are covered by focused unit tests.
+- ⏳ **UI.** The expandable itinerary slot, contextual picker, and muted inactive canvas pins.
+- ⏳ **Docs + verification.** Accept ADR-0035 only after package, app, and simulator verification.

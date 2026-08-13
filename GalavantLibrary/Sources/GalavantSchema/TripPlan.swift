@@ -83,6 +83,17 @@ public struct ResolvedDay: Identifiable, Equatable, Sendable {
   }
 }
 
+/// A recoverable alternatives ring resolved for presentation. `members` remain
+/// in canonical cycle order; `activeIndex` names the effective member rather
+/// than imposing an active-first presentation order (ADR-0035).
+public struct ResolvedAlternativeRing: Equatable, Sendable {
+  public var groupID: UUID
+  public var members: [ResolvedStop]
+  public var activeIndex: Int
+
+  public var activeMember: ResolvedStop { members[activeIndex] }
+}
+
 /// One trip's resolved planning read-model: this trip's pulled `TripIdea` entries
 /// joined to their pool ideas and partitioned for the planning surfaces (Trip
 /// Ideas, Itinerary, Canvas).
@@ -129,6 +140,14 @@ public struct TripPlan: Equatable, Sendable {
     self.dayRegions = dayRegions
     self.regionsByID = regionsByID
     self.calendarConstraints = calendarConstraints
+    // A stop must carry either an `ideaID` or a non-empty inline title (ADR-0010);
+    // one that carries neither is a corrupt row we cannot place. Reported once per
+    // read-model build (not once per projection, which now resolves entries several
+    // times) so the invariant still surfaces without duplicate noise. Orphans — an
+    // `ideaID` whose pool idea was deleted — are legitimate drops and not reported.
+    for entry in entries where entry.ideaID == nil && (entry.inlineTitle?.isEmpty ?? true) {
+      reportIssue("TripIdea \(entry.id) has neither ideaID nor inlineTitle — dropping")
+    }
   }
 
   func resolve(_ entry: TripIdea) -> ResolvedStop? {
@@ -138,9 +157,55 @@ public struct TripPlan: Equatable, Sendable {
     } else if let title = entry.inlineTitle, !title.isEmpty {
       return ResolvedStop(entry: entry, content: .freeform(title: title, note: entry.inlineNote))
     } else {
-      reportIssue("TripIdea \(entry.id) has neither ideaID nor inlineTitle — dropping")
       return nil
     }
+  }
+
+  /// The alternatives rings after orphan/malformed members are dropped. This is
+  /// deliberately non-mutating: a later explicit ring operation persists the
+  /// effective winner and clears a one-member remnant.
+  private var resolvedAlternativeRings: [UUID: ResolvedAlternativeRing] {
+    alternativeRings(in: entries.compactMap(resolve))
+  }
+
+  private func alternativeRings(in resolved: [ResolvedStop]) -> [UUID: ResolvedAlternativeRing] {
+    let grouped = Dictionary(grouping: resolved) { $0.entry.alternativeGroupID }
+    return Dictionary(uniqueKeysWithValues: grouped.compactMap { groupID, members in
+      guard let groupID else { return nil }
+      let orderedEntries = TripIdea.canonicalAlternativeOrder(members.map(\.entry))
+      let membersByID = Dictionary(uniqueKeysWithValues: members.map { ($0.id, $0) })
+      let ordered = orderedEntries.compactMap { membersByID[$0.id] }
+      guard ordered.count > 1 else { return nil }
+      let activeIndex = ordered.firstIndex { $0.entry.isActive } ?? ordered.startIndex
+      return (groupID, ResolvedAlternativeRing(
+        groupID: groupID,
+        members: ordered,
+        activeIndex: activeIndex))
+    })
+  }
+
+  /// Resolve one visible member for every ring. Filtering after resolution keeps
+  /// an orphaned stored-active member from hiding the rest of a valid slot.
+  private var effectiveResolvedStops: [ResolvedStop] {
+    let resolved = entries.compactMap(resolve)
+    let winners = Dictionary(uniqueKeysWithValues: alternativeRings(in: resolved).map {
+      ($0.key, $0.value.activeMember.id)
+    })
+    return resolved.filter { stop in
+      guard let groupID = stop.entry.alternativeGroupID else { return true }
+      guard let winnerID = winners[groupID] else { return true }
+      return stop.id == winnerID
+    }
+  }
+
+  /// The ring containing `stopID`, when at least two members resolve. A lone
+  /// surviving member intentionally presents as an ordinary stop until the next
+  /// ring write repairs its stored remnant.
+  public func alternatives(forStop stopID: TripIdea.ID) -> ResolvedAlternativeRing? {
+    guard let groupID = entries.first(where: { $0.id == stopID })?.alternativeGroupID else {
+      return nil
+    }
+    return resolvedAlternativeRings[groupID]
   }
 
   /// Resolve a stay to its content (ADR-0011) — the same total mapping `resolve`
@@ -174,12 +239,11 @@ public struct TripPlan: Equatable, Sendable {
   /// Scheduled section. Grouped by day so each day's Anytime stops anchor within
   /// their own day, matching the itinerary.
   public var scheduled: [ResolvedStop] {
-    let byDay = Dictionary(grouping: entries.filter { $0.status == .scheduled }) {
-      $0.dayNumber ?? 0
+    let byDay = Dictionary(grouping: effectiveResolvedStops.filter { $0.entry.status == .scheduled }) {
+      $0.entry.dayNumber ?? 0
     }
     return byDay.keys.sorted()
-      .flatMap { TripIdea.orderedDayStops(byDay[$0] ?? []) }
-      .compactMap(resolve)
+      .flatMap { orderedResolvedStops(byDay[$0] ?? []) }
   }
 
   /// The "considering" maybe-pile — pulled but not yet committed.
@@ -197,18 +261,29 @@ public struct TripPlan: Equatable, Sendable {
   /// The trip's days 1…N, each with its resolved scheduled stops in order
   /// (orphans dropped). Canvas pins and timeline rows both project from this.
   public var itinerary: [ResolvedDay] {
-    TripIdea.itinerary(entries, lengthInDays: lengthInDays).map { day in
-      ResolvedDay(number: day.number, stops: day.stops.compactMap(resolve))
+    let resolved = effectiveResolvedStops
+    let stopsByID = Dictionary(uniqueKeysWithValues: resolved.map { ($0.id, $0) })
+    return TripIdea.itinerary(resolved.map(\.entry), lengthInDays: lengthInDays).map { day in
+      ResolvedDay(number: day.number, stops: day.stops.compactMap { stopsByID[$0.id] })
     }
   }
 
   /// True once at least one stop is scheduled — drives the empty state.
-  public var hasScheduledStops: Bool { entries.contains { $0.status == .scheduled } }
+  public var hasScheduledStops: Bool {
+    effectiveResolvedStops.contains { $0.entry.status == .scheduled }
+  }
 
   /// Scheduled stops not yet placed on a day — the "To Be Scheduled" bucket at
   /// the top of the Itinerary (orphans dropped).
   public var toBeScheduled: [ResolvedStop] {
-    TripIdea.toBeScheduled(entries).compactMap(resolve)
+    let resolved = effectiveResolvedStops
+    let stopsByID = Dictionary(uniqueKeysWithValues: resolved.map { ($0.id, $0) })
+    return TripIdea.toBeScheduled(resolved.map(\.entry)).compactMap { stopsByID[$0.id] }
+  }
+
+  private func orderedResolvedStops(_ stops: [ResolvedStop]) -> [ResolvedStop] {
+    let stopsByID = Dictionary(uniqueKeysWithValues: stops.map { ($0.id, $0) })
+    return TripIdea.orderedDayStops(stops.map(\.entry)).compactMap { stopsByID[$0.id] }
   }
 
   // MARK: - Stays (accommodations, ADR-0011)
