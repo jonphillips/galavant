@@ -34,6 +34,7 @@ struct StartDayPanel: View {
   private var content: some View {
     List {
       Section {
+        anchorAssessment
         ForEach(model.startDayOptions) { option in
           StartDayOptionRow(
             option: option,
@@ -48,6 +49,30 @@ struct StartDayPanel: View {
         )
       }
     }
+  }
+
+  @ViewBuilder private var anchorAssessment: some View {
+    let assessment = model.startDayAnchorAssessment
+    if let proposedStart = assessment.proposedStart, assessment.isConsistent {
+      Label(
+        "Calendar anchors suggest \(dateDescription(proposedStart)) for Day 1.",
+        systemImage: "pin.fill")
+        .font(.callout)
+    } else if !assessment.conflictingAnchors.isEmpty {
+      VStack(alignment: .leading, spacing: 4) {
+        Label("Calendar anchors disagree about Day 1.", systemImage: "exclamationmark.triangle.fill")
+          .foregroundStyle(.orange)
+        ForEach(assessment.anchors) { anchor in
+          Text("Day \(anchor.dayNumber) · \(anchor.stopName) → \(dateDescription(anchor.commitmentDate))")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+      }
+    }
+  }
+
+  private func dateDescription(_ date: CalendarCivilDate) -> String {
+    String(format: "%d/%d/%04d", date.month, date.day, date.year)
   }
 
   private var emptyState: some View {

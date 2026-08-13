@@ -3,6 +3,24 @@ import GalavantSchema
 import SwiftUI
 
 extension CalendarReconciliationSheet {
+  func planRepairRow(_ repair: CalendarPlanRepair) -> some View {
+    VStack(alignment: .leading, spacing: 5) {
+      Text(repair.title)
+      Text(repair.kind.detail)
+        .font(.caption)
+        .foregroundStyle(.secondary)
+      if repair.isResolved {
+        Label("Resolved", systemImage: "checkmark.circle.fill")
+          .font(.caption)
+          .foregroundStyle(.green)
+      } else {
+        Button("Mark Repair Resolved") { model.resolvePlanRepair(repair) }
+          .font(.caption.weight(.semibold))
+      }
+    }
+    .accessibilityElement(children: .combine)
+  }
+
   func movedOutsideRow(_ linked: CalendarLinkedStop) -> some View {
     VStack(alignment: .leading, spacing: 4) {
       Text(linked.eventTitle ?? "Linked calendar event")

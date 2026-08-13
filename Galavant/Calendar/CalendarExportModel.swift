@@ -130,17 +130,19 @@ final class CalendarReconciliationModel {
     case accessDenied
     case calendarSelectionRequired
     case loaded
+    case frozen
     case failure(String)
   }
 
-  @ObservationIgnored @Dependency(\.calendarIngestionClient) private var calendarClient
+  @ObservationIgnored @Dependency(\.calendarIngestionClient) var calendarClient
   @ObservationIgnored @Dependency(\.calendarSelectionStore) private var calendarSelectionStore
-  @ObservationIgnored @Dependency(\.placeMatcher) private var placeMatcher
+  @ObservationIgnored @Dependency(\.placeMatcher) var placeMatcher
   @ObservationIgnored @Dependency(\.calendarReconciliationHistoryStore) private var historyStore
-  @ObservationIgnored @Dependency(\.defaultDatabase) private var database
+  @ObservationIgnored @Dependency(\.defaultDatabase) var database
   @ObservationIgnored @Dependency(\.date.now) private var now
   @ObservationIgnored @Dependency(\.uuid) private var uuid
   @ObservationIgnored @FetchAll(CalendarReconciliationLedgerEntry.all) private var allLedgerEntries
+  @ObservationIgnored @FetchAll(CalendarPlanRepair.all) private var allPlanRepairs
 
   var state: State = .idle
   var candidates: [CalendarReconciliationCandidate] = []
@@ -149,9 +151,14 @@ final class CalendarReconciliationModel {
   var selectedCalendarID: String? { calendarSelectionStore.calendarID() }
 
   var sharedHistory: [CalendarReconciliationLedgerEntry] { allLedgerEntries }
+  var planRepairs: [CalendarPlanRepair] { allPlanRepairs }
 
   func refresh(trip: Trip, plan: TripPlan) async {
     guard state != .loading else { return }
+    guard trip.calendarReconciliationFrozenAt == nil else {
+      state = .frozen
+      return
+    }
     let tripCalendar = Calendar.current
     guard let scope = scope(for: trip, calendar: tripCalendar),
       let queryInterval = scope.queryInterval(in: Self.storageTimeZone)
@@ -228,6 +235,10 @@ final class CalendarReconciliationModel {
       localState: localState,
       observedAt: now,
       makeHistoryID: { uuid() })
+    let previousDayNumbers = Dictionary(
+      uniqueKeysWithValues: plan.entries.compactMap { entry in
+        entry.dayNumber.map { (entry.id, $0) }
+      })
     let constraintPlan = CalendarReconciliation.constraintPlan(
       candidates: candidates,
       tripID: trip.id,
@@ -241,12 +252,27 @@ final class CalendarReconciliationModel {
         temporalContext: temporalContext,
         regionTimeZone: regionTimeZone),
       regionTimeZone: regionTimeZone)
-    try await persist(automaticPlan, constraintPlan: constraintPlan, tripID: trip.id)
+    let newHistory = constraintPlan.localState.history.dropFirst(localState.history.count)
+    let repairs = CalendarReconciliation.planRepairs(
+      applications: automaticPlan.applications,
+      previousDayNumbers: previousDayNumbers,
+      history: Array(newHistory), tripID: trip.id)
+    try await persist(
+      automaticPlan, constraintPlan: constraintPlan, repairs: repairs,
+      tripID: trip.id)
+    var tripCalendar = Calendar(identifier: .gregorian)
+    tripCalendar.timeZone = Self.storageTimeZone
+    if trip.isPast(at: now, calendar: tripCalendar) {
+      try await database.write { db in
+        try Trip.completeCalendarReconciliation(tripID: trip.id, frozenAt: now, in: db)
+      }
+    }
   }
 
   private func persist(
     _ plan: CalendarReconciliationAutomaticPlan,
     constraintPlan: CalendarConstraintAutomaticPlan,
+    repairs: [CalendarPlanRepair],
     tripID: Trip.ID
   ) async throws {
     let newHistory = constraintPlan.localState.history.dropFirst(localState.history.count)
@@ -257,6 +283,7 @@ final class CalendarReconciliationModel {
       || !ledgerEntries.isEmpty
       || !constraintPlan.upserts.isEmpty
       || !constraintPlan.deletions.isEmpty
+      || !repairs.isEmpty
     {
       try await database.write { db in
         for application in plan.applications {
@@ -275,6 +302,9 @@ final class CalendarReconciliationModel {
         for id in constraintPlan.deletions {
           try CalendarTripConstraint.remove(id: id, in: db)
         }
+        for repair in repairs {
+          try CalendarPlanRepair.record(repair, in: db)
+        }
       }
     }
     if constraintPlan.localState != localState {
@@ -283,111 +313,20 @@ final class CalendarReconciliationModel {
     }
   }
 
+  func resolvePlanRepair(_ repair: CalendarPlanRepair) {
+    guard !repair.isResolved else { return }
+    withErrorReporting {
+      try database.write { db in
+        try CalendarPlanRepair.resolve(id: repair.id, at: now, in: db)
+      }
+    }
+  }
+
   /// A missing device-local EventKit identifier is necessary but insufficient
   /// deletion evidence because sync may replace that identifier. A healthy
   /// full-access read therefore corroborates absence through the event's server
   /// identity before a Calendar-originated constraint is removed. A missing
   /// recurring occurrence stays unknown while its series remains visible.
-  private func deletedConstraintEventIDs(
-    observedEvents: [CalendarObservedEvent],
-    selectedCalendarID: String
-  ) -> Set<String> {
-    Set(localState.linkedConstraints.compactMap { binding in
-      guard binding.calendarID == selectedCalendarID,
-        !observedEvents.contains(where: binding.matches),
-        calendarClient.event(binding.eventID) == nil
-      else { return nil }
-
-      let serverMatches = calendarClient.eventsWithExternalIdentifier(
-        binding.sourceExternalIdentifier)
-      guard !serverMatches.contains(where: binding.matches) else { return nil }
-      guard !calendarClient.hasCalendarItemsWithExternalIdentifier(
-        binding.sourceExternalIdentifier) else { return nil }
-      return binding.eventID
-    })
-  }
-
-  /// A Calendar-originated constraint whose event is confirmed present but now
-  /// projects outside the trip window is no longer a current trip constraint: its
-  /// shared row is dropped while the device-local binding is retained, so a move
-  /// back into the trip recreates the same deterministic constraint. This is
-  /// distinct from deletion (§6, the check above) and from mere non-observation
-  /// (§10): only a healthy full-access read that resolves the event and projects it
-  /// outside the trip triggers it. Unmatched constraints were projected in the
-  /// trip's region zone, so that is the frame used here.
-  private func movedOutsideConstraintEventIDs(
-    selectedCalendarID: String,
-    temporalContext: CalendarTripTemporalContext,
-    regionTimeZone: TimeZone?
-  ) -> Set<String> {
-    Set(localState.linkedConstraints.compactMap { binding in
-      guard binding.calendarID == selectedCalendarID,
-        let event = calendarClient.event(binding.eventID),
-        temporalContext.project(
-          event.temporal, absoluteTimeZone: regionTimeZone) == .outsideTrip
-      else { return nil }
-      return binding.eventID
-    })
-  }
-
-  private func ingest(
-    _ events: [CalendarObservedEvent],
-    regionTimeZone: TimeZone?
-  ) async throws -> [CalendarIngestedEvent] {
-    var ingested: [CalendarIngestedEvent] = []
-    for event in events {
-      try Task.checkCancellation()
-      let match = await placeMatcher.match(
-        calendarEventTitle: event.title,
-        latitude: event.latitude,
-        longitude: event.longitude,
-        location: event.location
-      )
-      let matchedPlace = match.map {
-        CalendarMatchedPlace(name: $0.name ?? event.title, mapItemIdentifier: $0.mapItemIdentifier)
-      }
-      // The trip's destination (region) zone is the projection frame for every
-      // event's trip day — ADR-0034's actual intent: place an absolute instant on
-      // the *destination's* civil day. A matched venue's own zone is only a fallback
-      // for a region-less trip; it must not override the destination, or a wrong
-      // worldwide name-match could push a just-after-midnight event onto the prior
-      // day and silently drop it. Only when neither resolves does the event stay
-      // `.unresolvedTimeZone` — still visible in the sheet, never dropped.
-      let itineraryTimeZone = regionTimeZone
-        ?? match?.timeZoneIdentifier.flatMap(TimeZone.init(identifier:))
-      ingested.append(CalendarIngestedEvent(
-        event: event,
-        matchedPlace: matchedPlace,
-        itineraryTimeZone: itineraryTimeZone))
-    }
-    return ingested
-  }
-
-  /// A principled destination zone for the whole trip, derived from its planning
-  /// region(s) by reverse-geocoding their bounding-box center. Used only as the
-  /// fallback when a matched place resolved no zone; never the device or event
-  /// zone (ADR-0034). Nil when the trip has no region or the lookup fails, which
-  /// keeps a genuinely unplaceable absolute event visibly unresolved.
-  private func regionTimeZone(for trip: Trip) async -> TimeZone? {
-    let regions = (try? await database.read { db -> [MapRegion] in
-      let ids = try TripRegion.regionIDs(forTrip: trip.id, in: db)
-      return try MapRegion.where { $0.id.in(ids) }.fetchAll(db)
-    }) ?? []
-    guard let box = MapRegion.boundingBox(of: regions) else { return nil }
-    return await placeMatcher.timeZone(
-      latitude: box.centerLatitude, longitude: box.centerLongitude)
-  }
-
-  /// Full first and last civil days. EventKit querying is padded separately so
-  /// this remains the pure semantic boundary for zoned, floating, and all-day time.
-  private func scope(for trip: Trip, calendar: Calendar) -> CalendarTripScope? {
-    guard let startDate = trip.startDate else { return nil }
-    return CalendarTripScope(
-      start: CalendarCivilDate(startDate, calendar: calendar),
-      dayCount: trip.lengthInDays)
-  }
-
-  private static let storageTimeZone = TimeZone(secondsFromGMT: 0)!
 }
 
 struct CalendarReconciliationSheet: View {
@@ -437,7 +376,7 @@ struct CalendarReconciliationSheet: View {
           }
         case let .failure(message):
           Section("Calendar Read Failed") { Text(message) }
-        case .loaded:
+        case .loaded, .frozen:
           candidateSections
         }
       }
@@ -478,7 +417,11 @@ struct CalendarReconciliationSheet: View {
       if case .unmatched = $0.result { true } else { false }
     }
 
-    if model.candidates.isEmpty {
+    if model.state == .frozen {
+      Section("Calendar Reconciliation Frozen") {
+        Text("This trip is complete. Its final Calendar state is preserved as history and later Calendar cleanup will not change it.")
+      }
+    } else if model.candidates.isEmpty {
       ContentUnavailableView("No events in this trip's dates", systemImage: "calendar")
     } else {
       if !automatic.isEmpty {
@@ -522,6 +465,14 @@ struct CalendarReconciliationSheet: View {
       Section("Calendar History") {
         ForEach(history.reversed()) { entry in
           historyRow(entry)
+        }
+      }
+    }
+    let repairs = model.planRepairs.filter { $0.tripID == trip.id }
+    if !repairs.isEmpty {
+      Section("Plan Repair") {
+        ForEach(repairs) { repair in
+          planRepairRow(repair)
         }
       }
     }

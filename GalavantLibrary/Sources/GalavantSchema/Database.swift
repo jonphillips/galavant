@@ -633,6 +633,34 @@ extension DependencyValues {
       )
       .execute(db)
     }
+    migrator.registerMigration("Add Calendar plan repairs and trip freeze (ADR-0034)") { db in
+      // A repair is a shared human decision, derived from a deterministic Calendar
+      // revision. It rides its trip through one real FK; the stop id is deliberately
+      // loose so the history survives an itinerary edit. The freeze is an additive
+      // trip timestamp so both planners share the same historical cutoff.
+      try #sql(#"ALTER TABLE "trips" ADD COLUMN "calendarReconciliationFrozenAt" TEXT"#).execute(db)
+      try #sql(
+        """
+        CREATE TABLE "calendarPlanRepairs" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE,
+          "tripID" TEXT NOT NULL REFERENCES "trips"("id") ON DELETE CASCADE,
+          "sourceFingerprint" TEXT NOT NULL,
+          "stopID" TEXT NOT NULL,
+          "title" TEXT NOT NULL DEFAULT '',
+          "kind" TEXT NOT NULL,
+          "commitmentSnapshot" TEXT NOT NULL,
+          "isResolved" INTEGER NOT NULL DEFAULT 0,
+          "resolvedAt" TEXT
+        ) STRICT
+        """
+      ).execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_calendarPlanRepairs_on_tripID"
+        ON "calendarPlanRepairs"("tripID")
+        """
+      ).execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if case let .configured(startImmediately) = syncMode {

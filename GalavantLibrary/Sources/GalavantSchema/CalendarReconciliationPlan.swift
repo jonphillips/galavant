@@ -3,17 +3,23 @@ public struct CalendarReconciliationApplication: Equatable, Sendable {
   public var commitment: CalendarCommitment
   public var dayNumber: DayNumber
   public var kind: CalendarReconciliationHistoryEntry.Kind
+  public var sourceFingerprint: String?
+  public var eventTitle: String
 
   public init(
     stopID: TripIdea.ID,
     commitment: CalendarCommitment,
     dayNumber: DayNumber,
-    kind: CalendarReconciliationHistoryEntry.Kind
+    kind: CalendarReconciliationHistoryEntry.Kind,
+    sourceFingerprint: String? = nil,
+    eventTitle: String = ""
   ) {
     self.stopID = stopID
     self.commitment = commitment
     self.dayNumber = dayNumber
     self.kind = kind
+    self.sourceFingerprint = sourceFingerprint
+    self.eventTitle = eventTitle
   }
 }
 
