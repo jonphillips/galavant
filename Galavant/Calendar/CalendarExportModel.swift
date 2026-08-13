@@ -143,6 +143,7 @@ final class CalendarReconciliationModel {
   @ObservationIgnored @Dependency(\.uuid) private var uuid
   @ObservationIgnored @FetchAll(CalendarReconciliationLedgerEntry.all) private var allLedgerEntries
   @ObservationIgnored @FetchAll(CalendarPlanRepair.all) private var allPlanRepairs
+  @ObservationIgnored @FetchAll(CalendarPlanRepairResolution.all) private var allPlanRepairResolutions
 
   var state: State = .idle
   var candidates: [CalendarReconciliationCandidate] = []
@@ -151,7 +152,19 @@ final class CalendarReconciliationModel {
   var selectedCalendarID: String? { calendarSelectionStore.calendarID() }
 
   var sharedHistory: [CalendarReconciliationLedgerEntry] { allLedgerEntries }
-  var planRepairs: [CalendarPlanRepair] { allPlanRepairs }
+  var planRepairs: [CalendarPlanRepair] {
+    let resolutions = allPlanRepairResolutions.reduce(into: [CalendarPlanRepair.ID: CalendarPlanRepairResolution]()) {
+      partial, resolution in
+      guard let current = partial[resolution.repairID] else {
+        partial[resolution.repairID] = resolution
+        return
+      }
+      if resolution.resolvedAt < current.resolvedAt {
+        partial[resolution.repairID] = resolution
+      }
+    }
+    return allPlanRepairs.map { $0.resolved(by: resolutions[$0.id]) }
+  }
 
   func refresh(trip: Trip, plan: TripPlan) async {
     guard state != .loading else { return }
@@ -159,7 +172,9 @@ final class CalendarReconciliationModel {
       state = .frozen
       return
     }
-    let tripCalendar = Calendar.current
+    let regionTimeZone = await regionTimeZone(for: trip)
+    var tripCalendar = Calendar(identifier: .gregorian)
+    tripCalendar.timeZone = regionTimeZone ?? Self.storageTimeZone
     guard let scope = scope(for: trip, calendar: tripCalendar),
       let queryInterval = scope.queryInterval(in: Self.storageTimeZone)
     else {
@@ -185,7 +200,9 @@ final class CalendarReconciliationModel {
         plan: plan,
         scope: scope,
         queryInterval: queryInterval,
-        selectedCalendarID: selectedCalendarID)
+        selectedCalendarID: selectedCalendarID,
+        regionTimeZone: regionTimeZone,
+        tripCalendar: tripCalendar)
       state = .loaded
     } catch is CancellationError {
       // Sheet dismissal is normal view-lifecycle cancellation.
@@ -203,7 +220,9 @@ final class CalendarReconciliationModel {
     plan: TripPlan,
     scope: CalendarTripScope,
     queryInterval: DateInterval,
-    selectedCalendarID: String
+    selectedCalendarID: String,
+    regionTimeZone: TimeZone?,
+    tripCalendar: Calendar
   ) async throws {
     localState = historyStore.state(trip.id)
     // Query two padded days on either side, then let the pure civil/absolute
@@ -213,7 +232,6 @@ final class CalendarReconciliationModel {
       scope.overlaps($0.temporal, absoluteTimeZone: nil) != false
     }
     let temporalContext = CalendarTripTemporalContext(scope: scope)
-    let regionTimeZone = await regionTimeZone(for: trip)
     let ingestedEvents = try await ingest(events, regionTimeZone: regionTimeZone)
     candidates = CalendarReconciliation.candidates(
       for: ingestedEvents,
@@ -252,16 +270,13 @@ final class CalendarReconciliationModel {
         temporalContext: temporalContext,
         regionTimeZone: regionTimeZone),
       regionTimeZone: regionTimeZone)
-    let newHistory = constraintPlan.localState.history.dropFirst(localState.history.count)
     let repairs = CalendarReconciliation.planRepairs(
       applications: automaticPlan.applications,
       previousDayNumbers: previousDayNumbers,
-      history: Array(newHistory), tripID: trip.id)
+      history: constraintPlan.localState.history, tripID: trip.id)
     try await persist(
       automaticPlan, constraintPlan: constraintPlan, repairs: repairs,
       tripID: trip.id)
-    var tripCalendar = Calendar(identifier: .gregorian)
-    tripCalendar.timeZone = Self.storageTimeZone
     if trip.isPast(at: now, calendar: tripCalendar) {
       let frozenAt = now
       try await database.write { db in

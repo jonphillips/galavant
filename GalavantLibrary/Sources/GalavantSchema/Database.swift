@@ -661,6 +661,27 @@ extension DependencyValues {
         """
       ).execute(db)
     }
+    migrator.registerMigration("Add monotonic Calendar plan repair resolutions") { db in
+      // Resolution is an immutable fact rather than a mutable repair flag. It
+      // rides the trip through its one real FK; `repairID` is loose so one stale
+      // repair write cannot erase another device's resolution during sync lag.
+      try #sql(
+        """
+        CREATE TABLE "calendarPlanRepairResolutions" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE,
+          "tripID" TEXT NOT NULL REFERENCES "trips"("id") ON DELETE CASCADE,
+          "repairID" TEXT NOT NULL,
+          "resolvedAt" TEXT NOT NULL
+        ) STRICT
+        """
+      ).execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_calendarPlanRepairResolutions_on_tripID"
+        ON "calendarPlanRepairResolutions"("tripID")
+        """
+      ).execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if case let .configured(startImmediately) = syncMode {

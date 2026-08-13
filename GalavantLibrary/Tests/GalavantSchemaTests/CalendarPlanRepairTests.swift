@@ -41,7 +41,7 @@ struct CalendarPlanRepairTests {
     #expect(repairs.isEmpty)
   }
 
-  @Test func movedOutsideLinkedStopBecomesSharedRepair() {
+  @Test func retainedMovedOutsideHistoryBackfillsSharedRepair() {
     let stopID = UUID()
     let history = CalendarReconciliationHistoryEntry(
       id: UUID(), kind: .movedOutsideTrip, stopID: stopID, eventID: "device-local",
@@ -69,8 +69,32 @@ struct CalendarPlanRepairTests {
     }
     let saved = try await database.read { db in try CalendarPlanRepair.find(repair.id).fetchOne(db) }
 
-    #expect(saved?.isResolved == true)
-    #expect(saved?.resolvedAt == .distantFuture)
+    let resolution = try await database.read { db in
+      try CalendarPlanRepairResolution.find(repair.id).fetchOne(db)
+    }
+
+    #expect(saved?.isResolved == false)
+    #expect(resolution?.resolvedAt == .distantFuture)
+    #expect(saved?.resolved(by: resolution).isResolved == true)
+  }
+
+  @Test func resolutionStaysEffectiveWhenAStaleUnresolvedRepairArrives() async throws {
+    let tripID = try await database.write { db in try Trip.create(name: "Rome", in: db).id }
+    let repair = try #require(CalendarPlanRepair(
+      tripID: tripID, sourceFingerprint: "calendar-revision", stopID: UUID(),
+      title: "Museum", kind: .movedDay,
+      commitment: .timed(start: .distantFuture, end: .distantFuture.addingTimeInterval(60 * 60))))
+
+    let resolved = try await database.write { db -> CalendarPlanRepair in
+      try CalendarPlanRepair.record(repair, in: db)
+      try CalendarPlanRepair.resolve(id: repair.id, at: .distantFuture, in: db)
+      let staleRepair = try #require(try CalendarPlanRepair.find(repair.id).fetchOne(db))
+      let resolution = try CalendarPlanRepairResolution.find(repair.id).fetchOne(db)
+      return staleRepair.resolved(by: resolution)
+    }
+
+    #expect(resolved.isResolved)
+    #expect(resolved.resolvedAt == .distantFuture)
   }
 
   @Test func anchorAssessmentSuggestsOneStartOrSurfacesTheDisagreement() {
@@ -103,6 +127,22 @@ struct CalendarPlanRepairTests {
 
     #expect(!trip.isPast(at: finalDay, calendar: calendar))
     #expect(trip.isPast(at: firstMomentAfter, calendar: calendar))
+  }
+
+  @Test func tripPastBoundaryUsesTheTripRegionAcrossDaylightSavingTime() throws {
+    let newYork = try #require(TimeZone(identifier: "America/New_York"))
+    var regionCalendar = Calendar(identifier: .gregorian)
+    regionCalendar.timeZone = newYork
+    var utcCalendar = Calendar(identifier: .gregorian)
+    utcCalendar.timeZone = TimeZone(secondsFromGMT: 0)!
+    let start = try #require(regionCalendar.date(from: DateComponents(
+      year: 2026, month: 11, day: 1)))
+    let beforeRegionalBoundary = try #require(utcCalendar.date(from: DateComponents(
+      year: 2026, month: 11, day: 2, hour: 4, minute: 30)))
+    let trip = Trip(id: UUID(), name: "New York", startDate: start, lengthInDays: 1)
+
+    #expect(!trip.isPast(at: beforeRegionalBoundary, calendar: regionCalendar))
+    #expect(trip.isPast(at: beforeRegionalBoundary, calendar: utcCalendar))
   }
 
   @Test func finalReconciliationFreezesOnceWithoutTouchingStops() async throws {
