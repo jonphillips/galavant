@@ -73,6 +73,8 @@ targets:
         product: GalavantPlaces
       - package: GalavantLibrary
         product: GalavantChat
+      - package: GalavantLibrary
+        product: GalavantAI
       - package: LLMClientKit
         product: LLMClientKit
       - package: CloudSyncKit

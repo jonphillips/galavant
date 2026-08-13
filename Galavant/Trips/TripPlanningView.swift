@@ -63,15 +63,31 @@ struct TripPlanningView: View {
       isPresented: $showingCalendarReconciliation
     ) {
       TripPlanningPresentationHost(model: model, showingStartDay: $showingStartDay) {
-        layout
-      // Inspector nested *below* the toolbar host: an `.inspector` applied outside a
-      // toolbar-bearing view swallows its `.toolbar` on iPad (docs/KNOWN-ISSUES.md).
-      .chatPanel(isPresented: $showingChat, context: .trip(model.plan))
+        VStack(spacing: 0) {
+          // The chat inspector attaches *inside* this container, as a child of the
+          // toolbar host — not as a sibling modifier on `layout`. An `.inspector`
+          // resolved at the same view as `.toolbar` drops all but one trailing item on
+          // iPad (Recommend silently vanished next to Discuss); nesting it strictly
+          // below the toolbar host, as IdeasScreen does, keeps every item.
+          // (docs/KNOWN-ISSUES.md)
+          layout
+            .chatPanel(isPresented: $showingChat, context: .trip(model.plan))
+        }
       .navigationTitle(model.trip?.name ?? "Trip")
       .navigationBarTitleDisplayMode(.inline)
+      // One ToolbarItemGroup, not two ToolbarItems: buried under the presentation
+      // hosts' `.sheet` wrappers, the chat `.inspector` merges the trip's toolbar and
+      // keeps only a single *item* — a second `ToolbarItem` (Recommend) silently
+      // vanished. A group is one contribution carrying both buttons, so both survive.
+      // (docs/KNOWN-ISSUES.md)
       .toolbar {
-        // Discuss this trip's itinerary with the model (ADR-0017).
-        ToolbarItem {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+          Button {
+            model.startRecommendationHandoff()
+          } label: {
+            Icon.recommend.label("Recommend")
+          }
+          // Discuss this trip's itinerary with the model (ADR-0017).
           Button {
             showingChat = true
           } label: {
@@ -235,6 +251,9 @@ private struct TripPlanningPresentationHost<Content: View>: View {
       }
       .sheet(item: $model.destination.booking, id: \.id) { draft in
         BookingSheet(model: model, draft: draft)
+      }
+      .sheet(item: $model.destination.recommendationHandoff, id: \.id) { presentation in
+        RecommendationHandoffSheet(model: model, session: presentation.session)
       }
       .sheet(isPresented: $showingStartDay) {
         StartDayPanel(model: model)

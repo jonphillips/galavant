@@ -1,0 +1,15 @@
+Here is the return you asked for.
+GV-CONTRACT: v1
+[
+  {
+    "name": "Lumiere Brasserie",
+    "locality": "Bolzano",
+    "search_hint": "Lumiere Brasserie Bolzano",
+    "why": "A relaxed dinner after the museum.",
+    "fit": "It keeps the evening walkable from the old town.",
+    "priority": 4,
+    "day_ref": "3",
+    "placement_after": "Forestis"
+  }
+]
+Thanks!
