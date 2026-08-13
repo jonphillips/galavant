@@ -54,6 +54,10 @@ public struct LocationMatch: Equatable, Sendable {
 public struct PlaceMatcher: Sendable {
   var geocode: @Sendable (_ address: String) async -> Place?
   var search: @Sendable (_ query: String) async -> [Place]
+  /// The existing region-required Maps search used when a reviewed recommendation
+  /// needs human confirmation. It stays separate from the capture ladder's
+  /// worldwide fallback because resolution must show choices, never auto-select one.
+  var recommendationSearch: @Sendable (_ query: String, _ regions: [MapRegion]) async -> [Place]
   /// Region-biased POI lookup around an already-resolved coordinate — the
   /// enrichment ("supplementer") boundary. Returns Apple Maps records near the
   /// point so we can merge the canonical kind/phone/link onto a match the page
@@ -68,6 +72,9 @@ public struct PlaceMatcher: Sendable {
   public init(
     geocode: @escaping @Sendable (_ address: String) async -> Place?,
     search: @escaping @Sendable (_ query: String) async -> [Place],
+    recommendationSearch: @escaping @Sendable (_ query: String, _ regions: [MapRegion]) async -> [Place] = {
+      _, _ in []
+    },
     lookupNear: @escaping @Sendable (_ query: String, _ coordinate: ParsedCoordinate) async -> [Place] = {
       _, _ in []
     },
@@ -77,6 +84,7 @@ public struct PlaceMatcher: Sendable {
   ) {
     self.geocode = geocode
     self.search = search
+    self.recommendationSearch = recommendationSearch
     self.lookupNear = lookupNear
     self.timeZoneLookup = timeZone
   }
@@ -85,6 +93,21 @@ public struct PlaceMatcher: Sendable {
   /// resolved. Public entry point over the injected `timeZone` boundary.
   public func timeZone(latitude: Double, longitude: Double) async -> TimeZone? {
     await timeZoneLookup(latitude, longitude)
+  }
+
+  /// Search a candidate's author-provided Apple-Maps hint in the trip's regions.
+  /// The result remains a list for human confirmation; no candidate becomes a place
+  /// until `RecommendationResolution.confirm` receives a picked result.
+  public func matches(
+    for candidate: TripCandidate,
+    in regions: [MapRegion]
+  ) async -> [Place] {
+    guard let query = PlaceMatching.recommendationQuery(
+      searchHint: candidate.searchHint,
+      locality: candidate.locality,
+      fallbackName: candidate.name
+    ) else { return [] }
+    return await recommendationSearch(query, regions)
   }
 
   /// Resolve `page` to a location, or `nil` if no signal pans out (the caller
@@ -250,6 +273,10 @@ extension PlaceMatcher: DependencyKey {
     search: { query in
       // Reuse the tuned worldwide natural-language search from PlaceSearchClient.
       (try? await PlaceSearchClient.liveValue.search(query, .worldwide)) ?? []
+    },
+    recommendationSearch: { query, regions in
+      let scope: PlaceSearchScope = regions.isEmpty ? .worldwide : .regions(regions)
+      return (try? await PlaceSearchClient.liveValue.search(query, scope)) ?? []
     },
     lookupNear: { query, coordinate in
       // The enrichment pass: a tight, region-biased POI search around the point we

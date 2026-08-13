@@ -75,6 +75,7 @@ let package = Package(
       dependencies: [
         "GalavantSchema",
         "GalavantAI",
+        "GalavantPlaces",
         .product(name: "CustomDump", package: "swift-custom-dump"),
         .product(name: "DependenciesTestSupport", package: "swift-dependencies"),
         .product(name: "GRDB", package: "GRDB.swift"),

@@ -391,15 +391,28 @@ public final class CaptureModel {
     let stamp = (!evaluations.isEmpty || openingHoursString != nil) ? now.now : Date.distantPast
     try await database.write { db in
       let party = try TravelParty.ensureDefault(in: db)
-      let resolved = try Self.resolveIdea(
-        in: db, id: id, name: name, description: description, notes: notes, kind: kind,
-        regionName: regionName,
-        address: address, phone: phone, latitude: latitude, longitude: longitude,
-        url: url, mapItemIdentifier: mapItemIdentifier, travelPartyID: party.id,
-        openingHours: openingHoursString, hoursProvenance: openingHoursString != nil ? .official : nil,
-        hoursVerifiedAt: openingHoursString != nil ? stamp : nil
+      let resolved = try Idea.resolveCapture(
+        IdeaCapture(
+          id: id,
+          name: name,
+          description: description,
+          notes: notes,
+          kind: kind,
+          regionName: regionName,
+          address: address,
+          phone: phone,
+          latitude: latitude,
+          longitude: longitude,
+          url: url,
+          mapItemIdentifier: mapItemIdentifier,
+          openingHours: openingHoursString,
+          hoursProvenance: openingHoursString != nil ? .official : nil,
+          hoursVerifiedAt: openingHoursString != nil ? stamp : nil
+        ),
+        travelPartyID: party.id,
+        in: db
       )
-      guard let targetID = resolved.id else { return }
+      let targetID = resolved.ideaID
 
       // Pull onto the chosen trip (idempotent) so the capture lands as a
       // "considering" entry, not just in the eternal pool.
@@ -430,73 +443,6 @@ public final class CaptureModel {
     }
   }
 
-  /// Insert the captured idea, or — when its Apple Maps identity is already in the
-  /// pool — supplement that existing idea instead of duplicating it (ADR-0019).
-  /// Returns the idea to attach siblings to and whether it was freshly inserted (so
-  /// the caller only forces a header image on a brand-new idea). Only a Maps identity
-  /// dedups — a geocoded/scraped location (nil id) never auto-merges, so a
-  /// name/coordinate guess can't trigger a false merge.
-  private nonisolated static func resolveIdea(
-    in db: Database,
-    id: Idea.ID?,
-    name: String,
-    description: String,
-    notes: String,
-    kind: IdeaKind?,
-    regionName: String?,
-    address: String?,
-    phone: String?,
-    latitude: Double?,
-    longitude: Double?,
-    url: String,
-    mapItemIdentifier: String?,
-    travelPartyID: TravelParty.ID,
-    openingHours: String?,
-    hoursProvenance: FactProvenance?,
-    hoursVerifiedAt: Date?
-  ) throws -> (id: Idea.ID?, isNew: Bool) {
-    let existing: Idea? = mapItemIdentifier.flatMap { mid in
-      try? Idea.where { $0.mapItemIdentifier.eq(mid) }.fetchOne(db)
-    }
-    if let existing {
-      let merged = existing.supplemented(
-        name: name, description: description, notes: notes, kind: kind,
-        regionName: regionName, address: address,
-        phone: phone, latitude: latitude, longitude: longitude, url: url,
-        mapItemIdentifier: mapItemIdentifier, openingHours: openingHours,
-        hoursProvenance: hoursProvenance, hoursVerifiedAt: hoursVerifiedAt
-      )
-      // Full-record upsert: `merged` carries every existing column, so this updates
-      // the supplemented facts (description fill-blanks, notes appended) without
-      // dropping visited/hours/etc.
-      try Idea.upsert { Idea.Draft(merged) }.execute(db)
-      return (existing.id, false)
-    }
-    try Idea.insert {
-      Idea.Draft(
-        Idea(
-          id: id ?? UUID(),
-          name: name,
-          description: description,
-          notes: notes,
-          kind: kind,
-          regionName: regionName,
-          address: address,
-          phone: phone,
-          latitude: latitude,
-          longitude: longitude,
-          url: url,
-          openingHours: openingHours,
-          hoursProvenance: hoursProvenance,
-          hoursVerifiedAt: hoursVerifiedAt,
-          mapItemIdentifier: mapItemIdentifier,
-          travelPartyID: travelPartyID
-        )
-      )
-    }
-    .execute(db)
-    return (id, true)
-  }
 }
 
 #if DEBUG

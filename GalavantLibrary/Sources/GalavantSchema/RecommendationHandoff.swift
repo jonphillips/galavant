@@ -277,6 +277,23 @@ extension TripIdea {
     guard let committed = try TripIdea.find(id).fetchOne(db) else { throw TripError.creationFailed }
     return committed
   }
+
+  /// Link one reviewed recommendation candidate to its confirmed pool place. This is
+  /// intentionally a one-column write: `inlineNote` is the AI's trip-specific
+  /// rationale and must survive resolution beside the shared place facts (ADR-0036
+  /// D3 / ADR-0037 D4).
+  @discardableResult
+  public static func attachResolvedIdea(
+    _ ideaID: Idea.ID,
+    to candidateStopID: TripIdea.ID,
+    in db: Database
+  ) throws -> TripIdea? {
+    guard try TripIdea.find(candidateStopID).fetchOne(db) != nil else { return nil }
+    try TripIdea.find(candidateStopID)
+      .update { $0.ideaID = #bind(ideaID) }
+      .execute(db)
+    return try TripIdea.find(candidateStopID).fetchOne(db)
+  }
 }
 
 private extension String {

@@ -55,6 +55,25 @@ public enum PlaceMatching {
     .joined(separator: " ")
   }
 
+  /// The pre-filled query for a reviewed recommendation. `search_hint` is the
+  /// model's requested Maps phrasing; locality is appended as the disambiguator,
+  /// with the candidate name as a graceful fallback for partial returns.
+  public static func recommendationQuery(
+    searchHint: String?,
+    locality: String?,
+    fallbackName: String?
+  ) -> String? {
+    let hint = searchHint?.trimmingCharacters(in: .whitespacesAndNewlines)
+    let fallback = fallbackName?.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard let base = [hint, fallback].compactMap({ $0?.isEmpty == false ? $0 : nil }).first else {
+      return nil
+    }
+    guard let locality = locality?.trimmingCharacters(in: .whitespacesAndNewlines), !locality.isEmpty,
+      base.range(of: locality, options: .caseInsensitive) == nil
+    else { return base }
+    return "\(base) \(locality)"
+  }
+
   // MARK: Scoring (V1's common-substring overlap)
 
   /// Score a candidate against the scraped place by counting word overlap in the

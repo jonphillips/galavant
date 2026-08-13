@@ -1,5 +1,6 @@
 import Foundation
 import GalavantCapture
+import GalavantSchema
 import Testing
 
 @testable import GalavantPlaces
@@ -33,6 +34,34 @@ import Testing
     )
 
     #expect(match?.coordinate == ParsedCoordinate(latitude: 38.4043, longitude: -122.3630))
+  }
+
+  @Test("Recommendation search uses the model hint plus locality inside trip regions")
+  func recommendationSearchIsRegionBiased() async {
+    let region = MapRegion(
+      id: UUID(), name: "South Tyrol", centerLatitude: 46.6, centerLongitude: 11.7,
+      latitudeDelta: 0.8, longitudeDelta: 0.8
+    )
+    let result = self.place("Neustift Abbey", 46.734, 11.662, mapItemIdentifier: "maps:neustift")
+    let matcher = PlaceMatcher(
+      geocode: { _ in nil },
+      search: { _ in [] },
+      recommendationSearch: { query, regions in
+        query == "Neustift Abbey Brixen" && regions == [region] ? [result] : []
+      }
+    )
+    let candidate = TripCandidate(
+      name: "Neustift Abbey",
+      locality: "Brixen",
+      searchHint: "Neustift Abbey"
+    )
+
+    #expect(PlaceMatching.recommendationQuery(
+      searchHint: candidate.searchHint,
+      locality: candidate.locality,
+      fallbackName: candidate.name
+    ) == "Neustift Abbey Brixen")
+    #expect(await matcher.matches(for: candidate, in: [region]) == [result])
   }
 
   @Test("Calendar event resolves its venue from the location, not a non-venue title")
