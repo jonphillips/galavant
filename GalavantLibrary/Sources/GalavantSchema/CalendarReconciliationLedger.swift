@@ -179,6 +179,16 @@ enum CalendarReconciliationFingerprint {
       "calendar-constraint-v1|\(tripID.uuidString)|\(sourceIdentityHash)"))
   }
 
+  static func planRepairID(
+    tripID: Trip.ID,
+    sourceFingerprint: String,
+    stopID: TripIdea.ID,
+    kind: CalendarPlanRepairKind
+  ) -> UUID {
+    uuid(from: digest(
+      "calendar-plan-repair-v1|\(tripID.uuidString)|\(sourceFingerprint)|\(stopID.uuidString)|\(kind.rawValue)"))
+  }
+
   static func uuid(from fingerprint: String) -> UUID {
     let hex = String(fingerprint.prefix(32))
     let uuidString = "\(hex.prefix(8))-\(hex.dropFirst(8).prefix(4))-\(hex.dropFirst(12).prefix(4))-\(hex.dropFirst(16).prefix(4))-\(hex.dropFirst(20).prefix(12))"

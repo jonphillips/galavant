@@ -120,6 +120,7 @@ final class TripPlanningModel {
   @ObservationIgnored @FetchAll(TripDayRegion.all) var allTripDayRegions
   @ObservationIgnored @FetchAll(TripTravelModeOverride.all) var allTravelModeOverrides
   @ObservationIgnored @FetchAll(CalendarTripConstraint.all) var allCalendarConstraints
+  @ObservationIgnored @FetchAll(CalendarPlanRepair.all) var allCalendarPlanRepairs
   @ObservationIgnored @FetchAll(MapRegion.order(by: \.name)) var regions
   @ObservationIgnored @FetchAll(Tag.order(by: \.name)) var tags
   @ObservationIgnored @FetchAll(IdeaTag.all) var ideaTags
@@ -216,6 +217,9 @@ final class TripPlanningModel {
   private var dayRegions: [TripDayRegion] { allTripDayRegions.filter { $0.tripID == tripID } }
   private var calendarConstraints: [CalendarTripConstraint] {
     allCalendarConstraints.filter { $0.tripID == tripID }
+  }
+  var calendarPlanRepairs: [CalendarPlanRepair] {
+    allCalendarPlanRepairs.filter { $0.tripID == tripID }
   }
   private var ideaByID: [Idea.ID: Idea] {
     Dictionary(ideas.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
@@ -614,4 +618,46 @@ final class TripPlanningModel {
 
   // Scheduling, stays, and per-day region actions live in
   // TripPlanningModel+Scheduling.swift.
+}
+
+// MARK: - Calendar-derived start anchors (ADR-0034 §8)
+
+extension TripPlanningModel {
+  /// Calendar-linked absolute commitments constrain the relative start date. The
+  /// EventKit binding supplies the destination zone used when it was observed;
+  /// an absolute event without that zone remains a reconciliation item rather
+  /// than falling back to this device's clock.
+  var startDayAnchors: [TripStartAnchor] {
+    calendarLocalState.linkedStops.compactMap { linked in
+      guard let entry = entries.first(where: { $0.id == linked.stopID }),
+        let dayNumber = entry.dayNumber,
+        let commitmentDate = civilDate(for: linked)
+      else { return nil }
+      let name = entry.ideaID.flatMap { ideaByID[$0]?.name }
+        ?? entry.inlineTitle
+        ?? linked.eventTitle
+        ?? "Linked calendar commitment"
+      return TripStartAnchor(
+        stopID: entry.id, stopName: name, dayNumber: dayNumber,
+        commitmentDate: commitmentDate)
+    }
+  }
+
+  var startDayAnchorAssessment: StartDayAnchorAssessment {
+    StartDaySolver.assess(anchors: startDayAnchors)
+  }
+
+  private func civilDate(for linked: CalendarLinkedStop) -> CalendarCivilDate? {
+    switch linked.commitment.temporal {
+    case let .absolute(start, _, _):
+      guard let timeZone = linked.itineraryTimeZone else { return nil }
+      var calendar = Calendar(identifier: .gregorian)
+      calendar.timeZone = timeZone
+      return CalendarCivilDate(start, calendar: calendar)
+    case let .floating(start, _):
+      return start.date
+    case let .allDay(start, _):
+      return start
+    }
+  }
 }

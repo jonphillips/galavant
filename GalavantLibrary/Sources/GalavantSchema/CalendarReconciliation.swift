@@ -378,7 +378,9 @@ public enum CalendarReconciliation {
       applications.append(
         CalendarReconciliationApplication(
           stopID: stop.id, commitment: commitment,
-          dayNumber: day, kind: .linked))
+          dayNumber: day, kind: .linked,
+          sourceFingerprint: CalendarReconciliationFingerprint.source(for: event),
+          eventTitle: event.title))
     }
 
     recordOutsideTripObservations(
@@ -426,7 +428,9 @@ public enum CalendarReconciliation {
     guard linked.commitment != commitment else { return nil }
     return CalendarReconciliationApplication(
       stopID: linked.stopID, commitment: commitment,
-      dayNumber: day, kind: .updated)
+      dayNumber: day, kind: .updated,
+      sourceFingerprint: CalendarReconciliationFingerprint.source(for: event),
+      eventTitle: event.title)
   }
 
   private static func automaticStopCounts(

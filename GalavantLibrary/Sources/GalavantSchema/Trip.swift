@@ -23,6 +23,11 @@ public struct Trip: Identifiable, Equatable, Hashable, Sendable {
   /// The trip-wide transport preference for itinerary directions. `nil` keeps
   /// the automatic walking/transit choice used by older trips.
   public var mainTransportMode: String?
+  /// The final successful Calendar reconciliation for a completed trip. Once
+  /// set, Calendar no longer has authority to rewrite this trip's history.
+  /// This is a synced trip fact so both planners stop ingesting at the same
+  /// historical boundary (ADR-0034 §12).
+  public var calendarReconciliationFrozenAt: Date?
   public var travelPartyID: TravelParty.ID?
 
   // MARK: Header image (ADR-0032, "romance")
@@ -52,6 +57,7 @@ public struct Trip: Identifiable, Equatable, Hashable, Sendable {
     startDate: Date? = nil,
     lengthInDays: Int = 7,
     mainTransportMode: TransportMode? = nil,
+    calendarReconciliationFrozenAt: Date? = nil,
     travelPartyID: TravelParty.ID? = nil,
     headerImageURL: String? = nil,
     headerImageColor: String? = nil,
@@ -68,6 +74,7 @@ public struct Trip: Identifiable, Equatable, Hashable, Sendable {
     self.startDate = startDate
     self.lengthInDays = lengthInDays
     self.mainTransportMode = mainTransportMode?.rawValue
+    self.calendarReconciliationFrozenAt = calendarReconciliationFrozenAt
     self.travelPartyID = travelPartyID
     self.headerImageURL = headerImageURL
     self.headerImageColor = headerImageColor

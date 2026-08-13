@@ -118,6 +118,8 @@ public enum GalavantCloudSync {
         Trip.self,
         TripIdea.self,
         CalendarReconciliationLedgerEntry.self,
+        CalendarPlanRepair.self,
+        CalendarPlanRepairResolution.self,
         CalendarTripConstraint.self,
         TripRegion.self,
         ImageAsset.self,

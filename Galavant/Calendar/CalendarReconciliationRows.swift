@@ -3,16 +3,19 @@ import GalavantSchema
 import SwiftUI
 
 extension CalendarReconciliationSheet {
-  func movedOutsideRow(_ linked: CalendarLinkedStop) -> some View {
-    VStack(alignment: .leading, spacing: 4) {
-      Text(linked.eventTitle ?? "Linked calendar event")
-      Text("Its calendar event moved outside the trip dates. The itinerary stop was kept unchanged.")
+  func planRepairRow(_ repair: CalendarPlanRepair) -> some View {
+    VStack(alignment: .leading, spacing: 5) {
+      Text(repair.title)
+      Text(repair.kind.detail)
         .font(.caption)
         .foregroundStyle(.secondary)
-      if let moved = linked.movedOutsideTripCommitment {
-        Text(temporalDescription(moved.temporal))
+      if repair.isResolved {
+        Label("Resolved", systemImage: "checkmark.circle.fill")
           .font(.caption)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(.green)
+      } else {
+        Button("Mark Repair Resolved") { model.resolvePlanRepair(repair) }
+          .font(.caption.weight(.semibold))
       }
     }
     .accessibilityElement(children: .combine)

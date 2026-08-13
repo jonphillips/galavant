@@ -61,31 +61,10 @@ extension CalendarReconciliation {
       }
       upserts.append(constraint)
 
-      // Supersede a stale binding for the *same* recurring slot under a different
-      // identity. Converting a series between all-day and timed (or changing its
-      // zone) re-keys the occurrence anchor, so the same commitment reappears with a
-      // new constraint id; the old row would otherwise orphan forever — its series
-      // still exists, so no per-event deletion evidence (§6) ever arrives. The server
-      // `externalIdentifier` is stable across such edits and `occurrenceDate` keeps
-      // the original scheduled day, so (series + trip day) names the slot regardless
-      // of time mode. A sub-daily series with two occurrences on one trip day is the
-      // one case this over-collapses; not a shape a household calendar produces.
-      if let context = candidate.temporalContext, let newDay = candidate.projection.dayNumber {
-        let absoluteTimeZone = candidate.projection.timeZone ?? regionTimeZone
-        state.linkedConstraints.removeAll { existing in
-          guard existing.constraintID != constraint.id,
-            existing.calendarID == calendarID,
-            existing.sourceExternalIdentifier == sourceExternalIdentifier,
-            let anchor = existing.occurrenceAnchor,
-            occurrenceDay(
-              anchor,
-              temporalContext: context,
-              absoluteTimeZone: absoluteTimeZone) == newDay
-          else { return false }
-          deletions.append(existing.constraintID)
-          return true
-        }
-      }
+      reapRekeyedConstraints(
+        in: &state, deletions: &deletions, keeping: constraint.id,
+        sourceExternalIdentifier: sourceExternalIdentifier, calendarID: calendarID,
+        candidate: candidate, regionTimeZone: regionTimeZone)
     }
 
     state.linkedConstraints.removeAll { binding in
@@ -108,12 +87,41 @@ extension CalendarReconciliation {
       deletions.append(binding.constraintID)
     }
 
-    var seenDeletionIDs: Set<CalendarTripConstraint.ID> = []
-    let uniqueDeletions = deletions.filter { seenDeletionIDs.insert($0).inserted }
     return CalendarConstraintAutomaticPlan(
       upserts: upserts,
-      deletions: uniqueDeletions,
+      deletions: unique(deletions),
       localState: state)
+  }
+
+  private static func unique(_ ids: [CalendarTripConstraint.ID]) -> [CalendarTripConstraint.ID] {
+    var seen: Set<CalendarTripConstraint.ID> = []
+    return ids.filter { seen.insert($0).inserted }
+  }
+
+  /// Supersede a stale binding for the same recurring slot after an edit re-keys
+  /// its temporal representation. The series identity plus original occurrence
+  /// day identifies the slot, preserving the binding's one-to-one constraint row.
+  private static func reapRekeyedConstraints(
+    in state: inout CalendarReconciliationLocalState,
+    deletions: inout [CalendarTripConstraint.ID],
+    keeping constraintID: CalendarTripConstraint.ID,
+    sourceExternalIdentifier: String,
+    calendarID: String,
+    candidate: CalendarReconciliationCandidate,
+    regionTimeZone: TimeZone?
+  ) {
+    guard let context = candidate.temporalContext, let newDay = candidate.projection.dayNumber else { return }
+    let absoluteTimeZone = candidate.projection.timeZone ?? regionTimeZone
+    state.linkedConstraints.removeAll { existing in
+      guard existing.constraintID != constraintID,
+        existing.calendarID == calendarID,
+        existing.sourceExternalIdentifier == sourceExternalIdentifier,
+        let anchor = existing.occurrenceAnchor,
+        occurrenceDay(anchor, temporalContext: context, absoluteTimeZone: absoluteTimeZone) == newDay
+      else { return false }
+      deletions.append(existing.constraintID)
+      return true
+    }
   }
 
   /// The trip day of a recurring occurrence's original scheduled slot, independent
