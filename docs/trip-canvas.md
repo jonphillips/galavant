@@ -12,6 +12,13 @@ trip interaction off maps). Rules:
 - **Day chips** select a lens: one day's stops as numbered pins connected in
   sequence (polyline), camera framed to that day's region. Whole-trip view =
   all days, color-coded.
+- **Alternative slots (ADR-0035):** a ring contributes exactly its effective
+  active member to these day projections, so the slot has one numbered pin and
+  the polyline runs `previous → active → next`. Expanding or selecting the
+  itinerary slot reveals inactive peers as muted, unnumbered pins; they are
+  annotation-only and never become polyline endpoints. Cycling changes the
+  effective active member and therefore redraws the real day route immediately
+  — there is no separate route preview.
 - **Detail surface** holds the day timeline + Ideas pool — two projections of
   the same selection as the map, never two separate screens. It diverges by
   platform (settled 2026-06-14, M3d): **iPhone** gets a persistent
@@ -39,6 +46,12 @@ trip interaction off maps). Rules:
   **Main mode of transportation**; it wins over the automatic walking/transit
   choice, while an explicit per-leg selection wins over the trip default and is
   persisted with the trip so both planners keep seeing it.
+- **Located means routed, even when untimed.** A scheduled `.day(n)` “Anytime”
+  stop is timing-neutral for now-marker/gap-conflict logic, but it is still a
+  geographic stop in the day's ordered adjacency and can have incoming/outgoing
+  travel connectors. A scheduled stop with no `dayNumber` lives in
+  To-Be-Scheduled and has no day route yet. For an alternatives ring, only the
+  effective active member participates in either case.
 - **Lodging moves:** on the All map lens, a neutral dashed line joins located
   stays in chronological order. In the itinerary, a same-day check-out →
   check-in gets one direct travel row unless an itinerary stop is actually

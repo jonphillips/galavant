@@ -13,31 +13,29 @@ extension TripIdea {
     dayNumber: DayNumber,
     in db: Database
   ) throws {
-    guard try TripIdea.find(stopID).fetchOne(db) != nil else { return }
+    guard let entry = try TripIdea.find(stopID).fetchOne(db) else { return }
+    let members = try TripIdea.alternativeMembers(containing: entry, in: db)
+    guard TripIdea.effectiveActiveMember(in: members)?.id == stopID else { return }
     let schedule = commitment.schedule(on: dayNumber)
     switch schedule {
     case let .day(day):
       try TripIdea.find(stopID)
         .update {
           $0.pinnedDate = #bind(commitment.pinnedDate)
-          $0.dayNumber = #bind(day)
-          $0.dayPart = #bind(nil)
-          $0.startTime = #bind(nil)
-          $0.endTime = #bind(nil)
-          $0.status = #bind(.scheduled)
         }
         .execute(db)
+      try TripIdea.updateSharedSlot(members: members, status: .scheduled, schedule: .day(day), in: db)
     case let .timed(day, start, end):
       try TripIdea.find(stopID)
         .update {
           $0.pinnedDate = #bind(commitment.pinnedDate)
-          $0.dayNumber = #bind(day)
-          $0.dayPart = #bind(nil)
-          $0.startTime = #bind(start)
-          $0.endTime = #bind(end)
-          $0.status = #bind(.scheduled)
         }
         .execute(db)
+      try TripIdea.updateSharedSlot(
+        members: members,
+        status: .scheduled,
+        schedule: .timed(day, start: start, end: end),
+        in: db)
     case .unscheduled, .daypart:
       return
     }

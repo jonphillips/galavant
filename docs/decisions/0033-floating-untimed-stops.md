@@ -129,10 +129,12 @@ This is the STYLE §functional-core pattern: a total pure function over
 
 ### 4. Timeline behaviors: Anytime stops are timing-neutral
 
-An Anytime stop has no clock time, so — unchanged from today, now stated as intent — it anchors
-**no travel-leg ETA** and never trips the now-marker's "you're running late." It draws its row
-in position with an "Anytime" (or daypart) label. The now-marker still lands between the timed
-stops whose real times bracket the current moment; Anytime stops flow around it by `dayRank`.
+An Anytime stop has no clock time, so it never trips the now-marker's “you're running late” or
+supplies a timed gap for conflict math. It is nevertheless a **geographic stop in the day's
+ordered sequence**: when located, `TripPlan.legs(forDay:)` can route into and out of it and show
+those connector ETAs. It draws its row in position with an “Anytime” label. The now-marker still
+lands between the timed stops whose real times bracket the current moment; Anytime stops flow
+around it by `dayRank`.
 
 ### 5. No new placement case; dayparts stay the coarse-time option
 
@@ -164,8 +166,8 @@ free — a "lunch break" is the canonical floating stop.
 - **ADR-0010 (freeform stops):** freeform stops are the archetypal floating stop; they inherit
   `dayRank` and `suggestedTime` with no extra work. Supersedes ADR-0010's note that "new freeform
   stops append to the bottom via `nextStopRank`" — day position is now `dayRank`.
-- **now-marker / travel legs (M3):** untimed stops remain timing-neutral (§4); no leg, no
-  lateness — now made explicit rather than incidental.
+- **now-marker / travel legs (M3):** untimed stops remain clock-neutral for lateness/conflict
+  math, but are still geographic members of the ordered route and may have connector legs (§4).
 - **ADR-0006 (flat Trip/TripIdea columns):** `dayRank` is one additive flat column.
 - **ADR-0035 (itinerary alternatives):** the **active** member of an alternatives ring keeps all
   of this (`dayRank`, anchored interleave) unchanged — it's an ordinary positioned stop; inactive

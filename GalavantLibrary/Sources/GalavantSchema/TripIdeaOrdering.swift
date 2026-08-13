@@ -2,6 +2,33 @@ import Foundation
 import SQLiteData
 
 extension TripIdea {
+  /// One past the bottom of this trip's intra-day order — max `shortlistRank`
+  /// across all entries, where a fresh freeform stop appends.
+  static func nextStopRank(tripID: Trip.ID, in db: Database) throws -> Int {
+    let ranks = try TripIdea
+      .where { $0.tripID.eq(tripID) }
+      .fetchAll(db)
+      .map(\.shortlistRank)
+    return (ranks.max() ?? -1) + 1
+  }
+
+  /// One past the current bottom of this trip's shortlist (0 when empty).
+  static func nextShortlistRank(tripID: Trip.ID, in db: Database) throws -> Int {
+    let ranks = try TripIdea
+      .where { $0.tripID.eq(tripID) }
+      .fetchAll(db)
+      .filter { $0.status.isOnShortlist }
+      .map(\.shortlistRank)
+    return (ranks.max() ?? -1) + 1
+  }
+
+  /// Persist a new shortlist order after a drag-to-reorder.
+  public static func reorderShortlist(_ orderedIDs: [TripIdea.ID], in db: Database) throws {
+    for (index, id) in orderedIDs.enumerated() {
+      try TripIdea.find(id).update { $0.shortlistRank = index }.execute(db)
+    }
+  }
+
   /// Persist a new intra-day order. Leading Anytime rows use negative ranks to
   /// preserve the explicit “before the first timed event” placement without
   /// changing the behavior of untouched historical rows.
@@ -14,7 +41,12 @@ extension TripIdea {
       let rank = leadingAnytimeIDs.contains(id)
         ? Double(index - leadingAnytimeIDs.count)
         : Double(index)
-      try TripIdea.find(id).update { $0.dayRank = rank }.execute(db)
+      guard let entry = try TripIdea.find(id).fetchOne(db) else { continue }
+      let members = try alternativeMembers(containing: entry, in: db)
+      for member in members {
+        try TripIdea.find(member.id).update { $0.dayRank = rank }.execute(db)
+      }
+      try normalizeAlternativeMembers(members, in: db)
     }
   }
 }

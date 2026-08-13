@@ -32,6 +32,13 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
   /// from `shortlistRank` (order in the shortlist *pile*); back-filled from it on
   /// migration so existing itineraries keep their order.
   public var dayRank: Double = 0
+  /// A loose link to the peer stops sharing this itinerary position. `nil` means
+  /// this is an ordinary, independent stop (ADR-0035).
+  public var alternativeGroupID: UUID?
+  /// The stored choice in an alternatives ring. Concurrent writes can briefly
+  /// leave a ring with zero or multiple `true` values; read projections choose a
+  /// deterministic effective member and the next ring write repairs storage.
+  public var isActive = true
   public var dayNumber: Int?
   public var dayPart: DayPart?
   public var startTime: String?
@@ -60,6 +67,8 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
     status: TripIdeaStatus = .considering,
     shortlistRank: Int = 0,
     dayRank: Double = 0,
+    alternativeGroupID: UUID? = nil,
+    isActive: Bool = true,
     dayNumber: Int? = nil,
     dayPart: DayPart? = nil,
     startTime: String? = nil,
@@ -77,6 +86,8 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
     self.status = status
     self.shortlistRank = shortlistRank
     self.dayRank = dayRank
+    self.alternativeGroupID = alternativeGroupID
+    self.isActive = isActive
     self.dayNumber = dayNumber
     self.dayPart = dayPart
     self.startTime = startTime

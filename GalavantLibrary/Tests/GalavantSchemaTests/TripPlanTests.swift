@@ -464,12 +464,16 @@ import Testing
   }
 
   @Test func malformedFreeformEntryIsDropped() {
-    // An entry with no ideaID and no inlineTitle is invalid — must be silently
-    // dropped rather than crashing.
+    // An entry with no ideaID and no inlineTitle is invalid — dropped from every
+    // projection rather than crashing, and the corrupt row is reported once when
+    // the read-model is built (a single chokepoint, ADR-0035 review follow-up).
     let bad = TripIdea(id: UUID(), tripID: UUID(), ideaID: nil, inlineTitle: nil, status: .scheduled)
     let bad2 = TripIdea(id: UUID(), tripID: UUID(), ideaID: nil, inlineTitle: "", status: .scheduled)
     let good = freeformEntry(title: "Check in", schedule: .day(1))
-    let p = plan([bad, bad2, good], ideas: [], lengthInDays: 2)
+    var p: TripPlan!
+    withKnownIssue("two corrupt rows are reported at build", isIntermittent: false) {
+      p = plan([bad, bad2, good], ideas: [], lengthInDays: 2)
+    }
     // Only the valid freeform stop survives
     #expect(p.itinerary[0].stops.count == 1)
     if case let .freeform(title, _) = p.itinerary[0].stops[0].content {

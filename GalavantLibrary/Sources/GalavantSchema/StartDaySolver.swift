@@ -65,7 +65,7 @@ extension StartDaySolver {
   /// no structured hours are dropped — they simply don't constrain the start (§5's
   /// graceful degradation). Pure; the panel calls this over its read-models.
   public static func stops(entries: [TripIdea], ideasByID: [Idea.ID: Idea]) -> [SolverStop] {
-    entries.compactMap { entry in
+    TripIdea.effectiveActiveEntries(entries).compactMap { entry in
       guard entry.status == .scheduled, entry.dayNumber != nil,
         let ideaID = entry.ideaID, let idea = ideasByID[ideaID],
         let hours = idea.weeklyHours, hours.hasAnyAssertion

@@ -1,6 +1,9 @@
 import Foundation
 import SQLiteData
 
+// swiftlint:disable file_length
+// Trip lifecycle transitions stay together so their shared-status invariants are
+// auditable in one transactional API surface.
 extension Trip {
   /// Create a trip attached to the default travel party and return it. A new
   /// `someday` trip is appended to the bottom of the backlog regardless of the
@@ -262,50 +265,30 @@ extension TripIdea {
       .fetchOne(db)
     // A nil day would violate the `.scheduled ⇔ dayNumber != nil` invariant —
     // callers wanting to clear a day use `unschedule` instead.
-    guard var updated = existing, schedule.dayNumber != nil else { return }
-    updated.status = .scheduled
-    updated.apply(schedule)
-    try TripIdea.find(updated.id)
-      .update {
-        $0.status = #bind(updated.status)
-        $0.dayNumber = #bind(updated.dayNumber)
-        $0.dayPart = #bind(updated.dayPart)
-        $0.startTime = #bind(updated.startTime)
-        $0.endTime = #bind(updated.endTime)
-      }
-      .execute(db)
+    guard let existing, schedule.dayNumber != nil else { return }
+    try TripIdea.schedule(schedule, stopID: existing.id, in: db)
   }
 
   /// Commit a stop to the itinerary without a day yet — the "To Be Scheduled"
   /// bucket. Status becomes `.scheduled` with the day columns cleared; place it
   /// on a day later with `schedule(_:)`. No-op if the idea isn't on the trip.
   public static func scheduleUnplaced(ideaID: Idea.ID, tripID: Trip.ID, in db: Database) throws {
-    try TripIdea
+    let existing = try TripIdea
       .where { $0.tripID.eq(tripID) && $0.ideaID.eq(ideaID) }
-      .update {
-        $0.status = #bind(.scheduled)
-        $0.dayNumber = #bind(nil)
-        $0.dayPart = #bind(nil)
-        $0.startTime = #bind(nil)
-        $0.endTime = #bind(nil)
-      }
-      .execute(db)
+      .fetchOne(db)
+    guard let existing else { return }
+    try scheduleUnplaced(stopID: existing.id, in: db)
   }
 
   /// Pull a scheduled stop back to the shortlist: clear its schedule columns and
   /// set `status = .shortlisted` (it keeps its `shortlistRank`). No-op if the
   /// idea isn't on the trip.
   public static func unschedule(ideaID: Idea.ID, tripID: Trip.ID, in db: Database) throws {
-    try TripIdea
+    let existing = try TripIdea
       .where { $0.tripID.eq(tripID) && $0.ideaID.eq(ideaID) }
-      .update {
-        $0.status = #bind(.shortlisted)
-        $0.dayNumber = #bind(nil)
-        $0.dayPart = #bind(nil)
-        $0.startTime = #bind(nil)
-        $0.endTime = #bind(nil)
-      }
-      .execute(db)
+      .fetchOne(db)
+    guard let existing else { return }
+    try unschedule(stopID: existing.id, in: db)
   }
 
   /// Mark a stop done after the trip and feed that back to the pool: flip the
@@ -316,22 +299,32 @@ extension TripIdea {
       .where { $0.tripID.eq(tripID) && $0.ideaID.eq(ideaID) }
       .fetchOne(db)
     guard let existing else { return }
-    try TripIdea.find(existing.id).update { $0.status = #bind(.done) }.execute(db)
-    try Idea.find(ideaID).update { $0.visited = #bind(true) }.execute(db)
+    try markDone(stopID: existing.id, in: db)
   }
 
   /// Remove an idea from a trip entirely (back to the untouched pool).
   public static func remove(ideaID: Idea.ID, from tripID: Trip.ID, in db: Database) throws {
-    try TripIdea
+    let existing = try TripIdea
       .where { $0.tripID.eq(tripID) && $0.ideaID.eq(ideaID) }
-      .delete()
-      .execute(db)
+      .fetchOne(db)
+    guard let existing else { return }
+    try remove(stopID: existing.id, in: db)
   }
 
   // MARK: - Stop-ID-keyed variants (ADR-0010: works for both idea-backed and freeform stops)
 
   /// Advance (or retreat) a stop's lifecycle status by its own primary key.
   public static func setStatus(_ status: TripIdeaStatus, stopID: TripIdea.ID, in db: Database) throws {
+    switch status {
+    case .skipped:
+      try markSkipped(stopID: stopID, in: db)
+      return
+    case .done:
+      try markDone(stopID: stopID, in: db)
+      return
+    case .considering, .shortlisted, .scheduled:
+      break
+    }
     guard let existing = try TripIdea.find(stopID).fetchOne(db) else { return }
     var rank = existing.shortlistRank
     if status.isOnShortlist, !existing.status.isOnShortlist {
@@ -350,32 +343,44 @@ extension TripIdea {
     guard var entry = try TripIdea.find(stopID).fetchOne(db), schedule.dayNumber != nil else { return }
     entry.status = .scheduled
     entry.apply(schedule)
-    try TripIdea.find(stopID)
-      .update {
-        $0.status = #bind(entry.status)
-        $0.dayNumber = #bind(entry.dayNumber)
-        $0.dayPart = #bind(entry.dayPart)
-        $0.startTime = #bind(entry.startTime)
-        $0.endTime = #bind(entry.endTime)
-      }
-      .execute(db)
+    try updateSharedSlot(
+      members: alternativeMembers(containing: entry, in: db),
+      status: entry.status,
+      schedule: entry.schedule,
+      in: db)
   }
 
   /// Commit a stop to the TBS bucket by its own primary key.
   public static func scheduleUnplaced(stopID: TripIdea.ID, in db: Database) throws {
-    try TripIdea.find(stopID)
-      .update {
-        $0.status = #bind(.scheduled)
-        $0.dayNumber = #bind(nil)
-        $0.dayPart = #bind(nil)
-        $0.startTime = #bind(nil)
-        $0.endTime = #bind(nil)
-      }
-      .execute(db)
+    guard let entry = try TripIdea.find(stopID).fetchOne(db) else { return }
+    try updateSharedSlot(
+      members: alternativeMembers(containing: entry, in: db),
+      status: .scheduled,
+      schedule: .unscheduled,
+      in: db)
   }
 
   /// Pull a stop back to the shortlist by its own primary key.
   public static func unschedule(stopID: TripIdea.ID, in db: Database) throws {
+    guard let existing = try TripIdea.find(stopID).fetchOne(db) else { return }
+    let members = try alternativeMembers(containing: existing, in: db)
+    if existing.alternativeGroupID != nil {
+      for member in members {
+        try TripIdea.find(member.id)
+          .update {
+            $0.status = #bind(.shortlisted)
+            $0.dayNumber = #bind(nil)
+            $0.dayPart = #bind(nil)
+            $0.startTime = #bind(nil)
+            $0.endTime = #bind(nil)
+            $0.alternativeGroupID = #bind(nil)
+            $0.isActive = #bind(true)
+          }
+          .execute(db)
+      }
+      try reindexShortlist(tripID: existing.tripID, in: db)
+      return
+    }
     try TripIdea.find(stopID)
       .update {
         $0.status = #bind(.shortlisted)
@@ -391,6 +396,25 @@ extension TripIdea {
   /// the pool idea's `visited` flag (ADR-0004); freeform stops have no pool idea.
   public static func markDone(stopID: TripIdea.ID, in db: Database) throws {
     guard let existing = try TripIdea.find(stopID).fetchOne(db) else { return }
+    let members = try alternativeMembers(containing: existing, in: db)
+    if existing.alternativeGroupID != nil {
+      // Only the marked member leaves the ring, keeping its placement as history;
+      // the remaining peers stay a scheduled ring-minus-one (a new effective active
+      // reconciled below). This is symmetric with `markSkipped` and never empties
+      // the slot when an inactive peer is the one marked done.
+      try TripIdea.find(existing.id)
+        .update {
+          $0.status = #bind(.done)
+          $0.alternativeGroupID = #bind(nil)
+          $0.isActive = #bind(true)
+        }
+        .execute(db)
+      try normalizeAlternativeMembers(members.filter { $0.id != existing.id }, in: db)
+      if let ideaID = existing.ideaID {
+        try Idea.find(ideaID).update { $0.visited = #bind(true) }.execute(db)
+      }
+      return
+    }
     try TripIdea.find(stopID).update { $0.status = #bind(.done) }.execute(db)
     if let ideaID = existing.ideaID {
       try Idea.find(ideaID).update { $0.visited = #bind(true) }.execute(db)
@@ -399,7 +423,198 @@ extension TripIdea {
 
   /// Delete a stop from the trip entirely by its own primary key.
   public static func remove(stopID: TripIdea.ID, in db: Database) throws {
+    guard let existing = try TripIdea.find(stopID).fetchOne(db) else { return }
+    let members = try alternativeMembers(containing: existing, in: db)
     try TripIdea.find(stopID).delete().execute(db)
+    if existing.alternativeGroupID != nil {
+      try normalizeAlternativeMembers(members.filter { $0.id != stopID }, in: db)
+    }
+  }
+
+  /// Mark one alternative as skipped and retain the slot with its next peer.
+  /// A skipped stop keeps its final placement as history but no longer belongs to
+  /// the alternatives ring.
+  public static func markSkipped(stopID: TripIdea.ID, in db: Database) throws {
+    guard let existing = try TripIdea.find(stopID).fetchOne(db) else { return }
+    let members = try alternativeMembers(containing: existing, in: db)
+    if existing.alternativeGroupID != nil {
+      try TripIdea.find(stopID)
+        .update {
+          $0.status = #bind(.skipped)
+          $0.alternativeGroupID = #bind(nil)
+          $0.isActive = #bind(true)
+        }
+        .execute(db)
+      try normalizeAlternativeMembers(members.filter { $0.id != stopID }, in: db)
+      return
+    }
+    try TripIdea.find(stopID).update { $0.status = #bind(.skipped) }.execute(db)
+  }
+
+  /// Join a shortlisted stop to a scheduled slot. The new peer receives the
+  /// slot's shared placement but remains inactive until explicitly selected.
+  public static func addAlternative(
+    sourceStopID: TripIdea.ID,
+    to targetStopID: TripIdea.ID,
+    groupID: UUID = UUID(),
+    in db: Database
+  ) throws {
+    guard
+      var source = try TripIdea.find(sourceStopID).fetchOne(db),
+      let target = try TripIdea.find(targetStopID).fetchOne(db),
+      source.tripID == target.tripID,
+      source.status == .shortlisted,
+      target.status == .scheduled
+    else { return }
+    let destinationGroupID = target.alternativeGroupID ?? groupID
+    if target.alternativeGroupID == nil {
+      try TripIdea.find(target.id).update {
+        $0.alternativeGroupID = #bind(destinationGroupID)
+        $0.isActive = #bind(true)
+      }.execute(db)
+    }
+    source.status = .scheduled
+    source.shortlistRank = target.shortlistRank
+    source.dayRank = target.dayRank
+    source.alternativeGroupID = destinationGroupID
+    source.isActive = false
+    source.apply(target.schedule)
+    try TripIdea.find(source.id)
+      .update {
+        $0.status = #bind(source.status)
+        $0.shortlistRank = #bind(source.shortlistRank)
+        $0.dayRank = #bind(source.dayRank)
+        $0.dayNumber = #bind(source.dayNumber)
+        $0.dayPart = #bind(source.dayPart)
+        $0.startTime = #bind(source.startTime)
+        $0.endTime = #bind(source.endTime)
+        $0.alternativeGroupID = #bind(source.alternativeGroupID)
+        $0.isActive = #bind(false)
+      }
+      .execute(db)
+    try normalizeAlternativeMembers(
+      try alternativeMembers(containing: source, in: db),
+      in: db)
+  }
+
+  /// Create a freeform peer directly in an existing slot. It is born inactive,
+  /// so the visible route does not change until the planner selects it.
+  @discardableResult
+  public static func addFreeformAlternative(
+    title: String,
+    note: String? = nil,
+    to targetStopID: TripIdea.ID,
+    groupID: UUID = UUID(),
+    in db: Database
+  ) throws -> TripIdea.ID? {
+    guard let target = try TripIdea.find(targetStopID).fetchOne(db), target.status == .scheduled else {
+      return nil
+    }
+    let destinationGroupID = target.alternativeGroupID ?? groupID
+    if target.alternativeGroupID == nil {
+      try TripIdea.find(target.id).update {
+        $0.alternativeGroupID = #bind(destinationGroupID)
+        $0.isActive = #bind(true)
+      }.execute(db)
+    }
+    let id = UUID()
+    let source = TripIdea(
+      id: id,
+      tripID: target.tripID,
+      ideaID: nil,
+      inlineTitle: title,
+      inlineNote: note,
+      status: .scheduled,
+      shortlistRank: target.shortlistRank,
+      dayRank: target.dayRank,
+      alternativeGroupID: destinationGroupID,
+      isActive: false,
+      dayNumber: target.dayNumber,
+      dayPart: target.dayPart,
+      startTime: target.startTime,
+      endTime: target.endTime)
+    try TripIdea.insert { TripIdea.Draft(source) }.execute(db)
+    try normalizeAlternativeMembers(try alternativeMembers(containing: source, in: db), in: db)
+    return id
+  }
+
+  /// Select a particular peer and repair every stored activity flag in the ring.
+  @discardableResult
+  public static func setActiveAlternative(stopID: TripIdea.ID, in db: Database) throws -> TripIdea.ID? {
+    guard let target = try TripIdea.find(stopID).fetchOne(db), target.alternativeGroupID != nil else {
+      return nil
+    }
+    let members = try alternativeMembers(containing: target, in: db)
+    guard members.count > 1 else {
+      try normalizeAlternativeMembers(members, in: db)
+      return members.first?.id
+    }
+    for member in members {
+      try TripIdea.find(member.id).update { $0.isActive = #bind(member.id == target.id) }.execute(db)
+    }
+    return target.id
+  }
+
+  /// Advance from the effective member to the next peer in canonical ring order.
+  @discardableResult
+  public static func cycleAlternative(stopID: TripIdea.ID, in db: Database) throws -> TripIdea.ID? {
+    guard let entry = try TripIdea.find(stopID).fetchOne(db), entry.alternativeGroupID != nil else {
+      return nil
+    }
+    let members = try alternativeMembers(containing: entry, in: db)
+    guard members.count > 1, let active = effectiveActiveMember(in: members),
+      let index = members.firstIndex(where: { $0.id == active.id })
+    else {
+      try normalizeAlternativeMembers(members, in: db)
+      return members.first?.id
+    }
+    let next = members[(index + 1) % members.count]
+    return try setActiveAlternative(stopID: next.id, in: db)
+  }
+
+  /// Extract one peer into the next independent itinerary position. The affected
+  /// day or TBS cohort is reindexed from its logical order, never by adding an
+  /// arbitrary rank offset (ADR-0035).
+  public static func promoteAlternative(stopID: TripIdea.ID, in db: Database) throws {
+    guard let promoted = try TripIdea.find(stopID).fetchOne(db), promoted.alternativeGroupID != nil else {
+      return
+    }
+    let members = try alternativeMembers(containing: promoted, in: db)
+    guard members.count > 1, let formerActive = effectiveActiveMember(in: members) else { return }
+    let before = try TripIdea.where { $0.tripID.eq(promoted.tripID) }.fetchAll(db)
+    try TripIdea.find(stopID)
+      .update {
+        $0.alternativeGroupID = #bind(nil)
+        $0.isActive = #bind(true)
+      }
+      .execute(db)
+    let remaining = members.filter { $0.id != stopID }
+    try normalizeAlternativeMembers(remaining, in: db)
+    let after = try TripIdea.where { $0.tripID.eq(promoted.tripID) }.fetchAll(db)
+    let remainingActive = effectiveActiveMember(in: remaining)
+    if let day = promoted.dayNumber {
+      let ordered = TripIdea.orderedDayStops(
+        TripIdea.effectiveActiveEntries(before).filter { $0.status == .scheduled && $0.dayNumber == day })
+      let ids = ordered.flatMap { entry -> [TripIdea.ID] in
+        guard entry.id == formerActive.id else { return [entry.id] }
+        return [remainingActive?.id, promoted.id].compactMap { $0 }
+      }
+      try reorderDayStops(ids, in: db)
+    } else {
+      let ordered = TripIdea.effectiveActiveEntries(before)
+        .filter { $0.status == .scheduled && $0.dayNumber == nil }
+        .sorted { ($0.shortlistRank, $0.id.uuidString) < ($1.shortlistRank, $1.id.uuidString) }
+      let ids = ordered.flatMap { entry -> [TripIdea.ID] in
+        guard entry.id == formerActive.id else { return [entry.id] }
+        return [remainingActive?.id, promoted.id].compactMap { $0 }
+      }
+      for (rank, id) in ids.enumerated() {
+        guard let entry = after.first(where: { $0.id == id }) else { continue }
+        for member in try alternativeMembers(containing: entry, in: db) {
+          try TripIdea.find(member.id).update { $0.shortlistRank = rank }.execute(db)
+        }
+      }
+    }
   }
 
   // MARK: - Pinned reservations (docs/trip-time-model.md §4)
@@ -415,9 +630,11 @@ extension TripIdea {
   /// stop sitting right where it was.
   public static func setBooking(_ pin: ReservationPin?, stopID: TripIdea.ID, in db: Database) throws {
     guard let existing = try TripIdea.find(stopID).fetchOne(db) else { return }
+    let members = try alternativeMembers(containing: existing, in: db)
+    let appliesToSlot = TripIdea.effectiveActiveMember(in: members)?.id == stopID
     let startDate = try Trip.find(existing.tripID).fetchOne(db)?.startDate
     let rederivedDay = pin.flatMap { p in startDate.map { Trip.dayNumber(forPinnedDate: p.date, startDate: $0) } }
-    let dayNumber = rederivedDay ?? existing.dayNumber
+    let dayNumber = appliesToSlot ? (rederivedDay ?? existing.dayNumber) : existing.dayNumber
     let status: TripIdeaStatus = pin != nil ? .scheduled : existing.status
     try TripIdea.find(stopID)
       .update {
@@ -429,6 +646,9 @@ extension TripIdea {
         $0.status = #bind(status)
       }
       .execute(db)
+    guard appliesToSlot else { return }
+    let schedule = dayNumber.map { existing.schedule.onDay($0) } ?? .unscheduled
+    try updateSharedSlot(members: members, status: status, schedule: schedule, in: db)
   }
 
   /// Re-derive `dayNumber` for every pinned stop on `tripID` after its `startDate`
@@ -445,7 +665,13 @@ extension TripIdea {
       guard let pinnedDate = entry.pinnedDate else { continue }
       let day = Trip.dayNumber(forPinnedDate: pinnedDate, startDate: startDate)
       guard day != entry.dayNumber else { continue }
-      try TripIdea.find(entry.id).update { $0.dayNumber = #bind(day) }.execute(db)
+      let members = try alternativeMembers(containing: entry, in: db)
+      guard effectiveActiveMember(in: members)?.id == entry.id else { continue }
+      try updateSharedSlot(
+        members: members,
+        status: .scheduled,
+        schedule: entry.schedule.onDay(day),
+        in: db)
     }
   }
 
@@ -494,36 +720,6 @@ extension TripIdea {
       .execute(db)
   }
 
-  /// One past the bottom of this trip's intra-day order — max `shortlistRank`
-  /// across *all* the trip's entries (not just shortlisted ones), where a fresh
-  /// freeform stop appends. Distinct from `nextShortlistRank`, which scopes to
-  /// the shortlist pile.
-  static func nextStopRank(tripID: Trip.ID, in db: Database) throws -> Int {
-    let ranks = try TripIdea
-      .where { $0.tripID.eq(tripID) }
-      .fetchAll(db)
-      .map(\.shortlistRank)
-    return (ranks.max() ?? -1) + 1
-  }
-
-  /// One past the current bottom of this trip's shortlist (0 when empty).
-  static func nextShortlistRank(tripID: Trip.ID, in db: Database) throws -> Int {
-    let ranks = try TripIdea
-      .where { $0.tripID.eq(tripID) }
-      .fetchAll(db)
-      .filter { $0.status.isOnShortlist }
-      .map(\.shortlistRank)
-    return (ranks.max() ?? -1) + 1
-  }
-
-  /// Persist a new shortlist order: each entry's `shortlistRank` becomes its
-  /// index in `orderedIDs` (TripIdea ids). Call after a drag-to-reorder.
-  public static func reorderShortlist(_ orderedIDs: [TripIdea.ID], in db: Database) throws {
-    for (index, id) in orderedIDs.enumerated() {
-      try TripIdea.find(id).update { $0.shortlistRank = index }.execute(db)
-    }
-  }
-
   // MARK: - Pure partitioning (functional core)
 
   /// This trip's shortlist — entries that earned a place (shortlisted onward),
@@ -542,7 +738,7 @@ extension TripIdea {
   /// Scheduled stops not yet placed on a day — the "To Be Scheduled" bucket that
   /// sits atop the itinerary, in shortlist-rank order. Pure.
   public static func toBeScheduled(_ entries: [TripIdea]) -> [TripIdea] {
-    entries
+    effectiveActiveEntries(entries)
       .filter { $0.status == .scheduled && $0.dayNumber == nil }
       .sorted { $0.shortlistRank < $1.shortlistRank }
   }
@@ -554,7 +750,8 @@ extension TripIdea {
   /// last day so nothing silently vanishes. Pure — the densely-tested core.
   public static func itinerary(_ entries: [TripIdea], lengthInDays: Int) -> [ItineraryDay] {
     let days = Swift.max(1, lengthInDays)
-    let scheduled = entries.filter { $0.status == .scheduled && $0.dayNumber != nil }
+    let scheduled = effectiveActiveEntries(entries)
+      .filter { $0.status == .scheduled && $0.dayNumber != nil }
     return (1...days).map { number in
       let stops = orderedDayStops(
         scheduled.filter { entry in
