@@ -470,3 +470,35 @@ storage. Slot edits propagate across the ring so changing its day/time/order can
   reindexing, and active-member Calendar/booking authority are covered by focused unit tests.
 - ⏳ **UI.** The expandable itinerary slot, contextual picker, and muted inactive canvas pins.
 - ⏳ **Docs + verification.** Accept ADR-0035 only after package, app, and simulator verification.
+
+## M9 — Recommendation handoff & evaluation workspace *(planned, ADR-0036 + ADR-0037)*
+
+Galavant's instance of yes-chef's external-LLM handoff, specialized to place candidates. A
+trip context (day / stay / transfer / trip) exports a brief to a native LLM app; the human
+converses on their flat-rate subscription; a strict-JSON return of candidate places lands
+back on the originating context. Candidates are freeform `.considering` `TripIdea`s — no
+synced "dossier" entity, no second place-ingestion path — and the JSON contract lives in the
+chat app's project instructions, version-marked so a stale paste fails loud. The returned set
+is then processed in a dedicated **evaluation workspace**: a three-surface inbox (candidate
+rail · map · browser-primary) with exactly one candidate always selected. **Use This Place**
+runs the capture matcher to resolve a fuzzy suggestion into a real, dedup-keyed `Idea` while
+preserving the AI's trip rationale on the trip-scoped stop; survivors graduate into Ideas or
+the itinerary. The handoff core lifts to a shared jon-platform package (Galavant = consumer
+#2 after yes-chef). External flat-rate round-trip is the primary path; the in-app one-tap
+(ADR-0030) is the instant sibling.
+
+- ⏳ **Handoff seam + paste door (ADR-0036 S1).** Device-local handoff record; tokenized
+  brief; strict-JSON candidate decode (HoursExtractor pattern) → row-grain review → commit as
+  `.considering` `TripIdea` (rationale in `inlineNote`); contract in project instructions +
+  `GV-CONTRACT` staleness marker; in-app Copy-brief / Paste-result door.
+- ⏳ **Resolution ops + choose-one (ADR-0036 S2).** Use This Place wired to the capture
+  merge/dedup; "choose one" → alternatives ring (ADR-0035).
+- ⏳ **Evaluation workspace (ADR-0037).** The three-surface iPad inbox and iPhone sequential
+  variant; three-layer map; state-driven browser + field-capture write-back enrichment;
+  Save-to-Ideas (shortlist, no resolution required) / Add-to-itinerary (freeform → upgrade on
+  resolve) / dismiss-with-undo.
+- ⏳ **The lift (ADR-0036 S3).** Extract the handoff spine to
+  `jon-platform/packages/LLMHandoffKit`; rewire yes-chef; Galavant consumes. Sequencing
+  (lift-first vs copy-then-lift) is a dispatch-time call.
+- ⏳ **Deferred (designed, not built).** Two-part return with a synced `Learning` home; App
+  Intents / hands-free `Ask ChatGPT` transport.
