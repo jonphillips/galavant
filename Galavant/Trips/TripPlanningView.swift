@@ -75,16 +75,19 @@ struct TripPlanningView: View {
         }
       .navigationTitle(model.trip?.name ?? "Trip")
       .navigationBarTitleDisplayMode(.inline)
+      // One ToolbarItemGroup, not two ToolbarItems: buried under the presentation
+      // hosts' `.sheet` wrappers, the chat `.inspector` merges the trip's toolbar and
+      // keeps only a single *item* — a second `ToolbarItem` (Recommend) silently
+      // vanished. A group is one contribution carrying both buttons, so both survive.
+      // (docs/KNOWN-ISSUES.md)
       .toolbar {
-        ToolbarItem {
+        ToolbarItemGroup(placement: .topBarTrailing) {
           Button {
             model.startRecommendationHandoff()
           } label: {
             Icon.recommend.label("Recommend")
           }
-        }
-        // Discuss this trip's itinerary with the model (ADR-0017).
-        ToolbarItem {
+          // Discuss this trip's itinerary with the model (ADR-0017).
           Button {
             showingChat = true
           } label: {
