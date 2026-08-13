@@ -63,14 +63,20 @@ struct TripPlanningView: View {
       isPresented: $showingCalendarReconciliation
     ) {
       TripPlanningPresentationHost(model: model, showingStartDay: $showingStartDay) {
-        layout
-      // Inspector nested *below* the toolbar host: an `.inspector` applied outside a
-      // toolbar-bearing view swallows its `.toolbar` on iPad (docs/KNOWN-ISSUES.md).
-      .chatPanel(isPresented: $showingChat, context: .trip(model.plan))
+        VStack(spacing: 0) {
+          // The chat inspector attaches *inside* this container, as a child of the
+          // toolbar host — not as a sibling modifier on `layout`. An `.inspector`
+          // resolved at the same view as `.toolbar` drops all but one trailing item on
+          // iPad (Recommend silently vanished next to Discuss); nesting it strictly
+          // below the toolbar host, as IdeasScreen does, keeps every item.
+          // (docs/KNOWN-ISSUES.md)
+          layout
+            .chatPanel(isPresented: $showingChat, context: .trip(model.plan))
+        }
       .navigationTitle(model.trip?.name ?? "Trip")
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
-        ToolbarItem(placement: .topBarTrailing) {
+        ToolbarItem {
           Button {
             model.startRecommendationHandoff()
           } label: {
