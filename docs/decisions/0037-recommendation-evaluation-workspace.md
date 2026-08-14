@@ -265,17 +265,18 @@ model (watch-for-fat-models).
 - **OQ4 — where the workspace opens from.** A returned handoff needs an entry point (a banner
   on the Trip/Ideas screen? a push straight from paste?). Decide at Slice 1 alongside
   ADR-0036's paste door.
-- **OQ5 — resolve-time reconcile when the place is already in the trip.** *(Raised 2026-08-14
-  from dogfooding — the "Louisiana Museum of Art in both Shortlist and Considering" case; see
-  D4.)* When Use This Place resolves a candidate onto a place that is **already a `TripIdea`
-  in the same trip** (already shortlisted, already scheduled, or another candidate in this very
-  set), what happens to the two rows? The pool `Idea` dedup fires, but you're left with two
-  trip-scoped rows pointing at one `Idea`. Options: (a) **merge** — fold the candidate's
-  rationale into the existing row and drop the duplicate (preserving both `inlineNote`s, per
-  the IdeaInterest merge precedent in `PoolOperations`); (b) **warn and let the human choose**
-  ("already on your shortlist — merge, or keep both?"); (c) **allow both** (a place can
-  legitimately be both a firm plan and a reconsidered candidate). Lean **(b)** at the resolve
-  gesture, defaulting to merge — it's the moment identity first exists and the human is already
-  deciding. This is the natural home for the dedup question the paste door structurally can't
-  answer. Settle when Phase 2 (Use This Place) is built; decide the merge-vs-keep-both default
-  from a real set.
+- **OQ5 — resolve-time reconcile when the place is already in the trip. — Resolved 2026-08-14
+  (Jon).** *(Raised the same day from dogfooding — the "Louisiana Museum of Art in both
+  Shortlist and Considering" case; see D4.)* When Use This Place resolves a candidate onto a
+  place that is **already a `TripIdea` in the same trip** (already shortlisted, already
+  scheduled, or another candidate in this very set), the pool `Idea` dedup fires but leaves two
+  trip-scoped rows pointing at one `Idea`. **Decision: warn and let the human choose — "already
+  on your shortlist — merge, or keep both?" — defaulting to merge.** Merge folds the
+  candidate's rationale into the existing row, preserving both `inlineNote`s (the IdeaInterest
+  note-merge precedent in `PoolOperations`), then drops the duplicate `.considering` row.
+  Keep-both stays available because a place can legitimately be both a firm plan and a
+  reconsidered candidate — but merge is the default, since resolution is the moment identity
+  first exists and the human is already deciding. The reconcile fires **only at the resolve
+  gesture** (the first moment a candidate has an `ideaID` to key on); the paste door
+  structurally can't answer it and must not try. Collision-detection + merged-note logic is a
+  pure tested value type in GalavantSchema; the model applies it.
