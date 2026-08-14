@@ -1,6 +1,14 @@
+import Foundation
 import GalavantCaptureUI
+import GalavantSchema
 import WebExtractorKit
 import SwiftUI
+import WebKit
+
+enum BrowserScreenContext {
+  case library
+  case recommendation(RecommendationBrowserLoadRequest)
+}
 
 /// The top-level **Browser** section (ADR-0025): a persistent, full-chrome browser in the
 /// detail panel — address bar, back / forward / refresh / stop, desktop-width rendering,
@@ -16,6 +24,7 @@ import SwiftUI
 /// as plain bars, not a second navigation bar.
 struct BrowserScreen: View {
   @Environment(BrowserScreenModel.self) private var model
+  var context: BrowserScreenContext = .library
 
   /// The page a fresh browser session lands on (Jon's choice). The address bar's
   /// no-URL *search* still uses the module default (DuckDuckGo, ADR-0001) — this is only
@@ -26,7 +35,7 @@ struct BrowserScreen: View {
     @Bindable var model = model
     WebBrowserView(
       page: model.page,
-      initialURL: Self.startPage,
+      initialURL: initialURL,
       accessory: { page in
         Button {
           Task { await model.capture(from: page) }
@@ -37,13 +46,7 @@ struct BrowserScreen: View {
         }
         .disabled(page.url == nil)
       },
-      fieldBar: { page in
-        WebFieldCaptureBar(
-          page: page,
-          fields: model.captureFields,
-          onClear: model.chipDraft.hasAnyFill ? { model.chipDraft = ChipDraft() } : nil
-        )
-      },
+      fieldBar: fieldBar,
       home: { open in
         BrowserHome(recentCaptures: model.recentCaptures, open: open)
       }
@@ -52,12 +55,50 @@ struct BrowserScreen: View {
     #if os(iOS)
       .navigationBarTitleDisplayMode(.inline)
     #endif
-      .onChange(of: model.page.url) { old, new in
-        if browsingSite(old) != browsingSite(new) { model.chipDraft = ChipDraft() }
-      }    .sheet(item: $model.capture) { payload in
+    .onChange(of: model.page.url) { old, new in
+      if browsingSite(old) != browsingSite(new) { model.chipDraft = ChipDraft() }
+    }
+    .task(id: recommendationLoadRequest) {
+      guard let request = recommendationLoadRequest, let url = browserURL(for: request.target) else { return }
+      model.page.load(URLRequest(url: url))
+    }
+    .sheet(item: $model.capture) { payload in
       CaptureConfirmView(model: payload.model) {
         model.captureFinished()
       }
+    }
+  }
+
+  private var initialURL: URL? {
+    if case .library = context { Self.startPage } else { nil }
+  }
+
+  private var recommendationLoadRequest: RecommendationBrowserLoadRequest? {
+    guard case let .recommendation(request) = context else { return nil }
+    return request
+  }
+
+  @ViewBuilder private func fieldBar(_ page: WebPage) -> some View {
+    VStack(alignment: .leading, spacing: 8) {
+      WebFieldCaptureBar(
+        page: page,
+        fields: model.captureFields,
+        onClear: model.chipDraft.hasAnyFill ? { model.chipDraft = ChipDraft() } : nil
+      )
+      if let request = recommendationLoadRequest, let ideaID = request.ideaID {
+        Button("Use this website for \(request.title)") {
+          model.useCurrentWebsite(for: ideaID)
+        }
+        .buttonStyle(.bordered)
+      }
+    }
+  }
+
+  private func browserURL(for target: BrowserTargetDerivation.Target) -> URL? {
+    switch target {
+    case let .search(query): WebAddress.duckDuckGo(query)
+    case let .website(url): url
+    case .unavailable: nil
     }
   }
 }

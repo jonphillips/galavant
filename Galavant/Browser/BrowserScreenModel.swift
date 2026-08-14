@@ -1,5 +1,8 @@
+import Dependencies
 import Foundation
 import GalavantPlaces
+import GalavantSchema
+import SQLiteData
 import WebExtractorKit
 import Sharing
 import WebKit
@@ -58,6 +61,8 @@ struct RecentCapture: Identifiable, Codable, Hashable {
 @MainActor
 @Observable
 final class BrowserScreenModel {
+  @ObservationIgnored @Dependency(\.defaultDatabase) private var database
+
   /// The single, long-lived web page for the Browser section. Owned here (not in
   /// `WebBrowserView`'s `@State`) so navigation state survives switching sections — the
   /// detail column reinstantiates the screen view, but this model outlives it.
@@ -127,6 +132,18 @@ final class BrowserScreenModel {
       chipDraft = ChipDraft()
     }
     capture = nil
+  }
+
+  /// Make the browser's current page the resolved place's official website. The
+  /// caller only exposes this explicit action after a candidate has a real pool
+  /// idea, so research never mints or captures another entity.
+  func useCurrentWebsite(for ideaID: Idea.ID) {
+    guard let url = page.url else { return }
+    withErrorReporting {
+      try database.write { db in
+        try Idea.setWebsite(url, for: ideaID, in: db)
+      }
+    }
   }
 
   /// Add a saved capture to the front of Recent Captures, de-duplicated and capped. A

@@ -59,6 +59,18 @@ extension Idea {
 }
 
 extension Idea {
+  /// Replace an idea's website after the human has confirmed a better official
+  /// page in the persistent browser. This is a direct field correction, not a
+  /// second capture or ingestion path (ADR-0037 D5).
+  public static func setWebsite(_ url: URL, for ideaID: Idea.ID, in db: Database) throws {
+    guard try Idea.find(ideaID).fetchOne(db) != nil else { return }
+    try Idea.find(ideaID)
+      .update { $0.url = #bind(url.absoluteString) }
+      .execute(db)
+  }
+}
+
+extension Idea {
   /// The structured weekday hours behind the encoded `structuredHours` column
   /// (ADR-0029 §2). Reading decodes the JSON (malformed → `nil`); writing encodes it,
   /// clearing the column when nothing is asserted.

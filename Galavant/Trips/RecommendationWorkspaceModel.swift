@@ -13,6 +13,7 @@ struct RecommendationWorkspaceCandidate: Identifiable {
   var id: TripIdea.ID { tripIdea.id }
   var title: String { tripIdea.inlineTitle ?? candidate.suggestedTitle }
   var isResolved: Bool { tripIdea.ideaID != nil }
+  var isAwaitingResolutionOnItinerary: Bool { tripIdea.status == .scheduled && !isResolved }
 }
 
 struct RecommendationWorkspaceMapMarker: Identifiable {
@@ -35,6 +36,13 @@ struct RecommendationWorkspaceMapViewport: Equatable {
   let centerLongitude: Double
   let latitudeDelta: Double
   let longitudeDelta: Double
+}
+
+struct RecommendationBrowserLoadRequest: Hashable {
+  let candidateID: TripIdea.ID
+  let title: String
+  let target: BrowserTargetDerivation.Target
+  let ideaID: Idea.ID?
 }
 
 private struct DismissedRecommendationCandidate {
@@ -60,6 +68,7 @@ final class RecommendationWorkspaceModel {
   var activeCandidateID: TripIdea.ID?
   var choiceCandidateIDs: Set<TripIdea.ID> = []
   var resolveResults: [Place] = []
+  var pendingReconcile: ResolveReconcile.Collision?
   private var handoffCandidates: [TripCandidate] = []
   private var candidateLinks: [HandoffCandidateLink] = []
   private(set) var hasLoadedCandidateSet = false
@@ -79,7 +88,7 @@ final class RecommendationWorkspaceModel {
         let candidate = candidateByID[link.candidateID],
         let tripIdea = tripIdeasByID[stopID],
         tripIdea.tripID == tripID,
-        tripIdea.status == .considering
+        tripIdea.status == .considering || (tripIdea.status == .scheduled && tripIdea.ideaID == nil)
       else { return nil }
       return RecommendationWorkspaceCandidate(
         candidate: candidate,
@@ -92,6 +101,25 @@ final class RecommendationWorkspaceModel {
   var activeCandidate: RecommendationWorkspaceCandidate? {
     guard let activeID = effectiveActiveCandidateID else { return nil }
     return candidates.first { $0.id == activeID }
+  }
+
+  var browserLoadRequest: RecommendationBrowserLoadRequest? {
+    guard let activeCandidate else { return nil }
+    let officialURL = activeCandidate.idea.flatMap { idea -> URL? in
+      let text = idea.url.trimmingCharacters(in: .whitespacesAndNewlines)
+      return text.isEmpty ? nil : URL(string: text)
+    }
+    let resolution: BrowserTargetDerivation.Resolution = activeCandidate.isResolved
+      ? .resolved(officialURL: officialURL)
+      : .unresolved
+    let target = BrowserTargetDerivation.target(for: activeCandidate.candidate, resolution: resolution)
+    guard target != .unavailable else { return nil }
+    return RecommendationBrowserLoadRequest(
+      candidateID: activeCandidate.id,
+      title: activeCandidate.title,
+      target: target,
+      ideaID: activeCandidate.tripIdea.ideaID
+    )
   }
 
   var effectiveActiveCandidateID: TripIdea.ID? {
@@ -182,6 +210,7 @@ final class RecommendationWorkspaceModel {
   func candidateTapped(_ candidate: RecommendationWorkspaceCandidate) {
     activeCandidateID = candidate.id
     resolveResults = []
+    pendingReconcile = nil
   }
 
   func saveButtonTapped(_ candidate: RecommendationWorkspaceCandidate) {
@@ -189,6 +218,21 @@ final class RecommendationWorkspaceModel {
     withErrorReporting {
       try database.write { db in
         try TripIdea.setStatus(.shortlisted, stopID: candidate.id, in: db)
+      }
+      choiceCandidateIDs.remove(candidate.id)
+      activeCandidateID = nextCandidateID
+      resolveResults = []
+    }
+  }
+
+  /// An unresolved candidate is already the freeform stop that ADR-0010 calls
+  /// for; scheduling that row preserves its rationale and lets later resolution
+  /// upgrade it in place to an idea-backed stop.
+  func addToItineraryButtonTapped(_ candidate: RecommendationWorkspaceCandidate) {
+    let nextCandidateID = nextCandidateAfterProcessing(candidate.id)
+    withErrorReporting {
+      try database.write { db in
+        try TripIdea.scheduleUnplaced(stopID: candidate.id, in: db)
       }
       choiceCandidateIDs.remove(candidate.id)
       activeCandidateID = nextCandidateID
@@ -265,10 +309,40 @@ final class RecommendationWorkspaceModel {
   func resolveResultTapped(_ place: Place) {
     guard let activeCandidate else { return }
     withErrorReporting {
-      try database.write { db in
-        _ = try RecommendationResolution.confirm(candidateStopID: activeCandidate.id, place: place, in: db)
+      pendingReconcile = try database.write { db in
+        guard let resolvedIdeaID = try RecommendationResolution.confirm(
+          candidateStopID: activeCandidate.id,
+          place: place,
+          in: db
+        ) else { return nil }
+        let tripIdeas = try TripIdea.where { $0.tripID.eq(tripID) }.fetchAll(db)
+        return ResolveReconcile(
+          tripIdeas: tripIdeas,
+          resolvedIdeaID: resolvedIdeaID,
+          candidateID: activeCandidate.id
+        ).collision
       }
       resolveResults = []
+    }
+  }
+
+  func resolveReconcileChoice(_ choice: ResolveReconcile.Choice) {
+    guard let collision = pendingReconcile else { return }
+    let action = collision.action(for: choice)
+    let nextCandidateID = nextCandidateAfterProcessing(collision.duplicateID)
+    withErrorReporting {
+      try database.write { db in
+        guard case let .merge(existingID, duplicateID, inlineNote) = action else { return }
+        try TripIdea.find(existingID)
+          .update { $0.inlineNote = #bind(inlineNote) }
+          .execute(db)
+        try TripIdea.remove(stopID: duplicateID, in: db)
+      }
+      pendingReconcile = nil
+      if case .merge = action {
+        choiceCandidateIDs.remove(collision.duplicateID)
+        activeCandidateID = nextCandidateID
+      }
     }
   }
 

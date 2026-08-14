@@ -42,7 +42,7 @@ struct RecommendationWorkspaceView: View {
           RecommendationWorkspaceMap(model: model)
             .frame(minWidth: 340)
           Divider()
-          RecommendationBrowserPlaceholder()
+          RecommendationWorkspaceBrowser(model: model)
             .frame(minWidth: 440, maxWidth: .infinity)
         }
       } else {
@@ -58,6 +58,22 @@ struct RecommendationWorkspaceView: View {
       Button("Done") { dismiss() }
         .buttonStyle(.bordered)
         .padding()
+    }
+    .alert(
+      "Already on your trip",
+      isPresented: Binding(
+        get: { model.pendingReconcile != nil },
+        set: { if !$0 { model.pendingReconcile = nil } }
+      )
+    ) {
+      Button("Merge") { model.resolveReconcileChoice(.merge) }
+        .keyboardShortcut(.defaultAction)
+      Button("Keep Both") { model.resolveReconcileChoice(.keepBoth) }
+      Button("Cancel", role: .cancel) {}
+    } message: {
+      if let collision = model.pendingReconcile {
+        Text("This place is already \(collision.existingStatus.label.lowercased()) in this trip. Merge the two rationales, or keep both rows?")
+      }
     }
     .task { model.task() }
   }
@@ -97,6 +113,7 @@ private struct RecommendationCandidateRail: View {
               select: { model.candidateTapped(candidate) },
               toggleChoice: { model.choiceButtonTapped(candidate) },
               save: { model.saveButtonTapped(candidate) },
+              addToItinerary: { model.addToItineraryButtonTapped(candidate) },
               dismiss: { model.dismissButtonTapped(candidate, undoManager: undoManager) }
             )
           }
@@ -116,6 +133,7 @@ private struct RecommendationCandidateCard: View {
   let select: () -> Void
   let toggleChoice: () -> Void
   let save: () -> Void
+  let addToItinerary: () -> Void
   let dismiss: () -> Void
 
   var body: some View {
@@ -147,12 +165,29 @@ private struct RecommendationCandidateCard: View {
       }
       .buttonStyle(.plain)
       .accessibilityAddTraits(isActive ? .isSelected : [])
-      HStack {
-        Button(isInChoice ? "Chosen" : "Choose") { toggleChoice() }
-        Button("Save to Ideas") { save() }
-        Button("Dismiss", role: .destructive) { dismiss() }
+      if candidate.isAwaitingResolutionOnItinerary {
+        Label("On itinerary — resolve to upgrade this freeform stop.", systemImage: "calendar.badge.clock")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      } else {
+        HStack {
+          Button(isInChoice ? "Chosen" : "Choose") { toggleChoice() }
+          Button("Save to Ideas") { save() }
+          Button("Add to Itinerary") { addToItinerary() }
+          Button("Dismiss", role: .destructive) { dismiss() }
+        }
+        .buttonStyle(.bordered)
+        if !candidate.isResolved {
+          Text("Resolve first for a mapped place, or add this freeform stop now.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+        if let placementAfter = candidate.candidate.placementAfter {
+          Text("Suggested after \(placementAfter) — choose its placement yourself.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
       }
-      .buttonStyle(.bordered)
     }
     .padding()
     .frame(maxWidth: .infinity, alignment: .leading)
@@ -241,12 +276,18 @@ private struct RecommendationWorkspaceMap: View {
   }
 }
 
-private struct RecommendationBrowserPlaceholder: View {
+private struct RecommendationWorkspaceBrowser: View {
+  let model: RecommendationWorkspaceModel
+
   var body: some View {
-    ContentUnavailableView {
-      Label("Research", systemImage: "safari")
-    } description: {
-      Text("Browser research arrives in the next phase.")
+    if let request = model.browserLoadRequest {
+      BrowserScreen(context: .recommendation(request))
+    } else {
+      ContentUnavailableView {
+        Label("No Browser Target", systemImage: "safari")
+      } description: {
+        Text("Resolve this candidate to load its official website.")
+      }
     }
   }
 }
