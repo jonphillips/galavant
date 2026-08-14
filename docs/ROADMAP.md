@@ -500,11 +500,16 @@ the itinerary. The handoff core lifts to a shared jon-platform package (Galavant
   `GV-CONTRACT` staleness marker; in-app Copy-brief / Paste-result door.
 - ✅ **Resolution ops + choose-one (ADR-0036 S2).** Use This Place wired to the capture
   merge/dedup; "choose one" → alternatives ring (ADR-0035).
-- ✅ **Evaluation workspace, iPad + iPhone (ADR-0037).** Three-surface inbox with the
-  candidate rail, three-layer map, and state-driven persistent browser; field-bar official-URL
-  write-back; Save-to-Ideas / Add-to-itinerary (freeform → in-place resolved upgrade) /
-  dismiss-with-undo; resolve-time duplicate warning with default merge and keep-both. iPhone
-  sequences the same state as a map-first inbox sheet with a full-screen research browser. Codex
+- ✅ **Evaluation workspace core (ADR-0037 P1–P2).** Three-surface inbox with the candidate
+  rail + always-one-selected loop, three-layer map, and the **Use This Place** resolve (capture
+  matcher → dedup-keyed `Idea`, AI rationale preserved on the stop); Save-to-Ideas /
+  Add-to-itinerary (freeform → in-place resolved upgrade) / dismiss-with-undo; resolve-time
+  duplicate warning with default merge and keep-both.
+- 🔧 **Browser + iPhone layout (ADR-0037 P3–P4) — built, layout in active revision.** The
+  state-driven persistent research browser + field-bar official-URL write-back (P3, #31) and the
+  map-first iPhone inbox sheet with full-screen research browser (P4, #32) are merged, but the
+  **layout is being reworked significantly** — tracked as current in `CURRENT_HANDOFF.md`, not
+  done. The pure model/traversal core underneath is settled (ADR-0037 D7 — layout only). Codex
   handoff: [docs/handoff/m9-adr0037-evaluation-workspace.md](handoff/m9-adr0037-evaluation-workspace.md)
 - ⏳ **The lift (ADR-0036 S3).** Extract the handoff spine to
   `jon-platform/packages/LLMHandoffKit`; rewire yes-chef; Galavant consumes. Sequencing

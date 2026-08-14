@@ -596,3 +596,22 @@ avoid the FoundationModels host-gap abort. Reference: Yes Chef's shipped
 `RecipeRepository+Import.swift` convergence + jon-platform `persistence-and-sync.md` law 3.
 Follow-ups tracked in `CURRENT_HANDOFF.md`: real two-device dogfooding of the party merge;
 `Planner.create` planner-level dedup for the two-populated-parties edge.
+
+## M9 recommendation-handoff substrate + evaluation-workspace core (ADR-0036 S1/S2, ADR-0037 P1–P2) — DONE
+
+The external-LLM handoff substrate and the settled core of the evaluation workspace shipped.
+
+- **Handoff seam + paste door (ADR-0036 S1).** Device-local handoff record; tokenized brief;
+  strict-JSON candidate decode (HoursExtractor pattern) → row-grain review → commit as
+  `.considering` `TripIdea` (rationale in `inlineNote`); `GV-CONTRACT` staleness marker; in-app
+  Copy-brief / Paste-result door.
+- **Resolution ops + choose-one (ADR-0036 S2).** Use This Place wired to the capture merge/dedup
+  (ADR-0019); "choose one" → alternatives ring (ADR-0035).
+- **Evaluation workspace core (ADR-0037 P1–P2).** Three-surface inbox with the candidate rail +
+  always-one-selected traversal (tested pure core in `GalavantSchema`), three-layer map, the
+  Use This Place resolve (dedup-keyed `Idea`, AI rationale preserved on the trip stop), and
+  Save-to-Ideas / Add-to-itinerary / dismiss-with-undo, plus resolve-time duplicate reconcile
+  (default merge, keep-both).
+
+Still **current, not done** (see `CURRENT_HANDOFF.md`): ADR-0037 Phases 3–4 (browser + iPhone)
+are built but their layout is in active revision. Remaining M9: the lift (ADR-0036 S3).
