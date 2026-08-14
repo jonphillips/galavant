@@ -10,6 +10,25 @@ Ordered roughly **active/blocked first, someday/design-only last** — not a str
 priority queue, just enough to skim top-to-bottom sensibly. Each entry carries
 enough context to act on cold.
 
+## In progress — M9 ADR-0037 evaluation-workspace layout revision (browser + iPhone)
+
+The evaluation-workspace core shipped and is settled (ADR-0037 Phases 1–2: candidate rail +
+always-one-selected loop, three-layer map, the **Use This Place** resolve, and Save/Add/dismiss
+— see `DONE_LOG.md`). What remains open is **layout**: Phase 3 (the state-driven persistent
+research browser + field-bar official-URL write-back, PR #31) and Phase 4 (the map-first iPhone
+inbox sheet + full-screen research browser, PR #32) are built and merged, but the **layout is
+about to be reworked significantly** — so they stay current, not done. Treat the shipped
+arrangement as a working baseline, not a finished design; the pure model/traversal core
+underneath is stable and should not need to change (ADR-0037 D7 — layout only). Rationale:
+ADR-0037; milestone arc: ROADMAP M9.
+
+## Next — M9 the lift (ADR-0036 S3, designed not built)
+
+Extract the handoff spine (session record + token + contract marker + return-split, genericized
+over source/task + scopeKey) to `jon-platform/packages/LLMHandoffKit`; rewire yes-chef; Galavant
+consumes as consumer #2. Copy-then-lift sequencing already resolved (ADR-0036 OQ2) — a later
+behavior-neutral refactor, not a gate on the workspace. Rationale: ADR-0036.
+
 ## In progress — M7 Slice 1 calendar reconciliation (ADR-0034)
 
 The calendar direction has been reversed (ADR-0034, 2026-08-10): the couple's shared
