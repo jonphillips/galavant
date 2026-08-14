@@ -68,20 +68,27 @@ private struct RecommendationHandoffDoor: View {
   let pasteResult: ([String]) -> Void
 
   var body: some View {
+    // The CTAs live in a pinned bottom inset rather than `ContentUnavailableView`'s
+    // centered `actions` slot: at the `.medium` detent that slot pushes the paste
+    // control below the fold, where it reads as missing.
     ContentUnavailableView {
       Label("Ask ChatGPT or Claude", systemImage: "sparkles")
     } description: {
       Text("Copy this trip’s brief, have the conversation in your project, then paste the returned candidate JSON here.")
-    } actions: {
+    }
+    .safeAreaInset(edge: .bottom) {
       VStack(spacing: 12) {
         Button(action: copyBrief) {
           Label(copiedBrief ? "Brief Copied" : "Copy Brief", systemImage: "doc.on.doc")
+            .frame(maxWidth: .infinity)
         }
         .buttonStyle(.borderedProminent)
 
         PasteButton(payloadType: String.self, onPaste: pasteResult)
           .labelStyle(.titleAndIcon)
       }
+      .padding()
+      .background(.bar)
     }
   }
 }
