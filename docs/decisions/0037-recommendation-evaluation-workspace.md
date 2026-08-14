@@ -107,6 +107,17 @@ matcher:
   via `mapItemIdentifier` / logical-uniqueness if Galavant already knows the place, sets the
   candidate `TripIdea`'s `ideaID`, and harvests the reliable facts the provider exposes —
   canonical name, coordinates, address, category, website `url`, and identity.
+- **Two dedup levels — pool `Idea` vs. intra-trip `TripIdea` — and only the first exists
+  today.** The confirm-merge dedup above is at the **pool `Idea`** level: two candidates
+  resolving to the same place link to one shared `Idea`. It does **not** reconcile the
+  **`TripIdea` rows within a trip**. So the observed case (dogfooding 2026-08-14: "Louisiana
+  Museum of Art" in **both** Shortlist and Considering) is expected under the current build,
+  not a dedup bug: a `.considering` candidate carries no place identity (`ideaID == nil`,
+  freeform `inlineTitle`) until resolved, so nothing keys it against an already-`.shortlisted`
+  `TripIdea` for the same place. The system genuinely cannot know they're the same until the
+  human resolves — resolution (Use This Place) is the **first moment** a candidate acquires the
+  `ideaID` that makes the collision detectable, which is exactly where the reconcile belongs
+  (OQ5), not a background convergence over unresolved prose.
 - **Two-layer preservation is structural, not a feature.** The facts land on the shared
   `Idea` (cross-trip, dedup-keyed); the AI trip intelligence — *why this fits*, *pair with
   Brixen*, *cultural counterpoint* — stays on the trip-scoped `TripIdea` (ADR-0036 D3,
@@ -254,3 +265,18 @@ model (watch-for-fat-models).
 - **OQ4 — where the workspace opens from.** A returned handoff needs an entry point (a banner
   on the Trip/Ideas screen? a push straight from paste?). Decide at Slice 1 alongside
   ADR-0036's paste door.
+- **OQ5 — resolve-time reconcile when the place is already in the trip. — Resolved 2026-08-14
+  (Jon).** *(Raised the same day from dogfooding — the "Louisiana Museum of Art in both
+  Shortlist and Considering" case; see D4.)* When Use This Place resolves a candidate onto a
+  place that is **already a `TripIdea` in the same trip** (already shortlisted, already
+  scheduled, or another candidate in this very set), the pool `Idea` dedup fires but leaves two
+  trip-scoped rows pointing at one `Idea`. **Decision: warn and let the human choose — "already
+  on your shortlist — merge, or keep both?" — defaulting to merge.** Merge folds the
+  candidate's rationale into the existing row, preserving both `inlineNote`s (the IdeaInterest
+  note-merge precedent in `PoolOperations`), then drops the duplicate `.considering` row.
+  Keep-both stays available because a place can legitimately be both a firm plan and a
+  reconsidered candidate — but merge is the default, since resolution is the moment identity
+  first exists and the human is already deciding. The reconcile fires **only at the resolve
+  gesture** (the first moment a candidate has an `ideaID` to key on); the paste door
+  structurally can't answer it and must not try. Collision-detection + merged-note logic is a
+  pure tested value type in GalavantSchema; the model applies it.

@@ -54,6 +54,17 @@ struct RecommendationHandoffSheet: View {
     } message: {
       Text(model.recommendationHandoffError ?? "")
     }
+    .alert(
+      "Imported with a note",
+      isPresented: Binding(
+        get: { model.recommendationHandoffWarning != nil },
+        set: { if !$0 { model.recommendationHandoffWarning = nil } }
+      )
+    ) {
+      Button("OK", role: .cancel) {}
+    } message: {
+      Text(model.recommendationHandoffWarning ?? "")
+    }
   }
 
   private func copyBrief() {
