@@ -6,6 +6,7 @@ enum AppScreen: Codable, Hashable, Identifiable, CaseIterable {
   case trips
   case ideas
   case browser
+  case evaluate
   case settings
 
   var id: Self { self }
@@ -16,6 +17,7 @@ enum AppScreen: Codable, Hashable, Identifiable, CaseIterable {
     case .ideas: Icon.ideas.label("Ideas")
     case .trips: Icon.trips.label("Trips")
     case .browser: Icon.browser.label("Browser")
+    case .evaluate: Icon.recommend.label("Evaluate")
     case .settings: Icon.settings.label("Settings")
     }
   }
@@ -26,6 +28,7 @@ enum AppScreen: Codable, Hashable, Identifiable, CaseIterable {
     case .ideas: IdeasScreen()
     case .trips: TripsScreen()
     case .browser: BrowserScreen()
+    case .evaluate: EvaluateScreen()
     case .settings: SettingsScreen()
     }
   }

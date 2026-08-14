@@ -1,4 +1,5 @@
 import GalavantAI
+import GalavantPlaces
 import GalavantSchema
 import MapKit
 import SwiftUI
@@ -35,20 +36,7 @@ struct RecommendationWorkspaceView: View {
           Button("Done") { dismiss() }
         }
       } else if usesColumn {
-        HStack(spacing: 0) {
-          RecommendationCandidateRail(model: model)
-            .frame(width: 300)
-          Divider()
-          RecommendationWorkspaceMap(model: model)
-            .overlay(alignment: .bottom) {
-              ActiveCandidateResolveControls(model: model)
-                .padding()
-            }
-            .frame(minWidth: 340)
-          Divider()
-          RecommendationWorkspaceBrowser(model: model)
-            .frame(minWidth: 440, maxWidth: .infinity)
-        }
+        RecommendationWorkspaceCockpit(model: model)
       } else {
         RecommendationWorkspaceCompactLayout(model: model) { dismiss() }
       }
@@ -74,6 +62,156 @@ struct RecommendationWorkspaceView: View {
       }
     }
     .task { model.task() }
+  }
+}
+
+/// The regular-width cockpit (ADR-0037): research pane and map stacked on top, the
+/// candidate work-queue as a strip along the bottom. Browser gets two-thirds because
+/// "do I actually want this" is the slow decision; the map's third is enough to answer
+/// "does it make geographic sense." The bottom strip keeps the whole queue in view
+/// while one candidate is in focus above.
+private struct RecommendationWorkspaceCockpit: View {
+  let model: RecommendationWorkspaceModel
+
+  var body: some View {
+    VStack(spacing: 0) {
+      GeometryReader { geo in
+        HStack(spacing: 0) {
+          RecommendationWorkspaceBrowser(model: model)
+            .frame(width: geo.size.width * 2 / 3)
+          Divider()
+          RecommendationWorkspaceMap(model: model)
+            .overlay(alignment: .bottom) {
+              ActiveCandidateResolveControls(model: model)
+                .padding()
+            }
+        }
+      }
+      Divider()
+      RecommendationCandidateStrip(model: model)
+        .frame(height: 220)
+    }
+  }
+}
+
+/// The bottom work-queue: every candidate as a compact card, scrolling horizontally,
+/// with one always in focus (drives the map + browser above). Secondary actions live
+/// in a per-card menu so the row stays short and never wraps — slice 3 grows the
+/// focused card into a dossier flyout that reclaims the siblings' width.
+private struct RecommendationCandidateStrip: View {
+  let model: RecommendationWorkspaceModel
+  @Environment(\.undoManager) private var undoManager
+
+  private var activeChoiceIsSelected: Bool {
+    model.effectiveActiveCandidateID.map { model.choiceCandidateIDs.contains($0) } ?? false
+  }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 0) {
+      HStack {
+        Text("Candidates")
+          .font(.headline)
+        Spacer()
+        Button("Choose One (\(model.choiceCandidateIDs.count))") {
+          model.chooseOneButtonTapped()
+        }
+        .disabled(model.choiceCandidateIDs.count < 2 || !activeChoiceIsSelected)
+      }
+      .padding(.horizontal)
+      .padding(.top, 10)
+      .padding(.bottom, 6)
+
+      ScrollView(.horizontal, showsIndicators: false) {
+        HStack(spacing: 12) {
+          ForEach(model.candidates) { candidate in
+            RecommendationCandidateStripCard(
+              candidate: candidate,
+              isActive: candidate.id == model.effectiveActiveCandidateID,
+              isInChoice: model.choiceCandidateIDs.contains(candidate.id),
+              select: { model.candidateTapped(candidate) },
+              toggleChoice: { model.choiceButtonTapped(candidate) },
+              save: { model.saveButtonTapped(candidate) },
+              addToItinerary: { model.addToItineraryButtonTapped(candidate) },
+              dismiss: { model.dismissButtonTapped(candidate, undoManager: undoManager) }
+            )
+          }
+        }
+        .padding(.horizontal)
+        .padding(.bottom, 12)
+        .frame(maxHeight: .infinity)
+      }
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .background(.bar)
+  }
+}
+
+private struct RecommendationCandidateStripCard: View {
+  let candidate: RecommendationWorkspaceCandidate
+  let isActive: Bool
+  let isInChoice: Bool
+  let select: () -> Void
+  let toggleChoice: () -> Void
+  let save: () -> Void
+  let addToItinerary: () -> Void
+  let dismiss: () -> Void
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      HStack(alignment: .firstTextBaseline) {
+        Text(candidate.title)
+          .font(.headline)
+          .lineLimit(2)
+        Spacer(minLength: 6)
+        Menu {
+          Button(isInChoice ? "Remove from Choose One" : "Add to Choose One", systemImage: "smallcircle.filled.circle") {
+            toggleChoice()
+          }
+          Button("Save to Ideas", systemImage: "lightbulb") { save() }
+          Button("Add to Itinerary", systemImage: "calendar.badge.plus") { addToItinerary() }
+          Divider()
+          Button("Dismiss", systemImage: "xmark", role: .destructive) { dismiss() }
+        } label: {
+          Image(systemName: "ellipsis.circle")
+            .font(.title3)
+        }
+        .accessibilityLabel("Candidate actions")
+      }
+      Text(candidate.isResolved ? "Resolved" : "Unresolved")
+        .font(.caption)
+        .foregroundStyle(candidate.isResolved ? .green : .secondary)
+      if let why = candidate.candidate.why {
+        Text(why)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+          .lineLimit(3)
+      }
+      Spacer(minLength: 0)
+      if candidate.isAwaitingResolutionOnItinerary {
+        Label("On itinerary — resolve to upgrade this freeform stop.", systemImage: "calendar.badge.clock")
+          .font(.caption2)
+          .foregroundStyle(.secondary)
+          .lineLimit(2)
+      } else if !candidate.isResolved {
+        Text("Resolve on the map, or add as a freeform stop.")
+          .font(.caption2)
+          .foregroundStyle(.tertiary)
+          .lineLimit(2)
+      }
+    }
+    .padding(12)
+    .frame(width: 280)
+    .frame(maxHeight: .infinity, alignment: .top)
+    .background(isActive ? Color.orange.opacity(0.16) : Color.secondary.opacity(0.08))
+    .clipShape(RoundedRectangle(cornerRadius: 12))
+    .overlay {
+      if isActive {
+        RoundedRectangle(cornerRadius: 12)
+          .strokeBorder(Color.orange, lineWidth: 2)
+      }
+    }
+    .contentShape(Rectangle())
+    .onTapGesture { select() }
   }
 }
 
@@ -201,6 +339,7 @@ private struct RecommendationCandidateCard: View {
 private struct RecommendationWorkspaceMap: View {
   let model: RecommendationWorkspaceModel
   @State private var cameraPosition: MapCameraPosition = .automatic
+  @State private var visibleRegion: MKCoordinateRegion?
 
   var body: some View {
     Map(position: $cameraPosition) {
@@ -220,6 +359,22 @@ private struct RecommendationWorkspaceMap: View {
         Marker(place.name, systemImage: "mappin.and.ellipse", coordinate: coordinate(place.latitude, place.longitude))
           .tint(.purple)
       }
+    }
+    // Search the map to jump straight to a place instead of panning to hunt for it —
+    // the same overlay the trip and pool maps use. Locate-only: it reframes the camera;
+    // resolving a candidate is still "Use This Place" (ADR-0036 keeps the pool clean).
+    .overlay(alignment: .top) {
+      MapPlaceSearchOverlay(visibleRegion: visibleRegion) { place in
+        cameraPosition = .region(
+          MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: place.latitude, longitude: place.longitude),
+            span: MKCoordinateSpan(latitudeDelta: 0.03, longitudeDelta: 0.03)
+          )
+        )
+      }
+    }
+    .onMapCameraChange { context in
+      visibleRegion = context.region
     }
     .onChange(of: model.mapViewport, initial: true) { _, viewport in
       guard let viewport else { return }
