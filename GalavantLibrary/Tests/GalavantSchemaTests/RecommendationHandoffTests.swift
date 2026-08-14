@@ -195,6 +195,43 @@ struct RecommendationHandoffTests {
     #expect(result.1.only?.url == "https://lumiere.example")
   }
 
+  @Test func aConfirmedWebsiteWriteBackUpdatesOnlyTheResolvedIdea() async throws {
+    let website = URL(string: "https://www.abbazianovacella.it")!
+    let saved = try await database.write { db -> Idea in
+      let party = try TravelParty.ensureDefault(in: db)
+      let idea = Idea(id: UUID(), name: "Neustift Abbey", travelPartyID: party.id)
+      try Idea.insert { Idea.Draft(idea) }.execute(db)
+      try Idea.setWebsite(website, for: idea.id, in: db)
+      return try #require(try Idea.find(idea.id).fetchOne(db))
+    }
+
+    #expect(saved.url == website.absoluteString)
+  }
+
+  @Test func resolvingAnItineraryFreeformCandidateUpgradesItsExistingStop() async throws {
+    let upgraded = try await database.write { db -> TripIdea in
+      let trip = try Trip.create(name: "South Tyrol", in: db)
+      let candidate = try TripIdea.commit(
+        candidate: TripCandidate(name: "Neustift Abbey", why: "A quiet afternoon."),
+        into: trip.id,
+        in: db
+      )
+      try TripIdea.scheduleUnplaced(stopID: candidate.id, in: db)
+      _ = try RecommendationResolution.confirm(
+        candidateStopID: candidate.id,
+        place: Place(
+          id: UUID(), name: "Neustift Abbey", latitude: 46.755, longitude: 11.651,
+          mapItemIdentifier: "maps:neustift-abbey"
+        ),
+        in: db
+      )
+      return try #require(try TripIdea.find(candidate.id).fetchOne(db))
+    }
+
+    #expect(upgraded.status == .scheduled)
+    #expect(upgraded.ideaID != nil)
+  }
+
   @Test func chooseOneBuildsAnAlternativesRingForCandidates() async throws {
     let result = try await database.write { db -> (UUID, [TripIdea]) in
       let trip = try Trip.create(name: "South Tyrol", in: db)

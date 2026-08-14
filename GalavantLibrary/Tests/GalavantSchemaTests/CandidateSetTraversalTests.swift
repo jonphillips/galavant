@@ -65,4 +65,77 @@ import Testing
     #expect(CandidateMapMarkerState.state(for: active, activeID: active.id) == .fuzzy(isActive: true))
     #expect(CandidateMapMarkerState.state(for: resolved, activeID: active.id) == .resolved(isActive: false))
   }
+
+  @Test func browserTargetSearchesOnlyTheUnresolvedCandidateHint() {
+    let candidate = TripCandidate(name: "Neustift Abbey", searchHint: "Neustift Abbey South Tyrol")
+
+    #expect(
+      BrowserTargetDerivation.target(for: candidate, resolution: .unresolved)
+        == .search(query: "Neustift Abbey South Tyrol")
+    )
+  }
+
+  @Test func browserTargetUsesTheResolvedPlacesOfficialWebsite() {
+    let candidate = TripCandidate(name: "Neustift Abbey", searchHint: "AI supplied search hint")
+    let officialURL = URL(string: "https://www.kloster-neustift.it")!
+
+    #expect(
+      BrowserTargetDerivation.target(
+        for: candidate,
+        resolution: .resolved(officialURL: officialURL)
+      ) == .website(officialURL)
+    )
+  }
+
+  @Test func resolveReconcileHasNoCollisionForTheOnlyTripRow() {
+    let ideaID = UUID()
+    let candidate = TripIdea(
+      id: UUID(), tripID: UUID(), ideaID: ideaID,
+      inlineNote: "Great after the market.", status: .considering)
+
+    let reconcile = ResolveReconcile(
+      tripIdeas: [candidate], resolvedIdeaID: ideaID, candidateID: candidate.id)
+
+    #expect(reconcile.collision == nil)
+  }
+
+  @Test func resolveReconcilePreservesBothNotesWhenMergingADuplicate() {
+    let tripID = UUID()
+    let ideaID = UUID()
+    let existing = TripIdea(
+      id: UUID(), tripID: tripID, ideaID: ideaID,
+      inlineNote: "Already on the shortlist.", status: .shortlisted)
+    let candidate = TripIdea(
+      id: UUID(), tripID: tripID, ideaID: ideaID,
+      inlineNote: "A useful rainy-day alternative.", status: .considering)
+
+    let collision = ResolveReconcile(
+      tripIdeas: [candidate, existing], resolvedIdeaID: ideaID, candidateID: candidate.id
+    ).collision
+
+    #expect(collision?.existingID == existing.id)
+    #expect(collision?.duplicateID == candidate.id)
+    #expect(collision?.mergedInlineNote == "Already on the shortlist.\n\nA useful rainy-day alternative.")
+    #expect(
+      collision?.action(for: .merge)
+        == .merge(
+          existingID: existing.id,
+          duplicateID: candidate.id,
+          inlineNote: "Already on the shortlist.\n\nA useful rainy-day alternative."
+        )
+    )
+  }
+
+  @Test func resolveReconcileRepresentsKeepingBothRows() {
+    let tripID = UUID()
+    let ideaID = UUID()
+    let existing = TripIdea(id: UUID(), tripID: tripID, ideaID: ideaID, status: .scheduled)
+    let candidate = TripIdea(id: UUID(), tripID: tripID, ideaID: ideaID, status: .considering)
+
+    let collision = ResolveReconcile(
+      tripIdeas: [existing, candidate], resolvedIdeaID: ideaID, candidateID: candidate.id
+    ).collision
+
+    #expect(collision?.action(for: .keepBoth) == .keepBoth)
+  }
 }
