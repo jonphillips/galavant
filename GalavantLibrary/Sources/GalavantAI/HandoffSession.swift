@@ -140,32 +140,71 @@ public struct HandoffContractMarker: Equatable, Sendable {
 
   public var marker: String { "\(prefix): \(version)" }
 
-  /// Lossless-or-loud boundary: a stale or missing contract marker is rejected
-  /// before the caller can decode a return against the wrong schema.
-  public func strippingMarker(from text: String) throws -> String {
+  /// Strip the contract marker, treating a missing or *older* marker as advisory
+  /// rather than fatal: the JSON decode step is the real lossless-or-loud guard, so
+  /// a dropped marker line shouldn't block an otherwise-good paste. Only a marker
+  /// *newer* than this build understands stays loud — that's the one case where
+  /// decoding could silently misread a future schema.
+  public func strippingMarker(from text: String) throws -> HandoffContractResult {
     let lines = text.components(separatedBy: .newlines)
     guard let markerLineIndex = lines.firstIndex(where: {
       $0.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("\(prefix):")
     }) else {
-      throw HandoffContractError.missingMarker(expected: marker)
+      return HandoffContractResult(
+        text: text,
+        warning: "This result was missing its Galavant contract marker (\(marker)). Imported anyway — re-copy your project instructions from Settings if the results look off."
+      )
     }
-    guard lines[markerLineIndex].trimmingCharacters(in: .whitespacesAndNewlines) == marker else {
-      throw HandoffContractError.outdatedMarker(expected: marker)
-    }
+    let found = lines[markerLineIndex].trimmingCharacters(in: .whitespacesAndNewlines)
     var strippedLines = lines
     strippedLines.remove(at: markerLineIndex)
-    return strippedLines.joined(separator: "\n")
+    let stripped = strippedLines.joined(separator: "\n")
+
+    if found == marker {
+      return HandoffContractResult(text: stripped, warning: nil)
+    }
+    if let foundVersion = Self.versionNumber(found),
+      let knownVersion = Self.versionNumber(marker),
+      foundVersion > knownVersion {
+      throw HandoffContractError.unsupportedMarker(found: found, expected: marker)
+    }
+    return HandoffContractResult(
+      text: stripped,
+      warning: "This result used a different contract marker (\(found), expected \(marker)). Imported anyway — re-copy your project instructions from Settings if the results look off."
+    )
+  }
+
+  /// Parse the trailing integer of a `prefix: vN` marker line (`GV-CONTRACT: v2` → 2).
+  private static func versionNumber(_ markerLine: String) -> Int? {
+    guard let colon = markerLine.firstIndex(of: ":") else { return nil }
+    let raw = markerLine[markerLine.index(after: colon)...]
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    let digits = raw.drop { !$0.isNumber }.prefix { $0.isNumber }
+    return Int(digits)
+  }
+}
+
+/// The result of stripping a contract marker: the body to decode, plus an optional
+/// non-blocking warning when the marker was missing or older than the current one.
+public struct HandoffContractResult: Equatable, Sendable {
+  public let text: String
+  public let warning: String?
+
+  public init(text: String, warning: String?) {
+    self.text = text
+    self.warning = warning
   }
 }
 
 public enum HandoffContractError: Error, Equatable, LocalizedError, Sendable {
-  case missingMarker(expected: String)
-  case outdatedMarker(expected: String)
+  /// The pasted marker names a schema newer than this build — decoding could
+  /// silently misread it, so this stays a hard stop.
+  case unsupportedMarker(found: String, expected: String)
 
   public var errorDescription: String? {
     switch self {
-    case let .missingMarker(expected), let .outdatedMarker(expected):
-      "Your project instructions are out of date. Re-copy them from Settings (\(expected))."
+    case let .unsupportedMarker(found, expected):
+      "This result uses a newer Galavant contract (\(found)) than this app understands (\(expected)). Update Galavant, or re-copy your project instructions from Settings."
     }
   }
 }

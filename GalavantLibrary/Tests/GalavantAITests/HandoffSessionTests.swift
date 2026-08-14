@@ -11,11 +11,38 @@ struct HandoffSessionTests {
     #expect(routed.text == "Intro\nReturn")
   }
 
-  @Test func rejectsAMissingContractMarkerLoudly() {
+  @Test func warnsButImportsWhenTheContractMarkerIsMissing() throws {
     let marker = HandoffContractMarker(prefix: "GV-CONTRACT", version: "v1")
 
-    #expect(throws: HandoffContractError.missingMarker(expected: "GV-CONTRACT: v1")) {
-      try marker.strippingMarker(from: "[]")
+    let result = try marker.strippingMarker(from: "[]")
+
+    #expect(result.text == "[]")
+    #expect(result.warning != nil)
+  }
+
+  @Test func warnsButImportsWhenTheContractMarkerIsOlder() throws {
+    let marker = HandoffContractMarker(prefix: "GV-CONTRACT", version: "v2")
+
+    let result = try marker.strippingMarker(from: "GV-CONTRACT: v1\n[]")
+
+    #expect(result.text == "[]")
+    #expect(result.warning != nil)
+  }
+
+  @Test func stripsCleanlyWhenTheContractMarkerMatches() throws {
+    let marker = HandoffContractMarker(prefix: "GV-CONTRACT", version: "v1")
+
+    let result = try marker.strippingMarker(from: "GV-CONTRACT: v1\n[]")
+
+    #expect(result.text == "[]")
+    #expect(result.warning == nil)
+  }
+
+  @Test func rejectsANewerContractMarkerLoudly() {
+    let marker = HandoffContractMarker(prefix: "GV-CONTRACT", version: "v1")
+
+    #expect(throws: HandoffContractError.unsupportedMarker(found: "GV-CONTRACT: v2", expected: "GV-CONTRACT: v1")) {
+      try marker.strippingMarker(from: "GV-CONTRACT: v2\n[]")
     }
   }
 

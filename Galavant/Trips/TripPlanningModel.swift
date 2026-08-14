@@ -198,6 +198,9 @@ final class TripPlanningModel {
   var destination: Destination?
   var recommendationReview: [RecommendationCandidateDraft] = []
   var recommendationHandoffError: String?
+  /// Non-blocking heads-up when a paste imported despite a dropped token or an
+  /// out-of-date contract marker (warn-not-block, ADR-0036 handoff ergonomics).
+  var recommendationHandoffWarning: String?
   var calendarLocalState: CalendarReconciliationLocalState
 
   /// The idea drilled into on the in-panel detail push (nil = the list root). A
@@ -300,6 +303,7 @@ final class TripPlanningModel {
     do {
       try handoffSessionStore.save(session)
       recommendationReview = []
+      recommendationHandoffWarning = nil
       destination = .recommendationHandoff(RecommendationHandoffPresentation(session: session))
     } catch {
       recommendationHandoffError = error.localizedDescription
@@ -309,19 +313,31 @@ final class TripPlanningModel {
   func pasteRecommendationResult(_ strings: [String], for session: HandoffSession) {
     guard let pasted = strings.first else { return }
     do {
-      let routed = try HandoffRouting.route(pasted)
-      guard routed.sessionID == session.id else {
-        throw RecommendationHandoffPresentationError.wrongSession
+      var warnings: [String] = []
+
+      // The handoff token is a routing hint, not an admission ticket. A dropped or
+      // mismatched token attaches the result to the handoff you're pasting into
+      // rather than rejecting it — commit always targets this trip regardless of
+      // which session recorded the candidates, so the blast radius is bookkeeping.
+      let bodyText: String
+      if let routed = try? HandoffRouting.route(pasted) {
+        bodyText = routed.text
+        if routed.sessionID != session.id {
+          warnings.append("This result was tagged for a different recommendation handoff — added it to this one anyway.")
+        }
+      } else {
+        bodyText = pasted
+        warnings.append("This result had no Galavant handoff token — added it to this handoff anyway.")
       }
-      guard handoffSessionStore.session(routed.sessionID) != nil else {
-        throw RecommendationHandoffPresentationError.unknownSession
-      }
-      let marked = try RecommendationHandoffContract.marker.strippingMarker(from: routed.text)
-      let candidates = try TripCandidate.decodeReturn(marked)
+
+      let contract = try RecommendationHandoffContract.marker.strippingMarker(from: bodyText)
+      if let warning = contract.warning { warnings.append(warning) }
+      let candidates = try TripCandidate.decodeReturn(contract.text)
       var updatedSession = session
       try updatedSession.storeRecommendationCandidates(candidates)
       try handoffSessionStore.save(updatedSession)
       recommendationReview = candidates.map(RecommendationCandidateDraft.init(candidate:))
+      recommendationHandoffWarning = warnings.isEmpty ? nil : warnings.joined(separator: "\n\n")
     } catch {
       recommendationHandoffError = error.localizedDescription
     }
@@ -769,18 +785,6 @@ final class TripPlanningModel {
 
   // Scheduling, stays, and per-day region actions live in
   // TripPlanningModel+Scheduling.swift.
-}
-
-private enum RecommendationHandoffPresentationError: LocalizedError {
-  case wrongSession
-  case unknownSession
-
-  var errorDescription: String? {
-    switch self {
-    case .wrongSession: "This result belongs to a different recommendation handoff."
-    case .unknownSession: "This handoff is not available on this device. Copy a new brief here first."
-    }
-  }
 }
 
 // MARK: - Calendar-derived start anchors (ADR-0034 §8)
