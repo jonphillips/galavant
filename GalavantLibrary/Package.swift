@@ -24,6 +24,12 @@ let package = Package(
     // The app-agnostic model-access boundary, lifted out to jon-platform as a
     // shared package; consumed by local path.
     .package(path: "../../../jon-platform/packages/LLMClientKit"),
+    // The app-agnostic external-LLM handoff spine (device-local session, token
+    // routing, contract-marker guard, session store), lifted out of GalavantAI to
+    // jon-platform as a shared package (ADR-0036 "the lift"); consumed by local path.
+    // Galavant owns the source/task meaning (GalavantSchema/RecommendationHandoff.swift);
+    // this package treats them as opaque tokens.
+    .package(path: "../../../jon-platform/packages/LLMHandoffKit"),
     // The app-agnostic CloudKit sync-control surface (gate, start, redrain, pending
     // poll, SyncHealth reducer), lifted to jon-platform per ADR-0003; consumed by
     // local path. GalavantCloudSync is now a thin facade over it.
@@ -54,21 +60,22 @@ let package = Package(
       name: "GalavantSchema",
       dependencies: [
         "GalavantAI",
+        .product(name: "LLMHandoffKit", package: "LLMHandoffKit"),
         .product(name: "CloudSyncKit", package: "CloudSyncKit"),
         .product(name: "GRDB", package: "GRDB.swift"),
         .product(name: "SQLiteData", package: "sqlite-data"),
         .product(name: "Dependencies", package: "swift-dependencies"),
       ]
     ),
+    // Now a thin domain-free shim: it `@_exported`-re-exports the lifted
+    // `LLMHandoffKit` handoff spine so existing `import GalavantAI` call sites keep
+    // compiling. Its own handoff tests moved with the spine to LLMHandoffKit.
     .target(
       name: "GalavantAI",
       dependencies: [
+        .product(name: "LLMHandoffKit", package: "LLMHandoffKit"),
         .product(name: "Dependencies", package: "swift-dependencies"),
       ]
-    ),
-    .testTarget(
-      name: "GalavantAITests",
-      dependencies: ["GalavantAI"]
     ),
     .testTarget(
       name: "GalavantSchemaTests",
