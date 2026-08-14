@@ -145,6 +145,14 @@ silently invent a precise location.
 - Ambiguity/no-match degrade: several → human picks; none → stays unresolved and still useful.
 - "Choose one" group → alternatives ring via `TripIdea+Alternatives.swift` (ADR-0035).
 - Resolution status shows in the rail (unresolved · resolved).
+- **Resolve-time reconcile (ADR-0037 OQ5) — settle here.** Confirm-merge dedupes at the pool
+  `Idea` level but leaves **two `TripIdea` rows in one trip** if the resolved place is already
+  shortlisted/scheduled (the "Louisiana Museum of Art in both Shortlist and Considering" case).
+  Resolution is the first moment the candidate has an `ideaID` to key on. Lean: **warn and let
+  the human choose (merge / keep both), defaulting to merge** — folding the candidate rationale
+  into the existing row, preserving both `inlineNote`s (IdeaInterest merge precedent in
+  `PoolOperations`). Decide the default from a real set; this is the dedup question the paste
+  door structurally can't answer.
 
 **Verify:** schema test for two-layer preservation (resolution sets `ideaID`, rationale
 untouched) + dedup-onto-existing; device pass — locate, Use This Place on a real return, watch
@@ -203,6 +211,9 @@ browser round-trip.
 - **OQ3 — set clutter at scale.** Muted-non-selected pins may suffice; fallback is a
   "selected + neighbors only" filter. Assess with a real 12-candidate dossier.
 - **OQ4 — workspace entry point.** Decide at P1 alongside ADR-0036's paste door (see Phase 1).
+- **OQ5 — resolve-time reconcile (intra-trip dupe).** Settle in P2 (see Phase 2 / ADR-0037
+  OQ5). The paste door can't answer it (unresolved candidates carry no place identity); Use
+  This Place is where it belongs. Lean warn-and-choose, default merge.
 
 ## Definition of done (all phases)
 

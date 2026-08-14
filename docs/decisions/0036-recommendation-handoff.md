@@ -149,9 +149,11 @@ and curly-quote-salvaged.
 Do **not** ship the candidate schema in every brief. Per ADR-0042 D4, the contract is stated **once, persistently, in the user's ChatGPT/Claude project custom
 instructions**, generated from one Core constant and surfaced as a **copy button in
 Settings**. The brief shrinks to token + trip context + the verb's ask. A version marker
-(`GV-CONTRACT: v1`) is echoed in the return so a stale paste fails **loud** ("your project
-instructions are out of date — re-copy from Settings"), never silently mis-parses. This
-inherits yes-chef's hardest-won anti-drift lesson rather than re-deriving it.
+(`GV-CONTRACT: v1`) is echoed in the return so a stale paste is caught, never silently
+mis-parses. This inherits yes-chef's hardest-won anti-drift lesson rather than re-deriving it.
+*(Amended 2026-08-14 — see Amendment 1: a missing/older marker now **warns and proceeds**;
+only a marker newer than the build stays loud. The strict-JSON decode in D4 is the real
+lossless-or-loud guard.)*
 
 ### D6 — The paste door never silently writes an itinerary slot (the identity rule)
 
@@ -339,3 +341,36 @@ back-fill, and Jon works both apps daily (learning flows both ways). The ADR's s
   the paste path as JSON and the row-grain review reads well. If a place candidate proves more
   "editable prose" than reader-feedback was, fall back to the plain-text primitive the kit
   also provides.
+
+## Amendment 1 — the paste boundary is warn-not-block, not fail-loud (2026-08-14, Jon; dogfooding)
+
+D4/D5 originally made **three** things fail loud on paste: the `GV-HANDOFF:` routing token,
+the `GV-CONTRACT:` marker, and the JSON decode. Dogfooding showed the first two are friction,
+not safety — they reject an otherwise-good paste for reasons that don't protect anything:
+
+- **The routing token is a hint, not an admission ticket.** It only *routes* a return to a
+  session record; commit targets the current trip regardless of which session recorded the
+  candidates (`TripIdea.commit(into: tripID)`), and the session's scope is advisory (D6). The
+  everyday failure is benign: you copy a brief, the sheet dismisses or you start a new handoff,
+  and the return carries the old token → `wrongSession` blocked the exact normal flow. **Now:**
+  a dropped/mismatched token attaches the candidates to the handoff you're pasting into, with
+  a non-blocking warning. Blast radius is bookkeeping.
+- **The contract marker is redundant with the decode for the versions that exist.** With only
+  `v1`, a missing or reformatted marker tells you nothing the strict-JSON decode won't catch
+  on its own. **Now:** missing or *older-than-current* marker → warn and proceed; the decode
+  stays the real lossless-or-loud guard. The one case kept loud is a marker **newer** than the
+  build understands (a future `v2` return hitting a `v1` app) — that's the only case where
+  proceeding could silently misread a schema. Rule: *unknown-future = stop; known-or-missing =
+  warn and proceed.*
+
+Only **the JSON decode** (D4) remains fail-loud; it is what actually prevents importing
+garbage. Warnings surface as a non-blocking "Imported with a note" alert.
+
+**"If I know what I'm doing, I know what I'm doing"** is the governing principle for this
+door — the guards that stayed are the ones that catch a genuine data-loss/misparse, not the
+ones that enforce ceremony. Shipped on branch `m9-handoff-warn-not-block`
+(`HandoffContractMarker.strippingMarker` now returns a `HandoffContractResult` with an
+optional warning; `pasteRecommendationResult` treats routing as a fallback). This is a
+**boundary-behavior** change, not a spine change — the lift (Slice 3) carries it forward
+verbatim: the kit's marker mechanism returns a warning instead of throwing, and the app
+composes the copy.
