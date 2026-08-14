@@ -60,6 +60,7 @@ struct BrowserScreen: View {
     }
     .task(id: recommendationLoadRequest) {
       guard let request = recommendationLoadRequest, let url = browserURL(for: request.target) else { return }
+      guard url != model.page.url else { return }
       model.page.load(URLRequest(url: url))
     }
     .sheet(item: $model.capture) { payload in

@@ -68,8 +68,7 @@ struct RecommendationWorkspaceView: View {
     ) {
       Button("Merge") { model.resolveReconcileChoice(.merge) }
         .keyboardShortcut(.defaultAction)
-      Button("Keep Both") { model.resolveReconcileChoice(.keepBoth) }
-      Button("Cancel", role: .cancel) {}
+      Button("Keep Both", role: .cancel) { model.resolveReconcileChoice(.keepBoth) }
     } message: {
       if let collision = model.pendingReconcile {
         Text("This place is already \(collision.existingStatus.label.lowercased()) in this trip. Merge the two rationales, or keep both rows?")
@@ -278,16 +277,27 @@ private struct RecommendationWorkspaceMap: View {
 
 private struct RecommendationWorkspaceBrowser: View {
   let model: RecommendationWorkspaceModel
+  @State private var browserModel = BrowserScreenModel()
 
   var body: some View {
     if let request = model.browserLoadRequest {
       BrowserScreen(context: .recommendation(request))
+        .environment(browserModel)
     } else {
       ContentUnavailableView {
         Label("No Browser Target", systemImage: "safari")
       } description: {
-        Text("Resolve this candidate to load its official website.")
+        Text(noBrowserTargetDescription)
       }
     }
+  }
+
+  private var noBrowserTargetDescription: String {
+    guard let candidate = model.activeCandidate else {
+      return "Select a candidate to research."
+    }
+    return candidate.isResolved
+      ? "No website on file for this place."
+      : "Resolve this candidate to load its official website."
   }
 }
