@@ -500,12 +500,12 @@ the itinerary. The handoff core lifts to a shared jon-platform package (Galavant
   `GV-CONTRACT` staleness marker; in-app Copy-brief / Paste-result door.
 - ✅ **Resolution ops + choose-one (ADR-0036 S2).** Use This Place wired to the capture
   merge/dedup; "choose one" → alternatives ring (ADR-0035).
-- ✅ **Evaluation workspace, iPad Phases 1–3 (ADR-0037).** Three-surface inbox with the
+- ✅ **Evaluation workspace, iPad + iPhone (ADR-0037).** Three-surface inbox with the
   candidate rail, three-layer map, and state-driven persistent browser; field-bar official-URL
   write-back; Save-to-Ideas / Add-to-itinerary (freeform → in-place resolved upgrade) /
-  dismiss-with-undo; resolve-time duplicate warning with default merge and keep-both. Codex handoff:
-  [docs/handoff/m9-adr0037-evaluation-workspace.md](handoff/m9-adr0037-evaluation-workspace.md)
-  (Phase 4 remains: iPhone sequential presentation over the same state.)
+  dismiss-with-undo; resolve-time duplicate warning with default merge and keep-both. iPhone
+  sequences the same state as a map-first inbox sheet with a full-screen research browser. Codex
+  handoff: [docs/handoff/m9-adr0037-evaluation-workspace.md](handoff/m9-adr0037-evaluation-workspace.md)
 - ⏳ **The lift (ADR-0036 S3).** Extract the handoff spine to
   `jon-platform/packages/LLMHandoffKit`; rewire yes-chef; Galavant consumes. Sequencing
   resolved (ADR-0036 OQ2): **copy-then-lift** — Slice 1 ships a local spine in `GalavantAI`;

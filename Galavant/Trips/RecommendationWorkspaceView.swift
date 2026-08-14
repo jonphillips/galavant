@@ -40,18 +40,17 @@ struct RecommendationWorkspaceView: View {
             .frame(width: 300)
           Divider()
           RecommendationWorkspaceMap(model: model)
+            .overlay(alignment: .bottom) {
+              ActiveCandidateResolveControls(model: model)
+                .padding()
+            }
             .frame(minWidth: 340)
           Divider()
           RecommendationWorkspaceBrowser(model: model)
             .frame(minWidth: 440, maxWidth: .infinity)
         }
       } else {
-        VStack(spacing: 0) {
-          RecommendationWorkspaceMap(model: model)
-          Divider()
-          RecommendationCandidateRail(model: model)
-            .frame(maxHeight: 330)
-        }
+        RecommendationWorkspaceCompactLayout(model: model)
       }
     }
     .overlay(alignment: .topTrailing) {
@@ -80,6 +79,7 @@ struct RecommendationWorkspaceView: View {
 
 private struct RecommendationCandidateRail: View {
   let model: RecommendationWorkspaceModel
+  var research: (() -> Void)? = nil
   @Environment(\.undoManager) private var undoManager
 
   private var activeChoiceIsSelected: Bool {
@@ -92,6 +92,9 @@ private struct RecommendationCandidateRail: View {
         Text("Candidates")
           .font(.headline)
         Spacer()
+        if let research {
+          Button("Research", action: research)
+        }
         Button("Choose One (\(model.choiceCandidateIDs.count))") {
           model.chooseOneButtonTapped()
         }
@@ -200,60 +203,38 @@ private struct RecommendationWorkspaceMap: View {
   @State private var cameraPosition: MapCameraPosition = .automatic
 
   var body: some View {
-    ZStack(alignment: .bottom) {
-      Map(position: $cameraPosition) {
-        ForEach(model.itineraryMarkers) { marker in
-          Marker(marker.title, systemImage: "mappin", coordinate: coordinate(marker.latitude, marker.longitude))
-            .tint(.blue)
-        }
-        ForEach(model.candidateMarkers) { marker in
-          Marker(
-            marker.title,
-            systemImage: markerSymbol(marker.state),
-            coordinate: coordinate(marker.latitude, marker.longitude)
-          )
-          .tint(markerColor(marker.state))
-        }
-        ForEach(model.resolveResults) { place in
-          Marker(place.name, systemImage: "mappin.and.ellipse", coordinate: coordinate(place.latitude, place.longitude))
-            .tint(.purple)
-        }
+    Map(position: $cameraPosition) {
+      ForEach(model.itineraryMarkers) { marker in
+        Marker(marker.title, systemImage: "mappin", coordinate: coordinate(marker.latitude, marker.longitude))
+          .tint(.blue)
       }
-      .onChange(of: model.mapViewport, initial: true) { _, viewport in
-        guard let viewport else { return }
-        cameraPosition = .region(
-          MKCoordinateRegion(
-            center: CLLocationCoordinate2D(
-              latitude: viewport.centerLatitude,
-              longitude: viewport.centerLongitude
-            ),
-            span: MKCoordinateSpan(
-              latitudeDelta: viewport.latitudeDelta,
-              longitudeDelta: viewport.longitudeDelta
-            )
+      ForEach(model.candidateMarkers) { marker in
+        Marker(
+          marker.title,
+          systemImage: markerSymbol(marker.state),
+          coordinate: coordinate(marker.latitude, marker.longitude)
+        )
+        .tint(markerColor(marker.state))
+      }
+      ForEach(model.resolveResults) { place in
+        Marker(place.name, systemImage: "mappin.and.ellipse", coordinate: coordinate(place.latitude, place.longitude))
+          .tint(.purple)
+      }
+    }
+    .onChange(of: model.mapViewport, initial: true) { _, viewport in
+      guard let viewport else { return }
+      cameraPosition = .region(
+        MKCoordinateRegion(
+          center: CLLocationCoordinate2D(
+            latitude: viewport.centerLatitude,
+            longitude: viewport.centerLongitude
+          ),
+          span: MKCoordinateSpan(
+            latitudeDelta: viewport.latitudeDelta,
+            longitudeDelta: viewport.longitudeDelta
           )
         )
-      }
-
-      VStack(spacing: 8) {
-        if let active = model.activeCandidate {
-          Button("Use This Place for \(active.title)") {
-            Task { await model.useThisPlaceButtonTapped() }
-          }
-          .buttonStyle(.borderedProminent)
-        }
-        if !model.resolveResults.isEmpty {
-          ScrollView(.horizontal) {
-            HStack {
-              ForEach(model.resolveResults) { place in
-                Button(place.name) { model.resolveResultTapped(place) }
-                  .buttonStyle(.bordered)
-              }
-            }
-          }
-        }
-      }
-      .padding()
+      )
     }
   }
 
@@ -271,6 +252,77 @@ private struct RecommendationWorkspaceMap: View {
   private func markerColor(_ state: CandidateMapMarkerState) -> Color {
     switch state {
     case let .fuzzy(isActive), let .resolved(isActive): isActive ? .orange : .gray
+    }
+  }
+}
+
+private struct ActiveCandidateResolveControls: View {
+  let model: RecommendationWorkspaceModel
+
+  var body: some View {
+    VStack(spacing: 8) {
+      if let active = model.activeCandidate {
+        Button("Use This Place for \(active.title)") {
+          Task { await model.useThisPlaceButtonTapped() }
+        }
+        .buttonStyle(.borderedProminent)
+      }
+      if !model.resolveResults.isEmpty {
+        ScrollView(.horizontal) {
+          HStack {
+            ForEach(model.resolveResults) { place in
+              Button(place.name) { model.resolveResultTapped(place) }
+                .buttonStyle(.bordered)
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+private struct RecommendationWorkspaceCompactLayout: View {
+  let model: RecommendationWorkspaceModel
+  @State private var candidateRailIsPresented = true
+  @State private var candidateRailDetent: PresentationDetent = .fraction(0.4)
+  @State private var researchIsPresented = false
+
+  var body: some View {
+    RecommendationWorkspaceMap(model: model)
+      .ignoresSafeArea(.container, edges: .bottom)
+      .sheet(isPresented: $candidateRailIsPresented) {
+        VStack(spacing: 0) {
+          ActiveCandidateResolveControls(model: model)
+            .padding()
+          Divider()
+          RecommendationCandidateRail(model: model) {
+            researchIsPresented = true
+          }
+        }
+        .fullScreenCover(isPresented: $researchIsPresented) {
+          RecommendationWorkspaceResearchBrowser(model: model)
+        }
+        .presentationDetents([.fraction(0.4), .large], selection: $candidateRailDetent)
+        .presentationBackgroundInteraction(.enabled(upThrough: .fraction(0.4)))
+        .presentationBackground(.regularMaterial)
+        .interactiveDismissDisabled(true)
+      }
+  }
+}
+
+private struct RecommendationWorkspaceResearchBrowser: View {
+  let model: RecommendationWorkspaceModel
+  @Environment(\.dismiss) private var dismiss
+
+  var body: some View {
+    NavigationStack {
+      RecommendationWorkspaceBrowser(model: model)
+        .navigationTitle("Research")
+        .toolbar {
+          ToolbarItem(placement: .confirmationAction) {
+            Button("Done") { dismiss() }
+          }
+        }
     }
   }
 }
