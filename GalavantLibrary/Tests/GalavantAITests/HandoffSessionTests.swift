@@ -18,4 +18,22 @@ struct HandoffSessionTests {
       try marker.strippingMarker(from: "[]")
     }
   }
+
+  @Test func decodesSessionsSavedBeforeCandidateTrackingWasAdded() throws {
+    let session = HandoffSession(
+      id: UUID(uuidString: "20000000-0000-0000-0000-000000000001")!,
+      sourceType: "trip",
+      sourceID: UUID(uuidString: "20000000-0000-0000-0000-000000000002")!,
+      taskType: "candidatePlaces",
+      exportedPrompt: "Prompt"
+    )
+    var object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(session)) as! [String: Any]
+    object.removeValue(forKey: "candidatePayload")
+    object.removeValue(forKey: "candidateLinks")
+    let legacy = try JSONSerialization.data(withJSONObject: object)
+
+    let decoded = try JSONDecoder().decode(HandoffSession.self, from: legacy)
+    #expect(decoded.candidatePayload == nil)
+    #expect(decoded.candidateLinks.isEmpty)
+  }
 }

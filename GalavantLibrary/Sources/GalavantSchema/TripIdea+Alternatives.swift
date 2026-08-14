@@ -43,6 +43,38 @@ extension TripIdea {
     return groupID
   }
 
+  /// Reconstitute a ring after an undo restores a deleted member. The snapshot is
+  /// only applied while every former member is still a considering stop in the
+  /// same trip, so undo never overwrites a newer scheduling decision.
+  @discardableResult
+  public static func restoreAlternativeRing(
+    memberIDs: [TripIdea.ID],
+    activeStopID: TripIdea.ID,
+    groupID: UUID,
+    in db: Database
+  ) throws -> Bool {
+    var seen = Set<TripIdea.ID>()
+    let uniqueIDs = memberIDs.filter { seen.insert($0).inserted }
+    guard uniqueIDs.count > 1, uniqueIDs.contains(activeStopID) else { return false }
+
+    let members = try uniqueIDs.compactMap { try TripIdea.find($0).fetchOne(db) }
+    guard
+      members.count == uniqueIDs.count,
+      let tripID = members.first?.tripID,
+      members.allSatisfy({ $0.tripID == tripID && $0.status == .considering })
+    else { return false }
+
+    for member in members {
+      try TripIdea.find(member.id)
+        .update {
+          $0.alternativeGroupID = #bind(groupID)
+          $0.isActive = #bind(member.id == activeStopID)
+        }
+        .execute(db)
+    }
+    return true
+  }
+
   /// The stable order of peers in an alternatives ring. `shortlistRank` keeps a
   /// ring's usual shortlist intent, while the UUID tiebreak makes concurrent
   /// same-rank writes converge identically on every device (ADR-0035).

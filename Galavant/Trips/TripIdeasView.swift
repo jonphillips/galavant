@@ -29,6 +29,17 @@ struct TripIdeasView: View {
           .foregroundStyle(.secondary)
         }
       }
+      if let session = model.mostRecentRecommendationWorkspaceSession {
+        Section {
+          Button {
+            model.recommendationWorkspaceButtonTapped(sessionID: session.id)
+          } label: {
+            Label("Evaluate Recommendations", systemImage: "sparkles")
+          }
+        } footer: {
+          Text("Open the most recent recommendation set for this trip.")
+        }
+      }
       if !model.plan.shortlist.isEmpty {
         Section("Shortlist") {
           ForEach(model.plan.shortlist) { resolved in

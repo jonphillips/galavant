@@ -134,7 +134,7 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
   }
 
   enum CodingKeys: String, CodingKey {
-    case name, locality, searchHint = "search_hint", why, fit, kind, visit, priority
+    case id, name, locality, searchHint = "search_hint", why, fit, kind, visit, priority
     case dayRef = "day_ref"
     case placementAfter = "placement_after"
   }
@@ -142,6 +142,7 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
   public init(from decoder: any Decoder) throws {
     let values = try decoder.container(keyedBy: CodingKeys.self)
     self.init(
+      id: try values.decodeIfPresent(UUID.self, forKey: .id) ?? UUID(),
       name: try values.decodeIfPresent(String.self, forKey: .name),
       locality: try values.decodeIfPresent(String.self, forKey: .locality),
       searchHint: try values.decodeIfPresent(String.self, forKey: .searchHint),
@@ -157,6 +158,7 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
 
   public func encode(to encoder: any Encoder) throws {
     var values = encoder.container(keyedBy: CodingKeys.self)
+    try values.encode(id, forKey: .id)
     try values.encodeIfPresent(name, forKey: .name)
     try values.encodeIfPresent(locality, forKey: .locality)
     try values.encodeIfPresent(searchHint, forKey: .searchHint)
@@ -293,6 +295,40 @@ extension TripIdea {
       .update { $0.ideaID = #bind(ideaID) }
       .execute(db)
     return try TripIdea.find(candidateStopID).fetchOne(db)
+  }
+}
+
+extension HandoffSession {
+  /// A recommendation set can only enter evaluation after at least one reviewed
+  /// candidate has a durable trip-stop link. Keeping this decision beside the
+  /// device-local payload prevents entry points from disagreeing about readiness.
+  public var hasCommittedRecommendationCandidates: Bool {
+    candidateLinks.contains { $0.tripIdeaID != nil }
+  }
+
+  public func recommendationCandidates() throws -> [TripCandidate] {
+    guard let candidatePayload else { return [] }
+    return try JSONDecoder().decode([TripCandidate].self, from: Data(candidatePayload.utf8))
+  }
+
+  public mutating func storeRecommendationCandidates(_ candidates: [TripCandidate]) throws {
+    candidatePayload = String(decoding: try JSONEncoder().encode(candidates), as: UTF8.self)
+    let linkedTripIdeaIDs = Dictionary(uniqueKeysWithValues: candidateLinks.map { ($0.candidateID, $0.tripIdeaID) })
+    candidateLinks = candidates.map {
+      HandoffCandidateLink(candidateID: $0.id, tripIdeaID: linkedTripIdeaIDs[$0.id] ?? nil)
+    }
+  }
+
+  public mutating func link(candidateID: TripCandidate.ID, to tripIdeaID: TripIdea.ID) {
+    guard let index = candidateLinks.firstIndex(where: { $0.candidateID == candidateID }) else { return }
+    candidateLinks[index].tripIdeaID = tripIdeaID
+  }
+
+  public mutating func replaceRecommendationCandidate(_ candidate: TripCandidate) throws {
+    var candidates = try recommendationCandidates()
+    guard let index = candidates.firstIndex(where: { $0.id == candidate.id }) else { return }
+    candidates[index] = candidate
+    try storeRecommendationCandidates(candidates)
   }
 }
 

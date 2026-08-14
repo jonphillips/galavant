@@ -255,6 +255,9 @@ private struct TripPlanningPresentationHost<Content: View>: View {
       .sheet(item: $model.destination.recommendationHandoff, id: \.id) { presentation in
         RecommendationHandoffSheet(model: model, session: presentation.session)
       }
+      .sheet(item: $model.destination.recommendationWorkspace, id: \.id) { presentation in
+        RecommendationWorkspaceHost(tripID: model.tripID, sessionID: presentation.sessionID)
+      }
       .sheet(isPresented: $showingStartDay) {
         StartDayPanel(model: model)
       }

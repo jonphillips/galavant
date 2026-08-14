@@ -33,6 +33,13 @@ struct RecommendationHandoffSheet: View {
         ToolbarItem(placement: .cancellationAction) {
           Button(model.recommendationReview.isEmpty ? "Done" : "Close") { dismiss() }
         }
+        if model.recommendationWorkspaceIsAvailable(for: session.id) {
+          ToolbarItem(placement: .primaryAction) {
+            Button("Evaluate") {
+              model.recommendationWorkspaceButtonTapped(sessionID: session.id)
+            }
+          }
+        }
       }
     }
     .presentationDetents([.medium, .large])
@@ -61,20 +68,27 @@ private struct RecommendationHandoffDoor: View {
   let pasteResult: ([String]) -> Void
 
   var body: some View {
+    // The CTAs live in a pinned bottom inset rather than `ContentUnavailableView`'s
+    // centered `actions` slot: at the `.medium` detent that slot pushes the paste
+    // control below the fold, where it reads as missing.
     ContentUnavailableView {
       Label("Ask ChatGPT or Claude", systemImage: "sparkles")
     } description: {
       Text("Copy this trip’s brief, have the conversation in your project, then paste the returned candidate JSON here.")
-    } actions: {
+    }
+    .safeAreaInset(edge: .bottom) {
       VStack(spacing: 12) {
         Button(action: copyBrief) {
           Label(copiedBrief ? "Brief Copied" : "Copy Brief", systemImage: "doc.on.doc")
+            .frame(maxWidth: .infinity)
         }
         .buttonStyle(.borderedProminent)
 
         PasteButton(payloadType: String.self, onPaste: pasteResult)
           .labelStyle(.titleAndIcon)
       }
+      .padding()
+      .background(.bar)
     }
   }
 }
@@ -106,8 +120,11 @@ private struct RecommendationCandidateReviewRow: View {
       TextField("Place name", text: $candidate.name)
       TextField("Locality", text: $candidate.locality)
       TextField("Search hint", text: $candidate.searchHint)
-      TextField("Why it fits", text: $candidate.rationale, axis: .vertical)
+      TextField("Why it fits", text: $candidate.why, axis: .vertical)
         .lineLimit(2...5)
+      TextField("Fit", text: $candidate.fit, axis: .vertical)
+        .lineLimit(2...5)
+      TextField("Rough time", text: $candidate.visit)
       if let dayRef = candidate.dayRef {
         LabeledContent("Suggested day", value: dayRef)
       }
