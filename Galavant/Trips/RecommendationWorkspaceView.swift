@@ -50,7 +50,7 @@ struct RecommendationWorkspaceView: View {
             .frame(minWidth: 440, maxWidth: .infinity)
         }
       } else {
-        RecommendationWorkspaceCompactLayout(model: model)
+        RecommendationWorkspaceCompactLayout(model: model) { dismiss() }
       }
     }
     .overlay(alignment: .topTrailing) {
@@ -283,6 +283,7 @@ private struct ActiveCandidateResolveControls: View {
 
 private struct RecommendationWorkspaceCompactLayout: View {
   let model: RecommendationWorkspaceModel
+  let dismissWorkspace: () -> Void
   @State private var candidateRailIsPresented = true
   @State private var candidateRailDetent: PresentationDetent = .fraction(0.4)
   @State private var researchIsPresented = false
@@ -298,6 +299,11 @@ private struct RecommendationWorkspaceCompactLayout: View {
           RecommendationCandidateRail(model: model) {
             researchIsPresented = true
           }
+        }
+        .safeAreaInset(edge: .top, alignment: .trailing) {
+          Button("Done", action: dismissWorkspace)
+            .buttonStyle(.bordered)
+            .padding(.horizontal)
         }
         .fullScreenCover(isPresented: $researchIsPresented) {
           RecommendationWorkspaceResearchBrowser(model: model)
