@@ -47,3 +47,4 @@ at creation). See `docs/README.md` (the atlas) and `jon-platform/docs/agent-work
 | [0035](0035-itinerary-alternatives.md) | Itinerary alternatives — a ring of stops sharing one slot, exactly one active |
 | [0036](0036-recommendation-handoff.md) | Recommendation handoff — candidate places from an external-LLM round-trip |
 | [0037](0037-recommendation-evaluation-workspace.md) | Recommendation evaluation workspace — a candidate set processed like an inbox |
+| [0038](0038-journey-today-projections-and-weather.md) | Journey & Today are read-only `TripPlan` projections; WeatherKit forecasts planned presence |
