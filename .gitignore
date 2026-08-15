@@ -12,3 +12,6 @@ Config/Secrets.xcconfig
 # The shared SessionStart hook lives in the committed .claude/settings.json.
 .claude/settings.local.json
 .claude/jon-platform
+
+# Background-agent worktrees (isolated checkouts, never committed)
+.claude/worktrees/

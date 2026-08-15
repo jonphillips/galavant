@@ -41,11 +41,6 @@ struct RecommendationWorkspaceView: View {
         RecommendationWorkspaceCompactLayout(model: model) { dismiss() }
       }
     }
-    .overlay(alignment: .topTrailing) {
-      Button("Done") { dismiss() }
-        .buttonStyle(.bordered)
-        .padding()
-    }
     .alert(
       "Already on your trip",
       isPresented: Binding(
@@ -101,6 +96,9 @@ private struct RecommendationWorkspaceCockpit: View {
 private struct RecommendationCandidateStrip: View {
   let model: RecommendationWorkspaceModel
   @Environment(\.undoManager) private var undoManager
+  @State private var expandedID: TripIdea.ID?
+  @State private var addingCandidate = false
+  @State private var newCandidateName = ""
 
   private var activeChoiceIsSelected: Bool {
     model.effectiveActiveCandidateID.map { model.choiceCandidateIDs.contains($0) } ?? false
@@ -108,11 +106,27 @@ private struct RecommendationCandidateStrip: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
-      HStack {
+      HStack(spacing: 12) {
         Text("Candidates")
           .font(.headline)
+        Button {
+          newCandidateName = ""
+          addingCandidate = true
+        } label: {
+          Image(systemName: "plus.circle.fill")
+            .font(.title3)
+        }
+        .accessibilityLabel("Add a candidate")
         Spacer()
-        Button("Choose One (\(model.choiceCandidateIDs.count))") {
+        // "Choose One" collapses the marked candidates into ONE interchangeable
+        // itinerary slot (ADR-0035 alternatives ring): mark 2+, then tap this to
+        // make them options you pick between later, instead of separate stops.
+        if !model.choiceCandidateIDs.isEmpty {
+          Text("^[\(model.choiceCandidateIDs.count) marked](inflect: true)")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+        Button("Choose One") {
           model.chooseOneButtonTapped()
         }
         .disabled(model.choiceCandidateIDs.count < 2 || !activeChoiceIsSelected)
@@ -128,10 +142,17 @@ private struct RecommendationCandidateStrip: View {
               candidate: candidate,
               isActive: candidate.id == model.effectiveActiveCandidateID,
               isInChoice: model.choiceCandidateIDs.contains(candidate.id),
+              isExpanded: expandedID == candidate.id,
+              days: model.tripDays,
               select: { model.candidateTapped(candidate) },
+              setExpanded: { expand in
+                withAnimation(.snappy(duration: 0.22)) {
+                  expandedID = expand ? candidate.id : nil
+                }
+              },
               toggleChoice: { model.choiceButtonTapped(candidate) },
               save: { model.saveButtonTapped(candidate) },
-              addToItinerary: { model.addToItineraryButtonTapped(candidate) },
+              addToDay: { day in model.addToDay(candidate, day: day) },
               dismiss: { model.dismissButtonTapped(candidate, undoManager: undoManager) }
             )
           }
@@ -143,6 +164,13 @@ private struct RecommendationCandidateStrip: View {
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .background(.bar)
+    .alert("New candidate", isPresented: $addingCandidate) {
+      TextField("Place name", text: $newCandidateName)
+      Button("Add") { model.addManualCandidate(named: newCandidateName) }
+      Button("Cancel", role: .cancel) {}
+    } message: {
+      Text("Add a place the AI didn't suggest. It joins the set and resolves on the map like any other candidate.")
+    }
   }
 }
 
@@ -150,59 +178,25 @@ private struct RecommendationCandidateStripCard: View {
   let candidate: RecommendationWorkspaceCandidate
   let isActive: Bool
   let isInChoice: Bool
+  let isExpanded: Bool
+  let days: [RecommendationWorkspaceDay]
   let select: () -> Void
+  let setExpanded: (Bool) -> Void
   let toggleChoice: () -> Void
   let save: () -> Void
-  let addToItinerary: () -> Void
+  let addToDay: (Int?) -> Void
   let dismiss: () -> Void
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 6) {
-      HStack(alignment: .firstTextBaseline) {
-        Text(candidate.title)
-          .font(.headline)
-          .lineLimit(2)
-        Spacer(minLength: 6)
-        Menu {
-          Button(isInChoice ? "Remove from Choose One" : "Add to Choose One", systemImage: "smallcircle.filled.circle") {
-            toggleChoice()
-          }
-          Button("Save to Ideas", systemImage: "lightbulb") { save() }
-          Button("Add to Itinerary", systemImage: "calendar.badge.plus") { addToItinerary() }
-          Divider()
-          Button("Dismiss", systemImage: "xmark", role: .destructive) { dismiss() }
-        } label: {
-          Image(systemName: "ellipsis.circle")
-            .font(.title3)
-        }
-        .accessibilityLabel("Candidate actions")
-      }
-      Text(candidate.isResolved ? "Resolved" : "Unresolved")
-        .font(.caption)
-        .foregroundStyle(candidate.isResolved ? .green : .secondary)
-      if let why = candidate.candidate.why {
-        Text(why)
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-          .lineLimit(3)
-      }
-      Spacer(minLength: 0)
-      if candidate.isAwaitingResolutionOnItinerary {
-        Label("On itinerary — resolve to upgrade this freeform stop.", systemImage: "calendar.badge.clock")
-          .font(.caption2)
-          .foregroundStyle(.secondary)
-          .lineLimit(2)
-      } else if !candidate.isResolved {
-        Text("Resolve on the map, or add as a freeform stop.")
-          .font(.caption2)
-          .foregroundStyle(.tertiary)
-          .lineLimit(2)
+    Group {
+      if isExpanded {
+        expandedBody
+      } else {
+        collapsedBody
       }
     }
-    .padding(12)
-    .frame(width: 280)
     .frame(maxHeight: .infinity, alignment: .top)
-    .background(isActive ? Color.orange.opacity(0.16) : Color.secondary.opacity(0.08))
+    .background(backgroundColor)
     .clipShape(RoundedRectangle(cornerRadius: 12))
     .overlay {
       if isActive {
@@ -210,8 +204,167 @@ private struct RecommendationCandidateStripCard: View {
           .strokeBorder(Color.orange, lineWidth: 2)
       }
     }
+  }
+
+  /// Tapping a collapsed card focuses it (drives the map + browser) and opens it;
+  /// tapping the expanded card's chevron just collapses it again without touching
+  /// any other card. Only one card is expanded at a time.
+  private var collapsedBody: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      HStack(alignment: .firstTextBaseline) {
+        Text(candidate.title)
+          .font(.headline)
+          .lineLimit(2)
+        Spacer(minLength: 6)
+        actionsMenu
+      }
+      statusLabel
+      if let why = candidate.candidate.why {
+        Text(why)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+          .lineLimit(3)
+      }
+      Spacer(minLength: 0)
+      hint
+    }
+    .padding(12)
+    .frame(width: 280)
     .contentShape(Rectangle())
-    .onTapGesture { select() }
+    .onTapGesture {
+      select()
+      setExpanded(true)
+    }
+  }
+
+  private var expandedBody: some View {
+    HStack(alignment: .top, spacing: 12) {
+      VStack(alignment: .leading, spacing: 6) {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+          Button { setExpanded(false) } label: {
+            Image(systemName: "chevron.left")
+              .font(.headline)
+          }
+          .buttonStyle(.plain)
+          .accessibilityLabel("Collapse")
+          Text(candidate.title)
+            .font(.headline)
+            .lineLimit(3)
+        }
+        statusLabel
+        Spacer(minLength: 0)
+        hint
+      }
+      .frame(width: 190, alignment: .leading)
+      .contentShape(Rectangle())
+      .onTapGesture { select() }
+
+      Divider()
+
+      // The dossier that was truncated in the collapsed card, now fully visible —
+      // scrolls if it's long, so the strip never has to grow taller.
+      ScrollView {
+        VStack(alignment: .leading, spacing: 10) {
+          if let why = candidate.candidate.why { dossierField("Why", why) }
+          if let fit = candidate.candidate.fit { dossierField("Fit", fit) }
+          if let visit = candidate.candidate.visit { dossierField("Time", visit) }
+          if let placementAfter = candidate.candidate.placementAfter {
+            dossierField("Placement", "Suggested after \(placementAfter) — choose its placement yourself.")
+          }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+      }
+      .frame(width: 300)
+
+      actionsMenu
+    }
+    .padding(12)
+  }
+
+  private var actionsMenu: some View {
+    Menu {
+      Button(isInChoice ? "Unmark for Choose One" : "Mark for Choose One", systemImage: "smallcircle.filled.circle") {
+        toggleChoice()
+      }
+      Button("Save to Ideas", systemImage: "lightbulb") { save() }
+      Menu("Add to Day", systemImage: "calendar.badge.plus") {
+        ForEach(days) { day in
+          Button {
+            addToDay(day.number)
+          } label: {
+            if let date = day.date {
+              Text("Day \(day.number) · \(date, format: .dateTime.weekday(.abbreviated).month().day())")
+            } else {
+              Text("Day \(day.number)")
+            }
+          }
+        }
+        if !days.isEmpty { Divider() }
+        Button("To be scheduled") { addToDay(nil) }
+      }
+      Divider()
+      Button("Dismiss", systemImage: "xmark", role: .destructive) { dismiss() }
+    } label: {
+      Image(systemName: "ellipsis.circle")
+        .font(.title3)
+    }
+    .accessibilityLabel("Candidate actions")
+  }
+
+  private var hasWebsite: Bool {
+    !(candidate.idea?.url.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+  }
+
+  // Two independent facts: "Resolved" is the map-item mapping; "Site" is a connected
+  // website (the browser's Connect). A candidate can be either, both, or neither.
+  private var statusLabel: some View {
+    HStack(spacing: 8) {
+      HStack(spacing: 4) {
+        if candidate.isResolved {
+          Image(systemName: "checkmark.seal.fill")
+            .foregroundStyle(.green)
+        }
+        Text(candidate.isResolved ? "Resolved" : "Unresolved")
+          .foregroundStyle(candidate.isResolved ? .green : .secondary)
+      }
+      if hasWebsite {
+        Label("Site", systemImage: "link")
+          .foregroundStyle(.blue)
+      }
+    }
+    .font(.caption)
+  }
+
+  @ViewBuilder private var hint: some View {
+    if candidate.isAwaitingResolutionOnItinerary {
+      Label("On itinerary — resolve to upgrade this freeform stop.", systemImage: "calendar.badge.clock")
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+        .lineLimit(2)
+    } else if !candidate.isResolved {
+      Text("Resolve on the map, or add as a freeform stop.")
+        .font(.caption2)
+        .foregroundStyle(.tertiary)
+        .lineLimit(2)
+    }
+  }
+
+  private func dossierField(_ label: String, _ value: String) -> some View {
+    VStack(alignment: .leading, spacing: 2) {
+      Text(label)
+        .font(.caption)
+        .foregroundStyle(.secondary)
+      Text(value)
+        .font(.subheadline)
+    }
+  }
+
+  // Resolved candidates read as "done/mapped" (green) regardless of focus; the
+  // focused-but-unresolved card gets a warm tint, everything else stays neutral.
+  private var backgroundColor: Color {
+    if candidate.isResolved { return Color.green.opacity(0.14) }
+    if isActive { return Color.orange.opacity(0.12) }
+    return Color.secondary.opacity(0.08)
   }
 }
 
@@ -340,6 +493,7 @@ private struct RecommendationWorkspaceMap: View {
   let model: RecommendationWorkspaceModel
   @State private var cameraPosition: MapCameraPosition = .automatic
   @State private var visibleRegion: MKCoordinateRegion?
+  @State private var didInitialFrame = false
 
   var body: some View {
     Map(position: $cameraPosition) {
@@ -348,36 +502,55 @@ private struct RecommendationWorkspaceMap: View {
           .tint(.blue)
       }
       ForEach(model.candidateMarkers) { marker in
-        Marker(
-          marker.title,
-          systemImage: markerSymbol(marker.state),
-          coordinate: coordinate(marker.latitude, marker.longitude)
-        )
-        .tint(markerColor(marker.state))
+        if isActiveMarker(marker.state) {
+          // The focused candidate is the subject of "Use This Place" — draw it as a
+          // large ringed pin so it's unmistakable which location that button acts on.
+          Annotation(marker.title, coordinate: coordinate(marker.latitude, marker.longitude)) {
+            activeCandidatePin(marker.state)
+          }
+        } else {
+          Marker(
+            marker.title,
+            systemImage: markerSymbol(marker.state),
+            coordinate: coordinate(marker.latitude, marker.longitude)
+          )
+          .tint(markerColor(marker.state))
+        }
       }
       ForEach(model.resolveResults) { place in
-        Marker(place.name, systemImage: "mappin.and.ellipse", coordinate: coordinate(place.latitude, place.longitude))
-          .tint(.purple)
+        // Confirmable matches — big labeled pins so you can see exactly what
+        // "Use This Place" will pick before committing to one.
+        Annotation(place.name, coordinate: coordinate(place.latitude, place.longitude)) {
+          resolveResultPin
+        }
       }
     }
-    // Search the map to jump straight to a place instead of panning to hunt for it —
-    // the same overlay the trip and pool maps use. Locate-only: it reframes the camera;
-    // resolving a candidate is still "Use This Place" (ADR-0036 keeps the pool clean).
+    // Search the map to jump straight to a place. Picking a match resolves the
+    // focused candidate to it directly (no second "Use This Place" tap); the button
+    // stays for the manual "pan, tap a POI, confirm" path.
     .overlay(alignment: .top) {
-      MapPlaceSearchOverlay(visibleRegion: visibleRegion) { place in
+      MapPlaceSearchOverlay(
+        visibleRegion: visibleRegion,
+        // Don't prefill for an already-mapped candidate — the auto-search just
+        // litters the map with matches over a place that's already pinned.
+        seedQuery: model.activeCandidate.flatMap { $0.isResolved ? nil : $0.title }
+      ) { place in
         cameraPosition = .region(
           MKCoordinateRegion(
             center: CLLocationCoordinate2D(latitude: place.latitude, longitude: place.longitude),
-            span: MKCoordinateSpan(latitudeDelta: 0.03, longitudeDelta: 0.03)
+            span: MKCoordinateSpan(latitudeDelta: 0.008, longitudeDelta: 0.008)
           )
         )
+        model.resolveResultTapped(place)
       }
     }
     .onMapCameraChange { context in
       visibleRegion = context.region
     }
+    // Frame the set once, on load. After that the camera stays put through resolves
+    // and searches, so a freshly mapped pin doesn't get yanked out from under you.
     .onChange(of: model.mapViewport, initial: true) { _, viewport in
-      guard let viewport else { return }
+      guard !didInitialFrame, let viewport else { return }
       cameraPosition = .region(
         MKCoordinateRegion(
           center: CLLocationCoordinate2D(
@@ -390,11 +563,39 @@ private struct RecommendationWorkspaceMap: View {
           )
         )
       )
+      didInitialFrame = true
     }
   }
 
   private func coordinate(_ latitude: Double, _ longitude: Double) -> CLLocationCoordinate2D {
     CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+  }
+
+  private func isActiveMarker(_ state: CandidateMapMarkerState) -> Bool {
+    switch state {
+    case let .fuzzy(isActive), let .resolved(isActive): isActive
+    }
+  }
+
+  @ViewBuilder private func activeCandidatePin(_ state: CandidateMapMarkerState) -> some View {
+    let resolved = if case .resolved = state { true } else { false }
+    ZStack {
+      Circle()
+        .fill((resolved ? Color.green : Color.orange).opacity(0.28))
+        .frame(width: 48, height: 48)
+      Image(systemName: resolved ? "mappin.circle.fill" : "sparkles")
+        .font(.title)
+        .foregroundStyle(resolved ? Color.green : Color.orange)
+    }
+    .shadow(radius: 3)
+  }
+
+  private var resolveResultPin: some View {
+    Image(systemName: "mappin.circle.fill")
+      .font(.largeTitle)
+      .foregroundStyle(.purple)
+      .background(Circle().fill(.white).padding(4))
+      .shadow(radius: 3)
   }
 
   private func markerSymbol(_ state: CandidateMapMarkerState) -> String {
@@ -406,7 +607,11 @@ private struct RecommendationWorkspaceMap: View {
 
   private func markerColor(_ state: CandidateMapMarkerState) -> Color {
     switch state {
-    case let .fuzzy(isActive), let .resolved(isActive): isActive ? .orange : .gray
+    // Resolved (mapped) candidates stay green whether or not they're the focused
+    // one, so the whole set's confirmed geography accumulates on the map. The
+    // focused candidate is orange; unmapped fuzzy guesses are muted grey.
+    case let .fuzzy(isActive): isActive ? .orange : .gray
+    case let .resolved(isActive): isActive ? .orange : .green
     }
   }
 }
@@ -416,9 +621,13 @@ private struct ActiveCandidateResolveControls: View {
 
   var body: some View {
     VStack(spacing: 8) {
-      if let active = model.activeCandidate {
-        Button("Use This Place for \(active.title)") {
+      if model.activeCandidate != nil {
+        Button {
           Task { await model.useThisPlaceButtonTapped() }
+        } label: {
+          Label("Connect", systemImage: "mappin.and.ellipse")
+            .labelStyle(.titleAndIcon)
+            .font(.callout.weight(.semibold))
         }
         .buttonStyle(.borderedProminent)
       }

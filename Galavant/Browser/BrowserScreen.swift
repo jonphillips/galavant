@@ -38,14 +38,29 @@ struct BrowserScreen: View {
       initialURL: initialURL,
       searchURL: WebAddress.google,
       accessory: { page in
-        Button {
-          Task { await model.capture(from: page) }
-        } label: {
-          Label("Capture", systemImage: "plus.circle.fill")
-            .labelStyle(.titleAndIcon)
-            .font(.callout.weight(.semibold))
+        HStack(spacing: 12) {
+          // The recommendation "connect this site to the candidate" action lives in
+          // the toolbar next to Capture rather than on its own field-bar line.
+          if let request = recommendationLoadRequest, request.ideaID != nil {
+            Button {
+              if let ideaID = request.ideaID { model.useCurrentWebsite(for: ideaID) }
+            } label: {
+              Label("Connect", systemImage: "link")
+                .labelStyle(.titleAndIcon)
+                .font(.callout.weight(.semibold))
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(page.url == nil)
+          }
+          Button {
+            Task { await model.capture(from: page) }
+          } label: {
+            Label("Capture", systemImage: "plus.circle.fill")
+              .labelStyle(.titleAndIcon)
+              .font(.callout.weight(.semibold))
+          }
+          .disabled(page.url == nil)
         }
-        .disabled(page.url == nil)
       },
       fieldBar: fieldBar,
       home: { open in
@@ -81,19 +96,11 @@ struct BrowserScreen: View {
   }
 
   @ViewBuilder private func fieldBar(_ page: WebPage) -> some View {
-    VStack(alignment: .leading, spacing: 8) {
-      WebFieldCaptureBar(
-        page: page,
-        fields: model.captureFields,
-        onClear: model.chipDraft.hasAnyFill ? { model.chipDraft = ChipDraft() } : nil
-      )
-      if let request = recommendationLoadRequest, let ideaID = request.ideaID {
-        Button("Use this website for \(request.title)") {
-          model.useCurrentWebsite(for: ideaID)
-        }
-        .buttonStyle(.bordered)
-      }
-    }
+    WebFieldCaptureBar(
+      page: page,
+      fields: model.captureFields,
+      onClear: model.chipDraft.hasAnyFill ? { model.chipDraft = ChipDraft() } : nil
+    )
   }
 
   private func browserURL(for target: BrowserTargetDerivation.Target) -> URL? {

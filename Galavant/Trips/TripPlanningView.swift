@@ -256,7 +256,17 @@ private struct TripPlanningPresentationHost<Content: View>: View {
         RecommendationHandoffSheet(model: model, session: presentation.session)
       }
       .sheet(item: $model.destination.recommendationWorkspace, id: \.id) { presentation in
-        RecommendationWorkspaceHost(tripID: model.tripID, sessionID: presentation.sessionID)
+        // Presented modally from a trip, so it supplies its own nav bar + Done. The
+        // Evaluate section instead pushes the same view, where the nav back button
+        // is the dismissal (no floating Done — it collided with the map search's ✕).
+        NavigationStack {
+          RecommendationWorkspaceHost(tripID: model.tripID, sessionID: presentation.sessionID)
+            .toolbar {
+              ToolbarItem(placement: .confirmationAction) {
+                Button("Done") { model.destination = nil }
+              }
+            }
+        }
       }
       .sheet(isPresented: $showingStartDay) {
         StartDayPanel(model: model)
