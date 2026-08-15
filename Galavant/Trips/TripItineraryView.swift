@@ -288,30 +288,7 @@ struct TripItineraryView: View {
         subtitle: .category,
         marker: marker
       ) {
-        VStack(alignment: .trailing, spacing: 8) {
-          HStack(spacing: 14) {
-            if resolved.entry.pinnedDate != nil {
-              Icon.pinnedReservation.image
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .accessibilityLabel("Pinned reservation")
-            }
-            StopMenu(model: model, stop: resolved)
-          }
-          if let idea = resolved.idea {
-            HStack(spacing: 14) {
-              Button { model.showDetail(idea) } label: {
-                Icon.info.image.foregroundStyle(.secondary)
-              }
-              .buttonStyle(.borderless)
-              Button { model.editIdea(idea) } label: {
-                Icon.edit.image.foregroundStyle(.secondary)
-              }
-              .buttonStyle(.borderless)
-              .accessibilityLabel("Edit title and details")
-            }
-          }
-        }
+        stopRowAccessory(resolved)
       }
       // The alternatives affordance (cycle + "N of M" + disclosure) gets its own
       // row under the title, aligned past the pin marker — in the trailing cluster
@@ -336,6 +313,37 @@ struct TripItineraryView: View {
       }
     }
     .id(resolved.id)
+  }
+
+  /// The trailing accessory cluster for a stop row: a pinned-reservation glyph and
+  /// the `StopMenu`, plus (idea-backed rows only) the info/edit buttons. Extracted
+  /// from `stopRow` to keep that view builder within the body-length gate.
+  @ViewBuilder
+  private func stopRowAccessory(_ resolved: ResolvedStop) -> some View {
+    VStack(alignment: .trailing, spacing: 8) {
+      HStack(spacing: 14) {
+        if resolved.entry.pinnedDate != nil {
+          Icon.pinnedReservation.image
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .accessibilityLabel("Pinned reservation")
+        }
+        StopMenu(model: model, stop: resolved)
+      }
+      if let idea = resolved.idea {
+        HStack(spacing: 14) {
+          Button { model.showDetail(idea) } label: {
+            Icon.info.image.foregroundStyle(.secondary)
+          }
+          .buttonStyle(.borderless)
+          Button { model.editIdea(idea) } label: {
+            Icon.edit.image.foregroundStyle(.secondary)
+          }
+          .buttonStyle(.borderless)
+          .accessibilityLabel("Edit title and details")
+        }
+      }
+    }
   }
 
   /// A "you are here" divider — red line with "Now" label, appears at the current

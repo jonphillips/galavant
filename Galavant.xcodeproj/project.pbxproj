@@ -23,12 +23,12 @@
 		1C3D2E2D9EEF8BC709447AE6 /* PoolMapUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17EBCBAEA0AF8C840A0DA921 /* PoolMapUITests.swift */; };
 		242EC6987A08C0DCEBF3BC64 /* GalavantPlaces in Frameworks */ = {isa = PBXBuildFile; productRef = 6527A596FFD56B45F77446D0 /* GalavantPlaces */; };
 		25A7842AF8875EEF8BFA2887 /* PrefersTabNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDA439EDEF5339154F3D8C08 /* PrefersTabNavigation.swift */; };
-		28CB0F1054F9EC0012E413AD /* WebExtractorKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4D543244A7EA1E4F10D196DF /* WebExtractorKit */; };
+		28CB0F1054F9EC0012E413AD /* GalavantCaptureUI in Frameworks */ = {isa = PBXBuildFile; productRef = 9D033329AC22FDEA57CBC830 /* GalavantCaptureUI */; };
 		2BCD153BD1286735123E24B7 /* TripHeaderImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E5E2C9449BAC2E031A8745F /* TripHeaderImageView.swift */; };
 		35E279FA22C85810158AF02C /* DayPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95C568B98EA55277C2DDA065 /* DayPalette.swift */; };
-		3B4EC7EE202BCED566C99202 /* GalavantCaptureUI in Frameworks */ = {isa = PBXBuildFile; productRef = 9D033329AC22FDEA57CBC830 /* GalavantCaptureUI */; };
+		3B4EC7EE202BCED566C99202 /* CloudSyncKit in Frameworks */ = {isa = PBXBuildFile; productRef = BAB8971211A0C3E3E9C18A40 /* CloudSyncKit */; };
 		3DF889FDCBE7A7C979E41F13 /* IdeasScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E13450922E6B719B55DC57BC /* IdeasScreen.swift */; };
-		3E5E8AEE7E095AEC4C47F3EE /* CasePaths in Frameworks */ = {isa = PBXBuildFile; productRef = 26D83C2182F9FE47C3A1CA25 /* CasePaths */; };
+		3E5E8AEE7E095AEC4C47F3EE /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = 45E72731DDF6FA076EAEC92F /* Dependencies */; };
 		41630279DF880FB556B178CF /* StopMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = B15DFF6883F3077AA8D6C591 /* StopMenu.swift */; };
 		4171E2BF905DAB98B77389EB /* CertaintyStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DD1C2B139D03095F082D99E /* CertaintyStyle.swift */; };
 		43267C623EF3B32592F6BCF0 /* TripItineraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6839D17655A85296477C1D5D /* TripItineraryView.swift */; };
@@ -39,7 +39,7 @@
 		4DAAA7D1E36518BAE6613248 /* TripFormModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20DAF6B7A5F203899F4C780 /* TripFormModel.swift */; };
 		4FA9D5986A89B2B51B88F5C2 /* AppScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82AECABDADDBF8957A5816F8 /* AppScreen.swift */; };
 		5222D1023F3D13D0B45B3FE4 /* TripAddButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD6629168771E53AD5C86CF /* TripAddButton.swift */; };
-		52949A4330FDF85D0EBF5AEA /* CloudSyncKit in Frameworks */ = {isa = PBXBuildFile; productRef = BAB8971211A0C3E3E9C18A40 /* CloudSyncKit */; };
+		52949A4330FDF85D0EBF5AEA /* LLMHandoffKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4496C6F1494049E3B555A463 /* LLMHandoffKit */; };
 		52FDF2960D787D40108B3780 /* Binding+Present.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4784A4E4DDB7356EEF63A970 /* Binding+Present.swift */; };
 		53262564E42B4E5C64231A96 /* IdeasFilterMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15F0079F14EE5923209192B1 /* IdeasFilterMenu.swift */; };
 		565E450BE96483372954E175 /* CaptureExtraction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43D5D11997CB5E747A590622 /* CaptureExtraction.swift */; };
@@ -59,7 +59,7 @@
 		7B999C65BDCCA5657877F9CD /* IdeasListModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E146770B6C9957BA19FC94EC /* IdeasListModel.swift */; };
 		7C7C4BB8F9D526D37F31BD66 /* TripPlanningView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08F3A8C38B6B2977E3D8153F /* TripPlanningView.swift */; };
 		7E07A0AB874D51E0DCAD3434 /* SequencePin.swift in Sources */ = {isa = PBXBuildFile; fileRef = E35BE6CD061373B731E38031 /* SequencePin.swift */; };
-		80C7B282FFA2EE185ADA79ED /* Sharing in Frameworks */ = {isa = PBXBuildFile; productRef = 5A93A34322120B8F1DC99E7B /* Sharing */; };
+		80C7B282FFA2EE185ADA79ED /* CasePaths in Frameworks */ = {isa = PBXBuildFile; productRef = 26D83C2182F9FE47C3A1CA25 /* CasePaths */; };
 		82FB0503EEB4041AC202479B /* GalavantAI in Frameworks */ = {isa = PBXBuildFile; productRef = 7DEA217772737FC17F262759 /* GalavantAI */; };
 		8522CC9B663EBC7844792507 /* StructuredHoursEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 891C5DF7F4A25741DE3421FD /* StructuredHoursEditor.swift */; };
 		861F0BD9CC28029356E7DF09 /* RecommendationWorkspaceModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0620B4CD2A26F04156B150D3 /* RecommendationWorkspaceModel.swift */; };
@@ -85,7 +85,7 @@
 		BC168628E33830089E560CB9 /* CalendarExportModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8BA5355102262E8FF3F053B /* CalendarExportModel.swift */; };
 		BC89E64DDA8A0975A83107D5 /* StackedForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 371FEFD498525E0EA4709909 /* StackedForm.swift */; };
 		BE4EC3D93E562C6724906B1A /* RegionManagementSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F84C0FF0F99E3606279BB42C /* RegionManagementSettingsView.swift */; };
-		C00CC22E1860FAA90381B866 /* SQLiteData in Frameworks */ = {isa = PBXBuildFile; productRef = A641D3ABA375BA009278F435 /* SQLiteData */; };
+		C00CC22E1860FAA90381B866 /* WebExtractorKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4D543244A7EA1E4F10D196DF /* WebExtractorKit */; };
 		C0D128FB3AAE61FF0C72B45B /* AISettingsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C4838518F023973640A8AEE /* AISettingsModel.swift */; };
 		C26FCB90CCEB03C82F359643 /* TravelProfileEditModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ADB3989E3E45A67BB33FB7F /* TravelProfileEditModel.swift */; };
 		C2FC789EE1F80B257FC7D7DA /* PlaceIdeaSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EFBA67DB304DCD293D72575 /* PlaceIdeaSheet.swift */; };
@@ -104,13 +104,14 @@
 		E0CB76C004B10C1F20EC249A /* IdeaFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C956244AC0CCEFCA45A4128 /* IdeaFormView.swift */; };
 		E291A3A716DDBC83661706CB /* SyncHealthModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E00FB978F8AEB5F20B8B8C5D /* SyncHealthModel.swift */; };
 		E38A40C5C21F4D1087CDE391 /* GalavantShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5F046B49AE38F92268A2FA12 /* GalavantShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		E77D186E6B692AD25BC8C9F3 /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = 45E72731DDF6FA076EAEC92F /* Dependencies */; };
+		E4012E1E8A6634279CD3ECFA /* Sharing in Frameworks */ = {isa = PBXBuildFile; productRef = 5A93A34322120B8F1DC99E7B /* Sharing */; };
+		E77D186E6B692AD25BC8C9F3 /* SwiftUINavigation in Frameworks */ = {isa = PBXBuildFile; productRef = A0C2774E35241633FE89B7A7 /* SwiftUINavigation */; };
 		EFF6015EBFCC08925785A2EB /* EvaluateScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = D48C8AE52183B8D3DE346D07 /* EvaluateScreen.swift */; };
 		F009B3192D02321202419379 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5AD27A1248EEA1D9B580277 /* ShareViewController.swift */; };
 		F03422C3671BFFD56B78737A /* TripCanvasMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED4DA130D3A7069430825C31 /* TripCanvasMapView.swift */; };
 		F236D648886F9BA4EF2CCCCB /* GalavantPlaces in Frameworks */ = {isa = PBXBuildFile; productRef = C94234B5AEF12EA0F921B5B0 /* GalavantPlaces */; };
 		F41E8D178B9FE462E5E797F5 /* AppContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA2BBF3B289FD7D02957833B /* AppContainer.swift */; };
-		F569C91AF0E8633E066AA600 /* SwiftUINavigation in Frameworks */ = {isa = PBXBuildFile; productRef = A0C2774E35241633FE89B7A7 /* SwiftUINavigation */; };
+		F569C91AF0E8633E066AA600 /* SQLiteData in Frameworks */ = {isa = PBXBuildFile; productRef = A641D3ABA375BA009278F435 /* SQLiteData */; };
 		F82D8FFDDCDBA5EEC7FED0AB /* TripCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CBA766947DA059C035C1937 /* TripCard.swift */; };
 		FF6492EB056141CC9F75093F /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = C6C18315C28F69E95AB54F85 /* Dependencies */; };
 /* End PBXBuildFile section */
@@ -181,6 +182,7 @@
 		43AABFB8B03E2303AECAF355 /* GalavantApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GalavantApp.swift; sourceTree = "<group>"; };
 		43D5D11997CB5E747A590622 /* CaptureExtraction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureExtraction.swift; sourceTree = "<group>"; };
 		4784A4E4DDB7356EEF63A970 /* Binding+Present.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Binding+Present.swift"; sourceTree = "<group>"; };
+		481F7DF2E79BF7E59A1CEC62 /* LLMHandoffKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = LLMHandoffKit; path = "../../jon-platform/packages/LLMHandoffKit"; sourceTree = SOURCE_ROOT; };
 		4AD2C1DE54AEA038F84042CC /* CalendarReconciliationRows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarReconciliationRows.swift; sourceTree = "<group>"; };
 		4DE96A186A7350AD7E625B04 /* CalendarReconciliationModel+Ingestion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CalendarReconciliationModel+Ingestion.swift"; sourceTree = "<group>"; };
 		51AA50E3CB7A4D6C5DD50110 /* CalendarExportClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarExportClient.swift; sourceTree = "<group>"; };
@@ -258,14 +260,15 @@
 				626DB4453DDF7BA57BE9AF1C /* GalavantChat in Frameworks */,
 				82FB0503EEB4041AC202479B /* GalavantAI in Frameworks */,
 				666F98ED751CC0C6994CFED4 /* LLMClientKit in Frameworks */,
-				52949A4330FDF85D0EBF5AEA /* CloudSyncKit in Frameworks */,
-				3B4EC7EE202BCED566C99202 /* GalavantCaptureUI in Frameworks */,
-				28CB0F1054F9EC0012E413AD /* WebExtractorKit in Frameworks */,
-				C00CC22E1860FAA90381B866 /* SQLiteData in Frameworks */,
-				F569C91AF0E8633E066AA600 /* SwiftUINavigation in Frameworks */,
-				E77D186E6B692AD25BC8C9F3 /* Dependencies in Frameworks */,
-				3E5E8AEE7E095AEC4C47F3EE /* CasePaths in Frameworks */,
-				80C7B282FFA2EE185ADA79ED /* Sharing in Frameworks */,
+				52949A4330FDF85D0EBF5AEA /* LLMHandoffKit in Frameworks */,
+				3B4EC7EE202BCED566C99202 /* CloudSyncKit in Frameworks */,
+				28CB0F1054F9EC0012E413AD /* GalavantCaptureUI in Frameworks */,
+				C00CC22E1860FAA90381B866 /* WebExtractorKit in Frameworks */,
+				F569C91AF0E8633E066AA600 /* SQLiteData in Frameworks */,
+				E77D186E6B692AD25BC8C9F3 /* SwiftUINavigation in Frameworks */,
+				3E5E8AEE7E095AEC4C47F3EE /* Dependencies in Frameworks */,
+				80C7B282FFA2EE185ADA79ED /* CasePaths in Frameworks */,
+				E4012E1E8A6634279CD3ECFA /* Sharing in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -432,6 +435,7 @@
 				E818B469EB6F7EB6FB4F33D6 /* CloudSyncKit */,
 				C071E50FDA62E29FC448F993 /* GalavantLibrary */,
 				73160C3B106A29D6005A8859 /* LLMClientKit */,
+				481F7DF2E79BF7E59A1CEC62 /* LLMHandoffKit */,
 				3B4B4DEA7489F67D7E16FD7D /* WebExtractorKit */,
 			);
 			name = Packages;
@@ -533,6 +537,7 @@
 				70E3AE87004F856771C63307 /* GalavantChat */,
 				7DEA217772737FC17F262759 /* GalavantAI */,
 				BEC45E8A60608009E9EFFDCC /* LLMClientKit */,
+				4496C6F1494049E3B555A463 /* LLMHandoffKit */,
 				BAB8971211A0C3E3E9C18A40 /* CloudSyncKit */,
 				9D033329AC22FDEA57CBC830 /* GalavantCaptureUI */,
 				4D543244A7EA1E4F10D196DF /* WebExtractorKit */,
@@ -630,6 +635,7 @@
 				F467FE695C00BBEA463C98D8 /* XCLocalSwiftPackageReference "../../jon-platform/packages/CloudSyncKit" */,
 				5228AC59CF5F59825B063F97 /* XCLocalSwiftPackageReference "GalavantLibrary" */,
 				DF7739A2EC8B02E90D5186F9 /* XCLocalSwiftPackageReference "../../jon-platform/packages/LLMClientKit" */,
+				93B860E79BFBD6EAAE28F3D7 /* XCLocalSwiftPackageReference "../../jon-platform/packages/LLMHandoffKit" */,
 				347467AB13949BE7FF8F2DDB /* XCLocalSwiftPackageReference "../../jon-platform/packages/WebExtractorKit" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -1071,6 +1077,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = GalavantLibrary;
 		};
+		93B860E79BFBD6EAAE28F3D7 /* XCLocalSwiftPackageReference "../../jon-platform/packages/LLMHandoffKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../../jon-platform/packages/LLMHandoffKit";
+		};
 		DF7739A2EC8B02E90D5186F9 /* XCLocalSwiftPackageReference "../../jon-platform/packages/LLMClientKit" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = "../../jon-platform/packages/LLMClientKit";
@@ -1129,6 +1139,10 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 3D0FC9D09FB137795B0DD611 /* XCRemoteSwiftPackageReference "swift-case-paths" */;
 			productName = CasePaths;
+		};
+		4496C6F1494049E3B555A463 /* LLMHandoffKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = LLMHandoffKit;
 		};
 		45E72731DDF6FA076EAEC92F /* Dependencies */ = {
 			isa = XCSwiftPackageProductDependency;

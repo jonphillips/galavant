@@ -21,6 +21,8 @@ packages:
     path: ../../jon-platform/packages/WebExtractorKit
   LLMClientKit:
     path: ../../jon-platform/packages/LLMClientKit
+  LLMHandoffKit:
+    path: ../../jon-platform/packages/LLMHandoffKit
   CloudSyncKit:
     path: ../../jon-platform/packages/CloudSyncKit
   sqlite-data:
@@ -77,6 +79,8 @@ targets:
         product: GalavantAI
       - package: LLMClientKit
         product: LLMClientKit
+      - package: LLMHandoffKit
+        product: LLMHandoffKit
       - package: CloudSyncKit
         product: CloudSyncKit
       - package: GalavantLibrary
