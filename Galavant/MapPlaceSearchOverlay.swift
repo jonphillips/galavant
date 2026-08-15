@@ -4,6 +4,7 @@ import SwiftUI
 
 struct MapPlaceSearchOverlay: View {
   let viewport: PlaceSearchViewport?
+  let seedQuery: String?
   let onSelect: (Place) async -> Void
 
   @State private var search: PlaceSearchModel
@@ -11,10 +12,12 @@ struct MapPlaceSearchOverlay: View {
 
   init(
     visibleRegion: MKCoordinateRegion?,
+    seedQuery: String? = nil,
     onSelect: @escaping (Place) async -> Void
   ) {
     let viewport = visibleRegion.map(PlaceSearchViewport.init(region:))
     self.viewport = viewport
+    self.seedQuery = seedQuery
     self.onSelect = onSelect
     _search = State(initialValue: PlaceSearchModel(viewport: viewport))
   }
@@ -76,6 +79,14 @@ struct MapPlaceSearchOverlay: View {
     .padding(.top, 8)
     .onChange(of: viewport, initial: true) { _, viewport in
       search.visibleRegionChanged(viewport)
+    }
+    // Prefill the field with the caller's current subject (e.g. the focused
+    // candidate's name) so finding it on the map is one tap, not re-typing — the
+    // same "search is seeded from what you're looking at" move the browser makes.
+    // Only re-seeds when the subject itself changes, so it never clobbers typing.
+    .onChange(of: seedQuery, initial: true) { _, newValue in
+      guard let newValue, !newValue.isEmpty else { return }
+      search.query = newValue
     }
   }
 

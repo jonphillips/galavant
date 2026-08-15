@@ -10,24 +10,56 @@ Ordered roughly **active/blocked first, someday/design-only last** — not a str
 priority queue, just enough to skim top-to-bottom sensibly. Each entry carries
 enough context to act on cold.
 
-## In progress — M9 ADR-0037 evaluation-workspace layout revision (browser + iPhone)
+## In progress — M9 evaluation cockpit (ADR-0037 layout revision, Slices 1–2 in PR #36)
 
-The evaluation-workspace core shipped and is settled (ADR-0037 Phases 1–2: candidate rail +
-always-one-selected loop, three-layer map, the **Use This Place** resolve, and Save/Add/dismiss
-— see `DONE_LOG.md`). What remains open is **layout**: Phase 3 (the state-driven persistent
-research browser + field-bar official-URL write-back, PR #31) and Phase 4 (the map-first iPhone
-inbox sheet + full-screen research browser, PR #32) are built and merged, but the **layout is
-about to be reworked significantly** — so they stay current, not done. Treat the shipped
-arrangement as a working baseline, not a finished design; the pure model/traversal core
-underneath is stable and should not need to change (ADR-0037 D7 — layout only). Rationale:
-ADR-0037; milestone arc: ROADMAP M9.
+The evaluation-workspace **layout** was reworked into a dedicated cockpit (the pure
+model/traversal core underneath is unchanged — ADR-0037 D7, layout only). Built and in **PR #36**
+(`feat/m9-evaluation-cockpit`; depends on jon-platform branch
+`feat/webextractorkit-google-and-consent`, consumed by local path):
 
-## Next — M9 the lift (ADR-0036 S3, designed not built)
+- **Slice 1 — Evaluate section.** Evaluation is now a top-level **Evaluate** sidebar/tab
+  destination over the device-local handoff queue (lists only sets with candidates left to
+  process; tap opens the workspace), instead of a modal buried in a trip.
+- **Slice 2 — iPad cockpit.** Research browser (2/3) + map (1/3) stacked over a horizontal
+  candidate strip. Strip cards tap-to-expand their dossier (chevron collapses, one at a time);
+  **Add to Day ▸** places a candidate on a specific day or To-Be-Scheduled; a header ＋ adds a
+  candidate the AI didn't supply. Map: focused/resolve pins are prominent labeled annotations;
+  search-select resolves the focused candidate directly; tapping a candidate pans to keep its pin
+  in view (expand-to-include, never zoom-tight); framing stays put through resolves. Browser:
+  never dead-ends (title-search fallback + always browsable); compact **Connect** in the toolbar;
+  blue↔grey **Site** badge (bounces on connect) distinct from the map-based **Resolved** state;
+  **Google** search engine; opt-in cookie/consent auto-accept (via WebExtractorKit). **⌘1…⌘5**
+  jump to sections; the open Evaluate workspace is held in `AppRouter` so ⌘4 returns to it.
 
-Extract the handoff spine (session record + token + contract marker + return-split, genericized
-over source/task + scopeKey) to `jon-platform/packages/LLMHandoffKit`; rewire yes-chef; Galavant
-consumes as consumer #2. Copy-then-lift sequencing already resolved (ADR-0036 OQ2) — a later
-behavior-neutral refactor, not a gate on the workspace. Rationale: ADR-0036.
+**Deferred (still open):**
+- **Choose One day-anchoring.** Marking 2+ candidates + Choose One builds an alternatives ring
+  (ADR-0035), but the ring is dayless/`.considering`, so it never appears on the itinerary.
+  Making it useful means committing the ring **to a day** at creation (born scheduled). Day
+  placement (Add to Day) was shipped first to test the appetite before building this; the
+  free-floating "multiple named choices / add to an existing choice" manager stays deferred —
+  anchor decisions to days, not abstract choices.
+- **Slice 3 — dossier flyover.** The focused card should expand *over* its siblings to reclaim
+  their width (the original "cover the rest of the carousel" design); it currently expands inline
+  and pushes them right.
+- **Slice 4 — iPhone layout.** The compact layout still uses the pre-cockpit candidate rail/sheet;
+  give it the same candidate state in a map-first sheet + pushed browser.
+
+Merge order for the open PRs: land the two jon-platform branches first
+(`feat/webextractorkit-google-and-consent`, `feat/llmhandoffkit` — independent), then galavant
+#34 (lint), then #35/#36 (whichever lands second conflicts only on the generated
+`project.pbxproj` → resolve by regenerating with `xcodegen generate`). Rationale: ADR-0037.
+
+## M9 the lift (ADR-0036 S3) — BUILT, in PR #35; yes-chef adoption is the open follow-up
+
+The handoff spine was extracted to **`jon-platform/packages/LLMHandoffKit`** (dep branch
+`feat/llmhandoffkit`) and Galavant rewired to consume it — behavior-neutral: `GalavantAI` is now a
+thin `@_exported import LLMHandoffKit` shim, so call sites compile unchanged. In **PR #35**
+(`feat/llmhandoffkit-lift`). Moved to the package: `HandoffSession` / status / candidate-link, the
+routing + contract-marker types, `HandoffSessionStore` (+ dependency accessor) and its tests;
+domain (`RecommendationHandoffContract`/`Task`/`Scope`, `TripCandidate`) stayed in `GalavantSchema`.
+**Remaining:** **yes-chef adoption** — yes-chef already has an equivalent spine; converging it onto
+the shared package is its own repo/PR (consumer #1), exactly as the WebExtractorKit lift left its
+yes-chef rewire open. Rationale: ADR-0036.
 
 ## In progress — M7 Slice 1 calendar reconciliation (ADR-0034)
 

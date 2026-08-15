@@ -26,9 +26,9 @@ struct BrowserScreen: View {
   @Environment(BrowserScreenModel.self) private var model
   var context: BrowserScreenContext = .library
 
-  /// The page a fresh browser session lands on (Jon's choice). The address bar's
-  /// no-URL *search* still uses the module default (DuckDuckGo, ADR-0001) — this is only
-  /// the start page, not the search engine.
+  /// The page a fresh browser session lands on (Jon's choice). Address-bar searches use
+  /// Google too (via `searchURL:` below) — Galavant opts out of the module default
+  /// (DuckDuckGo, ADR-0001) because place research leans on Google's local results.
   private static let startPage = URL(string: "https://www.google.com")
 
   var body: some View {
@@ -36,15 +36,32 @@ struct BrowserScreen: View {
     WebBrowserView(
       page: model.page,
       initialURL: initialURL,
+      searchURL: WebAddress.google,
+      autoAcceptConsent: true,
       accessory: { page in
-        Button {
-          Task { await model.capture(from: page) }
-        } label: {
-          Label("Capture", systemImage: "plus.circle.fill")
-            .labelStyle(.titleAndIcon)
-            .font(.callout.weight(.semibold))
+        HStack(spacing: 12) {
+          // The recommendation "connect this site to the candidate" action lives in
+          // the toolbar next to Capture rather than on its own field-bar line.
+          if let request = recommendationLoadRequest, request.ideaID != nil {
+            Button {
+              if let ideaID = request.ideaID { model.useCurrentWebsite(for: ideaID) }
+            } label: {
+              Label("Connect", systemImage: "link")
+                .labelStyle(.titleAndIcon)
+                .font(.callout.weight(.semibold))
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(page.url == nil)
+          }
+          Button {
+            Task { await model.capture(from: page) }
+          } label: {
+            Label("Capture", systemImage: "plus.circle.fill")
+              .labelStyle(.titleAndIcon)
+              .font(.callout.weight(.semibold))
+          }
+          .disabled(page.url == nil)
         }
-        .disabled(page.url == nil)
       },
       fieldBar: fieldBar,
       home: { open in
@@ -80,24 +97,16 @@ struct BrowserScreen: View {
   }
 
   @ViewBuilder private func fieldBar(_ page: WebPage) -> some View {
-    VStack(alignment: .leading, spacing: 8) {
-      WebFieldCaptureBar(
-        page: page,
-        fields: model.captureFields,
-        onClear: model.chipDraft.hasAnyFill ? { model.chipDraft = ChipDraft() } : nil
-      )
-      if let request = recommendationLoadRequest, let ideaID = request.ideaID {
-        Button("Use this website for \(request.title)") {
-          model.useCurrentWebsite(for: ideaID)
-        }
-        .buttonStyle(.bordered)
-      }
-    }
+    WebFieldCaptureBar(
+      page: page,
+      fields: model.captureFields,
+      onClear: model.chipDraft.hasAnyFill ? { model.chipDraft = ChipDraft() } : nil
+    )
   }
 
   private func browserURL(for target: BrowserTargetDerivation.Target) -> URL? {
     switch target {
-    case let .search(query): WebAddress.duckDuckGo(query)
+    case let .search(query): WebAddress.google(query)
     case let .website(url): url
     case .unavailable: nil
     }

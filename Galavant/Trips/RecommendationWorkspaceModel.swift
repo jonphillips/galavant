@@ -38,6 +38,14 @@ struct RecommendationWorkspaceMapViewport: Equatable {
   let longitudeDelta: Double
 }
 
+/// One selectable day for the "Add to Day" placement menu: its number and, when the
+/// trip is dated, its calendar date for a human label.
+struct RecommendationWorkspaceDay: Identifiable {
+  let number: Int
+  let date: Date?
+  var id: Int { number }
+}
+
 struct RecommendationBrowserLoadRequest: Hashable {
   let candidateID: TripIdea.ID
   let title: String
@@ -62,6 +70,7 @@ final class RecommendationWorkspaceModel {
   @ObservationIgnored @FetchAll(TripStay.all) private var allTripStays
   @ObservationIgnored @FetchAll(TripRegion.all) private var allTripRegions
   @ObservationIgnored @FetchAll(MapRegion.all) private var regions
+  @ObservationIgnored @FetchAll(Trip.all) private var trips
 
   let tripID: Trip.ID
   let sessionID: HandoffSession.ID
@@ -112,7 +121,17 @@ final class RecommendationWorkspaceModel {
     let resolution: BrowserTargetDerivation.Resolution = activeCandidate.isResolved
       ? .resolved(officialURL: officialURL)
       : .unresolved
-    let target = BrowserTargetDerivation.target(for: activeCandidate.candidate, resolution: resolution)
+    let derived = BrowserTargetDerivation.target(for: activeCandidate.candidate, resolution: resolution)
+    // A candidate with no search hint (e.g. a manually added one) derives no target.
+    // Rather than dead-end the browser, fall back to searching its title so there's
+    // always something to browse from.
+    let target: BrowserTargetDerivation.Target
+    if derived == .unavailable, !activeCandidate.isResolved {
+      let title = activeCandidate.title.trimmingCharacters(in: .whitespacesAndNewlines)
+      target = title.isEmpty ? .unavailable : .search(query: title)
+    } else {
+      target = derived
+    }
     guard target != .unavailable else { return nil }
     return RecommendationBrowserLoadRequest(
       candidateID: activeCandidate.id,
@@ -120,6 +139,13 @@ final class RecommendationWorkspaceModel {
       target: target,
       ideaID: activeCandidate.tripIdea.ideaID
     )
+  }
+
+  /// The focused candidate's map coordinate (resolved place, else its fuzzy locality),
+  /// so the map can pan to keep the active pin in view when you switch candidates.
+  var activeCandidateLocation: (latitude: Double, longitude: Double)? {
+    guard let id = effectiveActiveCandidateID else { return nil }
+    return candidateMarkers.first { $0.id == id }.map { ($0.latitude, $0.longitude) }
   }
 
   var effectiveActiveCandidateID: TripIdea.ID? {
@@ -130,6 +156,21 @@ final class RecommendationWorkspaceModel {
   var tripRegions: [MapRegion] {
     let regionIDs = Set(allTripRegions.filter { $0.tripID == tripID }.map(\.regionID))
     return regions.filter { regionIDs.contains($0.id) }
+  }
+
+  private var trip: Trip? { trips.first { $0.id == tripID } }
+
+  /// The trip's days for the "Add to Day" menu, dated when the trip has a start date.
+  var tripDays: [RecommendationWorkspaceDay] {
+    guard let trip else { return [] }
+    let count = max(trip.lengthInDays, 1)
+    let calendar = Calendar.current
+    return (1...count).map { number in
+      let date = trip.startDate.flatMap {
+        calendar.date(byAdding: .day, value: number - 1, to: $0)
+      }
+      return RecommendationWorkspaceDay(number: number, date: date)
+    }
   }
 
   var itineraryMarkers: [RecommendationWorkspaceMapPlace] {
@@ -213,6 +254,32 @@ final class RecommendationWorkspaceModel {
     pendingReconcile = nil
   }
 
+  /// Add a candidate the AI didn't supply. It enters the set exactly like a pulled
+  /// AI candidate — a committed `.considering` freeform stop, linked into this
+  /// session — so it resolves on the map and processes through the same actions.
+  func addManualCandidate(named name: String) {
+    let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return }
+    withErrorReporting {
+      let candidate = TripCandidate(name: trimmed)
+      let committed = try database.write { db in
+        try TripIdea.commit(candidate: candidate, into: tripID, in: db)
+      }
+      guard var session = handoffSessionStore.session(sessionID) else { return }
+      var stored = (try? session.recommendationCandidates()) ?? []
+      stored.append(candidate)
+      try session.storeRecommendationCandidates(stored)
+      session.link(candidateID: candidate.id, to: committed.id)
+      session.importedAt = .now
+      session.status = .imported
+      try handoffSessionStore.save(session)
+      handoffCandidates = stored
+      candidateLinks = session.candidateLinks
+      activeCandidateID = committed.id
+      resolveResults = []
+    }
+  }
+
   func saveButtonTapped(_ candidate: RecommendationWorkspaceCandidate) {
     let nextCandidateID = nextCandidateAfterProcessing(candidate.id)
     withErrorReporting {
@@ -233,6 +300,26 @@ final class RecommendationWorkspaceModel {
     withErrorReporting {
       try database.write { db in
         try TripIdea.scheduleUnplaced(stopID: candidate.id, in: db)
+      }
+      choiceCandidateIDs.remove(candidate.id)
+      activeCandidateID = nextCandidateID
+      resolveResults = []
+    }
+  }
+
+  /// Place a candidate on a specific day (or the To-Be-Scheduled bucket when `day`
+  /// is nil) straight from Evaluate — the decision made here instead of deferred to
+  /// the itinerary. An unresolved candidate lands as a dated freeform stop that later
+  /// resolution upgrades in place (ADR-0010); a resolved one becomes a normal stop.
+  func addToDay(_ candidate: RecommendationWorkspaceCandidate, day: Int?) {
+    let nextCandidateID = nextCandidateAfterProcessing(candidate.id)
+    withErrorReporting {
+      try database.write { db in
+        if let day {
+          try TripIdea.schedule(.day(day), stopID: candidate.id, in: db)
+        } else {
+          try TripIdea.scheduleUnplaced(stopID: candidate.id, in: db)
+        }
       }
       choiceCandidateIDs.remove(candidate.id)
       activeCandidateID = nextCandidateID

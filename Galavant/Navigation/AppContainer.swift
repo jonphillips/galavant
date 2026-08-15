@@ -45,6 +45,7 @@ struct AppContainer: View {
         }
       }
     }
+    .background(sectionShortcuts)
     .environment(router)
     .environment(browserModel)
     .onChange(of: scenePhase) { _, phase in
@@ -56,5 +57,16 @@ struct AppContainer: View {
       guard phase == .active else { return }
       Task { _ = await GalavantCloudSync.redrainPendingRecordZoneChangesIfManuallyEnabled() }
     }
+  }
+
+  /// ⌘1…⌘N jump straight to a section (⌘1 Trips, ⌘4 Evaluate, …) so flipping between
+  /// Evaluate and the trip you're planning is one chord, not a trip to the sidebar.
+  /// Hidden buttons: they register the shortcut without taking any layout.
+  private var sectionShortcuts: some View {
+    ForEach(Array(AppScreen.allCases.enumerated()), id: \.element) { index, screen in
+      Button(String(describing: screen)) { router.selection = screen }
+        .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
+    }
+    .opacity(0)
   }
 }
