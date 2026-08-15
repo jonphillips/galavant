@@ -505,15 +505,18 @@ the itinerary. The handoff core lifts to a shared jon-platform package (Galavant
   matcher → dedup-keyed `Idea`, AI rationale preserved on the stop); Save-to-Ideas /
   Add-to-itinerary (freeform → in-place resolved upgrade) / dismiss-with-undo; resolve-time
   duplicate warning with default merge and keep-both.
-- 🔧 **Browser + iPhone layout (ADR-0037 P3–P4) — built, layout in active revision.** The
-  state-driven persistent research browser + field-bar official-URL write-back (P3, #31) and the
-  map-first iPhone inbox sheet with full-screen research browser (P4, #32) are merged, but the
-  **layout is being reworked significantly** — tracked as current in `CURRENT_HANDOFF.md`, not
-  done. The pure model/traversal core underneath is settled (ADR-0037 D7 — layout only). Codex
-  handoff: [docs/handoff/m9-adr0037-evaluation-workspace.md](handoff/m9-adr0037-evaluation-workspace.md)
-- ⏳ **The lift (ADR-0036 S3).** Extract the handoff spine to
-  `jon-platform/packages/LLMHandoffKit`; rewire yes-chef; Galavant consumes. Sequencing
-  resolved (ADR-0036 OQ2): **copy-then-lift** — Slice 1 ships a local spine in `GalavantAI`;
-  this lift is a later behavior-neutral refactor, not a gate.
+- 🔧 **Evaluation cockpit (ADR-0037 layout revision) — Slices 1–2 in PR #36.** Evaluate is now a
+  top-level section over the device-local handoff queue (Slice 1); the iPad workspace is a cockpit
+  — research browser (2/3) + map (1/3) over a horizontal candidate strip with tap-to-expand
+  dossier, **Add to Day** placement, manual candidate add, prominent map pins, direct
+  search-resolve, toolbar **Connect**, a **Site** badge, Google search, opt-in consent
+  auto-accept, and ⌘-number section shortcuts (Slice 2). Deferred: **Choose One day-anchoring**,
+  **Slice 3** (dossier flyover that covers siblings), **Slice 4** (iPhone map-first layout). The
+  pure model/traversal core is settled (ADR-0037 D7 — layout only). Details in
+  `CURRENT_HANDOFF.md`. (Supersedes the P3/P4 arrangement from #31/#32.)
+- 🔧 **The lift (ADR-0036 S3) — built, in PR #35.** Handoff spine extracted to
+  `jon-platform/packages/LLMHandoffKit`; Galavant consumes it via an `@_exported` shim
+  (behavior-neutral). **yes-chef adoption** (consumer #1) is the open follow-up. Copy-then-lift
+  sequencing per ADR-0036 OQ2.
 - ⏳ **Deferred (designed, not built).** Two-part return with a synced `Learning` home; App
   Intents / hands-free `Ask ChatGPT` transport.

@@ -613,5 +613,13 @@ The external-LLM handoff substrate and the settled core of the evaluation worksp
   Save-to-Ideas / Add-to-itinerary / dismiss-with-undo, plus resolve-time duplicate reconcile
   (default merge, keep-both).
 
-Still **current, not done** (see `CURRENT_HANDOFF.md`): ADR-0037 Phases 3–4 (browser + iPhone)
-are built but their layout is in active revision. Remaining M9: the lift (ADR-0036 S3).
+Still **current, not done** (see `CURRENT_HANDOFF.md`): the layout was reworked into a dedicated
+**evaluation cockpit** — Evaluate promoted to a top-level section (Slice 1) plus the iPad
+browser/map/candidate-strip cockpit with Add-to-Day placement, prominent map pins, direct
+search-resolve, toolbar Connect, Site badge, Google search, opt-in consent auto-accept, and
+⌘-number section shortcuts (Slice 2) — built and in **PR #36** (supersedes the P3/P4 arrangement
+from #31/#32). The **lift** (ADR-0036 S3) is also built and in **PR #35** (`LLMHandoffKit` created;
+Galavant consumes via an `@_exported` shim, behavior-neutral; yes-chef adoption is the open
+follow-up). Both graduate to a full DONE entry here once merged. Remaining M9 layout work: Choose
+One day-anchoring, Slice 3 (dossier flyover that covers siblings), Slice 4 (iPhone map-first
+layout).
