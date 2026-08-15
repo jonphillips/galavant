@@ -98,6 +98,7 @@ import Testing
     #expect(late.next == nil)
     #expect(midday.remaining.first == .earlierToday(count: 2))
     #expect(late.remaining.first == .earlierToday(count: 3))
+    #expect(late.remaining.dropFirst().first == .item(.nowMarker))
     #expect(early.remaining.contains { item in
       if case .item(.connector) = item { return true }
       return false
@@ -260,6 +261,48 @@ import Testing
     #expect(today.tomorrow?.dayContext.locality == "New Town")
     #expect(today.tomorrow?.transfer?.kind == .betweenLodgings)
     #expect(today.tomorrow?.transfer?.travelTime == TravelTime(seconds: 600, meters: 500))
+  }
+
+  @Test func multiDayProjectionUsesTheCorrectDayAndNightOrdinal() {
+    let (hotelID, lunchID) = (UUID(), UUID())
+    let tripPlan = plan(
+      entries: [stop(lunchID, schedule: .timed(2, start: "12:00", end: nil))],
+      ideas: [
+        idea(hotelID, name: "Hotel", region: "Harbor"),
+        idea(lunchID, name: "Lunch", region: "Harbor"),
+      ],
+      length: 3,
+      stays: [stay(hotelID, checkIn: 1, checkOut: 4)])
+    let today = projection(tripPlan, now: date(day: 2, hour: 9))
+
+    #expect(today.dayContext.dayNumber == 2)
+    #expect(stopID(in: today.next?.item) == lunchID)
+    #expect(today.tonight?.nightNumber == 2)
+    #expect(today.tonight?.totalNights == 3)
+  }
+
+  @Test func lastTripDayHasNoTomorrowOrientation() {
+    let id = UUID()
+    let tripPlan = plan(
+      entries: [stop(id, schedule: .timed(2, start: "12:00", end: nil))],
+      ideas: [idea(id, name: "Final lunch")],
+      length: 2)
+    let today = projection(tripPlan, now: date(day: 2, hour: 9))
+
+    #expect(today.dayContext.dayNumber == 2)
+    #expect(today.tomorrow == nil)
+  }
+
+  @Test func explicitlyLeadingAnytimeStopStaysAheadOfALaterTimedStop() {
+    let (anytimeID, timedID) = (UUID(), UUID())
+    let tripPlan = plan(
+      entries: [
+        stop(anytimeID, schedule: .day(1), rank: -1),
+        stop(timedID, schedule: .timed(1, start: "10:00", end: nil), rank: 1),
+      ],
+      ideas: [idea(anytimeID, name: "Wander"), idea(timedID, name: "Museum")])
+
+    #expect(stopID(in: projection(tripPlan, now: date(hour: 8)).next?.item) == anytimeID)
   }
 
   @Test func projectionIsCompleteWhenEveryWeatherFieldIsNil() {

@@ -98,8 +98,6 @@ public struct TodayProjection: Equatable, Sendable {
       let date = dayDate(dayNumber, tripStartDate: tripStartDate, calendar: calendar)
     else { return nil }
 
-    let context = dayContext(
-      for: dayNumber, date: date, tripPlan: tripPlan)
     let items = tripPlan.itineraryItems(
       forDay: dayNumber,
       travelTimes: travelTimes,
@@ -107,78 +105,92 @@ public struct TodayProjection: Equatable, Sendable {
       now: now,
       tripStartDate: tripStartDate,
       stays: tripPlan.stays(coveringDay: dayNumber))
-    let nextIndex = items.firstIndex { item in
-      guard case let .stop(stop) = item else { return false }
-      return isUpcoming(stop, now: now, tripStartDate: tripStartDate)
-    }
-    let next: Next? = nextIndex.flatMap { index -> Next? in
-      let item = items[index]
-      guard case let .stop(stop) = item else { return nil }
-      let connector: TravelConnector? = items.compactMap { element -> TravelConnector? in
-        guard case let .connector(connector) = element,
-          connector.to.id == itemID(for: stop)
-        else { return nil }
-        return connector
-      }.first
-      let leaveBy = LeaveBy.resolve(
-        schedule: stop.entry.schedule,
-        connector: connector,
-        travelTimes: travelTimes,
-        tripStartDate: tripStartDate,
-        buffer: leaveByBuffer)
-      let weatherAnchor = WeatherAnchor.resolve(
-        for: stop,
-        in: tripPlan,
-        dayNumber: dayNumber,
-        tripStartDate: tripStartDate)
-      return Next(item: item, leaveBy: leaveBy, weatherAnchor: weatherAnchor)
-    }
-
-    let completedCount: Int
-    let remainingItems: [ItineraryItem]
-    if let nextIndex {
-      completedCount = items[..<nextIndex].reduce(into: 0) { count, item in
-        if case .stop = item { count += 1 }
-      }
-      let remainingStart = Swift.min(items.firstIndex(of: .nowMarker) ?? nextIndex, nextIndex)
-      remainingItems = Array(items[remainingStart...])
-    } else if let markerIndex = items.firstIndex(of: .nowMarker) {
-      completedCount = items[..<markerIndex].reduce(into: 0) { count, item in
-        if case .stop = item { count += 1 }
-      }
-      remainingItems = Array(items[markerIndex...])
-    } else {
-      completedCount = 0
-      remainingItems = items
-    }
-    let earlier: [RemainingItem] =
-      completedCount == 0 ? [] : [.earlierToday(count: completedCount)]
-    let remaining = earlier + remainingItems.map(RemainingItem.item)
-
-    let tonight = tripPlan.stays(coveringDay: dayNumber).first { $0.stay.nights.contains(dayNumber) }
-      .flatMap { stay -> Tonight? in
-        let nights = stay.stay.nights
-        guard let nightNumber = nights.firstIndex(of: dayNumber) else { return nil }
-        return Tonight(
-          stay: stay,
-          nightNumber: nights.distance(from: nights.startIndex, to: nightNumber) + 1,
-          totalNights: nights.count)
-      }
-
-    let tomorrow = tomorrow(
-      after: dayNumber,
+    let nextSelection = next(
+      in: items,
       tripPlan: tripPlan,
+      dayNumber: dayNumber,
+      now: now,
       tripStartDate: tripStartDate,
       travelTimes: travelTimes,
-      effectiveModes: effectiveModes,
-      calendar: calendar)
+      leaveByBuffer: leaveByBuffer)
 
     return Self(
-      dayContext: context,
-      next: next,
-      remaining: remaining,
-      tonight: tonight,
-      tomorrow: tomorrow)
+      dayContext: dayContext(for: dayNumber, date: date, tripPlan: tripPlan),
+      next: nextSelection?.value,
+      remaining: remainingTimeline(items: items, nextIndex: nextSelection?.index),
+      tonight: tonight(forDay: dayNumber, in: tripPlan),
+      tomorrow: tomorrow(
+        after: dayNumber,
+        tripPlan: tripPlan,
+        tripStartDate: tripStartDate,
+        travelTimes: travelTimes,
+        effectiveModes: effectiveModes,
+        calendar: calendar))
+  }
+
+  private static func next(
+    in items: [ItineraryItem],
+    tripPlan: TripPlan,
+    dayNumber: Int,
+    now: Date,
+    tripStartDate: Date,
+    travelTimes: [LegKey: [TransportMode: TravelTime]],
+    leaveByBuffer: TimeInterval
+  ) -> (index: Int, value: Next)? {
+    guard let index = items.firstIndex(where: { item in
+      guard case let .stop(stop) = item else { return false }
+      return isUpcoming(stop, now: now, tripStartDate: tripStartDate)
+    }) else { return nil }
+    let item = items[index]
+    guard case let .stop(stop) = item else { return nil }
+    let connector = items.compactMap { element -> TravelConnector? in
+      guard case let .connector(connector) = element, connector.to.id == itemID(for: stop)
+      else { return nil }
+      return connector
+    }.first
+    return (
+      index,
+      Next(
+        item: item,
+        leaveBy: LeaveBy.resolve(
+          schedule: stop.entry.schedule,
+          connector: connector,
+          travelTimes: travelTimes,
+          tripStartDate: tripStartDate,
+          buffer: leaveByBuffer),
+        weatherAnchor: WeatherAnchor.resolve(
+          for: stop,
+          in: tripPlan,
+          dayNumber: dayNumber,
+          tripStartDate: tripStartDate)))
+  }
+
+  private static func remainingTimeline(
+    items: [ItineraryItem], nextIndex: Int?
+  ) -> [RemainingItem] {
+    let markerIndex = items.firstIndex(of: .nowMarker)
+    guard let completedEnd = nextIndex ?? markerIndex else {
+      return items.map(RemainingItem.item)
+    }
+    let completedCount = items[..<completedEnd].reduce(into: 0) { count, item in
+      if case .stop = item { count += 1 }
+    }
+    let remainingStart = Swift.min(markerIndex ?? completedEnd, completedEnd)
+    let earlier: [RemainingItem] =
+      completedCount == 0 ? [] : [.earlierToday(count: completedCount)]
+    return earlier + items[remainingStart...].map(RemainingItem.item)
+  }
+
+  private static func tonight(forDay dayNumber: Int, in tripPlan: TripPlan) -> Tonight? {
+    guard let stay = tripPlan.stays(coveringDay: dayNumber).first(where: {
+      $0.stay.nights.contains(dayNumber)
+    }) else { return nil }
+    let nights = stay.stay.nights
+    guard let nightNumber = nights.firstIndex(of: dayNumber) else { return nil }
+    return Tonight(
+      stay: stay,
+      nightNumber: nights.distance(from: nights.startIndex, to: nightNumber) + 1,
+      totalNights: nights.count)
   }
 
   private static func dayNumber(
@@ -335,6 +347,8 @@ public struct WeatherAnchor: Equatable, Sendable {
     let dayStopCoordinate: Coordinate? =
       (tripPlan.itinerary.first { $0.number == dayNumber }?.stops ?? [])
       .compactMap { coordinate(for: $0) }.first
+    // A weather-sensitive stop defines the requested place. Other stops instead
+    // use the day's region/base first, preserving the planned-presence fallback.
     let coordinate: Coordinate? =
       (sensitive ? stopCoordinate : nil)
       ?? regionCoordinate
