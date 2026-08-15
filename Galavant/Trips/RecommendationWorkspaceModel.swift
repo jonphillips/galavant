@@ -121,7 +121,17 @@ final class RecommendationWorkspaceModel {
     let resolution: BrowserTargetDerivation.Resolution = activeCandidate.isResolved
       ? .resolved(officialURL: officialURL)
       : .unresolved
-    let target = BrowserTargetDerivation.target(for: activeCandidate.candidate, resolution: resolution)
+    let derived = BrowserTargetDerivation.target(for: activeCandidate.candidate, resolution: resolution)
+    // A candidate with no search hint (e.g. a manually added one) derives no target.
+    // Rather than dead-end the browser, fall back to searching its title so there's
+    // always something to browse from.
+    let target: BrowserTargetDerivation.Target
+    if derived == .unavailable, !activeCandidate.isResolved {
+      let title = activeCandidate.title.trimmingCharacters(in: .whitespacesAndNewlines)
+      target = title.isEmpty ? .unavailable : .search(query: title)
+    } else {
+      target = derived
+    }
     guard target != .unavailable else { return nil }
     return RecommendationBrowserLoadRequest(
       candidateID: activeCandidate.id,
@@ -129,6 +139,13 @@ final class RecommendationWorkspaceModel {
       target: target,
       ideaID: activeCandidate.tripIdea.ideaID
     )
+  }
+
+  /// The focused candidate's map coordinate (resolved place, else its fuzzy locality),
+  /// so the map can pan to keep the active pin in view when you switch candidates.
+  var activeCandidateLocation: (latitude: Double, longitude: Double)? {
+    guard let id = effectiveActiveCandidateID else { return nil }
+    return candidateMarkers.first { $0.id == id }.map { ($0.latitude, $0.longitude) }
   }
 
   var effectiveActiveCandidateID: TripIdea.ID? {

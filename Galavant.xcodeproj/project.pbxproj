@@ -89,6 +89,7 @@
 		C0D128FB3AAE61FF0C72B45B /* AISettingsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C4838518F023973640A8AEE /* AISettingsModel.swift */; };
 		C26FCB90CCEB03C82F359643 /* TravelProfileEditModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ADB3989E3E45A67BB33FB7F /* TravelProfileEditModel.swift */; };
 		C2FC789EE1F80B257FC7D7DA /* PlaceIdeaSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EFBA67DB304DCD293D72575 /* PlaceIdeaSheet.swift */; };
+		C35DFF6146C22E149BA1D6AD /* RecommendationCandidateStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E4F11F80427DFD1A59F56B7 /* RecommendationCandidateStrip.swift */; };
 		C4D03D83083C9022183ABEF2 /* TripPlanningModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8238F43F540641D1FD4267BA /* TripPlanningModel.swift */; };
 		C6651664BD80959BDC624431 /* IdeaPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B1DF18254B63AD4237897B /* IdeaPersistenceTests.swift */; };
 		C78DAFF388E693F308C398EF /* AISettingsSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 201134A6F0FAB081A677EB63 /* AISettingsSections.swift */; };
@@ -207,6 +208,7 @@
 		99EE3153CDA64E66C39149A9 /* IdeaFormModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaFormModel.swift; sourceTree = "<group>"; };
 		9C956244AC0CCEFCA45A4128 /* IdeaFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaFormView.swift; sourceTree = "<group>"; };
 		9D34C61AE3B675F5D6CCDDDD /* TagPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagPickerView.swift; sourceTree = "<group>"; };
+		9E4F11F80427DFD1A59F56B7 /* RecommendationCandidateStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationCandidateStrip.swift; sourceTree = "<group>"; };
 		A20DAF6B7A5F203899F4C780 /* TripFormModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripFormModel.swift; sourceTree = "<group>"; };
 		AD3E24952C44337E688A4D00 /* Galavant.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Galavant.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B15DFF6883F3077AA8D6C591 /* StopMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StopMenu.swift; sourceTree = "<group>"; };
@@ -345,6 +347,7 @@
 				386282278C0DEBD19BF1925E /* DirectionsClient.swift */,
 				0EFBA67DB304DCD293D72575 /* PlaceIdeaSheet.swift */,
 				97954EEA93EDDCB81E746016 /* PlanningRow.swift */,
+				9E4F11F80427DFD1A59F56B7 /* RecommendationCandidateStrip.swift */,
 				DC0B58BAA1F3B550A331C182 /* RecommendationHandoffSheet.swift */,
 				0620B4CD2A26F04156B150D3 /* RecommendationWorkspaceModel.swift */,
 				57F320EF0E0815866BE1B3F0 /* RecommendationWorkspaceView.swift */,
@@ -716,6 +719,7 @@
 				A3E2170E96CDF9C7D76B89E6 /* PlanningRow.swift in Sources */,
 				9C3779832B3D8728517D947A /* PoolMapView.swift in Sources */,
 				25A7842AF8875EEF8BFA2887 /* PrefersTabNavigation.swift in Sources */,
+				C35DFF6146C22E149BA1D6AD /* RecommendationCandidateStrip.swift in Sources */,
 				682F837EE6170533F9F8A535 /* RecommendationHandoffSheet.swift in Sources */,
 				861F0BD9CC28029356E7DF09 /* RecommendationWorkspaceModel.swift in Sources */,
 				600B8A48EBF6C2B3E5856903 /* RecommendationWorkspaceView.swift in Sources */,

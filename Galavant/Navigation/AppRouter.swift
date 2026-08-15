@@ -1,3 +1,4 @@
+import GalavantAI
 import GalavantSchema
 import SwiftUI
 
@@ -27,6 +28,10 @@ final class AppRouter {
   /// Set by the itinerary to send the user to the Ideas shopping surface scoped to
   /// a trip (+ a day's region); consumed and cleared by `IdeasScreen` (ADR-0013).
   var ideasScope: IdeasScopeRequest?
+  /// The open Evaluate workspace, owned here (above the section) so switching sections
+  /// and coming back — e.g. ⌘4 — reopens it instead of dropping to the queue root,
+  /// exactly as `openTrip` does for a trip. Driven via `navigationDestination(item:)`.
+  var openEvaluateEntry: EvaluateQueueEntry?
 
   /// Planning models cached per trip so a trip's in-trip state (day lens, sheet tab,
   /// selection, ETA cache) survives the same rebuild `openTrip` guards the push

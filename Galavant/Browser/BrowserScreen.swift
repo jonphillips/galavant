@@ -37,6 +37,7 @@ struct BrowserScreen: View {
       page: model.page,
       initialURL: initialURL,
       searchURL: WebAddress.google,
+      autoAcceptConsent: true,
       accessory: { page in
         HStack(spacing: 12) {
           // The recommendation "connect this site to the candidate" action lives in

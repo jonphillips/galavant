@@ -11,11 +11,12 @@ import SwiftUI
 /// unsynced: it reads the same `HandoffSessionStore` the paste door writes to.
 struct EvaluateScreen: View {
   @Environment(\.scenePhase) private var scenePhase
+  @Environment(AppRouter.self) private var router
   @State private var model = EvaluateQueueModel()
-  @State private var openEntry: EvaluateQueueEntry?
 
   var body: some View {
-    Group {
+    @Bindable var router = router
+    return Group {
       if model.entries.isEmpty {
         ContentUnavailableView {
           Label("Nothing to evaluate", systemImage: Icon.recommend.systemName)
@@ -25,7 +26,7 @@ struct EvaluateScreen: View {
       } else {
         List(model.entries) { entry in
           Button {
-            openEntry = entry
+            router.openEvaluateEntry = entry
           } label: {
             EvaluateQueueRow(entry: entry)
           }
@@ -41,7 +42,7 @@ struct EvaluateScreen: View {
     .onChange(of: scenePhase) { _, phase in
       if phase == .active { model.reload() }
     }
-    .navigationDestination(item: $openEntry) { entry in
+    .navigationDestination(item: $router.openEvaluateEntry) { entry in
       RecommendationWorkspaceHost(tripID: entry.tripID, sessionID: entry.sessionID)
     }
   }

@@ -146,6 +146,7 @@ final class BrowserScreenModel {
     }
   }
 
+
   /// Add a saved capture to the front of Recent Captures, de-duplicated and capped. A
   /// blank name (nothing worth listing) is skipped.
   private func record(name: String, url: URL?) {
