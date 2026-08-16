@@ -31,9 +31,21 @@ import Testing
       longitude: longitude)
   }
 
-  private func stop(_ ideaID: UUID, schedule: Schedule, rank: Int = 0) -> TripIdea {
+  private func stop(
+    _ ideaID: UUID,
+    schedule: Schedule,
+    rank: Int = 0,
+    completedAt: Date? = nil,
+    skippedAt: Date? = nil
+  ) -> TripIdea {
     var entry = TripIdea(
-      id: UUID(), tripID: tripID, ideaID: ideaID, status: .scheduled, dayRank: Double(rank))
+      id: UUID(),
+      tripID: tripID,
+      ideaID: ideaID,
+      status: .scheduled,
+      dayRank: Double(rank),
+      completedAt: completedAt,
+      skippedAt: skippedAt)
     entry.apply(schedule)
     return entry
   }
@@ -103,13 +115,14 @@ import Testing
 
     #expect(stopID(in: preview.next?.item) == morningID)
     #expect(!preview.remaining.contains { item in
-      if case .earlierToday = item { return true }
+      if case .done = item { return true }
       return false
     })
+    #expect(preview.progress == .init(done: 0, total: 2))
     #expect(preview.dayContext.dayNumber == 1)
   }
 
-  @Test func nextSelectionAndEarlierTodayCollapseFollowTheExistingTimeline() {
+  @Test func nextSelectionUsesPendingUpcomingAndKeepsPendingPastVisible() {
     let (morningID, noonID, eveningID) = (UUID(), UUID(), UUID())
     let tripPlan = plan(
       entries: [
@@ -133,11 +146,64 @@ import Testing
     #expect(stopID(in: exactStart.next?.item) == morningID)
     #expect(stopID(in: midday.next?.item) == eveningID)
     #expect(late.next == nil)
-    #expect(midday.remaining.first == .earlierToday(count: 2))
-    #expect(late.remaining.first == .earlierToday(count: 3))
-    #expect(late.remaining.dropFirst().first == .item(.nowMarker))
+    #expect(midday.remaining.contains { item in
+      if case let .item(.stop(stop)) = item { return stop.idea?.id == morningID }
+      return false
+    })
+    #expect(late.remaining.contains { item in
+      if case .item(.stop) = item { return true }
+      return false
+    })
+    #expect(!late.remaining.contains { item in
+      if case .done = item { return true }
+      return false
+    })
     #expect(early.remaining.contains { item in
       if case .item(.connector) = item { return true }
+      return false
+    })
+  }
+
+  @Test func anytimeCompletionAdvancesNextAndProgressExcludesSkippedStops() {
+    let (firstID, secondID, thirdID) = (UUID(), UUID(), UUID())
+    let completedAt = date(hour: 10)
+    let tripPlan = plan(
+      entries: [
+        stop(firstID, schedule: .day(1), rank: 0, completedAt: completedAt),
+        stop(secondID, schedule: .day(1), rank: 1, skippedAt: completedAt),
+        stop(thirdID, schedule: .day(1), rank: 2),
+      ],
+      ideas: [
+        idea(firstID, name: "First"),
+        idea(secondID, name: "Second"),
+        idea(thirdID, name: "Third"),
+      ])
+
+    let today = projection(tripPlan, now: date(hour: 11))
+
+    #expect(stopID(in: today.next?.item) == thirdID)
+    #expect(today.progress == .init(done: 1, total: 2))
+    #expect(today.remaining.first == .done(count: 1))
+    #expect(today.remaining.dropFirst().first == .skipped(count: 1))
+    #expect(today.doneStops.map(\.entry.ideaID) == [firstID])
+    #expect(today.skippedStops.map(\.entry.ideaID) == [secondID])
+  }
+
+  @Test func pendingStopWhoseTimePassedStaysInRemaining() {
+    let id = UUID()
+    let tripPlan = plan(
+      entries: [stop(id, schedule: .timed(1, start: "09:00", end: nil))],
+      ideas: [idea(id, name: "Morning stop")])
+
+    let today = projection(tripPlan, now: date(hour: 13))
+
+    #expect(today.next == nil)
+    #expect(today.remaining.contains { item in
+      if case let .item(.stop(stop)) = item { return stop.id == tripPlan.entries[0].id }
+      return false
+    })
+    #expect(!today.remaining.contains { item in
+      if case .done = item { return true }
       return false
     })
   }
@@ -192,7 +258,7 @@ import Testing
         return false
       })
       #expect(!today.remaining.contains { item in
-        if case .earlierToday = item { return true }
+      if case .done = item { return true }
         return false
       })
     }

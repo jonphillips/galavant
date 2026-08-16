@@ -129,6 +129,91 @@ struct TripTests {
     #expect(mode == .transit)
   }
 
+  @Test func executionOverlayRoundTripsAndDerivesOutcome() async throws {
+    let completedAt = Date(timeIntervalSince1970: 1_700_000_000)
+    let skippedAt = Date(timeIntervalSince1970: 1_700_000_100)
+    let outcomes = try await database.write { db -> [StopOutcome] in
+      let trip = try Trip.create(name: "Italy", in: db)
+      let pending = TripIdea(
+        id: UUID(), tripID: trip.id, ideaID: nil, inlineTitle: "Pending", status: .scheduled)
+      let completed = TripIdea(
+        id: UUID(), tripID: trip.id, ideaID: nil, inlineTitle: "Done", status: .scheduled,
+        completedAt: completedAt)
+      let skipped = TripIdea(
+        id: UUID(), tripID: trip.id, ideaID: nil, inlineTitle: "Skipped", status: .scheduled,
+        skippedAt: skippedAt)
+      try TripIdea.insert {
+        TripIdea.Draft(pending)
+      }.execute(db)
+      try TripIdea.insert {
+        TripIdea.Draft(completed)
+      }.execute(db)
+      try TripIdea.insert {
+        TripIdea.Draft(skipped)
+      }.execute(db)
+
+      return try [pending, completed, skipped].map {
+        try TripIdea.find($0.id).fetchOne(db)!.outcome
+      }
+    }
+
+    #expect(outcomes == [.pending, .done(completedAt), .skipped])
+  }
+
+  @Test func completedOutcomeWinsIfOverlayColumnsBothContainValues() {
+    let completedAt = Date(timeIntervalSince1970: 1_700_000_000)
+    let entry = TripIdea(
+      id: UUID(),
+      tripID: UUID(),
+      ideaID: nil,
+      completedAt: completedAt,
+      skippedAt: completedAt.addingTimeInterval(100))
+
+    #expect(entry.outcome == .done(completedAt))
+    #expect(!entry.isPending)
+  }
+
+  @Test func executionOperationsAreReversibleAndKeepScheduledStatus() async throws {
+    let completedAt = Date(timeIntervalSince1970: 1_700_000_000)
+    let skippedAt = Date(timeIntervalSince1970: 1_700_000_100)
+    let reCompletedAt = Date(timeIntervalSince1970: 1_700_000_200)
+    let states = try await database.write { db -> [TripIdea] in
+      let trip = try Trip.create(name: "Italy", in: db)
+      let idea = try seedIdea(name: "Colosseum", in: db)
+      let stop = try TripIdea.pull(ideaID: idea.id, into: trip.id, in: db)
+      try TripIdea.schedule(.day(1), stopID: stop.id, in: db)
+
+      try TripIdea.complete(stopID: stop.id, at: completedAt, in: db)
+      let completed = try TripIdea.find(stop.id).fetchOne(db)!
+
+      try TripIdea.skip(stopID: stop.id, at: skippedAt, in: db)
+      let skipped = try TripIdea.find(stop.id).fetchOne(db)!
+
+      try TripIdea.complete(stopID: stop.id, at: reCompletedAt, in: db)
+      let reCompleted = try TripIdea.find(stop.id).fetchOne(db)!
+
+      try TripIdea.uncomplete(stopID: stop.id, in: db)
+      let uncompleted = try TripIdea.find(stop.id).fetchOne(db)!
+
+      try TripIdea.skip(stopID: stop.id, at: skippedAt, in: db)
+      try TripIdea.unskip(stopID: stop.id, in: db)
+      let unskipped = try TripIdea.find(stop.id).fetchOne(db)!
+
+      return [completed, skipped, reCompleted, uncompleted, unskipped]
+    }
+
+    #expect(states[0].outcome == .done(completedAt))
+    #expect(states[0].status == .scheduled)
+    #expect(states[1].outcome == .skipped)
+    #expect(states[1].status == .scheduled)
+    #expect(states[2].outcome == .done(reCompletedAt))
+    #expect(states[2].status == .scheduled)
+    #expect(states[3].outcome == .pending)
+    #expect(states[3].status == .scheduled)
+    #expect(states[4].outcome == .pending)
+    #expect(states[4].status == .scheduled)
+  }
+
   @Test func travelModeOverridePersistsPerTripAndLeg() async throws {
     let modes = try await database.write { db -> [TransportMode?] in
       let trip = try Trip.create(name: "Italy", in: db)
@@ -301,6 +386,26 @@ struct TripTests {
       return day1.map { names[$0.ideaID!]! }
     }
     #expect(order == ["C", "A", "B"])
+  }
+
+  @Test func moveToEndOfDayAppendsTheStopAfterItsDaymates() async throws {
+    let order = try await database.write { db -> [String] in
+      let trip = try Trip.create(name: "Copenhagen", in: db)
+      let ideas = try ["A", "B", "C"].map { try seedIdea(name: $0, in: db) }
+      for idea in ideas {
+        try TripIdea.pull(ideaID: idea.id, into: trip.id, in: db)
+        try TripIdea.schedule(.day(1), ideaID: idea.id, tripID: trip.id, in: db)
+      }
+      let entries = try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db)
+      let joinID = Dictionary(uniqueKeysWithValues: entries.map { ($0.ideaID!, $0.id) })
+      try TripIdea.moveToEndOfDay(stopID: joinID[ideas[1].id]!, in: db)
+      let names = Dictionary(uniqueKeysWithValues: ideas.map { ($0.id, $0.name) })
+      let day1 = TripIdea.itinerary(
+        try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db), lengthInDays: 1
+      )[0].stops
+      return day1.map { names[$0.ideaID!]! }
+    }
+    #expect(order == ["A", "C", "B"])
   }
 
   @Test func shortlistAndConsideringPartition() {

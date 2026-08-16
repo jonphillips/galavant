@@ -498,6 +498,66 @@ extension TripPlanningModel {
     return hour * 60 + minute
   }
 
+  // MARK: - Today execution (ADR-0039)
+
+  /// Mark a scheduled stop done. The async write lets the live fetch refresh the
+  /// plan after the operation without a second, manually-maintained state copy.
+  func completeStop(_ stopID: TripIdea.ID) async {
+    let now = date()
+    await withErrorReporting {
+      try await database.write { db in
+        try TripIdea.complete(stopID: stopID, at: now, in: db)
+      }
+    }
+  }
+
+  /// Clear a stop's done outcome.
+  func uncompleteStop(_ stopID: TripIdea.ID) async {
+    await withErrorReporting {
+      try await database.write { db in
+        try TripIdea.uncomplete(stopID: stopID, in: db)
+      }
+    }
+  }
+
+  /// Mark a scheduled stop skipped.
+  func skipStop(_ stopID: TripIdea.ID) async {
+    let now = date()
+    await withErrorReporting {
+      try await database.write { db in
+        try TripIdea.skip(stopID: stopID, at: now, in: db)
+      }
+    }
+  }
+
+  /// Clear a stop's skipped outcome.
+  func unskipStop(_ stopID: TripIdea.ID) async {
+    await withErrorReporting {
+      try await database.write { db in
+        try TripIdea.unskip(stopID: stopID, in: db)
+      }
+    }
+  }
+
+  /// Move a stop to the following itinerary day.
+  func deferStopToTomorrow(_ stopID: TripIdea.ID) async {
+    guard let day = allTripIdeas.first(where: { $0.id == stopID })?.dayNumber else { return }
+    await withErrorReporting {
+      try await database.write { db in
+        try TripIdea.schedule(.day(day + 1), stopID: stopID, in: db)
+      }
+    }
+  }
+
+  /// Move a stop behind the current last stop on its day.
+  func deferStopToLaterToday(_ stopID: TripIdea.ID) async {
+    await withErrorReporting {
+      try await database.write { db in
+        try TripIdea.moveToEndOfDay(stopID: stopID, in: db)
+      }
+    }
+  }
+
   /// Pull a stop back to the shortlist. Freeform stops skip the shortlist per
   /// ADR-0010 — call `remove` instead.
   func unschedule(_ stopID: TripIdea.ID) {

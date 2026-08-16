@@ -1,6 +1,10 @@
 # Handoff: Today — execution (complete, skip, defer, tap-to-detail)
 
-Status: Dispatched
+Status: Shipped (Phases 0–5) on `feat/today-execution`, 2026-08-16. The
+completed/skipped collapse summaries ("Done · N" / "Skipped · M") are **expandable
+disclosures**: tapping one reveals its collapsed stops as full rows that keep their
+check-circle and `⋯` menu, so "uncheck to reopen" / "unskip via menu" in the
+acceptance matrix are reachable. Undo is fully wired.
 Summary: Make the Today iPhone cockpit usable *on the day*: check stops off,
 watch NEXT advance and a progress count fill, fold completed/skipped stops away,
 skip or defer the ones you're not doing now, and tap any stop to open its detail.

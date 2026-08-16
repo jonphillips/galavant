@@ -350,6 +350,42 @@ extension TripIdea {
       in: db)
   }
 
+  /// Mark a scheduled stop done at `now`, clearing any skip (ADR-0039). The
+  /// execution overlay leaves the plan lifecycle status untouched.
+  public static func complete(stopID: TripIdea.ID, at now: Date, in db: Database) throws {
+    try TripIdea.find(stopID)
+      .update {
+        $0.completedAt = #bind(now)
+        $0.skippedAt = #bind(nil)
+      }
+      .execute(db)
+  }
+
+  /// Clear a stop's done state (un-check), leaving its plan lifecycle untouched.
+  public static func uncomplete(stopID: TripIdea.ID, in db: Database) throws {
+    try TripIdea.find(stopID)
+      .update { $0.completedAt = #bind(nil) }
+      .execute(db)
+  }
+
+  /// Mark a scheduled stop skipped at `now`, clearing any completion (ADR-0039).
+  /// The execution overlay leaves the plan lifecycle status untouched.
+  public static func skip(stopID: TripIdea.ID, at now: Date, in db: Database) throws {
+    try TripIdea.find(stopID)
+      .update {
+        $0.completedAt = #bind(nil)
+        $0.skippedAt = #bind(now)
+      }
+      .execute(db)
+  }
+
+  /// Clear a stop's skipped state (un-skip), leaving its plan lifecycle untouched.
+  public static func unskip(stopID: TripIdea.ID, in db: Database) throws {
+    try TripIdea.find(stopID)
+      .update { $0.skippedAt = #bind(nil) }
+      .execute(db)
+  }
+
   /// Commit a stop to the TBS bucket by its own primary key.
   public static func scheduleUnplaced(stopID: TripIdea.ID, in db: Database) throws {
     guard let entry = try TripIdea.find(stopID).fetchOne(db) else { return }

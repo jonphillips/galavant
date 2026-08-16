@@ -125,6 +125,7 @@ final class TripPlanningModel {
   @ObservationIgnored @Dependency(\.directionsClient) var directionsClient
   @ObservationIgnored @Dependency(\.calendarReconciliationHistoryStore) var calendarHistoryStore
   @ObservationIgnored @Dependency(\.handoffSessionStore) var handoffSessionStore
+  @ObservationIgnored @Dependency(\.date) var date
   @ObservationIgnored @FetchAll(Trip.all) var trips
   @ObservationIgnored @FetchAll(Idea.order(by: \.name)) var ideas
   @ObservationIgnored @FetchAll(TripIdea.all) var allTripIdeas

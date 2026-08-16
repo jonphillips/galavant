@@ -686,6 +686,10 @@ extension DependencyValues {
         """
       ).execute(db)
     }
+    migrator.registerMigration("Add execution overlay to tripIdeas (ADR-0039)") { db in
+      try #sql(#"ALTER TABLE "tripIdeas" ADD COLUMN "completedAt" TEXT"#).execute(db)
+      try #sql(#"ALTER TABLE "tripIdeas" ADD COLUMN "skippedAt" TEXT"#).execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if case let .configured(startImmediately) = syncMode {
