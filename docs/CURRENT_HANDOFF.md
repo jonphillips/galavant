@@ -61,9 +61,11 @@ severe-weather/minute advisory, device GPS "you are here", climatology, auto-ent
 
 **Next in the M10 arc: the iPad Journey surface** (ADR-0038's "Today first, dogfood, then
 Journey"). Journey is the iPad anticipation/comprehension view — a coarse, read-only projection
-of `TripPlan` (one weather anchor per day, the whole-trip shape) alongside the day detail. It
-reuses the same pure-projection discipline as Today; no new persistent trip concept
-(ADR-0038 §D). Design it as its own slice off the ADR-0038 Journey notes.
+of `TripPlan` (one weather anchor per day, the whole-trip shape: day story + stay bands +
+journey map + summary). It reuses the same pure-projection discipline and weather foundation as
+Today; no new persistent trip concept (ADR-0038 §1). **Handoff brief drafted:**
+`docs/handoff/ipad-journey.md` (Slices J1 pure core → J2 iPad view → J3 entry; V1 cut list per
+ADR-0038 §8). Ready to dispatch.
 
 ## In progress — M9 evaluation cockpit (ADR-0037 layout revision, Slices 1–2 in PR #36)
 
