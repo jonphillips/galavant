@@ -129,6 +129,50 @@ struct TripTests {
     #expect(mode == .transit)
   }
 
+  @Test func executionOverlayRoundTripsAndDerivesOutcome() async throws {
+    let completedAt = Date(timeIntervalSince1970: 1_700_000_000)
+    let skippedAt = Date(timeIntervalSince1970: 1_700_000_100)
+    let outcomes = try await database.write { db -> [StopOutcome] in
+      let trip = try Trip.create(name: "Italy", in: db)
+      let pending = TripIdea(
+        id: UUID(), tripID: trip.id, ideaID: nil, inlineTitle: "Pending", status: .scheduled)
+      let completed = TripIdea(
+        id: UUID(), tripID: trip.id, ideaID: nil, inlineTitle: "Done", status: .scheduled,
+        completedAt: completedAt)
+      let skipped = TripIdea(
+        id: UUID(), tripID: trip.id, ideaID: nil, inlineTitle: "Skipped", status: .scheduled,
+        skippedAt: skippedAt)
+      try TripIdea.insert {
+        TripIdea.Draft(pending)
+      }.execute(db)
+      try TripIdea.insert {
+        TripIdea.Draft(completed)
+      }.execute(db)
+      try TripIdea.insert {
+        TripIdea.Draft(skipped)
+      }.execute(db)
+
+      return try [pending, completed, skipped].map {
+        try TripIdea.find($0.id).fetchOne(db)!.outcome
+      }
+    }
+
+    #expect(outcomes == [.pending, .done(completedAt), .skipped])
+  }
+
+  @Test func completedOutcomeWinsIfOverlayColumnsBothContainValues() {
+    let completedAt = Date(timeIntervalSince1970: 1_700_000_000)
+    let entry = TripIdea(
+      id: UUID(),
+      tripID: UUID(),
+      ideaID: nil,
+      completedAt: completedAt,
+      skippedAt: completedAt.addingTimeInterval(100))
+
+    #expect(entry.outcome == .done(completedAt))
+    #expect(!entry.isPending)
+  }
+
   @Test func travelModeOverridePersistsPerTripAndLeg() async throws {
     let modes = try await database.write { db -> [TransportMode?] in
       let trip = try Trip.create(name: "Italy", in: db)

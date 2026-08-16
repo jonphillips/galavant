@@ -57,6 +57,14 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
   public var confirmationNumber: String?
   public var bookingURL: String?
   public var partySize: Int?
+  /// Execution overlay (ADR-0039): when the traveler checked this stop off, on the
+  /// day. `nil` for a stop not yet done. Mutually exclusive with `skippedAt`. The
+  /// stop stays `.scheduled` — completion is a lens Today lays over the plan, not
+  /// a status change.
+  public var completedAt: Date?
+  /// Execution overlay (ADR-0039): when the traveler skipped this stop ("not doing
+  /// it"). Mutually exclusive with `completedAt`.
+  public var skippedAt: Date?
 
   public init(
     id: UUID,
@@ -76,7 +84,9 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
     pinnedDate: Date? = nil,
     confirmationNumber: String? = nil,
     bookingURL: String? = nil,
-    partySize: Int? = nil
+    partySize: Int? = nil,
+    completedAt: Date? = nil,
+    skippedAt: Date? = nil
   ) {
     self.id = id
     self.tripID = tripID
@@ -96,6 +106,8 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
     self.confirmationNumber = confirmationNumber
     self.bookingURL = bookingURL
     self.partySize = partySize
+    self.completedAt = completedAt
+    self.skippedAt = skippedAt
   }
 
   /// Make a freeform stop (no pool idea) on a trip, born `.scheduled` per
@@ -117,6 +129,15 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
       shortlistRank: shortlistRank
     )
   }
+}
+
+/// Total in-memory reading of the execution overlay (ADR-0039), mirroring how
+/// `Schedule` faces flat columns. Writes keep the two dates mutually exclusive, so
+/// `completedAt` wins if both are somehow set (repaired on the next write).
+public enum StopOutcome: Equatable, Sendable {
+  case pending
+  case done(Date)
+  case skipped
 }
 
 extension TripIdea {
@@ -154,6 +175,14 @@ extension TripIdea {
       partySize: partySize
     )
   }
+
+  public var outcome: StopOutcome {
+    if let completedAt { return .done(completedAt) }
+    if skippedAt != nil { return .skipped }
+    return .pending
+  }
+
+  public var isPending: Bool { completedAt == nil && skippedAt == nil }
 }
 
 /// A confirmed reservation's absolute-date pin and light booking metadata
