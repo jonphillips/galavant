@@ -10,6 +10,36 @@ Ordered roughly **active/blocked first, someday/design-only last** — not a str
 priority queue, just enough to skim top-to-bottom sensibly. Each entry carries
 enough context to act on cold.
 
+## In progress — M10 Today V1 (ADR-0038)
+
+Today + Journey as pure read-only `TripPlan` projections; WeatherKit is the only new
+dependency, device-only verified. Authority: `docs/decisions/0038-journey-today-projections-and-weather.md`
++ `docs/M10-EXECUTION.md` (slice-by-slice).
+
+- **Slice 1 — pure Today core. DONE** (PR #38, `feat/m10-today-slice1-core`). `TodayProjection`
+  in `GalavantSchema` (MapKit-free): NEXT selection across `now`, remaining timeline with
+  `.nowMarker` + `.earlierToday(count:)`, tonight/tomorrow, and the pure `WeatherAnchor`
+  (coordinate ladder + time window, no WeatherKit). Fully unit-tested in `GalavantSchemaTests`.
+- **Slice 2 — `WeatherClient` dependency. DONE** (PR #41, squash-merged to `main` 2026-08-15).
+  App-target `@Dependency weatherClient` over WeatherKit, decoding to a framework-free
+  `WeatherSummary`; process-local cache keyed on rounded coord + window + granularity, invalidated
+  at `expiration`. Pure request policy (granularity, cache-key window mapping, daypart→interval incl.
+  DST-safe overnight, nearest-day, expiration) lives in `GalavantSchema/WeatherRequestPolicy.swift`
+  and is unit-tested; `WeatherAttributionLink` + entitlement wired. **Device pass still outstanding**
+  (WeatherKit no-ops in sim): live coord → decoded summary, cache-expiry, attribution render — Jon's
+  on-device check, gates nothing in Slice 3 layout.
+- **Slice 3 — Today SwiftUI surface (iPhone). HANDED TO CODEX** (2026-08-15). New `TodayView` +
+  thin `@Observable` `TodayModel` rendering the Slice-1 projection, filling weather via Slice-2
+  `weatherClient` per anchor (`anchor.weatherGranularity`). NEXT hero with destination-time forecast
+  for weather-sensitive anchors (ADR-0038 §4 correction), reuse `openInMaps(connector:)`, no-weather
+  as the first-class default. Verification (iPhone-sim layout + device weather) is Jon's — a prompt
+  can't substitute (per M10-EXECUTION "Codex handoff" note).
+- **Slice 4 — runtime coordination** (fold into 3 if small): one tick source, weather from the
+  `expiration` cache, bounded ETA freshness — no polling storm (ADR-0038 §7).
+
+Explicitly deferred in M10 (ADR-0038 §8): Journey surface, per-region photography, AI themes,
+severe-weather/minute advisory, device GPS "you are here", climatology, auto-entry into Today.
+
 ## In progress — M9 evaluation cockpit (ADR-0037 layout revision, Slices 1–2 in PR #36)
 
 The evaluation-workspace **layout** was reworked into a dedicated cockpit (the pure
