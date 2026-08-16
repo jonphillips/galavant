@@ -27,6 +27,7 @@ struct TripPlanningView: View {
   @State private var showingChat = false
   @State private var showingStartDay = false
   @State private var showingToday = false
+  @State private var showingJourney = false
   @State private var todayRequested = false
   /// M7's local, read-only reconciliation view. Its results never leave this
   /// per-view model until later slices prove the durable authority semantics.
@@ -84,6 +85,13 @@ struct TripPlanningView: View {
       // (docs/KNOWN-ISSUES.md)
       .toolbar {
         ToolbarItemGroup(placement: .topBarTrailing) {
+          if usesColumn {
+            Button {
+              showingJourney = true
+            } label: {
+              Icon.journey.label("Journey")
+            }
+          }
           if !usesColumn, model.trip?.startDate != nil {
             Button {
               showToday()
@@ -106,6 +114,11 @@ struct TripPlanningView: View {
       }
       .fullScreenCover(isPresented: $showingToday, onDismiss: restoreDetailSheetAfterToday) {
         TodayView(planningModel: model)
+      }
+      .fullScreenCover(isPresented: $showingJourney) {
+        NavigationStack {
+          JourneyView(planningModel: model)
+        }
       }
       .task {
         model.pickInitialSheetTabIfNeeded()

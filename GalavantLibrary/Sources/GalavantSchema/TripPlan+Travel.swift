@@ -44,10 +44,24 @@ extension TripPlan {
   /// in the timeline. Stops before check-out or after check-in do not suppress
   /// it; only a scheduled stop *between* those events does.
   public func stayTransferLegs(forDay day: Int) -> [LegKey] {
+    transferConnector(forDay: day).map { [$0.leg] } ?? []
+  }
+
+  /// The direct lodging transfer on `day`, if the two stay boundaries are
+  /// adjacent in the day's timeline. This is the shared transfer-day fact used
+  /// by itinerary rows and the Journey/Today projections.
+  public func transferConnector(
+    forDay day: Int,
+    travelTimes: [LegKey: [TransportMode: TravelTime]] = [:],
+    effectiveModes: [LegKey: TransportMode] = [:]
+  ) -> TravelConnector? {
     let stops = itinerary.first(where: { $0.number == day })?.stops ?? []
-    guard let transfer = stayTransfer(forDay: day, stops: stops, stays: stays(coveringDay: day))
-    else { return [] }
-    return [transfer.leg]
+    return stayTransferConnector(
+      forDay: day,
+      stops: stops,
+      stays: stays(coveringDay: day),
+      travelTimes: travelTimes,
+      effectiveModes: effectiveModes)
   }
 
   func baseConnector(
