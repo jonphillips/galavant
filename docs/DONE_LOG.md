@@ -645,3 +645,43 @@ Verification: `xcodebuild test -only-testing:GalavantTests/IdeasListDeleteTests`
 `swift test --package-path GalavantLibrary` still green (the pre-existing `GalavantUITests-Runner`
 bootstrap crash is unrelated). Now that the bundle exists, it's the seam to pull more
 `IdeasListModel` behavior under test.
+
+## Today execution — complete / skip / defer / tap-to-detail (ADR-0039) — DONE
+
+Turned the Today iPhone cockpit from a read-only projection into a light execution
+surface. Shipped 2026-08-16 (PR pending, `feat/today-execution`); implements
+ADR-0039 (supersedes ADR-0038's read-only restraint for Today — Journey stays
+read-only). Fixes the inert "Anytime day" where the clock can't advance NEXT.
+
+- **Overlay schema (Phase 1).** Two nullable, mutually-exclusive columns on
+  `TripIdea` — `completedAt` / `skippedAt` — with a total in-memory `StopOutcome`
+  facade (`.pending` / `.done(Date)` / `.skipped`) and `isPending`. The stop stays
+  `.scheduled`; execution is a lens over the plan, not a status change. Additive
+  nullable migration, rides SQLite→CloudKit like all domain state (ADR-0003).
+- **DB ops (Phase 2).** `complete` / `uncomplete` / `skip` / `unskip` statics on
+  `TripIdea`, each enforcing mutual exclusion in the DB layer. Defer reuses existing
+  scheduling: `deferStopToTomorrow` = `schedule(.day(day+1))`; `deferStopToLaterToday`
+  = new `TripIdea.moveToEndOfDay` (max-`dayRank`+1, propagated across an alternative
+  ring).
+- **Projection (Phase 3).** NEXT is the first *pending* upcoming stop (so checking one
+  off advances it); `TodayProjection.Progress(done, total)` with skipped excluded from
+  the denominator; collapse driven by outcome for stops (`.done(count:)` /
+  `.skipped(count:)` summaries — replacing the old clock-based `.earlierToday`) layered
+  on the Phase 0 past-ness divider for boundaries/connectors. Preview stays a faithful
+  full-plan read.
+- **Model wrappers (Phase 4).** Thin `@MainActor` async methods on `TripPlanningModel`
+  over the Phase-2 ops, timestamp from `@Dependency(\.date)`, `@FetchAll` refresh (no
+  manual state).
+- **View (Phase 5).** Live-gated affordances: header progress count, NEXT-hero "Done"
+  button, per-row check circle + `⋯` menu (Skip / Do later today / Do tomorrow, last
+  hidden on the final day), "Done · N" / "Skipped · M" collapse rows, per-leg Directions
+  on connectors (current leg prominent, trivial <1min walk suppressed, orphaned-origin
+  legs labelled "From X"), and a tap-to-detail sheet on stops with an idea (live and
+  preview). Also folds in the Phase 0 transfer-day REMAINING fix (already on `main`, #50)
+  and the ADR-0039 addendum (Directions belong to the leg, not the NEXT hero).
+
+Verification: `swift test --package-path GalavantLibrary` green (380 tests, incl. four
+new outcome/ops/projection tests); `xcodebuild build -scheme Galavant` clean on iPhone 17
+Pro / iOS 27. **Known follow-up:** completed/skipped stops collapse into a
+non-interactive count, leaving the built undo affordances unreachable — see the M10
+entry in `docs/CURRENT_HANDOFF.md`.

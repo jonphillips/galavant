@@ -49,4 +49,23 @@ extension TripIdea {
       try normalizeAlternativeMembers(members, in: db)
     }
   }
+
+  /// Move a stop to the end of its current day. The slot's shared rank is
+  /// propagated to alternative members so deferring an active choice keeps the
+  /// ring in one position.
+  public static func moveToEndOfDay(stopID: TripIdea.ID, in db: Database) throws {
+    guard let entry = try TripIdea.find(stopID).fetchOne(db), let day = entry.dayNumber else {
+      return
+    }
+    let dayEntries = try TripIdea
+      .where { $0.tripID.eq(entry.tripID) }
+      .fetchAll(db)
+      .filter { $0.dayNumber == day }
+    let rank = (dayEntries.map(\.dayRank).max() ?? entry.dayRank) + 1
+    let members = try alternativeMembers(containing: entry, in: db)
+    for member in members {
+      try TripIdea.find(member.id).update { $0.dayRank = #bind(rank) }.execute(db)
+    }
+    try normalizeAlternativeMembers(members, in: db)
+  }
 }

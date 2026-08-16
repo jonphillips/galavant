@@ -1,6 +1,6 @@
 # ADR-0039: Today becomes an execution surface — stop completion, skip, and defer as reversible overlays on `TripPlan`
 
-*Status: **proposed** — 2026-08-16. Turns the Today iPhone cockpit (ADR-0038) from a
+*Status: **accepted** — 2026-08-16 (Phases 1–5 shipped on `feat/today-execution`). Turns the Today iPhone cockpit (ADR-0038) from a
 read-only projection into a light **execution** surface: on the day, you check stops off,
 skip the ones you're not doing, defer the ones you'll do later, and tap through to a stop's
 detail. The load-bearing decision is how "done" is stored — as a **reversible timestamp

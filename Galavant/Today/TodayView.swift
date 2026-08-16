@@ -3,6 +3,28 @@ import GalavantSchema
 import MapKit
 import SwiftUI
 
+enum TodayDirectionsEmphasis {
+  case prominent
+  case bordered
+  case quiet
+}
+
+struct TodayDirectionsButtonStyle: ViewModifier {
+  let emphasis: TodayDirectionsEmphasis
+
+  @ViewBuilder
+  func body(content: Content) -> some View {
+    switch emphasis {
+    case .prominent:
+      content.buttonStyle(.borderedProminent)
+    case .bordered:
+      content.buttonStyle(.bordered)
+    case .quiet:
+      content.buttonStyle(.borderless)
+    }
+  }
+}
+
 /// The on-the-ground iPhone projection of one dated trip. This deliberately
 /// receives the existing planning model rather than owning persistence or a
 /// competing itinerary model.
@@ -13,6 +35,7 @@ struct TodayView: View {
   @State private var model = TodayModel()
   /// The day the user has stepped to. `nil` means "follow the live day".
   @State private var selectedDay: Int?
+  @State private var detailIdea: Idea?
 
   private static let leaveByBuffer: TimeInterval = 10 * 60
 
@@ -147,17 +170,36 @@ struct TodayView: View {
     .task(id: activeWeatherAnchor) {
       await model.loadWeather(for: activeWeatherAnchor)
     }
+    .sheet(item: $detailIdea) { idea in
+      NavigationStack {
+        IdeaDetailView(
+          idea: idea,
+          tagNames: planningModel.tagNames(for: idea),
+          interests: planningModel.interests(for: idea),
+          evaluations: planningModel.evaluations(for: idea),
+          stopContext: planningModel.stopContext(for: idea))
+          .navigationTitle(idea.name)
+          .navigationBarTitleDisplayMode(.inline)
+      }
+    }
   }
 
   private func today(_ projection: TodayProjection) -> some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 24) {
-        TodayDayHeader(context: projection.dayContext, weather: model.weather)
+        TodayDayHeader(
+          context: projection.dayContext,
+          progress: projection.progress,
+          canExecute: !isPreviewing,
+          weather: model.weather)
 
         if let next = projection.next {
           TodayNextHero(
             next: next,
             connector: nextConnector,
+            canExecute: !isPreviewing,
+            planningModel: planningModel,
+            onSelectIdea: { detailIdea = $0 },
             weather: model.weather)
         } else {
           TodayNoNextCard()
@@ -170,7 +212,13 @@ struct TodayView: View {
             }
           : projection.remaining
         if !timeline.isEmpty {
-          TodayTimeline(remaining: timeline)
+          TodayTimeline(
+            remaining: timeline,
+            doneStops: projection.doneStops,
+            skippedStops: projection.skippedStops,
+            canExecute: !isPreviewing,
+            planningModel: planningModel,
+            onSelectIdea: { detailIdea = $0 })
         }
 
         if let tonight = projection.tonight {
@@ -189,6 +237,8 @@ struct TodayView: View {
 
 private struct TodayDayHeader: View {
   let context: TodayProjection.DayContext
+  let progress: TodayProjection.Progress
+  let canExecute: Bool
   let weather: WeatherSummary?
 
   var body: some View {
@@ -198,6 +248,10 @@ private struct TodayDayHeader: View {
           .font(.title2.weight(.bold))
         HStack(spacing: 6) {
           Text("Day \(context.dayNumber)")
+          if canExecute, progress.total > 0 {
+            Text("\(progress.done) of \(progress.total)")
+              .accessibilityLabel("\(progress.done) of \(progress.total) stops complete")
+          }
           if let locality = context.locality {
             Text("•")
             Text(locality)
@@ -233,6 +287,9 @@ private struct TodayDayHeader: View {
 private struct TodayNextHero: View {
   let next: TodayProjection.Next
   let connector: TravelConnector?
+  let canExecute: Bool
+  let planningModel: TripPlanningModel
+  let onSelectIdea: (Idea) -> Void
   let weather: WeatherSummary?
 
   private var stop: ResolvedStop? {
@@ -248,39 +305,34 @@ private struct TodayNextHero: View {
         .tracking(1.2)
 
       if let stop {
-        HStack(alignment: .top, spacing: 16) {
-          VStack(alignment: .leading, spacing: 8) {
-            Text(stop.content.title)
-              .font(.title.weight(.bold))
-              .fixedSize(horizontal: false, vertical: true)
-
-            Text(stop.entry.schedule.display)
-              .font(.headline)
-              .foregroundStyle(.secondary)
-
-            if let leaveBy = next.leaveBy {
-              Label(leaveBy.text, systemImage: "figure.walk.motion")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.primary)
-            }
+        if let idea = stop.idea {
+          Button { onSelectIdea(idea) } label: {
+            stopSummary(stop)
           }
-
-          if let coordinate = trailCoordinate(for: stop) {
-            TodayTrailThumbnail(coordinate: coordinate, title: stop.content.title)
-              .frame(width: 112, height: 112)
-          }
+          .buttonStyle(.plain)
+          .contentShape(Rectangle())
+          .accessibilityHint("Shows stop details.")
+        } else {
+          stopSummary(stop)
         }
       }
 
-      if let connector {
-        Button {
-          openInMaps(connector: connector)
-        } label: {
-          Label("Directions", systemImage: "arrow.triangle.turn.up.right.diamond.fill")
-            .frame(maxWidth: .infinity)
+      HStack(spacing: 12) {
+        if canExecute, let stop {
+          Button {
+            Task { await planningModel.completeStop(stop.id) }
+          } label: {
+            Label("Done", systemImage: "checkmark.circle.fill")
+              .frame(maxWidth: .infinity)
+          }
+          .buttonStyle(.borderedProminent)
         }
-        .buttonStyle(.borderedProminent)
-        .accessibilityHint("Opens directions in Apple Maps.")
+
+        if let connector {
+          directionsButton(for: connector)
+        } else if let endpoint = nextEndpoint {
+          currentLocationDirectionsButton(to: endpoint)
+        }
       }
 
       if next.weatherAnchor?.isWeatherSensitive == true, let weather {
@@ -294,6 +346,70 @@ private struct TodayNextHero: View {
         .stroke(.tint.opacity(0.18), lineWidth: 1)
     }
     .shadow(color: .black.opacity(0.06), radius: 16, y: 8)
+  }
+
+  private func stopSummary(_ stop: ResolvedStop) -> some View {
+    HStack(alignment: .top, spacing: 16) {
+      VStack(alignment: .leading, spacing: 8) {
+        Text(stop.content.title)
+          .font(.title.weight(.bold))
+          .fixedSize(horizontal: false, vertical: true)
+
+        Text(stop.entry.schedule.display)
+          .font(.headline)
+          .foregroundStyle(.secondary)
+
+        if let leaveBy = next.leaveBy {
+          Label(leaveBy.text, systemImage: "figure.walk.motion")
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.primary)
+        }
+      }
+
+      if let coordinate = trailCoordinate(for: stop) {
+        TodayTrailThumbnail(coordinate: coordinate, title: stop.content.title)
+          .frame(width: 112, height: 112)
+      }
+    }
+  }
+
+  private func directionsButton(for connector: TravelConnector) -> some View {
+    Button {
+      openInMaps(connector: connector)
+    } label: {
+      Image(systemName: "arrow.triangle.turn.up.right.diamond.fill")
+        .frame(width: 36, height: 36)
+    }
+    .modifier(TodayDirectionsButtonStyle(
+      emphasis: canExecute ? .bordered : .prominent))
+    .accessibilityLabel("Directions")
+    .accessibilityHint("Opens directions from the previous location in Apple Maps.")
+  }
+
+  private func currentLocationDirectionsButton(to endpoint: TravelEndpoint) -> some View {
+    Button {
+      openInMaps(fromCurrentLocationTo: endpoint, mode: planningModel.trip?.mainTransportationMode ?? .walking)
+    } label: {
+      Image(systemName: "arrow.triangle.turn.up.right.diamond.fill")
+        .frame(width: 36, height: 36)
+    }
+    .modifier(TodayDirectionsButtonStyle(
+      emphasis: canExecute ? .bordered : .prominent))
+    .accessibilityLabel("Directions")
+    .accessibilityHint("Opens directions from your current location in Apple Maps.")
+  }
+
+  private var nextEndpoint: TravelEndpoint? {
+    guard
+      let stop,
+      let latitude = stop.content.latitude,
+      let longitude = stop.content.longitude
+    else { return nil }
+    return TravelEndpoint(
+      id: "stop-\(stop.id)",
+      title: stop.content.title,
+      latitude: latitude,
+      longitude: longitude)
   }
 
   private func trailCoordinate(for stop: ResolvedStop) -> CLLocationCoordinate2D? {

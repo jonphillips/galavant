@@ -430,6 +430,18 @@ func openInMaps(connector: TravelConnector) {
   ])
 }
 
+/// Hands off to Apple Maps from the user's current location when no prior
+/// itinerary location is available for the next stop.
+func openInMaps(fromCurrentLocationTo endpoint: TravelEndpoint, mode: TransportMode) {
+  let destination = MKMapItem(
+    location: CLLocation(latitude: endpoint.latitude, longitude: endpoint.longitude),
+    address: nil)
+  destination.name = endpoint.title
+  MKMapItem.openMaps(with: [MKMapItem.forCurrentLocation(), destination], launchOptions: [
+    MKLaunchOptionsDirectionsModeKey: mode.mkDirectionsMode
+  ])
+}
+
 private func isLooseAlternativeSlot(_ schedule: Schedule) -> Bool {
   switch schedule {
   case .day, .unscheduled: true

@@ -1,5 +1,7 @@
 import Foundation
 
+// swiftlint:disable file_length
+
 /// A read-only, weather-free-by-default view of the active day in a `TripPlan`.
 ///
 /// This is deliberately a value derived from the itinerary stream rather than a
@@ -31,8 +33,19 @@ public struct TodayProjection: Equatable, Sendable {
     }
   }
 
+  public struct Progress: Equatable, Sendable {
+    public var done: Int
+    public var total: Int
+
+    public init(done: Int, total: Int) {
+      self.done = done
+      self.total = total
+    }
+  }
+
   public enum RemainingItem: Equatable, Sendable {
-    case earlierToday(count: Int)
+    case done(count: Int)
+    case skipped(count: Int)
     case item(ItineraryItem)
   }
 
@@ -61,20 +74,33 @@ public struct TodayProjection: Equatable, Sendable {
 
   public var dayContext: DayContext
   public var next: Next?
+  public var progress: Progress
   public var remaining: [RemainingItem]
+  /// Stops represented by the collapsed `.done(count:)` summary. Keeping the
+  /// resolved rows alongside the count makes completion reversible without
+  /// changing the compact default timeline.
+  public var doneStops: [ResolvedStop]
+  /// Stops represented by the collapsed `.skipped(count:)` summary.
+  public var skippedStops: [ResolvedStop]
   public var tonight: Tonight?
   public var tomorrow: Tomorrow?
 
   public init(
     dayContext: DayContext,
     next: Next?,
+    progress: Progress = Progress(done: 0, total: 0),
     remaining: [RemainingItem],
+    doneStops: [ResolvedStop] = [],
+    skippedStops: [ResolvedStop] = [],
     tonight: Tonight?,
     tomorrow: Tomorrow?
   ) {
     self.dayContext = dayContext
     self.next = next
+    self.progress = progress
     self.remaining = remaining
+    self.doneStops = doneStops
+    self.skippedStops = skippedStops
     self.tonight = tonight
     self.tomorrow = tomorrow
   }
@@ -113,15 +139,21 @@ public struct TodayProjection: Equatable, Sendable {
       tripStartDate: tripStartDate,
       travelTimes: travelTimes,
       leaveByBuffer: leaveByBuffer)
+    let progress = makeProgress(in: items)
+
+    let timeline = remainingTimeline(
+      items: items,
+      now: now,
+      dayNumber: dayNumber,
+      tripStartDate: tripStartDate)
 
     return Self(
       dayContext: dayContext(for: dayNumber, date: date, tripPlan: tripPlan),
       next: nextSelection?.value,
-      remaining: remainingTimeline(
-        items: items,
-        now: now,
-        dayNumber: dayNumber,
-        tripStartDate: tripStartDate),
+      progress: progress,
+      remaining: timeline.remaining,
+      doneStops: timeline.doneStops,
+      skippedStops: timeline.skippedStops,
       tonight: tonight(forDay: dayNumber, in: tripPlan),
       tomorrow: tomorrow(
         after: dayNumber,
@@ -166,7 +198,7 @@ public struct TodayProjection: Equatable, Sendable {
   ) -> (index: Int, value: Next)? {
     guard let index = items.firstIndex(where: { item in
       guard case let .stop(stop) = item else { return false }
-      return isUpcoming(stop, now: now, tripStartDate: tripStartDate)
+      return stop.entry.isPending && isUpcoming(stop, now: now, tripStartDate: tripStartDate)
     }) else { return nil }
     let item = items[index]
     guard case let .stop(stop) = item else { return nil }
@@ -194,27 +226,75 @@ public struct TodayProjection: Equatable, Sendable {
 
   private static func remainingTimeline(
     items: [ItineraryItem], now: Date, dayNumber: Int, tripStartDate: Date
-  ) -> [RemainingItem] {
-    var earlierStopCount = 0
+  ) -> (
+    remaining: [RemainingItem],
+    doneStops: [ResolvedStop],
+    skippedStops: [ResolvedStop]
+  ) {
+    var completedStopCount = 0
+    var skippedStopCount = 0
+    var doneStops: [ResolvedStop] = []
+    var skippedStops: [ResolvedStop] = []
     var remaining: [RemainingItem] = []
 
     for index in items.indices {
       let item = items[index]
-      if let nominalDate = rowNominalDate(
+      if case let .stop(stop) = item {
+        switch stop.entry.outcome {
+        case .done:
+          completedStopCount += 1
+          doneStops.append(stop)
+          continue
+        case .skipped:
+          skippedStopCount += 1
+          skippedStops.append(stop)
+          continue
+        case .pending:
+          remaining.append(.item(item))
+          continue
+        }
+      }
+
+      let nominalDate = rowNominalDate(
         for: item,
         preceding: index > items.startIndex ? items[index - 1] : nil,
         following: index + 1 < items.endIndex ? items[index + 1] : nil,
         dayNumber: dayNumber,
-        tripStartDate: tripStartDate), nominalDate < now {
-        if case .stop = item { earlierStopCount += 1 }
+        tripStartDate: tripStartDate)
+      if let nominalDate {
+        if nominalDate >= now {
+          remaining.append(.item(item))
+        }
       } else {
         remaining.append(.item(item))
       }
     }
 
-    let earlier: [RemainingItem] =
-      earlierStopCount == 0 ? [] : [.earlierToday(count: earlierStopCount)]
-    return earlier + remaining
+    var summary: [RemainingItem] = []
+    if completedStopCount > 0 {
+      summary.append(.done(count: completedStopCount))
+    }
+    if skippedStopCount > 0 {
+      summary.append(.skipped(count: skippedStopCount))
+    }
+    return (summary + remaining, doneStops, skippedStops)
+  }
+
+  private static func makeProgress(in items: [ItineraryItem]) -> Progress {
+    var done = 0
+    var pending = 0
+    for item in items {
+      guard case let .stop(stop) = item else { continue }
+      switch stop.entry.outcome {
+      case .done:
+        done += 1
+      case .pending:
+        pending += 1
+      case .skipped:
+        break
+      }
+    }
+    return Progress(done: done, total: done + pending)
   }
 
   /// Returns the event time represented by a timeline row. A connector belongs

@@ -38,9 +38,34 @@ dependency, device-only verified. Authority: `docs/decisions/0038-journey-today-
   can't substitute (per M10-EXECUTION "Codex handoff" note).
 - **Slice 4 — runtime coordination** (fold into 3 if small): one tick source, weather from the
   `expiration` cache, bounded ETA freshness — no polling storm (ADR-0038 §7).
+- **Today execution — complete / skip / defer / tap-to-detail. DONE** (PR pending,
+  `feat/today-execution`). Turns Today from read-only into a live execution surface per
+  **ADR-0039** (supersedes ADR-0038's read-only restraint for Today; Journey stays read-only).
+  Two nullable overlay columns on `TripIdea` (`completedAt`/`skippedAt`, mutually exclusive,
+  stop stays `.scheduled`); pending-aware NEXT + progress + outcome-based collapse in
+  `TodayProjection`; DB ops + model wrappers; iPhone affordances (check circle, `⋯` menu with
+  Skip / Do later today / Do tomorrow, per-leg Directions on connectors, tap-to-detail sheet).
+  Live-gated writes; preview stays read-only. Also folds in the Phase 0 transfer-day REMAINING
+  fix (already on `main` via #50) and the ADR-0039 addendum (Directions belong to the leg).
+  Schema + core fully unit-tested (`GalavantSchemaTests`, 380 green); app builds clean.
+  Brief: `docs/handoff/today-execution.md`.
+  - **Open follow-up (undo unreachable):** completed/skipped stops collapse into a
+    non-interactive "Done · N" / "Skipped · M" count, so the built `uncompleteStop` /
+    `unskipStop` affordances (row check-toggle + `⋯` "Undo done" / "Unskip") never render —
+    once a stop is checked off (esp. one-tap on the NEXT hero) there is no reachable undo,
+    which contradicts ADR-0039's "reversible" promise and the acceptance matrix's "uncheck to
+    reopen". Fix: make the summary expandable to reveal the collapsed stops with their menu, or
+    render done/skipped stops as dimmed rows that keep their menu. Jon accepted this as a known
+    gap for the initial PR (2026-08-16) — poke-and-refine to follow.
 
 Explicitly deferred in M10 (ADR-0038 §8): Journey surface, per-region photography, AI themes,
 severe-weather/minute advisory, device GPS "you are here", climatology, auto-entry into Today.
+
+**Next in the M10 arc: the iPad Journey surface** (ADR-0038's "Today first, dogfood, then
+Journey"). Journey is the iPad anticipation/comprehension view — a coarse, read-only projection
+of `TripPlan` (one weather anchor per day, the whole-trip shape) alongside the day detail. It
+reuses the same pure-projection discipline as Today; no new persistent trip concept
+(ADR-0038 §D). Design it as its own slice off the ADR-0038 Journey notes.
 
 ## In progress — M9 evaluation cockpit (ADR-0037 layout revision, Slices 1–2 in PR #36)
 
