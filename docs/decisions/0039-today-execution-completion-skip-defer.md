@@ -146,3 +146,54 @@ First slice (see `docs/handoff/today-execution.md`): completion + progress, coll
 outcome, skip + defer, and tap-to-detail. Live-gated writes; preview stays read-only.
 Later: drag-to-reorder in Today, surfacing execution state in the planning tab, and the
 end-of-trip roll-up of completed stops into the `.done` status for pool feedback.
+
+## Addendum (2026-08-16): Directions belong to the leg, not the NEXT hero
+
+Dogfooding the Phase 0 fix on a **transfer day** (Day 3, Bavaria: check out of BEYOND BY
+GEISEL → 1 hr 7 min drive → check in Das Achental → walk → es:senz) surfaced a second gap.
+With the REMAINING rows restored, the timeline was correct — but **NEXT** showed the evening
+`es:senz` (18:30) as the headline, while the morning transfer sat below it as inert gray
+text. The traveler's actual next action — check out and drive an hour to the next hotel —
+had **no way to launch its directions.**
+
+The cause is the same shape as the Phase 0 bug, one layer up: **NEXT considers only
+`.stop` rows** (`TodayProjection.next`), so on a transfer day it skips the check-out /
+`.betweenLodgings` drive and lands on the only stop. And Directions lives on exactly one
+surface — the NEXT hero. The connector rows carry a formatted ETA ("1 hr 7 min drive") but
+no affordance.
+
+We considered making NEXT polymorphic (promote the transfer to the hero) or adding a
+separate "transfer strip." Both were rejected once we named what the traveler actually
+needs: **not a different hero — the Directions for the leg they're about to travel, present
+at the moment they need it.**
+
+### Decision
+
+**Directions is a property of a travel leg (`TravelConnector`), not of the NEXT hero.**
+Every connector row carries its own Directions affordance. This is already buildable with
+**zero new plumbing**: a `TravelConnector` holds `from`/`to` (`TravelEndpoint`: title +
+coordinate) and `mode` — it already *is* the MapKit-free directions value, and the app layer
+already has the launcher. `openInMaps(connector:)` (`TripItineraryView.swift:419`) takes any
+connector and opens Apple Maps directions between its endpoints in the right mode; the NEXT
+hero's own Directions button already calls it. So the leg → Maps seam exists; the only gap
+is that the seam is wired to exactly one surface. No new core helper is required.
+
+Consequences:
+
+- **NEXT stays stop-shaped.** The transfer's usefulness *is* its Directions, and that now
+  lives on the leg — so promoting it to the hero buys nothing. The Phase 3 execution model
+  (pending-stop NEXT, progress, check-off) is untouched: no polymorphic hero, no stop-only
+  check-off carve-out, no composite-transfer modeling. The hero's Directions becomes simply
+  the promoted copy of the current head leg's Directions.
+- **"At the right time" is already on screen.** The now-marker and the top-uncompleted-leg
+  position signal which leg is *now*. The view MAY emphasize the current leg's Directions
+  (the prominent action) and keep later legs' quiet, and SHOULD suppress the affordance on a
+  trivial leg (e.g. a "< 1 min walk") so it is not noise. Presence on every non-trivial leg
+  is the requirement; prominence is polish.
+- **Every travel leg is directable, not just transfers.** `fromLodging`, `betweenStops`, and
+  `betweenLodgings` connectors all get the same treatment — the fix is general, and the
+  transfer day is just where the absence was loudest.
+
+This lands entirely in **Phase 5** (the connector row view calls the existing
+`openInMaps(connector:)`). It does not change NEXT selection, progress, collapse, any write
+path, or the core.
