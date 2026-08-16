@@ -51,6 +51,7 @@
 		5E128AA508FD75DB537A0366 /* TripPlanningModel+Directions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F84BC54D6D414EBFC202ED7 /* TripPlanningModel+Directions.swift */; };
 		5FC0A092CF36738BE434FB6D /* IdeaCoordinate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 409050F2DDFD762C631818CF /* IdeaCoordinate.swift */; };
 		600B8A48EBF6C2B3E5856903 /* RecommendationWorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57F320EF0E0815866BE1B3F0 /* RecommendationWorkspaceView.swift */; };
+		61F763B5AFB58555F44D6E47 /* RegionPhotoPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FDEEFB9B00C30C4D7DE3CBE /* RegionPhotoPickerSheet.swift */; };
 		626DB4453DDF7BA57BE9AF1C /* GalavantChat in Frameworks */ = {isa = PBXBuildFile; productRef = 70E3AE87004F856771C63307 /* GalavantChat */; };
 		64FFD213B12CE5D4202414B0 /* JourneyModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA06BA808AA093D53CD34D93 /* JourneyModel.swift */; };
 		666F98ED751CC0C6994CFED4 /* LLMClientKit in Frameworks */ = {isa = PBXBuildFile; productRef = BEC45E8A60608009E9EFFDCC /* LLMClientKit */; };
@@ -60,6 +61,7 @@
 		686D8E04502200DBC618B751 /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF473C91775923ADF6F5FDEF /* AppRouter.swift */; };
 		6D4B81713C707877850A54BD /* MapPlaceSearchOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = C03BF0F90A008DC4A1E8E3BA /* MapPlaceSearchOverlay.swift */; };
 		6DFEFA57B8BACC403A250F18 /* ShareSeedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8885060D462E6E53320A2831 /* ShareSeedTests.swift */; };
+		7303CDBB9E9530ECB0A89D43 /* JourneyImagePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BBE67122AFC3C8773380D0 /* JourneyImagePanel.swift */; };
 		734D683130527266D1AEF8AD /* WeatherDebugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24FAAF80343489A5540F82DF /* WeatherDebugView.swift */; };
 		76E9D46A29DE8080E15D9DC8 /* TodayModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74A40B8122D91A39A5AB2309 /* TodayModel.swift */; };
 		771BA3D003504F4DE062AFFB /* StartDayPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B2DC50A26F7695EC3EC536A /* StartDayPanel.swift */; };
@@ -187,6 +189,7 @@
 		1CBA766947DA059C035C1937 /* TripCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripCard.swift; sourceTree = "<group>"; };
 		1D62672E298B917B0707B6F4 /* TagManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagManagerView.swift; sourceTree = "<group>"; };
 		1EF8BE4704C36D1A6FFB14D6 /* IdeaRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaRow.swift; sourceTree = "<group>"; };
+		1FDEEFB9B00C30C4D7DE3CBE /* RegionPhotoPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegionPhotoPickerSheet.swift; sourceTree = "<group>"; };
 		201134A6F0FAB081A677EB63 /* AISettingsSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AISettingsSections.swift; sourceTree = "<group>"; };
 		208207E0BC551E1C0AA0E597 /* MapPlaceResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapPlaceResolver.swift; sourceTree = "<group>"; };
 		24FAAF80343489A5540F82DF /* WeatherDebugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherDebugView.swift; sourceTree = "<group>"; };
@@ -229,6 +232,7 @@
 		895F90CCD6B6EE453DBD785D /* PoolFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoolFlowUITests.swift; sourceTree = "<group>"; };
 		8DC1E6463D9CC2DF49548F37 /* SyncStatusSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatusSection.swift; sourceTree = "<group>"; };
 		91589ABCCE6CEFC2EC1F72F4 /* ReorderDifference+Apply.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ReorderDifference+Apply.swift"; sourceTree = "<group>"; };
+		92BBE67122AFC3C8773380D0 /* JourneyImagePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyImagePanel.swift; sourceTree = "<group>"; };
 		92EB0541350B5FCB540931D3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		95C568B98EA55277C2DDA065 /* DayPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayPalette.swift; sourceTree = "<group>"; };
 		97954EEA93EDDCB81E746016 /* PlanningRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanningRow.swift; sourceTree = "<group>"; };
@@ -486,8 +490,10 @@
 		654E460E10E36334B8DC23CB /* Journey */ = {
 			isa = PBXGroup;
 			children = (
+				92BBE67122AFC3C8773380D0 /* JourneyImagePanel.swift */,
 				AA06BA808AA093D53CD34D93 /* JourneyModel.swift */,
 				58883EC5A8F26B4F3E007652 /* JourneyView.swift */,
+				1FDEEFB9B00C30C4D7DE3CBE /* RegionPhotoPickerSheet.swift */,
 			);
 			path = Journey;
 			sourceTree = "<group>";
@@ -847,6 +853,7 @@
 				3DF889FDCBE7A7C979E41F13 /* IdeasScreen.swift in Sources */,
 				474250E4E109ADF7680100C1 /* IdentityView.swift in Sources */,
 				4344BF96EA3F3DB017E4CCDF /* InterestView.swift in Sources */,
+				7303CDBB9E9530ECB0A89D43 /* JourneyImagePanel.swift in Sources */,
 				64FFD213B12CE5D4202414B0 /* JourneyModel.swift in Sources */,
 				164623B0ED0CE24B42E3FA51 /* JourneyView.swift in Sources */,
 				016DF429F8301AE8171A5C94 /* MapPlaceResolver.swift in Sources */,
@@ -863,6 +870,7 @@
 				AD17477A05EDF3DE9D52E3A5 /* RegionManagementSettingsModel.swift in Sources */,
 				BE4EC3D93E562C6724906B1A /* RegionManagementSettingsView.swift in Sources */,
 				8E9C72B6E2A50CCF9129E6E1 /* RegionManagerView.swift in Sources */,
+				61F763B5AFB58555F44D6E47 /* RegionPhotoPickerSheet.swift in Sources */,
 				D1D88C6469FB21204DA80CA3 /* ReorderDifference+Apply.swift in Sources */,
 				7E07A0AB874D51E0DCAD3434 /* SequencePin.swift in Sources */,
 				0287A6CD02AFDA26119DD050 /* SettingsModel.swift in Sources */,

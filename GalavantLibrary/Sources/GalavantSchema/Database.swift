@@ -690,6 +690,28 @@ extension DependencyValues {
       try #sql(#"ALTER TABLE "tripIdeas" ADD COLUMN "completedAt" TEXT"#).execute(db)
       try #sql(#"ALTER TABLE "tripIdeas" ADD COLUMN "skippedAt" TEXT"#).execute(db)
     }
+    migrator.registerMigration("Create regionImages table (M10)") { db in
+      try #sql(
+        """
+        CREATE TABLE "regionImages" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "regionID" TEXT NOT NULL REFERENCES "mapRegions"("id") ON DELETE CASCADE,
+          "display" BLOB NOT NULL,
+          "thumbnail" BLOB NOT NULL,
+          "sourceURL" TEXT,
+          "photographerName" TEXT,
+          "photographerUsername" TEXT
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_regionImages_on_regionID" ON "regionImages"("regionID")
+        """
+      )
+      .execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if case let .configured(startImmediately) = syncMode {

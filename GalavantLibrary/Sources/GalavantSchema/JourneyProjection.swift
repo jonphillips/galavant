@@ -6,11 +6,15 @@ import Foundation
 public struct JourneyProjection: Equatable, Sendable {
   public struct StopDigest: Identifiable, Equatable, Sendable {
     public var id: TripIdea.ID
+    /// The underlying idea, when this stop resolves to one — the key the day
+    /// disclosure uses to look up the stop's header image (`ImageAsset.ideaID`).
+    public var ideaID: Idea.ID?
     public var title: String
     public var kind: IdeaKind?
 
-    public init(id: TripIdea.ID, title: String, kind: IdeaKind?) {
+    public init(id: TripIdea.ID, ideaID: Idea.ID?, title: String, kind: IdeaKind?) {
       self.id = id
+      self.ideaID = ideaID
       self.title = title
       self.kind = kind
     }
@@ -127,7 +131,7 @@ public struct JourneyProjection: Equatable, Sendable {
 
       let stops = tripPlan.itinerary.first { $0.number == dayNumber }?.stops ?? []
       let digests = stops.map {
-        StopDigest(id: $0.id, title: $0.content.title, kind: $0.idea?.kind)
+        StopDigest(id: $0.id, ideaID: $0.idea?.id, title: $0.content.title, kind: $0.idea?.kind)
       }
       let definingStop = digests.first(where: { isWeatherSensitive($0.kind) }) ?? digests.first
       let transfer = tripPlan.transferConnector(forDay: dayNumber, travelTimes: travelTimes)
