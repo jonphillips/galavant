@@ -50,6 +50,17 @@
                ReferencedContainer = "container:Galavant.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "59EF2448919DADFA674F7E3C"
+               BuildableName = "GalavantTests.xctest"
+               BlueprintName = "GalavantTests"
+               ReferencedContainer = "container:Galavant.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
       <CommandLineArguments>
       </CommandLineArguments>

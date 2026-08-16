@@ -159,6 +159,18 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
     dependencies:
       - target: Galavant
+  GalavantTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - GalavantTests
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: Galavant
+      - package: swift-dependencies
+        product: DependenciesTestSupport
 schemes:
   Galavant:
     build:
@@ -180,3 +192,4 @@ schemes:
       config: Debug
       targets:
         - GalavantUITests
+        - GalavantTests

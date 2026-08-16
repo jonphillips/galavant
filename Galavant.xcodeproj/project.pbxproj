@@ -72,6 +72,7 @@
 		861F0BD9CC28029356E7DF09 /* RecommendationWorkspaceModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0620B4CD2A26F04156B150D3 /* RecommendationWorkspaceModel.swift */; };
 		8B65E5CA383B4D16F3685A39 /* TripPlanningModel+Scheduling.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72A6C6AEFAD6483C0E0AF70C /* TripPlanningModel+Scheduling.swift */; };
 		8C1110FDA05FA4D83DCF9A4F /* IdeasListModel+Taxonomy.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8D1F8D207FE25FE14CCFED7 /* IdeasListModel+Taxonomy.swift */; };
+		8E5F270D961669BB1431CDAD /* IdeasListDeleteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFDD20F3FC13F6B974FF8181 /* IdeasListDeleteTests.swift */; };
 		8E9C72B6E2A50CCF9129E6E1 /* RegionManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0587DE2E1AA61B9BD3D0073 /* RegionManagerView.swift */; };
 		90C301112D6C03ED59D12E2C /* IdeaFormModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99EE3153CDA64E66C39149A9 /* IdeaFormModel.swift */; };
 		9515962CEF69E6D64F9B0322 /* DemoFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CD37357C07AFC3DAE3CDAE7 /* DemoFixtures.swift */; };
@@ -82,6 +83,7 @@
 		A2E63468073408305AED0762 /* SyncSeedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A1B810182571FD874E4261 /* SyncSeedTests.swift */; };
 		A3E2170E96CDF9C7D76B89E6 /* PlanningRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97954EEA93EDDCB81E746016 /* PlanningRow.swift */; };
 		A4CB29CDDE7511750823B841 /* TripPlanningSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74F16970DCFE2E14E475DB66 /* TripPlanningSheets.swift */; };
+		A6E6DE98160B52B068BB18D5 /* DependenciesTestSupport in Frameworks */ = {isa = PBXBuildFile; productRef = BD0B4611AC664044BD5BEBD1 /* DependenciesTestSupport */; };
 		A784199C3F004D6FA2D80B05 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 080E46AACA8A4087FB22F116 /* Assets.xcassets */; };
 		A9D8F7500DA570A20F8DE8B1 /* TripDetailContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07A4BE5288975EEF3DA91B16 /* TripDetailContent.swift */; };
 		AD17477A05EDF3DE9D52E3A5 /* RegionManagementSettingsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02F3EA63CB8A4B8B546438F5 /* RegionManagementSettingsModel.swift */; };
@@ -139,6 +141,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 6CECB534761064AC5A66DA2C;
 			remoteInfo = GalavantShare;
+		};
+		829BEBE853D356ED053916BE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 4696E494F4F89DBC9D49F7C9 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2A483A405202F2FF5C8B5D34;
+			remoteInfo = Galavant;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -224,6 +233,7 @@
 		9C956244AC0CCEFCA45A4128 /* IdeaFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaFormView.swift; sourceTree = "<group>"; };
 		9D34C61AE3B675F5D6CCDDDD /* TagPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagPickerView.swift; sourceTree = "<group>"; };
 		9E4F11F80427DFD1A59F56B7 /* RecommendationCandidateStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationCandidateStrip.swift; sourceTree = "<group>"; };
+		9FEEBBB70BFDC82C3176AA53 /* GalavantTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = GalavantTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A20DAF6B7A5F203899F4C780 /* TripFormModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripFormModel.swift; sourceTree = "<group>"; };
 		A5F159E1049DE135201C5821 /* WeatherAttributionLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherAttributionLink.swift; sourceTree = "<group>"; };
 		AD3E24952C44337E688A4D00 /* Galavant.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Galavant.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -247,6 +257,7 @@
 		DC0B58BAA1F3B550A331C182 /* RecommendationHandoffSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationHandoffSheet.swift; sourceTree = "<group>"; };
 		DDD6629168771E53AD5C86CF /* TripAddButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripAddButton.swift; sourceTree = "<group>"; };
 		DEEC45147F36D138F0ABA934 /* TripHeaderPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripHeaderPickerSheet.swift; sourceTree = "<group>"; };
+		DFDD20F3FC13F6B974FF8181 /* IdeasListDeleteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeasListDeleteTests.swift; sourceTree = "<group>"; };
 		E00FB978F8AEB5F20B8B8C5D /* SyncHealthModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncHealthModel.swift; sourceTree = "<group>"; };
 		E049286F9F226AF86DA12541 /* IdentityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityView.swift; sourceTree = "<group>"; };
 		E0587DE2E1AA61B9BD3D0073 /* RegionManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegionManagerView.swift; sourceTree = "<group>"; };
@@ -303,6 +314,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		EE2722F2F2EDE2CE304343F3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A6E6DE98160B52B068BB18D5 /* DependenciesTestSupport in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -324,6 +343,7 @@
 			children = (
 				AD3E24952C44337E688A4D00 /* Galavant.app */,
 				5F046B49AE38F92268A2FA12 /* GalavantShare.appex */,
+				9FEEBBB70BFDC82C3176AA53 /* GalavantTests.xctest */,
 				0CA9E000AA9AEEE1E3D68F79 /* GalavantUITests.xctest */,
 			);
 			name = Products;
@@ -347,6 +367,7 @@
 				2D68689794BA7673C4373EC2 /* Config */,
 				BDAA34A104A70523CB975F25 /* Galavant */,
 				0A7131DDBE2DA42C9D03DE1A /* GalavantShare */,
+				628BA0056FA225AE60C99FC1 /* GalavantTests */,
 				03D3B4DD92E3024BD94B2AD0 /* GalavantUITests */,
 				AFE599FCAD0B477B7D5AF155 /* Packages */,
 				F13CF3276F3BA9B09AC303B7 /* Frameworks */,
@@ -438,6 +459,14 @@
 				24FAAF80343489A5540F82DF /* WeatherDebugView.swift */,
 			);
 			path = Weather;
+			sourceTree = "<group>";
+		};
+		628BA0056FA225AE60C99FC1 /* GalavantTests */ = {
+			isa = PBXGroup;
+			children = (
+				DFDD20F3FC13F6B974FF8181 /* IdeasListDeleteTests.swift */,
+			);
+			path = GalavantTests;
 			sourceTree = "<group>";
 		};
 		64DB71B050831FD651A208C0 /* Design */ = {
@@ -603,6 +632,26 @@
 			productReference = AD3E24952C44337E688A4D00 /* Galavant.app */;
 			productType = "com.apple.product-type.application";
 		};
+		59EF2448919DADFA674F7E3C /* GalavantTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B22D70B0CC6DD5D43C2D10A6 /* Build configuration list for PBXNativeTarget "GalavantTests" */;
+			buildPhases = (
+				DD11AEF2312A01C033E69E42 /* Sources */,
+				EE2722F2F2EDE2CE304343F3 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				75F0BC5180A275DF1E0C61EA /* PBXTargetDependency */,
+			);
+			name = GalavantTests;
+			packageProductDependencies = (
+				BD0B4611AC664044BD5BEBD1 /* DependenciesTestSupport */,
+			);
+			productName = GalavantTests;
+			productReference = 9FEEBBB70BFDC82C3176AA53 /* GalavantTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		6CECB534761064AC5A66DA2C /* GalavantShare */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 209BDBD3F006CEBAAF4C5E4E /* Build configuration list for PBXNativeTarget "GalavantShare" */;
@@ -658,6 +707,10 @@
 						DevelopmentTeam = 7MQEE539G9;
 						ProvisioningStyle = Automatic;
 					};
+					59EF2448919DADFA674F7E3C = {
+						DevelopmentTeam = 7MQEE539G9;
+						ProvisioningStyle = Automatic;
+					};
 					6CECB534761064AC5A66DA2C = {
 						DevelopmentTeam = 7MQEE539G9;
 						ProvisioningStyle = Automatic;
@@ -697,6 +750,7 @@
 			targets = (
 				2A483A405202F2FF5C8B5D34 /* Galavant */,
 				6CECB534761064AC5A66DA2C /* GalavantShare */,
+				59EF2448919DADFA674F7E3C /* GalavantTests */,
 				CC0067D58A6E0F559D50EAD5 /* GalavantUITests */,
 			);
 		};
@@ -732,6 +786,14 @@
 				1C3D2E2D9EEF8BC709447AE6 /* PoolMapUITests.swift in Sources */,
 				6DFEFA57B8BACC403A250F18 /* ShareSeedTests.swift in Sources */,
 				A2E63468073408305AED0762 /* SyncSeedTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DD11AEF2312A01C033E69E42 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8E5F270D961669BB1431CDAD /* IdeasListDeleteTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -844,6 +906,11 @@
 			target = 6CECB534761064AC5A66DA2C /* GalavantShare */;
 			targetProxy = 6EE4A9EB2443E18E0F1263E8 /* PBXContainerItemProxy */;
 		};
+		75F0BC5180A275DF1E0C61EA /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2A483A405202F2FF5C8B5D34 /* Galavant */;
+			targetProxy = 829BEBE853D356ED053916BE /* PBXContainerItemProxy */;
+		};
 		E602B82C576FBE494DD41DE9 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 2A483A405202F2FF5C8B5D34 /* Galavant */;
@@ -955,6 +1022,23 @@
 			};
 			name = Debug;
 		};
+		2D4282D10F602387A9A6725F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.jonphillips.GalavantTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Galavant.app/Galavant";
+			};
+			name = Release;
+		};
 		3506DC85F4A8CC5FBEAAEFEA /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -988,6 +1072,23 @@
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
+		};
+		7828B21407C5CFA7447E38EB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.jonphillips.GalavantTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Galavant.app/Galavant";
+			};
+			name = Debug;
 		};
 		BAE02772CAB7AE2CA434917E /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -1095,6 +1196,15 @@
 			buildConfigurations = (
 				3506DC85F4A8CC5FBEAAEFEA /* Debug */,
 				713726C24E5A67C0F4D7913A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B22D70B0CC6DD5D43C2D10A6 /* Build configuration list for PBXNativeTarget "GalavantTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7828B21407C5CFA7447E38EB /* Debug */,
+				2D4282D10F602387A9A6725F /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
@@ -1255,6 +1365,11 @@
 		BAB8971211A0C3E3E9C18A40 /* CloudSyncKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = CloudSyncKit;
+		};
+		BD0B4611AC664044BD5BEBD1 /* DependenciesTestSupport */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 72A7015AEBE6B87356CCFD60 /* XCRemoteSwiftPackageReference "swift-dependencies" */;
+			productName = DependenciesTestSupport;
 		};
 		BEC45E8A60608009E9EFFDCC /* LLMClientKit */ = {
 			isa = XCSwiftPackageProductDependency;
