@@ -56,8 +56,10 @@ struct JourneyView: View {
           description: Text("Use Today on iPhone for the on-the-go trip view."))
       }
     }
-    .navigationTitle("Journey")
-    .navigationBarTitleDisplayMode(.large)
+    // The trip name is the in-content hero (`JourneySummaryHeader`), so the nav
+    // bar carries no title of its own — an inline empty title leaves just Done.
+    .navigationTitle("")
+    .navigationBarTitleDisplayMode(.inline)
     .toolbar {
       ToolbarItem(placement: .topBarLeading) {
         Button("Done") { dismiss() }
@@ -93,10 +95,22 @@ struct JourneyView: View {
       JourneyStayRail(projection: projection, selection: $selection)
 
       HStack(alignment: .top, spacing: 16) {
-        ScrollView {
-          JourneyDaySpine(projection: projection, model: model, selection: $selection)
-            .padding(.horizontal)
-            .padding(.bottom, 24)
+        ScrollViewReader { proxy in
+          ScrollView {
+            JourneyDaySpine(projection: projection, model: model, selection: $selection)
+              .padding(.horizontal)
+              .padding(.bottom, 24)
+          }
+          // Tapping a lodging capsule jumps the day spine to that stay's first
+          // day, so the rail and the spine stay in sync as you browse stays.
+          .onChange(of: selection) { _, newValue in
+            guard case .stay(let id) = newValue,
+              let band = projection.stayBands.first(where: { $0.id == id })
+            else { return }
+            withAnimation(.easeInOut) {
+              proxy.scrollTo(band.nights.lowerBound, anchor: .top)
+            }
+          }
         }
         JourneyMap(projection: projection, plan: plan, selection: selection)
           .frame(minWidth: 300, idealWidth: 400, maxWidth: 480)
@@ -274,6 +288,7 @@ private struct JourneyDaySpine: View {
           day: day,
           model: model,
           isSelected: selection == .day(day.dayNumber))
+        .id(day.dayNumber)
         .contentShape(RoundedRectangle(cornerRadius: 14))
         .onTapGesture { toggle(day.dayNumber) }
       }
@@ -484,10 +499,11 @@ private struct JourneyMap: View {
   @MapContentBuilder
   private func dayMapContent(_ day: JourneyProjection.DaySummary) -> some MapContent {
     let stops = plan.locatedStops(forDay: day.dayNumber)
-    let coordinates = stops.compactMap(coordinate(for:))
+    let stopCoordinates = stops.compactMap(coordinate(for:))
     let opacity = stopOpacity(day: day.dayNumber)
-    if coordinates.count >= 2 {
-      MapPolyline(coordinates: coordinates)
+    let route = dayRouteCoordinates(day: day, stopCoordinates: stopCoordinates)
+    if route.count >= 2 {
+      MapPolyline(coordinates: route)
         .stroke(
           DayPalette.color(forDay: day.dayNumber).opacity(opacity),
           style: StrokeStyle(lineWidth: 4))
@@ -505,6 +521,19 @@ private struct JourneyMap: View {
     }
   }
 
+  /// The polyline a day draws. For the focused day it becomes an out-and-back
+  /// loop from that day's lodging — out through the activities and home again —
+  /// so an hour's drive to a single stop is visible, not hidden. Other days keep
+  /// the plain stop-to-stop line so the whole-trip overview stays legible.
+  private func dayRouteCoordinates(
+    day: JourneyProjection.DaySummary, stopCoordinates: [CLLocationCoordinate2D]
+  ) -> [CLLocationCoordinate2D] {
+    guard selection == .day(day.dayNumber), !stopCoordinates.isEmpty,
+      let lodging = plan.baseStays(forDay: day.dayNumber).compactMap(coordinate(for:)).first
+    else { return stopCoordinates }
+    return [lodging] + stopCoordinates + [lodging]
+  }
+
   // MARK: Camera
 
   private func cameraPosition(for selection: JourneySelection?) -> MapCameraPosition {
@@ -518,17 +547,20 @@ private struct JourneyMap: View {
     case .none:
       return tripRegion
     case .day(let dayNumber):
+      // Include the day's lodging alongside its stops so the out-and-back drive
+      // stays framed — a far-off activity shouldn't push its own hotel offscreen.
       let coordinates = plan.locatedStops(forDay: dayNumber).compactMap(coordinate(for:))
+        + plan.baseStays(forDay: dayNumber).compactMap(coordinate(for:))
       if let region = Self.boundingRegion(for: coordinates) { return region }
       if let region = plan.region(forDay: dayNumber) {
         return Self.region(around: CLLocationCoordinate2D(
-          latitude: region.centerLatitude, longitude: region.centerLongitude), span: 0.12)
+          latitude: region.centerLatitude, longitude: region.centerLongitude), span: 0.25)
       }
       return tripRegion
     case .stay(let id):
       if let band = projection.stayBands.first(where: { $0.id == id }),
         let coordinate = coordinate(for: band.stay) {
-        return Self.region(around: coordinate, span: 0.08)
+        return Self.region(around: coordinate, span: 0.18)
       }
       return tripRegion
     }
@@ -577,11 +609,12 @@ private struct JourneyMap: View {
     }
     let center = CLLocationCoordinate2D(
       latitude: (minLat + maxLat) / 2, longitude: (minLon + maxLon) / 2)
-    // 1.4× leaves breathing room around the edge pins; the floor keeps a
-    // single-point focus from zooming to street level.
+    // 1.9× leaves generous breathing room so a focused day/stay keeps its
+    // surroundings for context; the floor keeps a single-point focus from
+    // zooming to street level.
     let span = MKCoordinateSpan(
-      latitudeDelta: Swift.max((maxLat - minLat) * 1.4, 0.05),
-      longitudeDelta: Swift.max((maxLon - minLon) * 1.4, 0.05))
+      latitudeDelta: Swift.max((maxLat - minLat) * 1.9, 0.12),
+      longitudeDelta: Swift.max((maxLon - minLon) * 1.9, 0.12))
     return MKCoordinateRegion(center: center, span: span)
   }
 
