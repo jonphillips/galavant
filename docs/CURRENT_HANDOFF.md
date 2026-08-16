@@ -49,14 +49,12 @@ dependency, device-only verified. Authority: `docs/decisions/0038-journey-today-
   fix (already on `main` via #50) and the ADR-0039 addendum (Directions belong to the leg).
   Schema + core fully unit-tested (`GalavantSchemaTests`, 380 green); app builds clean.
   Brief: `docs/handoff/today-execution.md`.
-  - **Open follow-up (undo unreachable):** completed/skipped stops collapse into a
-    non-interactive "Done · N" / "Skipped · M" count, so the built `uncompleteStop` /
-    `unskipStop` affordances (row check-toggle + `⋯` "Undo done" / "Unskip") never render —
-    once a stop is checked off (esp. one-tap on the NEXT hero) there is no reachable undo,
-    which contradicts ADR-0039's "reversible" promise and the acceptance matrix's "uncheck to
-    reopen". Fix: make the summary expandable to reveal the collapsed stops with their menu, or
-    render done/skipped stops as dimmed rows that keep their menu. Jon accepted this as a known
-    gap for the initial PR (2026-08-16) — poke-and-refine to follow.
+  - **Undo is reachable.** The "Done · N" / "Skipped · M" collapse summaries are
+    **expandable disclosures** (`TodayProjection` surfaces `doneStops` / `skippedStops`
+    alongside the counts; `TodayTimeline.outcomeDisclosure` renders them on tap as full
+    rows that keep their check-circle + `⋯` menu). So a checked-off stop can be reopened
+    (uncheck / "Undo done") and a skipped stop unskipped, satisfying the acceptance matrix
+    without cluttering the default compact timeline. This closed the review's one open gap.
 
 Explicitly deferred in M10 (ADR-0038 §8): Journey surface, per-region photography, AI themes,
 severe-weather/minute advisory, device GPS "you are here", climatology, auto-entry into Today.

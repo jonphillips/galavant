@@ -679,9 +679,12 @@ read-only). Fixes the inert "Anytime day" where the clock can't advance NEXT.
   legs labelled "From X"), and a tap-to-detail sheet on stops with an idea (live and
   preview). Also folds in the Phase 0 transfer-day REMAINING fix (already on `main`, #50)
   and the ADR-0039 addendum (Directions belong to the leg, not the NEXT hero).
+- **Reversible collapse.** The "Done · N" / "Skipped · M" summaries are **expandable
+  disclosures** — `TodayProjection` surfaces `doneStops` / `skippedStops` next to the
+  counts, and expanding one (`TodayTimeline.outcomeDisclosure`) reveals its stops as full
+  rows that keep their check-circle and `⋯` menu (uncheck / "Undo done" / "Unskip"). Undo
+  stays reachable while the default timeline stays compact — closing the review's one gap.
 
 Verification: `swift test --package-path GalavantLibrary` green (380 tests, incl. four
 new outcome/ops/projection tests); `xcodebuild build -scheme Galavant` clean on iPhone 17
-Pro / iOS 27. **Known follow-up:** completed/skipped stops collapse into a
-non-interactive count, leaving the built undo affordances unreachable — see the M10
-entry in `docs/CURRENT_HANDOFF.md`.
+Pro / iOS 27.
