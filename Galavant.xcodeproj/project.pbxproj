@@ -95,6 +95,7 @@
 		C78DAFF388E693F308C398EF /* AISettingsSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 201134A6F0FAB081A677EB63 /* AISettingsSections.swift */; };
 		C7FC1AA264B96268F69FC474 /* ChatPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C01187279655F718B34FA9DC /* ChatPanelView.swift */; };
 		CB26B0D5725B3BB39E4E1839 /* CalendarReconciliationRows.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AD2C1DE54AEA038F84042CC /* CalendarReconciliationRows.swift */; };
+		CBD322C7EF720E884780D9D9 /* RecommendationWorkspaceModel+Projection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCB153EAAD14C2A632110033 /* RecommendationWorkspaceModel+Projection.swift */; };
 		CFF79112580C0EBC8D933DE2 /* IdeaDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F02C470667EF6E9AC8AC761 /* IdeaDetailView.swift */; };
 		D1D88C6469FB21204DA80CA3 /* ReorderDifference+Apply.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91589ABCCE6CEFC2EC1F72F4 /* ReorderDifference+Apply.swift */; };
 		D852704AE73F605F6205258E /* SyncStatusSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DC1E6463D9CC2DF49548F37 /* SyncStatusSection.swift */; };
@@ -247,6 +248,7 @@
 		EF473C91775923ADF6F5FDEF /* AppRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRouter.swift; sourceTree = "<group>"; };
 		F84C0FF0F99E3606279BB42C /* RegionManagementSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegionManagementSettingsView.swift; sourceTree = "<group>"; };
 		F8D1F8D207FE25FE14CCFED7 /* IdeasListModel+Taxonomy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "IdeasListModel+Taxonomy.swift"; sourceTree = "<group>"; };
+		FCB153EAAD14C2A632110033 /* RecommendationWorkspaceModel+Projection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RecommendationWorkspaceModel+Projection.swift"; sourceTree = "<group>"; };
 		FE3B27C919A28992FDEB2A3D /* SettingsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -353,6 +355,7 @@
 				9E4F11F80427DFD1A59F56B7 /* RecommendationCandidateStrip.swift */,
 				DC0B58BAA1F3B550A331C182 /* RecommendationHandoffSheet.swift */,
 				0620B4CD2A26F04156B150D3 /* RecommendationWorkspaceModel.swift */,
+				FCB153EAAD14C2A632110033 /* RecommendationWorkspaceModel+Projection.swift */,
 				57F320EF0E0815866BE1B3F0 /* RecommendationWorkspaceView.swift */,
 				91589ABCCE6CEFC2EC1F72F4 /* ReorderDifference+Apply.swift */,
 				E35BE6CD061373B731E38031 /* SequencePin.swift */,
@@ -727,6 +730,7 @@
 				25A7842AF8875EEF8BFA2887 /* PrefersTabNavigation.swift in Sources */,
 				C35DFF6146C22E149BA1D6AD /* RecommendationCandidateStrip.swift in Sources */,
 				682F837EE6170533F9F8A535 /* RecommendationHandoffSheet.swift in Sources */,
+				CBD322C7EF720E884780D9D9 /* RecommendationWorkspaceModel+Projection.swift in Sources */,
 				861F0BD9CC28029356E7DF09 /* RecommendationWorkspaceModel.swift in Sources */,
 				600B8A48EBF6C2B3E5856903 /* RecommendationWorkspaceView.swift in Sources */,
 				AD17477A05EDF3DE9D52E3A5 /* RegionManagementSettingsModel.swift in Sources */,
