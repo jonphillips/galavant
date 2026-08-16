@@ -28,6 +28,7 @@
 		35E279FA22C85810158AF02C /* DayPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95C568B98EA55277C2DDA065 /* DayPalette.swift */; };
 		3B4EC7EE202BCED566C99202 /* CloudSyncKit in Frameworks */ = {isa = PBXBuildFile; productRef = BAB8971211A0C3E3E9C18A40 /* CloudSyncKit */; };
 		3DF889FDCBE7A7C979E41F13 /* IdeasScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E13450922E6B719B55DC57BC /* IdeasScreen.swift */; };
+		3E3D5D4D88C8064A2EBEDD04 /* WeatherKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D40170C4D56FC7F76E1992FF /* WeatherKit.framework */; };
 		3E5E8AEE7E095AEC4C47F3EE /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = 45E72731DDF6FA076EAEC92F /* Dependencies */; };
 		41630279DF880FB556B178CF /* StopMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = B15DFF6883F3077AA8D6C591 /* StopMenu.swift */; };
 		4171E2BF905DAB98B77389EB /* CertaintyStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DD1C2B139D03095F082D99E /* CertaintyStyle.swift */; };
@@ -36,6 +37,7 @@
 		466236484A344B3C7C6F3823 /* DirectionsClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 386282278C0DEBD19BF1925E /* DirectionsClient.swift */; };
 		474250E4E109ADF7680100C1 /* IdentityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E049286F9F226AF86DA12541 /* IdentityView.swift */; };
 		4A303DECCB8DFE842751E12F /* PoolFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 895F90CCD6B6EE453DBD785D /* PoolFlowUITests.swift */; };
+		4B11AB7DFD828A1F103EB408 /* WeatherClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 530B9A2871DE84E2724A58E7 /* WeatherClient.swift */; };
 		4DAAA7D1E36518BAE6613248 /* TripFormModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20DAF6B7A5F203899F4C780 /* TripFormModel.swift */; };
 		4FA9D5986A89B2B51B88F5C2 /* AppScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82AECABDADDBF8957A5816F8 /* AppScreen.swift */; };
 		5222D1023F3D13D0B45B3FE4 /* TripAddButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD6629168771E53AD5C86CF /* TripAddButton.swift */; };
@@ -114,6 +116,7 @@
 		F236D648886F9BA4EF2CCCCB /* GalavantPlaces in Frameworks */ = {isa = PBXBuildFile; productRef = C94234B5AEF12EA0F921B5B0 /* GalavantPlaces */; };
 		F41E8D178B9FE462E5E797F5 /* AppContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA2BBF3B289FD7D02957833B /* AppContainer.swift */; };
 		F569C91AF0E8633E066AA600 /* SQLiteData in Frameworks */ = {isa = PBXBuildFile; productRef = A641D3ABA375BA009278F435 /* SQLiteData */; };
+		F57648A300EA9E12818CF2AC /* WeatherAttributionLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5F159E1049DE135201C5821 /* WeatherAttributionLink.swift */; };
 		F82D8FFDDCDBA5EEC7FED0AB /* TripCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CBA766947DA059C035C1937 /* TripCard.swift */; };
 		FF6492EB056141CC9F75093F /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = C6C18315C28F69E95AB54F85 /* Dependencies */; };
 /* End PBXBuildFile section */
@@ -190,6 +193,7 @@
 		4DE96A186A7350AD7E625B04 /* CalendarReconciliationModel+Ingestion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CalendarReconciliationModel+Ingestion.swift"; sourceTree = "<group>"; };
 		51AA50E3CB7A4D6C5DD50110 /* CalendarExportClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarExportClient.swift; sourceTree = "<group>"; };
 		51B1DF18254B63AD4237897B /* IdeaPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaPersistenceTests.swift; sourceTree = "<group>"; };
+		530B9A2871DE84E2724A58E7 /* WeatherClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherClient.swift; sourceTree = "<group>"; };
 		549199D3FB7222F5D893194E /* TravelProfileEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelProfileEditView.swift; sourceTree = "<group>"; };
 		56F1C96A9E48EE73DC2B6D08 /* SettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScreen.swift; sourceTree = "<group>"; };
 		57F320EF0E0815866BE1B3F0 /* RecommendationWorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationWorkspaceView.swift; sourceTree = "<group>"; };
@@ -215,6 +219,7 @@
 		9D34C61AE3B675F5D6CCDDDD /* TagPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagPickerView.swift; sourceTree = "<group>"; };
 		9E4F11F80427DFD1A59F56B7 /* RecommendationCandidateStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationCandidateStrip.swift; sourceTree = "<group>"; };
 		A20DAF6B7A5F203899F4C780 /* TripFormModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripFormModel.swift; sourceTree = "<group>"; };
+		A5F159E1049DE135201C5821 /* WeatherAttributionLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherAttributionLink.swift; sourceTree = "<group>"; };
 		AD3E24952C44337E688A4D00 /* Galavant.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Galavant.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B15DFF6883F3077AA8D6C591 /* StopMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StopMenu.swift; sourceTree = "<group>"; };
 		BA0BD75B2D9BBEA758A6A8DA /* TripIdeasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripIdeasView.swift; sourceTree = "<group>"; };
@@ -229,6 +234,7 @@
 		CC16D0C39AA361A09737B45F /* Galavant.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Galavant.entitlements; sourceTree = "<group>"; };
 		D180C34C8C9F3983F7CF9CFB /* ExtensionPreProcessing.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = ExtensionPreProcessing.js; sourceTree = "<group>"; };
 		D3BFE6AAFB0EDC36E3BB7755 /* GalavantShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GalavantShare.entitlements; sourceTree = "<group>"; };
+		D40170C4D56FC7F76E1992FF /* WeatherKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WeatherKit.framework; path = System/Library/Frameworks/WeatherKit.framework; sourceTree = SDKROOT; };
 		D48C8AE52183B8D3DE346D07 /* EvaluateScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EvaluateScreen.swift; sourceTree = "<group>"; };
 		D8A01FBA56D01193ABBE48E6 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		DC0B58BAA1F3B550A331C182 /* RecommendationHandoffSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationHandoffSheet.swift; sourceTree = "<group>"; };
@@ -259,6 +265,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3E3D5D4D88C8064A2EBEDD04 /* WeatherKit.framework in Frameworks */,
 				0BB238241FF15660518799F8 /* GalavantSchema in Frameworks */,
 				F236D648886F9BA4EF2CCCCB /* GalavantPlaces in Frameworks */,
 				626DB4453DDF7BA57BE9AF1C /* GalavantChat in Frameworks */,
@@ -334,6 +341,7 @@
 				0A7131DDBE2DA42C9D03DE1A /* GalavantShare */,
 				03D3B4DD92E3024BD94B2AD0 /* GalavantUITests */,
 				AFE599FCAD0B477B7D5AF155 /* Packages */,
+				F13CF3276F3BA9B09AC303B7 /* Frameworks */,
 				06CC7970885A2A93954BDEB4 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -404,6 +412,15 @@
 			path = Calendar;
 			sourceTree = "<group>";
 		};
+		454215FF77812039958960FB /* Weather */ = {
+			isa = PBXGroup;
+			children = (
+				A5F159E1049DE135201C5821 /* WeatherAttributionLink.swift */,
+				530B9A2871DE84E2724A58E7 /* WeatherClient.swift */,
+			);
+			path = Weather;
+			sourceTree = "<group>";
+		};
 		64DB71B050831FD651A208C0 /* Design */ = {
 			isa = PBXGroup;
 			children = (
@@ -466,6 +483,7 @@
 				8A59619B26A61F0401533CF9 /* Navigation */,
 				DFF691FEEB403FB3C8776448 /* Settings */,
 				1D327EC924239E80FD30ED50 /* Trips */,
+				454215FF77812039958960FB /* Weather */,
 			);
 			path = Galavant;
 			sourceTree = "<group>";
@@ -517,6 +535,14 @@
 				EC86C7931F1026669DFCE6AB /* TripBadgeView.swift */,
 			);
 			path = Ideas;
+			sourceTree = "<group>";
+		};
+		F13CF3276F3BA9B09AC303B7 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				D40170C4D56FC7F76E1992FF /* WeatherKit.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -772,6 +798,8 @@
 				7C7C4BB8F9D526D37F31BD66 /* TripPlanningView.swift in Sources */,
 				66E8ED4BF33E10641C5CA1D9 /* TripsListModel.swift in Sources */,
 				9C1C9676A64367844856918E /* TripsScreen.swift in Sources */,
+				F57648A300EA9E12818CF2AC /* WeatherAttributionLink.swift in Sources */,
+				4B11AB7DFD828A1F103EB408 /* WeatherClient.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
