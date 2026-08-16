@@ -304,7 +304,19 @@ meaningless.)
 4. **Collapse rendering.** In `TodayTimeline`, render the outcome summary the core
    now produces ("Done · N", "Skipped · M") in place of / alongside the existing
    "Earlier today · N" label. Pending stops render as today.
-5. **Tap-to-detail (live AND preview).** Add `@State private var detailIdea: Idea?`
+5. **Directions on every travel leg (ADR-0039 addendum, live AND preview).** The
+   connector rows currently render an ETA ("1 hr 7 min drive") as inert text, so on a
+   transfer day the drive you're about to take has no way to launch. Add a Directions
+   affordance to the connector row (`TodayTimelineRow`'s connector case / the
+   equivalent row in `TodaySupportingViews.swift`) calling the **existing**
+   `openInMaps(connector:)` (`TripItineraryView.swift:419`) — the same function the
+   NEXT hero already uses. No new core code; the connector already carries
+   `from`/`to`/`mode`. Emphasize the *current* leg (the one at/after the now-marker)
+   as the prominent action and keep later legs' quiet; **suppress** the affordance on a
+   trivial leg (a "< 1 min walk") so it isn't noise. This is why NEXT stays
+   stop-shaped: the transfer's value is its Directions, which now lives on the leg — do
+   NOT make NEXT select non-stop rows.
+6. **Tap-to-detail (live AND preview).** Add `@State private var detailIdea: Idea?`
    to `TodayView`; a tap on the NEXT card and on each stop row sets it; present:
    ```swift
    .sheet(item: $detailIdea) { idea in /* reuse the existing idea-detail view */ }
