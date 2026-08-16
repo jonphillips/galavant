@@ -50,6 +50,7 @@
 		626DB4453DDF7BA57BE9AF1C /* GalavantChat in Frameworks */ = {isa = PBXBuildFile; productRef = 70E3AE87004F856771C63307 /* GalavantChat */; };
 		666F98ED751CC0C6994CFED4 /* LLMClientKit in Frameworks */ = {isa = PBXBuildFile; productRef = BEC45E8A60608009E9EFFDCC /* LLMClientKit */; };
 		66E8ED4BF33E10641C5CA1D9 /* TripsListModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07FF30B2A97AE7158A524026 /* TripsListModel.swift */; };
+		67E36BA27F8A9760AAC49994 /* TripPlanningModel+Recommendation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47B9767D73E65C3D4D10CC30 /* TripPlanningModel+Recommendation.swift */; };
 		682F837EE6170533F9F8A535 /* RecommendationHandoffSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC0B58BAA1F3B550A331C182 /* RecommendationHandoffSheet.swift */; };
 		686D8E04502200DBC618B751 /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF473C91775923ADF6F5FDEF /* AppRouter.swift */; };
 		6D4B81713C707877850A54BD /* MapPlaceSearchOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = C03BF0F90A008DC4A1E8E3BA /* MapPlaceSearchOverlay.swift */; };
@@ -182,6 +183,7 @@
 		43AABFB8B03E2303AECAF355 /* GalavantApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GalavantApp.swift; sourceTree = "<group>"; };
 		43D5D11997CB5E747A590622 /* CaptureExtraction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureExtraction.swift; sourceTree = "<group>"; };
 		4784A4E4DDB7356EEF63A970 /* Binding+Present.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Binding+Present.swift"; sourceTree = "<group>"; };
+		47B9767D73E65C3D4D10CC30 /* TripPlanningModel+Recommendation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripPlanningModel+Recommendation.swift"; sourceTree = "<group>"; };
 		481F7DF2E79BF7E59A1CEC62 /* LLMHandoffKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = LLMHandoffKit; path = "../../jon-platform/packages/LLMHandoffKit"; sourceTree = SOURCE_ROOT; };
 		4AD2C1DE54AEA038F84042CC /* CalendarReconciliationRows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarReconciliationRows.swift; sourceTree = "<group>"; };
 		4DE96A186A7350AD7E625B04 /* CalendarReconciliationModel+Ingestion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CalendarReconciliationModel+Ingestion.swift"; sourceTree = "<group>"; };
@@ -370,6 +372,7 @@
 				6839D17655A85296477C1D5D /* TripItineraryView.swift */,
 				8238F43F540641D1FD4267BA /* TripPlanningModel.swift */,
 				0F84BC54D6D414EBFC202ED7 /* TripPlanningModel+Directions.swift */,
+				47B9767D73E65C3D4D10CC30 /* TripPlanningModel+Recommendation.swift */,
 				72A6C6AEFAD6483C0E0AF70C /* TripPlanningModel+Scheduling.swift */,
 				74F16970DCFE2E14E475DB66 /* TripPlanningSheets.swift */,
 				08F3A8C38B6B2977E3D8153F /* TripPlanningView.swift */,
@@ -758,6 +761,7 @@
 				9946E181AD4D8380729C5D0E /* TripIdeasView.swift in Sources */,
 				43267C623EF3B32592F6BCF0 /* TripItineraryView.swift in Sources */,
 				5E128AA508FD75DB537A0366 /* TripPlanningModel+Directions.swift in Sources */,
+				67E36BA27F8A9760AAC49994 /* TripPlanningModel+Recommendation.swift in Sources */,
 				8B65E5CA383B4D16F3685A39 /* TripPlanningModel+Scheduling.swift in Sources */,
 				C4D03D83083C9022183ABEF2 /* TripPlanningModel.swift in Sources */,
 				A4CB29CDDE7511750823B841 /* TripPlanningSheets.swift in Sources */,
