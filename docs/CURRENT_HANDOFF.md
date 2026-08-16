@@ -25,9 +25,11 @@ dependency, device-only verified. Authority: `docs/decisions/0038-journey-today-
   `WeatherSummary`; process-local cache keyed on rounded coord + window + granularity, invalidated
   at `expiration`. Pure request policy (granularity, cache-key window mapping, daypart→interval incl.
   DST-safe overnight, nearest-day, expiration) lives in `GalavantSchema/WeatherRequestPolicy.swift`
-  and is unit-tested; `WeatherAttributionLink` + entitlement wired. **Device pass still outstanding**
-  (WeatherKit no-ops in sim): live coord → decoded summary, cache-expiry, attribution render — Jon's
-  on-device check, gates nothing in Slice 3 layout.
+  and is unit-tested; `WeatherAttributionLink` + entitlement wired. **Device pass DONE** (2026-08-15,
+  iPhone 17 Pro / iOS 27 beta): live coord → decoded summary + attribution, via a throwaway DEBUG
+  harness (Settings ▸ Developer ▸ Weather Test). Gotcha that cost ~3h: `WDSJWTAuthenticator Code=2`
+  needed WeatherKit enabled in **both** the App ID's Capabilities list **and** its App Services tab
+  on the portal — the profile listing WeatherKit is not proof of the latter (see M10-EXECUTION).
 - **Slice 3 — Today SwiftUI surface (iPhone). HANDED TO CODEX** (2026-08-15). New `TodayView` +
   thin `@Observable` `TodayModel` rendering the Slice-1 projection, filling weather via Slice-2
   `weatherClient` per anchor (`anchor.weatherGranularity`). NEXT hero with destination-time forecast
