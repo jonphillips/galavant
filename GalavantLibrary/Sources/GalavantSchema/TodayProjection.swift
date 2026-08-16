@@ -117,7 +117,11 @@ public struct TodayProjection: Equatable, Sendable {
     return Self(
       dayContext: dayContext(for: dayNumber, date: date, tripPlan: tripPlan),
       next: nextSelection?.value,
-      remaining: remainingTimeline(items: items, nextIndex: nextSelection?.index),
+      remaining: remainingTimeline(
+        items: items,
+        now: now,
+        dayNumber: dayNumber,
+        tripStartDate: tripStartDate),
       tonight: tonight(forDay: dayNumber, in: tripPlan),
       tomorrow: tomorrow(
         after: dayNumber,
@@ -189,19 +193,77 @@ public struct TodayProjection: Equatable, Sendable {
   }
 
   private static func remainingTimeline(
-    items: [ItineraryItem], nextIndex: Int?
+    items: [ItineraryItem], now: Date, dayNumber: Int, tripStartDate: Date
   ) -> [RemainingItem] {
-    let markerIndex = items.firstIndex(of: .nowMarker)
-    guard let completedEnd = nextIndex ?? markerIndex else {
-      return items.map(RemainingItem.item)
+    var earlierStopCount = 0
+    var remaining: [RemainingItem] = []
+
+    for index in items.indices {
+      let item = items[index]
+      if let nominalDate = rowNominalDate(
+        for: item,
+        preceding: index > items.startIndex ? items[index - 1] : nil,
+        following: index + 1 < items.endIndex ? items[index + 1] : nil,
+        dayNumber: dayNumber,
+        tripStartDate: tripStartDate), nominalDate < now {
+        if case .stop = item { earlierStopCount += 1 }
+      } else {
+        remaining.append(.item(item))
+      }
     }
-    let completedCount = items[..<completedEnd].reduce(into: 0) { count, item in
-      if case .stop = item { count += 1 }
-    }
-    let remainingStart = Swift.min(markerIndex ?? completedEnd, completedEnd)
+
     let earlier: [RemainingItem] =
-      completedCount == 0 ? [] : [.earlierToday(count: completedCount)]
-    return earlier + items[remainingStart...].map(RemainingItem.item)
+      earlierStopCount == 0 ? [] : [.earlierToday(count: earlierStopCount)]
+    return earlier + remaining
+  }
+
+  /// Returns the event time represented by a timeline row. A connector belongs
+  /// to the event at the edge it leaves; its neighboring row supplies that
+  /// event's time because the connector itself carries only endpoints.
+  private static func rowNominalDate(
+    for item: ItineraryItem,
+    preceding: ItineraryItem?,
+    following: ItineraryItem?,
+    dayNumber: Int,
+    tripStartDate: Date
+  ) -> Date? {
+    switch item {
+    case let .stop(stop):
+      return nominalDate(for: stop.entry.schedule, tripStartDate: tripStartDate)
+    case let .checkIn(stay):
+      return boundaryDate(
+        minutes: stay.stay.checkInSortMinutes,
+        dayNumber: dayNumber,
+        tripStartDate: tripStartDate)
+    case let .checkOut(stay):
+      return boundaryDate(
+        minutes: stay.stay.checkOutSortMinutes,
+        dayNumber: dayNumber,
+        tripStartDate: tripStartDate)
+    case let .calendarConstraint(constraint):
+      return nominalDate(for: constraint.schedule, tripStartDate: tripStartDate)
+    case .connector:
+      return [preceding, following].compactMap { neighboringItem in
+        neighboringItem.flatMap {
+          rowNominalDate(
+            for: $0,
+            preceding: nil,
+            following: nil,
+            dayNumber: dayNumber,
+            tripStartDate: tripStartDate)
+        }
+      }.first
+    case .nowMarker, .homeBase: return nil
+    }
+  }
+
+  private static func boundaryDate(
+    minutes: Int, dayNumber: Int, tripStartDate: Date
+  ) -> Date? {
+    guard let start = dayStart(
+      dayNumber: dayNumber, tripStartDate: tripStartDate, calendar: .current)
+    else { return nil }
+    return Calendar.current.date(byAdding: .minute, value: minutes, to: start)
   }
 
   private static func tonight(forDay dayNumber: Int, in tripPlan: TripPlan) -> Tonight? {

@@ -142,6 +142,62 @@ import Testing
     })
   }
 
+  @Test func transferDayKeepsFutureStayBoundariesAndTransferInRemaining() {
+    let (firstHotelID, secondHotelID, dinnerID) = (UUID(), UUID(), UUID())
+    let firstHotel = TripStay(
+      id: UUID(),
+      tripID: tripID,
+      ideaID: firstHotelID,
+      checkInDay: 1,
+      checkOutDay: 3,
+      checkOutTime: "10:00")
+    let secondHotel = TripStay(
+      id: UUID(),
+      tripID: tripID,
+      ideaID: secondHotelID,
+      checkInDay: 3,
+      checkOutDay: 4,
+      checkInTime: "18:00")
+    let dinner = stop(dinnerID, schedule: .timed(3, start: "20:00", end: nil))
+    let tripPlan = plan(
+      entries: [dinner],
+      ideas: [
+        idea(firstHotelID, name: "First Hotel", latitude: 1, longitude: 2),
+        idea(secondHotelID, name: "Second Hotel", latitude: 3, longitude: 4),
+        idea(dinnerID, name: "Dinner", latitude: 5, longitude: 6),
+      ],
+      length: 4,
+      stays: [firstHotel, secondHotel])
+    let transferLeg = LegKey(fromLat: 1, fromLon: 2, toLat: 3, toLon: 4)
+    let transferTime = TravelTime(seconds: 60, meters: 100)
+    let travelTimes: [LegKey: [TransportMode: TravelTime]] = [
+      transferLeg: [.walking: transferTime]
+    ]
+
+    for now in [date(day: 3, hour: 0), date(day: 3, hour: 9)] {
+      let today = projection(tripPlan, now: now, travelTimes: travelTimes)
+
+      #expect(today.remaining.contains { item in
+        if case .item(.checkOut) = item { return true }
+        return false
+      })
+      #expect(today.remaining.contains { item in
+        if case let .item(.connector(connector)) = item {
+          return connector.kind == .betweenLodgings && connector.travelTime == transferTime
+        }
+        return false
+      })
+      #expect(today.remaining.contains { item in
+        if case .item(.checkIn) = item { return true }
+        return false
+      })
+      #expect(!today.remaining.contains { item in
+        if case .earlierToday = item { return true }
+        return false
+      })
+    }
+  }
+
   @Test func leaveByUsesTheScheduleHonestyLadder() {
     let leg = LegKey(fromLat: 1, fromLon: 2, toLat: 3, toLon: 4)
     let travelTime = TravelTime(seconds: 20 * 60, meters: 1_000)
