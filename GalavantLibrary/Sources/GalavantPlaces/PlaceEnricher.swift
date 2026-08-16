@@ -121,12 +121,39 @@ public final class PlaceEnricher {
     }
   }
 
+  /// Re-fetch and replace/augment an idea's scraped image gallery on explicit user
+  /// request. Unlike `enrichIfNeeded`, this intentionally ignores `enrichedAt`; it
+  /// only refreshes images and never changes the idea's hand-edited facts.
+  @discardableResult
+  public func refetchImages(ideaID: Idea.ID) async -> Bool {
+    guard
+      let idea = try? await database.read({ db in try Idea.find(ideaID).fetchOne(db) }),
+      !idea.url.isEmpty,
+      let url = URL(string: idea.url),
+      let page = await parsedPage(at: url)
+    else { return false }
+
+    let images = await rankedImages(page.imageURLs)
+    guard !images.isEmpty else { return false }
+
+    do {
+      try await database.write { db in
+        try storeRankedImages(images, forIdea: ideaID, in: db)
+      }
+      return true
+    } catch {
+      return false
+    }
+  }
+
   /// Store the ranked candidates (idempotent on sourceURL — the M4f header re-stores
-  /// cleanly), then make the top-ranked one the header. Enrichment runs once, so a later
-  /// manual pick (M4h gallery) won't be clobbered.
+  /// cleanly), then make the top-ranked one the header only when this idea did not
+  /// already have one. That preserves a later manual pick (M4h gallery) during an
+  /// explicit image refetch.
   nonisolated private func storeRankedImages(
     _ images: [RankedImage], forIdea ideaID: Idea.ID, in db: Database
   ) throws {
+    let alreadyHasHeader = try ImageAsset.images(forIdea: ideaID, in: db).contains(where: \.isHeader)
     var headerID: ImageAsset.ID?
     for image in images {
       let stored = try ImageAsset.store(
@@ -139,7 +166,7 @@ public final class PlaceEnricher {
       )
       if headerID == nil { headerID = stored.id }
     }
-    if let headerID {
+    if !alreadyHasHeader, let headerID {
       try ImageAsset.setHeader(headerID, ideaID: ideaID, in: db)
     }
   }

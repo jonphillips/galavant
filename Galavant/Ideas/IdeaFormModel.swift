@@ -40,6 +40,10 @@ final class IdeaFormModel {
   /// cover from here; the header the enrichment chose (Vision-recommended) is the
   /// default. Empty for a new idea or one without images.
   var images: [ImageAsset] = []
+  /// True while the user-requested image refresh is running.
+  var refetchingImages = false
+  /// A short result line shown after an image refresh attempt.
+  var imagesStatus: String?
 
   init(draft: Idea.Draft) {
     self.draft = draft
@@ -178,6 +182,26 @@ final class IdeaFormModel {
   /// a link to start the guide-link search from.
   var canFindGuideRating: Bool {
     !isNew && !draft.url.isEmpty
+  }
+
+  /// Whether the image gallery can be refreshed from the idea's own page.
+  var canRefetchImages: Bool {
+    !isNew && !draft.url.isEmpty
+  }
+
+  /// Explicitly re-run the image rung without re-enriching or overwriting any
+  /// hand-edited idea facts or manually chosen cover image.
+  func refetchImages() async {
+    guard let id = draft.id, !draft.url.isEmpty else { return }
+    refetchingImages = true
+    imagesStatus = nil
+    defer { refetchingImages = false }
+    if await PlaceEnricher().refetchImages(ideaID: id) {
+      await loadImages()
+      imagesStatus = "Images refreshed."
+    } else {
+      imagesStatus = "No images found on the linked page."
+    }
   }
 
   /// Re-run the automated guide-link rung on demand (ADR-0021/0023). On a hit the rating

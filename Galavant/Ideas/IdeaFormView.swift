@@ -29,7 +29,7 @@ struct IdeaFormView: View {
     @Bindable var model = model
     NavigationStack {
       Form {
-        if !model.images.isEmpty {
+        if !model.images.isEmpty || model.canRefetchImages {
           photosSection
         }
 
@@ -296,6 +296,23 @@ struct IdeaFormView: View {
     } footer: {
       if model.images.count > 1 {
         Text("Tap a photo to make it the cover.")
+      }
+      if model.canRefetchImages {
+        Button {
+          Task { await model.refetchImages() }
+        } label: {
+          if model.refetchingImages {
+            Label { Text("Refreshing images…") } icon: { ProgressView() }
+          } else {
+            Label("Refetch images", systemImage: "arrow.clockwise")
+          }
+        }
+        .disabled(model.refetchingImages)
+      }
+      if let status = model.imagesStatus {
+        Text(status)
+          .font(.caption)
+          .foregroundStyle(.secondary)
       }
     }
   }

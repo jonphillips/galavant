@@ -123,6 +123,58 @@ import UniformTypeIdentifiers
     }
   }
 
+  @Test("Refetch images ignores enrichedAt, is idempotent, and preserves a manual header")
+  func refetchImages() async throws {
+    let ideaID = UUID()
+    let fetchCount = LockIsolated(0)
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.pageFetcher = PageFetcher { _ in
+        fetchCount.withValue { $0 += 1 }
+        return Self.websiteHTML
+      }
+      $0.imageFetcher = ImageFetcher { url in Self.png(for: url) }
+      $0.imageRecommender = .testValue
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      try await database.write { db in
+        let party = try TravelParty.ensureDefault(in: db)
+        try Idea.insert {
+          Idea.Draft(
+            id: ideaID,
+            name: "Already enriched",
+            url: "https://koancph.dk",
+            enrichedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            travelPartyID: party.id)
+        }
+        .execute(db)
+      }
+
+      let enricher = PlaceEnricher()
+      #expect(await enricher.refetchImages(ideaID: ideaID))
+      let firstImages = try await database.read { db in
+        try ImageAsset.images(forIdea: ideaID, in: db)
+      }
+      #expect(firstImages.count == 2)
+
+      let manualHeaderID = try #require(firstImages.last?.id)
+      try await database.write { db in
+        try ImageAsset.setHeader(manualHeaderID, ideaID: ideaID, in: db)
+      }
+
+      #expect(await enricher.refetchImages(ideaID: ideaID))
+      #expect(await enricher.refetchImages(ideaID: ideaID))
+      let (images, idea) = try await database.read { db in
+        try (ImageAsset.images(forIdea: ideaID, in: db), Idea.find(ideaID).fetchOne(db))
+      }
+      #expect(fetchCount.value == 3)
+      #expect(images.count == 2)
+      #expect(images.first(where: \.isHeader)?.id == manualHeaderID)
+      #expect(idea?.enrichedAt == Date(timeIntervalSince1970: 1_700_000_000))
+    }
+  }
+
   @Test("Enrich is a no-op for an idea with no website URL")
   func enrichSkipsWhenNoURL() async throws {
     let ideaID = UUID()

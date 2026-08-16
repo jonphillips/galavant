@@ -11,7 +11,20 @@ final class RegionManagementSettingsModel {
   @ObservationIgnored @FetchAll(MapRegion.order(by: \.name)) var regions
   @ObservationIgnored @FetchAll(TripRegion.all) private var tripRegions
 
+  @Selection struct RegionThumb {
+    let regionID: MapRegion.ID
+    let thumbnail: Data
+  }
+
+  @ObservationIgnored @FetchAll(
+    RegionImage.all.select { RegionThumb.Columns(regionID: $0.regionID, thumbnail: $0.thumbnail) }
+  ) var regionThumbs
+
   var selectedRegionID: MapRegion.ID?
+
+  func thumbnail(forRegion regionID: MapRegion.ID) -> Data? {
+    regionThumbs.first(where: { $0.regionID == regionID })?.thumbnail
+  }
 
   func tripUseDescription(for region: MapRegion) -> String {
     let count = Set(tripRegions.filter { $0.regionID == region.id }.map(\.tripID)).count

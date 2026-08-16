@@ -12,9 +12,9 @@ import UIKit
 ///   as the day's anchor image).
 /// - **Nothing selected** → the trip's opening region photo, an ambient hero.
 ///
-/// Tapping the region card opens the dual-source picker (Unsplash / Photos). All
-/// imagery is the thumbnail tier — bounded memory across a growing photo library;
-/// display-on-demand is a later refinement if the heroes want more resolution.
+/// Tapping the region card opens the dual-source picker (Unsplash / Photos). Thumbnails
+/// appear immediately, then the model replaces only the current panel's cards with
+/// display-tier images.
 struct JourneyImagePanel: View {
   let projection: JourneyProjection
   let plan: TripPlan
@@ -24,10 +24,17 @@ struct JourneyImagePanel: View {
   @State private var pickerRegion: MapRegion?
 
   private static let cardHeight: CGFloat = 132
+  /// Three cards need three readable surfaces plus two existing gaps. Below this
+  /// width, the panel stays at two cards rather than making each hero too narrow.
+  private static let minimumThreeCardWidth: CGFloat = 444
 
   var body: some View {
-    content
+    let request = model.displayRequest(projection: projection, plan: plan, selection: selection)
+    return GeometryReader { geometry in
+      content(width: geometry.size.width)
+    }
       .frame(height: Self.cardHeight)
+      .task(id: request) { await model.loadDisplayImages(request) }
       .sheet(item: $pickerRegion) { region in
         RegionPhotoPickerSheet(
           regionID: region.id,
@@ -37,16 +44,16 @@ struct JourneyImagePanel: View {
   }
 
   @ViewBuilder
-  private var content: some View {
+  private func content(width: CGFloat) -> some View {
     switch selection {
     case .day(let dayNumber):
       dayImages(dayNumber)
     case .stay(let id):
-      stayImages(id)
+      stayImages(id, width: width)
     case .none:
       if let region = focusedRegion {
         regionCard(region)
-          .frame(maxWidth: 260)
+          .frame(maxWidth: .infinity)
       } else {
         EmptyView()
       }
@@ -56,20 +63,38 @@ struct JourneyImagePanel: View {
   // MARK: Stay — region + hotel
 
   @ViewBuilder
-  private func stayImages(_ id: TripStay.ID) -> some View {
+  private func stayImages(_ id: TripStay.ID, width: CGFloat) -> some View {
     if let band = projection.stayBands.first(where: { $0.id == id }) {
+      let region = region(forStay: band)
+      let legStop = JourneyImageSelection.stableStayStop(
+        stayID: band.id,
+        nights: band.nights,
+        days: projection.days,
+        hasImage: { model.thumbnail(forIdea: $0) != nil })
+      let showThirdCard = width >= Self.minimumThreeCardWidth && region != nil && legStop != nil
       HStack(spacing: 12) {
-        if let region = region(forStay: band) {
+        if let region {
           regionCard(region)
-            .frame(maxWidth: 240)
+            .frame(maxWidth: .infinity)
         }
         JourneyImageCard(
           thumbnail: model.thumbnail(forIdea: band.stay.idea?.id),
+          displayImage: model.displayImage(forIdea: band.stay.idea?.id),
           title: band.title,
           subtitle: "Where you'll stay",
           systemFallback: Icon.stay.systemName)
-        .frame(maxWidth: 240)
+        .frame(maxWidth: .infinity)
+        if showThirdCard, let legStop {
+          JourneyImageCard(
+            thumbnail: model.thumbnail(forIdea: legStop.ideaID),
+            displayImage: model.displayImage(forIdea: legStop.ideaID),
+            title: legStop.title,
+            subtitle: legStop.kind?.label,
+            systemFallback: legStop.kind?.systemImage ?? "mappin.and.ellipse")
+            .frame(maxWidth: .infinity)
+        }
       }
+      .frame(maxWidth: .infinity)
     }
   }
 
@@ -80,7 +105,7 @@ struct JourneyImagePanel: View {
     let stops = orderedStops(forDay: dayNumber)
     if stops.isEmpty {
       if let region = region(forDay: dayNumber) {
-        regionCard(region).frame(maxWidth: 260)
+        regionCard(region).frame(maxWidth: .infinity)
       }
     } else {
       ScrollView(.horizontal, showsIndicators: false) {
@@ -88,6 +113,7 @@ struct JourneyImagePanel: View {
           ForEach(stops) { stop in
             JourneyImageCard(
               thumbnail: model.thumbnail(forIdea: stop.ideaID),
+              displayImage: model.displayImage(forIdea: stop.ideaID),
               title: stop.title,
               subtitle: stop.kind == .food ? "Dinner" : stop.kind?.label,
               systemFallback: stop.kind?.systemImage ?? "mappin.and.ellipse")
@@ -114,6 +140,7 @@ struct JourneyImagePanel: View {
   private func regionCard(_ region: MapRegion) -> some View {
     JourneyImageCard(
       thumbnail: model.regionThumbnail(forRegion: region.id),
+      displayImage: model.displayImage(forRegion: region.id),
       title: region.name,
       subtitle: nil,
       systemFallback: "photo",
@@ -148,6 +175,7 @@ struct JourneyImagePanel: View {
 /// Unsplash attribution caption. Tappable region cards carry an "add photo" prompt.
 struct JourneyImageCard: View {
   let thumbnail: Data?
+  var displayImage: UIImage?
   let title: String
   var subtitle: String?
   let systemFallback: String
@@ -198,7 +226,11 @@ struct JourneyImageCard: View {
 
   @ViewBuilder
   private var image: some View {
-    if let thumbnail, let uiImage = UIImage(data: thumbnail) {
+    if let displayImage {
+      Image(uiImage: displayImage)
+        .resizable()
+        .scaledToFill()
+    } else if let thumbnail, let uiImage = UIImage(data: thumbnail) {
       Image(uiImage: uiImage)
         .resizable()
         .scaledToFill()
