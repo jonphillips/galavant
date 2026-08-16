@@ -11,14 +11,60 @@ struct TodayView: View {
 
   @Environment(\.dismiss) private var dismiss
   @State private var model = TodayModel()
+  /// The day the user has stepped to. `nil` means "follow the live day".
+  @State private var selectedDay: Int?
 
   private static let leaveByBuffer: TimeInterval = 10 * 60
 
+  private var tripStartDate: Date? { planningModel.trip?.startDate }
+  private var dayCount: Int { planningModel.plan.lengthInDays }
+
+  /// The trip day the real clock is on, or `nil` when the trip isn't underway.
+  private var liveDay: Int? {
+    guard let tripStartDate else { return nil }
+    return TodayProjection.tripDay(
+      containing: model.now, tripStartDate: tripStartDate, in: planningModel.plan)
+  }
+
+  /// The day currently shown: an explicit selection, else the live day, else day 1.
+  private var currentDay: Int? {
+    selectedDay ?? liveDay ?? (dayCount >= 1 ? 1 : nil)
+  }
+
+  /// We are previewing whenever the shown day isn't the live day (including any day
+  /// at all when the trip isn't underway).
+  private var isPreviewing: Bool {
+    guard let currentDay else { return false }
+    return currentDay != liveDay
+  }
+
+  /// The instant to render: the live clock when live, otherwise the start of the
+  /// previewed day (Jon's decision — a morning-of view of the whole day).
+  private var renderNow: Date {
+    guard isPreviewing, let currentDay, let tripStartDate,
+      let start = TodayProjection.startOfTripDay(currentDay, tripStartDate: tripStartDate)
+    else { return model.now }
+    return start
+  }
+
+  /// Weather is a live-only affordance; a previewed day requests none (this also
+  /// avoids pointless WeatherKit calls for past/far-future days).
+  private var activeWeatherAnchor: WeatherAnchor? {
+    isPreviewing ? nil : projection?.next?.weatherAnchor
+  }
+
+  private var showsDayStepper: Bool { tripStartDate != nil && dayCount >= 1 }
+
+  private func step(_ delta: Int) {
+    let current = currentDay ?? 1
+    selectedDay = min(max(1, current + delta), dayCount)
+  }
+
   private var projection: TodayProjection? {
-    guard let tripStartDate = planningModel.trip?.startDate else { return nil }
+    guard let tripStartDate else { return nil }
     return TodayProjection.resolve(
       from: planningModel.plan,
-      now: model.now,
+      now: renderNow,
       tripStartDate: tripStartDate,
       travelTimes: planningModel.travelTimes,
       effectiveModes: planningModel.effectiveModes,
@@ -38,7 +84,7 @@ struct TodayView: View {
       forDay: projection.dayContext.dayNumber,
       travelTimes: planningModel.travelTimes,
       effectiveModes: planningModel.effectiveModes,
-      now: model.now,
+      now: renderNow,
       tripStartDate: tripStartDate,
       stays: planningModel.plan.stays(coveringDay: projection.dayContext.dayNumber))
       .compactMap { item -> TravelConnector? in
@@ -53,17 +99,16 @@ struct TodayView: View {
       Group {
         if let projection {
           today(projection)
-        } else if let tripStartDate = planningModel.trip?.startDate {
-          ContentUnavailableView(
-            "This trip is not active today",
-            systemImage: "calendar.badge.clock",
-            description: Text(
-              "Today opens while a trip is underway. This trip starts \(tripStartDate.formatted(date: .abbreviated, time: .omitted))."))
-        } else {
+        } else if tripStartDate == nil {
           ContentUnavailableView(
             "Today is not available",
             systemImage: "calendar.badge.clock",
             description: Text("Set this trip’s start date before using its Today view."))
+        } else {
+          ContentUnavailableView(
+            "No days planned yet",
+            systemImage: "calendar.badge.clock",
+            description: Text("Add itinerary days to preview this trip’s Today view."))
         }
       }
       .navigationTitle("Today")
@@ -72,11 +117,35 @@ struct TodayView: View {
         ToolbarItem(placement: .topBarLeading) {
           Button("Done") { dismiss() }
         }
+        if showsDayStepper {
+          ToolbarItemGroup(placement: .bottomBar) {
+            Button { step(-1) } label: { Image(systemName: "chevron.left") }
+              .disabled((currentDay ?? 1) <= 1)
+            Spacer()
+            HStack(spacing: 8) {
+              Text("Day \(currentDay ?? 1) of \(dayCount)")
+                .font(.subheadline.weight(.semibold))
+                .monospacedDigit()
+              if isPreviewing {
+                Text("PREVIEW")
+                  .font(.caption2.weight(.bold))
+                  .tracking(0.5)
+                  .padding(.horizontal, 6)
+                  .padding(.vertical, 2)
+                  .background(.tint.opacity(0.15), in: Capsule())
+                  .foregroundStyle(.tint)
+              }
+            }
+            Spacer()
+            Button { step(+1) } label: { Image(systemName: "chevron.right") }
+              .disabled((currentDay ?? 1) >= dayCount)
+          }
+        }
       }
     }
     .task { await model.runClock() }
-    .task(id: projection?.next?.weatherAnchor) {
-      await model.loadWeather(for: projection?.next?.weatherAnchor)
+    .task(id: activeWeatherAnchor) {
+      await model.loadWeather(for: activeWeatherAnchor)
     }
   }
 
@@ -94,8 +163,14 @@ struct TodayView: View {
           TodayNoNextCard()
         }
 
-        if !projection.remaining.isEmpty {
-          TodayTimeline(remaining: projection.remaining)
+        let timeline = isPreviewing
+          ? projection.remaining.filter {
+              if case .item(.nowMarker) = $0 { return false }
+              return true
+            }
+          : projection.remaining
+        if !timeline.isEmpty {
+          TodayTimeline(remaining: timeline)
         }
 
         if let tonight = projection.tonight {

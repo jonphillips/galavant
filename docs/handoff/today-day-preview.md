@@ -351,3 +351,11 @@ Confirm the new tests pass; don't claim green if you only built.
   already degrades to `nil`/placeholder — no crash, leave it.
 - Don't relabel the `NEXT` hero for preview or add an iPad path — out of scope;
   flag to Jon if you think either is warranted.
+- **Known projection bug this surface exposes (fix lives elsewhere):** on a
+  *transfer day* (a stay checking out + another checking in), previewing at
+  start-of-day drops the check-out row, the between-lodgings drive, and the check-in
+  from REMAINING. It's a pre-existing bug in the pure core
+  (`TripPlan.nowMarkerIndex` is stop-relative, so `TodayProjection.remainingTimeline`
+  slices boundary/connector rows that sort before the marker). Not caused by, and not
+  fixed in, this preview slice — see **Phase 0** of `today-execution.md` for the root
+  cause, fix requirement, and regression test.

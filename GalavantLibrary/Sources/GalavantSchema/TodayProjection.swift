@@ -128,6 +128,29 @@ public struct TodayProjection: Equatable, Sendable {
         calendar: calendar))
   }
 
+  /// The 1-based trip day that `now` falls on, or `nil` when `now` is outside the
+  /// trip's dated span. The Today surface uses this so live-day detection and the
+  /// projection agree on the same calendar math.
+  public static func tripDay(
+    containing now: Date, tripStartDate: Date, in tripPlan: TripPlan
+  ) -> Int? {
+    guard let day = dayNumber(for: now, tripStartDate: tripStartDate, calendar: .current),
+      day <= tripPlan.lengthInDays
+    else { return nil }
+    return day
+  }
+
+  /// The start of the calendar day for a 1-based trip day, or `nil` if the day is
+  /// out of range. This is the instant Today renders when previewing a day that is
+  /// not the live day.
+  public static func startOfTripDay(_ dayNumber: Int, tripStartDate: Date) -> Date? {
+    guard dayNumber >= 1 else { return nil }
+    let calendar = Calendar.current
+    guard let date = calendar.date(byAdding: .day, value: dayNumber - 1, to: tripStartDate)
+    else { return nil }
+    return calendar.startOfDay(for: date)
+  }
+
   private static func next(
     in items: [ItineraryItem],
     tripPlan: TripPlan,

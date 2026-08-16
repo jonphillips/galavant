@@ -72,6 +72,43 @@ import Testing
       leaveByBuffer: 0)!
   }
 
+  @Test func tripDayUsesTheTripCalendarSpan() {
+    let tripPlan = plan(entries: [], ideas: [], length: 3)
+
+    #expect(TodayProjection.tripDay(containing: date(day: 2, hour: 10), tripStartDate: startDate, in: tripPlan) == 2)
+    #expect(TodayProjection.tripDay(containing: date(day: 1, hour: 0).addingTimeInterval(-1), tripStartDate: startDate, in: tripPlan) == nil)
+    #expect(TodayProjection.tripDay(containing: date(day: 4, hour: 0), tripStartDate: startDate, in: tripPlan) == nil)
+  }
+
+  @Test func startOfTripDayResolvesCalendarMidnights() {
+    #expect(
+      TodayProjection.startOfTripDay(1, tripStartDate: startDate)
+        == Calendar.current.startOfDay(for: startDate))
+    #expect(
+      TodayProjection.startOfTripDay(2, tripStartDate: startDate)
+        == Calendar.current.startOfDay(for: date(day: 2, hour: 12)))
+    #expect(TodayProjection.startOfTripDay(0, tripStartDate: startDate) == nil)
+  }
+
+  @Test func startOfDayProjectionKeepsTheWholeDayAhead() {
+    let (morningID, eveningID) = (UUID(), UUID())
+    let tripPlan = plan(
+      entries: [
+        stop(morningID, schedule: .timed(1, start: "09:00", end: nil)),
+        stop(eveningID, schedule: .timed(1, start: "18:00", end: nil), rank: 1),
+      ],
+      ideas: [idea(morningID, name: "Breakfast"), idea(eveningID, name: "Dinner")])
+
+    let preview = projection(tripPlan, now: date(day: 1, hour: 0))
+
+    #expect(stopID(in: preview.next?.item) == morningID)
+    #expect(!preview.remaining.contains { item in
+      if case .earlierToday = item { return true }
+      return false
+    })
+    #expect(preview.dayContext.dayNumber == 1)
+  }
+
   @Test func nextSelectionAndEarlierTodayCollapseFollowTheExistingTimeline() {
     let (morningID, noonID, eveningID) = (UUID(), UUID(), UUID())
     let tripPlan = plan(

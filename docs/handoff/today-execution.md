@@ -64,6 +64,68 @@ SQLiteData+CloudKit, no server, Point-Free style **without TCA**. Read `AGENTS.m
 
 ---
 
+## Phase 0 — Bug fix (do FIRST, independent of the rest): transfer-day rows dropped from REMAINING
+
+**Symptom** (found dogfooding, 2026-08-16, on a transfer day — Day 3, Fri Aug 28,
+Bavaria): the planning Itinerary tab correctly shows `Check out BEYOND BY GEISEL →
+1 hr 8 min drive to Das Achental → Check in Das Achental → < 1 min walk → es:senz`,
+but Today's **REMAINING** shows only `< 1 min walk to es:senz` and `es:senz`. The
+**check-out, the between-lodgings drive, and the check-in are missing.** Reproduces
+on more than one transfer day. It surfaced in *preview* (start-of-day) but is a
+**live bug too** — at any time before check-out on the real day, those rows are
+still ahead yet get dropped.
+
+**Root cause** (pure core, pre-existing — not caused by the preview or execution
+work):
+
+- `TripPlan.nowMarkerIndex(in:day:now:tripStartDate:)`
+  (`TripPlan.swift:539`) computes the now-marker's position **relative to `stops`
+  only** — it never considers stay boundaries (`.checkIn`/`.checkOut`) or
+  connectors.
+- On a transfer day the assembled row stream is, in order:
+  `[checkOut, transferConnector(drive), checkIn, nowMarker, walkConnector, es:senz]`
+  — the marker lands *after* the morning boundary rows because it's positioned by
+  stop index (before the first upcoming stop, es:senz), oblivious to the boundaries
+  that sort ahead of it.
+- `TodayProjection.remainingTimeline(items:nextIndex:)`
+  (`TodayProjection.swift:168`) then computes
+  `remainingStart = min(markerIndex, completedEnd)` and returns
+  `items[remainingStart...]`. With `markerIndex == 3`, it slices off indices 0–2
+  (check-out, transfer drive, check-in). Those rows are neither rendered as
+  "remaining" nor counted into "Earlier today" — they simply vanish.
+
+The core mistake: **the earlier/remaining divider is computed from the now-marker's
+array position, but that position is only valid for stops.** Non-stop rows
+(boundaries and their connectors) that sort before the marker but are still in the
+future get incorrectly collapsed away.
+
+**Fix requirement:** the earlier↔remaining split must be decided by whether each
+row is actually **past**, across ALL row types (stops, `.checkIn`/`.checkOut`
+boundaries, connectors, calendar constraints) — not by the now-marker's
+stop-relative index. Concretely, a row belongs to REMAINING when its nominal time
+is at-or-after `now` (using each row's own time: a boundary's
+`checkOutSortMinutes`/`checkInSortMinutes`, a connector's owning event, a stop's
+`nominalDate`). At start-of-day (preview) nothing is past, so the whole day —
+check-out, drive, check-in, walk, dinner — must appear and "Earlier today" must be
+empty. Keep the now-marker itself (its stop-relative placement is fine for the "you
+are here" dot); only the *collapse divider* must stop keying off it.
+
+**Regression test** (`TodayProjectionTests.swift`): build a transfer day — one stay
+with `checkOutDay == D`, a second with `checkInDay == D`, a `betweenLodgings`
+travel time so the transfer connector resolves, and one timed evening stop —
+`resolve` at `date(day: D, hour: 0)` (start-of-day, the preview instant) and assert
+`remaining` contains a `.checkOut`, the between-lodgings `.connector`, and a
+`.checkIn`, with no `.earlierToday`. Add a second assertion at a mid-morning `now`
+*before* the check-out time (live case) that those rows are still present.
+
+**Sequencing:** land this first as a standalone correctness fix. Phase 3 rewrites
+`remainingTimeline` for outcome-based collapse — it MUST preserve this behavior
+(the Phase 3 collapse divider is decided by outcome for stops **and** by
+past-ness for boundaries/connectors; never by the now-marker's index). If you build
+Phase 3 directly, fold this fix into it and keep both regression tests.
+
+---
+
 ## Phase 1 — Schema: the outcome overlay (pure + migration)
 
 **Goal:** record completion/skip on the stop as two reversible, mutually exclusive
@@ -178,25 +240,31 @@ plumbing.
    ```
    `done` = stops with `.done`; `total` = done + pending (skipped excluded). Put it
    on `TodayProjection` (e.g. `public var progress: Progress`).
-3. **Collapse by outcome.** `remainingTimeline` currently collapses by clock
-   position into `.earlierToday(count:)`. Add an outcome-driven collapse for the
-   live render: completed + skipped stops fold into the leading summary; the rest of
-   the timeline is the pending stops (and their connectors). The existing
-   `RemainingItem.earlierToday(count:)` can carry the "handled" count; if you need
-   to distinguish skipped, add a sibling case (e.g. `.skipped(count:)`) rather than
-   overloading `earlierToday`. Keep the shape a value the view renders; no view
-   logic in the core.
+3. **Collapse by outcome — on top of the Phase 0 past-ness divider.** After Phase 0,
+   the earlier↔remaining split is decided by whether a row is actually past (across
+   stops, boundaries, connectors), NOT by the now-marker index. Layer outcome on
+   top for **stops only**: a `.done`/`.skipped` stop folds into the leading summary
+   regardless of the clock; a `.pending` stop stays in REMAINING even if its time
+   has passed (it's not done — it's outstanding, not "earlier"). Non-stop rows
+   (check-in/check-out/connectors/constraints) collapse purely by past-ness, exactly
+   as Phase 0 established. The existing `RemainingItem.earlierToday(count:)` can
+   carry the "done/handled" count; to distinguish skipped, add a sibling case (e.g.
+   `.skipped(count:)`) rather than overloading `earlierToday`. Keep the shape a value
+   the view renders; no view logic in the core.
 
-   **Preview stays clock-based / read-only:** when nothing has an outcome (every
-   stop pending — always true in preview of a non-live day), this reduces to the
-   current behavior. Do not special-case "preview" in the core; drive it purely off
-   outcomes, which are all `nil` in preview.
+   **Preview (non-live day):** every stop is pending and nothing is past (start-of-
+   day), so this correctly reduces to "the whole day in REMAINING, nothing
+   collapsed" — i.e. the **Phase 0-fixed** behavior, NOT the old buggy slice. Do not
+   special-case "preview"; drive collapse off outcome (all `nil` in preview) + Phase
+   0 past-ness (nothing past at start-of-day).
 
 **Tests** (`TodayProjectionTests.swift`, reuse its fixtures): build an all-Anytime
 day; assert NEXT = first stop; mark the first `.done` (set `completedAt` on the
 entry in the fixture) and assert NEXT advances to the second and `progress ==
 (1, N)`; mark one `.skipped` and assert it leaves the denominator and folds into the
-collapse; a fully-pending day (preview) yields the pre-existing timeline unchanged.
+collapse; a `.pending` stop whose time has passed stays in REMAINING (not collapsed);
+and a fully-pending transfer day at start-of-day keeps check-out + transfer + check-in
+(the Phase 0 regression test, which Phase 3 must not regress).
 
 ---
 
