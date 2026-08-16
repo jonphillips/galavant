@@ -306,7 +306,7 @@ public final class CaptureModel {
   /// candidate or the fetch/decode failed. Pulls only the best candidate
   /// (`imageURLs.first` — the parser's structured-source-first ordering) and shrinks
   /// it to the display + thumbnail tiers (ADR-0009).
-  private struct PreparedImage {
+  private struct PreparedImage: Sendable {
     var display: Data
     var thumbnail: Data
     var sourceURL: String
@@ -356,81 +356,90 @@ public final class CaptureModel {
   /// transaction. Splits the Sendable-scalar marshalling and the write out of
   /// `save()` (the `Idea.Draft` @Table type isn't Sendable, so the draft is rebuilt
   /// inside the closure from captured scalars).
+  /// Everything one confirmed capture writes, marshalled off the non-Sendable
+  /// `Idea.Draft` up front so it can cross into the `database.write` closure as a
+  /// single Sendable value — keeping the transaction body (and this whole function)
+  /// small without splitting the deliberate single-transaction write. `IdeaCapture`
+  /// is the value boundary the merge already resolves through (ADR-0019).
+  private struct CapturePayload: Sendable {
+    var capture: IdeaCapture
+    var tripID: Trip.ID?
+    var image: PreparedImage?
+    var evaluations: [DetectedEvaluation]
+    var stamp: Date
+
+    /// Pulls the draft's scalars into the Sendable `capture`. Opening hours: explicit
+    /// tap-to-fill override wins over the page parser; the LLM fallback for unstructured
+    /// sites runs later in `PlaceEnricher` (docs/BACKLOG.md "Unstructured-hours capture
+    /// fallback"). `stamp` is the clock reading, taken only when something needs stamping.
+    init(
+      draft: Idea.Draft, tripID: Trip.ID?, image: PreparedImage?,
+      evaluations: [DetectedEvaluation], openingHours: String?, stamp: Date
+    ) {
+      self.capture = IdeaCapture(
+        id: draft.id,
+        name: draft.name,
+        description: draft.description,
+        notes: draft.notes,
+        kind: draft.kind,
+        regionName: draft.regionName,
+        address: draft.address,
+        phone: draft.phone,
+        latitude: draft.latitude,
+        longitude: draft.longitude,
+        url: draft.url,
+        mapItemIdentifier: draft.mapItemIdentifier,
+        openingHours: openingHours,
+        hoursProvenance: openingHours != nil ? .official : nil,
+        hoursVerifiedAt: openingHours != nil ? stamp : nil
+      )
+      self.tripID = tripID
+      self.image = image
+      self.evaluations = evaluations
+      self.stamp = stamp
+    }
+  }
+
   private func persistCapture() async throws {
     // Hybrid capture (M4f): fetch + shrink just the single best candidate here in
     // the extension (one image stays well inside the ~120 MB budget) so the idea
     // lands with a header image; the full ranked gallery is the app's job (M4g).
     // Best-effort — a missing/undecodable image never blocks the save.
     let headerImage = await prepareHeaderImage()
-    let id = draft.id
-    let name = draft.name
-    let description = draft.description
-    let notes = draft.notes
-    let kind = draft.kind
-    let regionName = draft.regionName
-    let address = draft.address
-    let phone = draft.phone
-    let latitude = draft.latitude
-    let longitude = draft.longitude
-    let url = draft.url
-    let mapItemIdentifier = draft.mapItemIdentifier
-    let tripID = selectedTripID
-    let imageDisplay = headerImage?.display
-    let imageThumbnail = headerImage?.thumbnail
-    let imageSourceURL = headerImage?.sourceURL
-    let imageID = headerImage?.id
-    // Detected ratings Jon kept — written as sibling evaluations in the same
-    // transaction as the idea (ADR-0016 §1). `DetectedEvaluation` is Sendable.
+    // Detected ratings Jon kept, written as sibling evaluations in the same
+    // transaction (ADR-0016 §1). `DetectedEvaluation` is Sendable.
     let evaluations = detectedEvaluations.filter(\.included)
-    // Opening hours: explicit tap-to-fill override wins over the page parser. Parser
-    // result is the fallback for sites with structured JSON-LD/microdata hours; the LLM
-    // fallback for unstructured sites runs later in PlaceEnricher
-    // (docs/BACKLOG.md "Unstructured-hours capture fallback").
     let openingHoursString = openingHoursDisplay
     // Only consult the clock when something needs stamping (evaluations or hours).
     let stamp = (!evaluations.isEmpty || openingHoursString != nil) ? now.now : Date.distantPast
+    let payload = CapturePayload(
+      draft: draft, tripID: selectedTripID, image: headerImage,
+      evaluations: evaluations, openingHours: openingHoursString, stamp: stamp
+    )
     try await database.write { db in
       let party = try TravelParty.ensureDefault(in: db)
       let resolved = try Idea.resolveCapture(
-        IdeaCapture(
-          id: id,
-          name: name,
-          description: description,
-          notes: notes,
-          kind: kind,
-          regionName: regionName,
-          address: address,
-          phone: phone,
-          latitude: latitude,
-          longitude: longitude,
-          url: url,
-          mapItemIdentifier: mapItemIdentifier,
-          openingHours: openingHoursString,
-          hoursProvenance: openingHoursString != nil ? .official : nil,
-          hoursVerifiedAt: openingHoursString != nil ? stamp : nil
-        ),
-        travelPartyID: party.id,
-        in: db
+        payload.capture, travelPartyID: party.id, in: db
       )
       let targetID = resolved.ideaID
 
       // Pull onto the chosen trip (idempotent) so the capture lands as a
       // "considering" entry, not just in the eternal pool.
-      if let tripID {
+      if let tripID = payload.tripID {
         try TripIdea.pull(ideaID: targetID, into: tripID, in: db)
       }
       // Store the header image alongside the idea, in the same transaction. On a
       // merge, don't force the header — `asHeader` only when this is a brand-new idea,
       // so a re-share never displaces a chosen header (ImageAsset.store de-dups by
       // sourceURL and keeps an existing header otherwise).
-      if let imageDisplay, let imageThumbnail, let imageID {
+      if let image = payload.image {
         try ImageAsset.store(
           ideaID: targetID,
-          display: imageDisplay,
-          thumbnail: imageThumbnail,
-          sourceURL: imageSourceURL,
+          display: image.display,
+          thumbnail: image.thumbnail,
+          sourceURL: image.sourceURL,
           asHeader: resolved.isNew,
-          id: imageID,
+          id: image.id,
           in: db
         )
       }
@@ -438,7 +447,7 @@ public final class CaptureModel {
       // `record` de-dups on (source, kind, value), so a supplement adds only new
       // judgments rather than doubling existing ones (ADR-0019 §3).
       try IdeaEvaluation.record(
-        evaluations, ideaID: targetID, travelPartyID: party.id, asOf: stamp, in: db
+        payload.evaluations, ideaID: targetID, travelPartyID: party.id, asOf: payload.stamp, in: db
       )
     }
   }

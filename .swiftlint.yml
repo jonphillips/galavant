@@ -39,7 +39,7 @@ type_body_length:
   error: 600
 
 function_body_length:
-  warning: 65    # worst: CaptureModel.persistCapture @ 63 — ratchet down after refactor
+  warning: 60
   error: 120
 
 # The "logic in the view" smell STYLE §2 names: a View doing its own persistence.
