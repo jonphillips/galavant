@@ -412,20 +412,22 @@ struct TripItineraryView: View {
     }
   }
 
-  /// Hands off to Apple Maps with the connector's from→to pair and chosen mode.
-  private func openInMaps(connector: TravelConnector) {
-    let source = MKMapItem(
-      location: CLLocation(latitude: connector.from.latitude, longitude: connector.from.longitude),
-      address: nil)
-    source.name = connector.from.title
-    let dest = MKMapItem(
-      location: CLLocation(latitude: connector.to.latitude, longitude: connector.to.longitude),
-      address: nil)
-    dest.name = connector.to.title
-    MKMapItem.openMaps(with: [source, dest], launchOptions: [
-      MKLaunchOptionsDirectionsModeKey: connector.mode.mkDirectionsMode
-    ])
-  }
+}
+
+/// Hands off to Apple Maps with the connector's from→to pair and chosen mode.
+/// Kept as the single Maps-launch path for itinerary and Today surfaces.
+func openInMaps(connector: TravelConnector) {
+  let source = MKMapItem(
+    location: CLLocation(latitude: connector.from.latitude, longitude: connector.from.longitude),
+    address: nil)
+  source.name = connector.from.title
+  let dest = MKMapItem(
+    location: CLLocation(latitude: connector.to.latitude, longitude: connector.to.longitude),
+    address: nil)
+  dest.name = connector.to.title
+  MKMapItem.openMaps(with: [source, dest], launchOptions: [
+    MKLaunchOptionsDirectionsModeKey: connector.mode.mkDirectionsMode
+  ])
 }
 
 private func isLooseAlternativeSlot(_ schedule: Schedule) -> Bool {

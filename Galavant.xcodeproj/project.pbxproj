@@ -38,6 +38,9 @@
 		474250E4E109ADF7680100C1 /* IdentityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E049286F9F226AF86DA12541 /* IdentityView.swift */; };
 		4A303DECCB8DFE842751E12F /* PoolFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 895F90CCD6B6EE453DBD785D /* PoolFlowUITests.swift */; };
 		4B11AB7DFD828A1F103EB408 /* WeatherClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 530B9A2871DE84E2724A58E7 /* WeatherClient.swift */; };
+		C0D000000000000000000001 /* TodayModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D000000000000000000011 /* TodayModel.swift */; };
+		C0D000000000000000000002 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D000000000000000000012 /* TodayView.swift */; };
+		C0D000000000000000000003 /* TodaySupportingViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D000000000000000000013 /* TodaySupportingViews.swift */; };
 		4DAAA7D1E36518BAE6613248 /* TripFormModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20DAF6B7A5F203899F4C780 /* TripFormModel.swift */; };
 		4FA9D5986A89B2B51B88F5C2 /* AppScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82AECABDADDBF8957A5816F8 /* AppScreen.swift */; };
 		5222D1023F3D13D0B45B3FE4 /* TripAddButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD6629168771E53AD5C86CF /* TripAddButton.swift */; };
@@ -194,6 +197,9 @@
 		51AA50E3CB7A4D6C5DD50110 /* CalendarExportClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarExportClient.swift; sourceTree = "<group>"; };
 		51B1DF18254B63AD4237897B /* IdeaPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaPersistenceTests.swift; sourceTree = "<group>"; };
 		530B9A2871DE84E2724A58E7 /* WeatherClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherClient.swift; sourceTree = "<group>"; };
+		C0D000000000000000000011 /* TodayModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayModel.swift; sourceTree = "<group>"; };
+		C0D000000000000000000012 /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
+		C0D000000000000000000013 /* TodaySupportingViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodaySupportingViews.swift; sourceTree = "<group>"; };
 		549199D3FB7222F5D893194E /* TravelProfileEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelProfileEditView.swift; sourceTree = "<group>"; };
 		56F1C96A9E48EE73DC2B6D08 /* SettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScreen.swift; sourceTree = "<group>"; };
 		57F320EF0E0815866BE1B3F0 /* RecommendationWorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationWorkspaceView.swift; sourceTree = "<group>"; };
@@ -482,10 +488,21 @@
 				E74AA89EA770500888848A49 /* Ideas */,
 				8A59619B26A61F0401533CF9 /* Navigation */,
 				DFF691FEEB403FB3C8776448 /* Settings */,
+				C0D000000000000000000010 /* Today */,
 				1D327EC924239E80FD30ED50 /* Trips */,
 				454215FF77812039958960FB /* Weather */,
 			);
 			path = Galavant;
+			sourceTree = "<group>";
+		};
+		C0D000000000000000000010 /* Today */ = {
+			isa = PBXGroup;
+			children = (
+				C0D000000000000000000011 /* TodayModel.swift */,
+				C0D000000000000000000013 /* TodaySupportingViews.swift */,
+				C0D000000000000000000012 /* TodayView.swift */,
+			);
+			path = Today;
 			sourceTree = "<group>";
 		};
 		D132031309F0FD3303777E27 /* Evaluate */ = {
@@ -800,6 +817,9 @@
 				9C1C9676A64367844856918E /* TripsScreen.swift in Sources */,
 				F57648A300EA9E12818CF2AC /* WeatherAttributionLink.swift in Sources */,
 				4B11AB7DFD828A1F103EB408 /* WeatherClient.swift in Sources */,
+				C0D000000000000000000001 /* TodayModel.swift in Sources */,
+				C0D000000000000000000002 /* TodayView.swift in Sources */,
+				C0D000000000000000000003 /* TodaySupportingViews.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
