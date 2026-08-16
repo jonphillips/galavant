@@ -1,10 +1,12 @@
 import Dependencies
 import Foundation
 import GalavantSchema
+import SQLiteData
 
-/// Owns Journey's optional, device-local weather enrichment. The projection
-/// stays a pure value; this model only coordinates one forecast pass for the
-/// visible day anchors.
+/// Owns Journey's optional, device-local weather enrichment and the header
+/// thumbnails the day disclosure and image panel render. The projection stays a
+/// pure value; this model coordinates the forecast pass and observes the
+/// (thumbnail-only) image rows.
 @MainActor
 @Observable
 final class JourneyModel {
@@ -13,8 +15,33 @@ final class JourneyModel {
     var anchorIndex: Int
   }
 
+  /// One idea's header thumbnail bytes — the compressed, syncable tier, never the
+  /// heavy display BLOB (mirrors `IdeasListModel`, M4f).
+  @Selection struct HeaderThumb {
+    let ideaID: Idea.ID
+    let thumbnail: Data
+  }
+
   @ObservationIgnored @Dependency(\.weatherClient) private var weatherClient
   @ObservationIgnored @Dependency(\.date) private var date
+
+  // Only header rows' thumbnail bytes load — a disclosure row and the panel show
+  // small images; the display BLOBs never ride this query.
+  @ObservationIgnored @FetchAll(
+    ImageAsset.where { $0.isHeader.eq(true) }
+      .select { HeaderThumb.Columns(ideaID: $0.ideaID, thumbnail: $0.thumbnail) }
+  ) var headerThumbs
+
+  /// Header thumbnail bytes per idea, for stop/hotel imagery across the surface.
+  var thumbnailByIdea: [Idea.ID: Data] {
+    Dictionary(headerThumbs.map { ($0.ideaID, $0.thumbnail) }, uniquingKeysWith: { first, _ in first })
+  }
+
+  /// The thumbnail for one idea, if it has a header image.
+  func thumbnail(forIdea ideaID: Idea.ID?) -> Data? {
+    guard let ideaID else { return nil }
+    return thumbnailByIdea[ideaID]
+  }
 
   /// WeatherKit's daily forecast horizon is the reason Journey is intentionally
   /// weather-free for trips farther than ten days from the device date.
