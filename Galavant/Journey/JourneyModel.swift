@@ -1,18 +1,28 @@
 import Dependencies
 import Foundation
 import GalavantSchema
+import ImageIO
 import SQLiteData
+import UIKit
 
 /// Owns Journey's optional, device-local weather enrichment and the header
 /// thumbnails the day disclosure and image panel render. The projection stays a
-/// pure value; this model coordinates the forecast pass and observes the
-/// (thumbnail-only) image rows.
+/// pure value; this model coordinates weather and selection-scoped image reads.
 @MainActor
 @Observable
 final class JourneyModel {
   struct WeatherKey: Hashable, Sendable {
     var dayNumber: Int
     var anchorIndex: Int
+  }
+
+  enum DisplayImageKey: Hashable, Sendable {
+    case idea(Idea.ID)
+    case region(MapRegion.ID)
+  }
+
+  struct DisplayRequest: Equatable, Sendable {
+    var keys: [DisplayImageKey]
   }
 
   /// One idea's header thumbnail bytes — the compressed, syncable tier, never the
@@ -23,8 +33,7 @@ final class JourneyModel {
   }
 
   /// One region's romance thumbnail plus its Unsplash attribution — the panel's
-  /// ambient region image. Thumbnail-only, so a growing region library never
-  /// drags display BLOBs into memory (display-on-demand is a later refinement).
+  /// ambient region image. Thumbnail-only; display bytes are loaded on demand.
   @Selection struct RegionThumb {
     let regionID: MapRegion.ID
     let thumbnail: Data
@@ -34,6 +43,7 @@ final class JourneyModel {
 
   @ObservationIgnored @Dependency(\.weatherClient) private var weatherClient
   @ObservationIgnored @Dependency(\.date) private var date
+  @ObservationIgnored @Dependency(\.defaultDatabase) private var database
 
   // Only header rows' thumbnail bytes load — a disclosure row and the panel show
   // small images; the display BLOBs never ride this query.
@@ -91,7 +101,7 @@ final class JourneyModel {
   /// The `MapRegion` geographically covering a coordinate, if any — the panel's
   /// fallback when a day carries no explicit `TripDayRegion` assignment, so a
   /// region photo can attach wherever a saved region covers the place.
-  func region(containingLatitude latitude: Double?, longitude longitude: Double?) -> MapRegion? {
+  func region(containingLatitude latitude: Double?, longitude: Double?) -> MapRegion? {
     guard let latitude, let longitude else { return nil }
     return allRegions.first { $0.contains(latitude: latitude, longitude: longitude) }
   }
@@ -101,6 +111,7 @@ final class JourneyModel {
   private static let forecastHorizonDays = 10
 
   private(set) var weather: [WeatherKey: WeatherSummary] = [:]
+  private(set) var displayImages: [DisplayImageKey: UIImage] = [:]
 
   var attribution: WeatherSummary.Attribution? {
     weather.values.first?.attribution
@@ -138,5 +149,125 @@ final class JourneyModel {
 
   func summary(for dayNumber: Int, anchorIndex: Int) -> WeatherSummary? {
     weather[WeatherKey(dayNumber: dayNumber, anchorIndex: anchorIndex)]
+  }
+
+  func displayImage(forIdea ideaID: Idea.ID?) -> UIImage? {
+    guard let ideaID else { return nil }
+    return displayImages[.idea(ideaID)]
+  }
+
+  func displayImage(forRegion regionID: MapRegion.ID?) -> UIImage? {
+    guard let regionID else { return nil }
+    return displayImages[.region(regionID)]
+  }
+
+  /// Computes exactly the display-tier images the current panel can show. The
+  /// request is also the task identity, so a selection or thumbnail refresh
+  /// replaces the bounded cache instead of accumulating display BLOBs.
+  func displayRequest(
+    projection: JourneyProjection,
+    plan: TripPlan,
+    selection: JourneySelection?
+  ) -> DisplayRequest {
+    var keys: [DisplayImageKey] = []
+
+    func append(_ key: DisplayImageKey?) {
+      guard let key, !keys.contains(key) else { return }
+      keys.append(key)
+    }
+
+    func appendIdea(_ ideaID: Idea.ID?) {
+      guard let ideaID else { return }
+      append(.idea(ideaID))
+    }
+
+    func appendRegion(_ regionID: MapRegion.ID?) {
+      guard let regionID else { return }
+      append(.region(regionID))
+    }
+
+    switch selection {
+    case .day(let dayNumber):
+      appendRegion(region(forDay: dayNumber, in: plan)?.id)
+      for stop in projection.days.first(where: { $0.dayNumber == dayNumber })?.stops ?? [] {
+        if thumbnail(forIdea: stop.ideaID) != nil {
+          appendIdea(stop.ideaID)
+        }
+      }
+    case .stay(let stayID):
+      guard let band = projection.stayBands.first(where: { $0.id == stayID }) else {
+        return DisplayRequest(keys: keys)
+      }
+      appendRegion(region(forStay: band, in: plan)?.id)
+      appendIdea(band.stay.idea?.id)
+      if let stop = JourneyImageSelection.stableStayStop(
+        stayID: band.id,
+        nights: band.nights,
+        days: projection.days,
+        hasImage: { self.thumbnail(forIdea: $0) != nil }) {
+        appendIdea(stop.ideaID)
+      }
+    case .none:
+      appendRegion(projection.days.first.flatMap { region(forDay: $0.dayNumber, in: plan) }?.id)
+    }
+    return DisplayRequest(keys: keys)
+  }
+
+  /// Reads and decodes only the current panel's display-tier images. Database
+  /// reads stay one-shot and the ImageIO decode happens in a detached task so
+  /// the main actor only receives ready-to-render CGImages.
+  func loadDisplayImages(_ request: DisplayRequest) async {
+    displayImages = [:]
+    guard !request.keys.isEmpty else { return }
+
+    let dataByKey: [DisplayImageKey: Data]
+    do {
+      dataByKey = try await database.read { db in
+        var result: [DisplayImageKey: Data] = [:]
+        for key in request.keys {
+          switch key {
+          case .idea(let ideaID):
+            if let display = try ImageAsset.where { columns in
+              columns.ideaID.eq(ideaID) && columns.isHeader.eq(true)
+            }.fetchOne(db)?.display {
+              result[key] = display
+            }
+          case .region(let regionID):
+            if let display = try RegionImage.where({ columns in
+              columns.regionID.eq(regionID)
+            }).fetchOne(db)?.display {
+              result[key] = display
+            }
+          }
+        }
+        return result
+      }
+    } catch {
+      return
+    }
+
+    guard !Task.isCancelled else { return }
+    let decoded = await Task.detached(priority: .userInitiated) {
+      dataByKey.compactMap { key, data -> (DisplayImageKey, CGImage)? in
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+          let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
+        else { return nil }
+        return (key, image)
+      }
+    }.value
+    guard !Task.isCancelled else { return }
+    displayImages = Dictionary(uniqueKeysWithValues: decoded.map { ($0.0, UIImage(cgImage: $0.1)) })
+  }
+
+  private func region(forDay dayNumber: Int, in plan: TripPlan) -> MapRegion? {
+    if let assigned = plan.region(forDay: dayNumber) { return assigned }
+    let stop = plan.locatedStops(forDay: dayNumber).first
+    return region(containingLatitude: stop?.content.latitude, longitude: stop?.content.longitude)
+  }
+
+  private func region(forStay band: JourneyProjection.StayBand, in plan: TripPlan) -> MapRegion? {
+    if let assigned = plan.region(forDay: band.nights.lowerBound) { return assigned }
+    return region(
+      containingLatitude: band.stay.content.latitude, longitude: band.stay.content.longitude)
   }
 }

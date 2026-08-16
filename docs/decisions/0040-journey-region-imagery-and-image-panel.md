@@ -73,8 +73,11 @@ The region a stay/day belongs to is resolved by its explicit `TripDayRegion` ass
 covers the place — so a region photo attaches (and the "add photo" affordance appears) without
 requiring the user to hand-assign day regions first. Tapping the region card opens the picker.
 
-All panel imagery is the **thumbnail tier**, bounded in memory across a growing photo library.
-Display-on-demand for crisper heroes is a deferred refinement.
+Panel imagery keeps the **thumbnail tier** as its instant, bounded-memory placeholder, but
+the currently visible region, hotel, and stop heroes then load their **display tier on
+demand**. The Journey model reads and decodes only the selection's visible image keys, and
+replaces the thumbnails when those display images are ready; disclosure stop rows remain
+thumbnail-only.
 
 ## Consequences
 
