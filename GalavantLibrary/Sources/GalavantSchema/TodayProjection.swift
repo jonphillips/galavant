@@ -526,6 +526,69 @@ public struct WeatherAnchor: Equatable, Sendable {
     return Self(coordinate: coordinate, timeWindow: timeWindow, isWeatherSensitive: sensitive)
   }
 
+  /// Resolves the coarse weather questions for one whole Journey day. A normal
+  /// day has one anchor; a direct lodging transfer has an AM origin and PM
+  /// destination so Journey never compresses two materially different places
+  /// into one forecast.
+  public static func resolve(
+    forDay dayNumber: Int,
+    in tripPlan: TripPlan,
+    tripStartDate: Date,
+    travelTimes: [LegKey: [TransportMode: TravelTime]] = [:]
+  ) -> [Self] {
+    guard dayNumber >= 1, dayNumber <= tripPlan.lengthInDays,
+      let dayStart = dayStart(
+        dayNumber: dayNumber, tripStartDate: tripStartDate, calendar: .current)
+    else { return [] }
+
+    let stays = tripPlan.stays(coveringDay: dayNumber)
+    let items = tripPlan.itineraryItems(
+      forDay: dayNumber,
+      travelTimes: travelTimes,
+      effectiveModes: [:],
+      stays: stays)
+
+    if let transfer = items.compactMap({ item -> TravelConnector? in
+      guard case let .connector(connector) = item,
+        connector.kind == .betweenLodgings
+      else { return nil }
+      return connector
+    }).first {
+      return [
+        Self(
+          coordinate: Coordinate(
+            latitude: transfer.from.latitude, longitude: transfer.from.longitude),
+          timeWindow: .daypart(dayStart: dayStart, .morning),
+          isWeatherSensitive: false),
+        Self(
+          coordinate: Coordinate(
+            latitude: transfer.to.latitude, longitude: transfer.to.longitude),
+          timeWindow: .daypart(dayStart: dayStart, .afternoon),
+          isWeatherSensitive: false)
+      ]
+    }
+
+    let stops = tripPlan.itinerary.first { $0.number == dayNumber }?.stops ?? []
+    if let sensitiveStop = stops.first(where: { isWeatherSensitive($0.idea?.kind) }),
+      let anchor = resolve(
+        for: sensitiveStop,
+        in: tripPlan,
+        dayNumber: dayNumber,
+        tripStartDate: tripStartDate) {
+      return [anchor]
+    }
+
+    // The coarse fallback deliberately uses a daily window: Journey answers
+    // where the day is spent, not the exact forecast for one itinerary row.
+    let regionCoordinate: Coordinate? = coordinate(for: tripPlan.region(forDay: dayNumber))
+    let stayCoordinate: Coordinate? = stays.compactMap { coordinate(for: $0) }.first
+    let dayStopCoordinate: Coordinate? = stops.compactMap { coordinate(for: $0) }.first
+    guard let coordinate = regionCoordinate ?? stayCoordinate ?? dayStopCoordinate else {
+      return []
+    }
+    return [Self(coordinate: coordinate, timeWindow: .daily(dayStart), isWeatherSensitive: false)]
+  }
+
   private static func isWeatherSensitive(_ kind: IdeaKind?) -> Bool {
     switch kind {
     case .outdoorTrail, .beach, .park, .activity:
