@@ -123,6 +123,7 @@ public enum GalavantCloudSync {
         CalendarTripConstraint.self,
         TripRegion.self,
         ImageAsset.self,
+        RegionImage.self,
         TripStay.self,
         TripDayRegion.self,
         IdeaEvaluation.self,

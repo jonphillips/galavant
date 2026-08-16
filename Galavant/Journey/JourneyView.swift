@@ -89,9 +89,17 @@ struct JourneyView: View {
   /// scrolling never drags it away to geography the trip never touches.
   private func journey(_ projection: JourneyProjection, plan: TripPlan) -> some View {
     VStack(alignment: .leading, spacing: 16) {
-      JourneySummaryHeader(trip: planningModel.trip, summary: projection.summary)
-        .padding(.horizontal)
-        .padding(.top, 8)
+      HStack(alignment: .top, spacing: 16) {
+        JourneySummaryHeader(trip: planningModel.trip, summary: projection.summary)
+        Spacer(minLength: 16)
+        // The header row's right side — empty until now — carries the image band;
+        // the map keeps its own full-height column below, untouched.
+        JourneyImagePanel(
+          projection: projection, plan: plan, model: model, selection: selection)
+          .frame(maxWidth: 520, alignment: .trailing)
+      }
+      .padding(.horizontal)
+      .padding(.top, 8)
       JourneyStayRail(projection: projection, selection: $selection)
 
       HStack(alignment: .top, spacing: 16) {
