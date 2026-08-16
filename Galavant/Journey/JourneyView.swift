@@ -23,6 +23,10 @@ struct JourneyView: View {
   @State private var renderedPlan: TripPlan?
   @State private var selection: JourneySelection?
 
+  /// The breathing room between the header, stay rail, and the map/day area.
+  /// Keeping one value for both boundaries makes the vertical rhythm symmetric.
+  private static let sectionSpacing: CGFloat = 16
+
   private struct ProjectionInput: Equatable {
     var plan: TripPlan
     var tripStartDate: Date?
@@ -88,7 +92,7 @@ struct JourneyView: View {
   /// day spine scrolls on the left, and the map holds still on the right so
   /// scrolling never drags it away to geography the trip never touches.
   private func journey(_ projection: JourneyProjection, plan: TripPlan) -> some View {
-    VStack(alignment: .leading, spacing: 16) {
+    VStack(alignment: .leading, spacing: Self.sectionSpacing) {
       HStack(alignment: .top, spacing: 16) {
         JourneySummaryHeader(trip: planningModel.trip, summary: projection.summary)
         Spacer(minLength: 16)
