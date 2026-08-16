@@ -623,3 +623,25 @@ Galavant consumes via an `@_exported` shim, behavior-neutral; yes-chef adoption 
 follow-up). Both graduate to a full DONE entry here once merged. Remaining M9 layout work: Choose
 One day-anchoring, Slice 3 (dossier flyover that covers siblings), Slice 4 (iPhone map-first
 layout).
+
+## App unit-test bundle + IdeasListModel filtered-delete regression (Codex review 2026-06-16) — DONE
+
+The app target had no unit-test bundle, so `IdeasListModel` behavior had no automated regression
+guard — the long-standing blocker on the filtered swipe-delete test from the 2026-06-16 alignment
+review. Shipped 2026-08-16 (PR #46, `feat/app-unit-test-infra`):
+
+- **Host-backed `GalavantTests` Xcode target**, generated from `project.yml` (both `project.yml` and
+  the regenerated `project.pbxproj` committed together, per the XcodeGen workflow). Links only
+  `DependenciesTestSupport` directly; `GalavantSchema`, `SQLiteData`, and `Dependencies` inherit
+  through the `Galavant` test host (`TEST_HOST`/`BUNDLE_LOADER`) to avoid duplicate SQLiteData
+  symbols in Xcode's dynamic test overlay. Added to the `Galavant` scheme's Test action.
+- **`IdeasListDeleteTests`** runs on an in-memory `bootstrapDatabase()` (test context → sync
+  `.disabled`, no CloudKit). It seeds two disjoint regions with one idea each, filters to region B,
+  deletes displayed index 0 via the real `deleteIdeas(filteredIdeas, at:)` path, and asserts the
+  region-B idea is deleted while the globally-first region-A idea survives — the exact structural
+  bug (indexing the global name-ordered list instead of the displayed slice) the earlier fix closed.
+
+Verification: `xcodebuild test -only-testing:GalavantTests/IdeasListDeleteTests` passed;
+`swift test --package-path GalavantLibrary` still green (the pre-existing `GalavantUITests-Runner`
+bootstrap crash is unrelated). Now that the bundle exists, it's the seam to pull more
+`IdeasListModel` behavior under test.

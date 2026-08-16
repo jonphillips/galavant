@@ -381,17 +381,15 @@ review's two acted-on items landed already: the filtered swipe-delete bug fix
 (`IdeasListModel.deleteIdeas` now takes the displayed array) and the CLAUDE.md
 iOS-26→27 correction. The rest, in rough priority order:
 
-- **Regression test for filtered swipe-delete.** The fix is structural (the view
-  hands `deleteIdeas` the exact `filteredIdeas` it rendered), but there's no
-  automated guard against a future re-wiring. Blocked on test infrastructure:
-  the app target has **no unit-test bundle** (only `GalavantSchemaTests` in the
-  package + `GalavantUITests`), and a destructive UI test can't be made
-  deterministic because there's **no DB-reset launch arg** (the app-group DB
-  persists across launches; `--reset-identity` only clears `currentPlannerID`).
-  A real regression test wants one of: an app unit-test target exercising
-  `IdeasListModel`, or a `--reset-database` arg + a seeded UI test that filters
-  to one region (e.g. New York) and verifies the swiped row — not the
-  global-alphabetical-first idea — is the one deleted.
+- **Regression test for filtered swipe-delete.** — DONE (2026-08-16, PR #46,
+  `feat/app-unit-test-infra`). Stood up the missing app unit-test bundle: a
+  host-backed `GalavantTests` Xcode target (generated from `project.yml`, links only
+  `DependenciesTestSupport` directly — `GalavantSchema`/`SQLiteData`/`Dependencies`
+  inherit through the `Galavant` test host to avoid duplicate SQLiteData symbols) on
+  an in-memory `bootstrapDatabase()`. `IdeasListDeleteTests` seeds two regions, filters
+  to region B, deletes displayed index 0, and asserts the region-B idea is gone while
+  the globally-first region-A idea survives — the exact structural bug (indexing the
+  global list) the earlier fix closed. See `docs/DONE_LOG.md`.
 
 - **ADR-0008 sync-dedup hardening.** — DONE (2026-08-12, PR #20). Shipped the
   `LogicalUniqueness.convergingByKey` pure helper (lowest-UUID survivor), IdeaInterest
