@@ -27,6 +27,7 @@ struct TripPlanningView: View {
   @State private var showingChat = false
   @State private var showingStartDay = false
   @State private var showingToday = false
+  @State private var todayRequested = false
   /// M7's local, read-only reconciliation view. Its results never leave this
   /// per-view model until later slices prove the durable authority semantics.
   @State private var showingCalendarReconciliation = false
@@ -85,7 +86,7 @@ struct TripPlanningView: View {
         ToolbarItemGroup(placement: .topBarTrailing) {
           if !usesColumn, model.trip?.startDate != nil {
             Button {
-              showingToday = true
+              showToday()
             } label: {
               Label("Today", systemImage: "sun.max")
             }
@@ -103,7 +104,7 @@ struct TripPlanningView: View {
           }
         }
       }
-      .fullScreenCover(isPresented: $showingToday) {
+      .fullScreenCover(isPresented: $showingToday, onDismiss: restoreDetailSheetAfterToday) {
         TodayView(planningModel: model)
       }
       .task {
@@ -143,6 +144,28 @@ struct TripPlanningView: View {
     if !usesColumn, sheetDetent == Self.peek { sheetDetent = .medium }
   }
 
+  /// The iPhone itinerary is already a presentation. Dismiss it before asking
+  /// the same host for Today; otherwise SwiftUI drops the second presentation.
+  private func showToday() {
+    guard showDetailSheet else {
+      showingToday = true
+      return
+    }
+    todayRequested = true
+    showDetailSheet = false
+  }
+
+  private func detailSheetDismissed() {
+    guard todayRequested else { return }
+    todayRequested = false
+    showingToday = true
+  }
+
+  private func restoreDetailSheetAfterToday() {
+    guard !usesColumn else { return }
+    showDetailSheet = true
+  }
+
   @ViewBuilder private var layout: some View {
     if usesColumn {
       columnLayout
@@ -174,7 +197,7 @@ struct TripPlanningView: View {
     canvas
       .ignoresSafeArea(.container, edges: .bottom)
       .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { mapHeight = $0 }
-      .sheet(isPresented: $showDetailSheet) {
+      .sheet(isPresented: $showDetailSheet, onDismiss: detailSheetDismissed) {
         TripDetailContent(
           model: model,
           usesColumn: usesColumn,
