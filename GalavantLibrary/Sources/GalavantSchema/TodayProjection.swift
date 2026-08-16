@@ -398,17 +398,10 @@ public struct TodayProjection: Equatable, Sendable {
     guard tomorrowNumber <= tripPlan.lengthInDays,
       let date = dayDate(tomorrowNumber, tripStartDate: tripStartDate, calendar: calendar)
     else { return nil }
-    let items = tripPlan.itineraryItems(
+    let transfer = tripPlan.transferConnector(
       forDay: tomorrowNumber,
       travelTimes: travelTimes,
-      effectiveModes: effectiveModes,
-      stays: tripPlan.stays(coveringDay: tomorrowNumber))
-    let transfer = items.compactMap { item -> TravelConnector? in
-      guard case let .connector(connector) = item, connector.kind == .betweenLodgings else {
-        return nil
-      }
-      return connector
-    }.first
+      effectiveModes: effectiveModes)
     return Tomorrow(
       dayContext: dayContext(for: tomorrowNumber, date: date, tripPlan: tripPlan),
       transfer: transfer)
@@ -542,18 +535,7 @@ public struct WeatherAnchor: Equatable, Sendable {
     else { return [] }
 
     let stays = tripPlan.stays(coveringDay: dayNumber)
-    let items = tripPlan.itineraryItems(
-      forDay: dayNumber,
-      travelTimes: travelTimes,
-      effectiveModes: [:],
-      stays: stays)
-
-    if let transfer = items.compactMap({ item -> TravelConnector? in
-      guard case let .connector(connector) = item,
-        connector.kind == .betweenLodgings
-      else { return nil }
-      return connector
-    }).first {
+    if let transfer = tripPlan.transferConnector(forDay: dayNumber, travelTimes: travelTimes) {
       return [
         Self(
           coordinate: Coordinate(

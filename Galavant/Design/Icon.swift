@@ -30,6 +30,7 @@ enum Icon {
   case aiFrontier     // frontier (networked, BYO-key) AI tier
   case chat           // open the context-aware chat panel (ADR-0017)
   case recommend      // external recommendation handoff (ADR-0036)
+  case journey        // whole-trip anticipation surface
   case alternatives   // an itinerary slot with interchangeable options (ADR-0035)
   case cycleAlternative // rotate the active option in an alternatives ring (ADR-0035)
   case promoteAlternative // turn an option into an independent itinerary stop (ADR-0035)
@@ -115,6 +116,7 @@ enum Icon {
     case .emptyPool: "tray"
     case .chat: "bubble.left.and.text.bubble.right"
     case .recommend: "sparkles"
+    case .journey: "map"
     case .alternatives: "arrow.triangle.2.circlepath"
     case .cycleAlternative: "arrow.triangle.2.circlepath"
     case .promoteAlternative: "arrow.up.right.square"

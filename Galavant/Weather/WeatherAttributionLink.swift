@@ -14,10 +14,13 @@ struct WeatherAttributionLink: View {
         image
           .resizable()
           .scaledToFit()
+          .frame(height: 14)
       } placeholder: {
         Text("Apple Weather", comment: "Fallback label for the required weather-data attribution link.")
+          .font(.caption2)
       }
     }
+    .frame(maxHeight: 14)
     .accessibilityLabel("Apple Weather attribution")
     .accessibilityHint("Opens the legal attribution for weather data.")
   }

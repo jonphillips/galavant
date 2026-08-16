@@ -3,29 +3,46 @@ import GalavantSchema
 import MapKit
 import SwiftUI
 
+/// What the map is currently focused on. Tapping a day or a stay elsewhere on
+/// the surface flies the (otherwise fixed) map to the related pins; tapping the
+/// same element again clears the focus back to the whole trip.
+enum JourneySelection: Equatable {
+  case day(Int)
+  case stay(TripStay.ID)
+}
+
 /// The iPad anticipation surface for one trip. Journey is read-only and regular
 /// width by design; Today is the compact/iPhone execution surface.
 struct JourneyView: View {
   let planningModel: TripPlanningModel
 
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+  @Environment(\.dismiss) private var dismiss
   @State private var model = JourneyModel()
+  @State private var projection: JourneyProjection?
+  @State private var renderedPlan: TripPlan?
+  @State private var selection: JourneySelection?
 
-  private var tripStartDate: Date? { planningModel.trip?.startDate }
+  private struct ProjectionInput: Equatable {
+    var plan: TripPlan
+    var tripStartDate: Date?
+    var travelTimes: [LegKey: [TransportMode: TravelTime]]
+  }
 
-  private var projection: JourneyProjection? {
-    guard let tripStartDate else { return nil }
-    return JourneyProjection.resolve(
-      from: planningModel.plan,
-      tripStartDate: tripStartDate,
+  private var projectionInput: ProjectionInput {
+    ProjectionInput(
+      plan: planningModel.plan,
+      tripStartDate: planningModel.trip?.startDate,
       travelTimes: planningModel.travelTimes)
   }
 
   var body: some View {
     Group {
       if horizontalSizeClass == .regular {
-        if let projection {
-          journey(projection)
+        if let projection, let renderedPlan {
+          journey(projection, plan: renderedPlan)
+        } else if projectionInput.tripStartDate != nil {
+          ProgressView("Preparing Journey…")
         } else {
           ContentUnavailableView(
             "Journey is not available",
@@ -41,27 +58,54 @@ struct JourneyView: View {
     }
     .navigationTitle("Journey")
     .navigationBarTitleDisplayMode(.large)
-    .task(id: projection) {
-      await model.loadWeather(for: projection)
+    .toolbar {
+      ToolbarItem(placement: .topBarLeading) {
+        Button("Done") { dismiss() }
+      }
+    }
+    .task(id: projectionInput) {
+      let input = projectionInput
+      guard let tripStartDate = input.tripStartDate else {
+        projection = nil
+        renderedPlan = nil
+        await model.loadWeather(for: nil)
+        return
+      }
+      let resolved = JourneyProjection.resolve(
+        from: input.plan,
+        tripStartDate: tripStartDate,
+        travelTimes: input.travelTimes)
+      guard !Task.isCancelled else { return }
+      projection = resolved
+      renderedPlan = input.plan
+      await model.loadWeather(for: resolved)
     }
   }
 
-  private func journey(_ projection: JourneyProjection) -> some View {
-    ScrollView {
-      VStack(alignment: .leading, spacing: 20) {
-        JourneySummaryHeader(trip: planningModel.trip, summary: projection.summary)
-        JourneyStayBands(projection: projection)
+  /// The screen is a fixed frame: the header and stay rail pin to the top, the
+  /// day spine scrolls on the left, and the map holds still on the right so
+  /// scrolling never drags it away to geography the trip never touches.
+  private func journey(_ projection: JourneyProjection, plan: TripPlan) -> some View {
+    VStack(alignment: .leading, spacing: 16) {
+      JourneySummaryHeader(trip: planningModel.trip, summary: projection.summary)
+        .padding(.horizontal)
+        .padding(.top, 8)
+      JourneyStayRail(projection: projection, selection: $selection)
 
-        HStack(alignment: .top, spacing: 20) {
-          JourneyDaySpine(projection: projection, model: model)
-            .frame(maxWidth: .infinity, alignment: .leading)
-          JourneyMap(projection: projection, plan: planningModel.plan)
-            .frame(minWidth: 280, idealWidth: 360, maxWidth: 460, minHeight: 540)
+      HStack(alignment: .top, spacing: 16) {
+        ScrollView {
+          JourneyDaySpine(projection: projection, model: model, selection: $selection)
+            .padding(.horizontal)
+            .padding(.bottom, 24)
         }
+        JourneyMap(projection: projection, plan: plan, selection: selection)
+          .frame(minWidth: 300, idealWidth: 400, maxWidth: 480)
+          .frame(maxHeight: .infinity)
+          .padding(.trailing)
+          .padding(.bottom)
       }
-      .padding(.horizontal)
-      .padding(.vertical, 20)
     }
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     .background(Color(.systemGroupedBackground))
     .safeAreaInset(edge: .bottom) {
       if let attribution = model.attribution {
@@ -91,101 +135,160 @@ private struct JourneySummaryHeader: View {
         .font(.subheadline)
         .foregroundStyle(.secondary)
       HStack(spacing: 8) {
-        Label("\(summary.dayCount) days", systemImage: "calendar")
+        Label("\(summary.nightCount) nights", systemImage: "moon.stars")
         Text("·")
         Label("\(summary.stayCount) stays", systemImage: Icon.stay.systemName)
-        if !summary.regionNames.isEmpty {
+        if summary.transferDayCount > 0 {
           Text("·")
-          Text(summary.regionNames.joined(separator: " · "))
+          Label {
+            Text(
+              summary.transferDayCount == 1
+                ? "1 transfer day" : "\(summary.transferDayCount) transfer days")
+          } icon: {
+            Image(systemName: TransportMode.driving.systemImageName)
+          }
         }
       }
       .font(.subheadline)
       .foregroundStyle(.secondary)
+      if !summary.regionNames.isEmpty {
+        Text(regionSummary)
+          .font(.subheadline)
+          .foregroundStyle(.tint)
+          .lineLimit(1)
+      }
     }
     .accessibilityElement(children: .combine)
-    .accessibilityLabel("\(trip?.name ?? "Journey"), \(summary.dayCount) days")
+    .accessibilityLabel(
+      "\(trip?.name ?? "Journey"), \(summary.nightCount) nights, \(summary.stayCount) stays")
+  }
+
+  /// The locality run, capped so a long multi-region trip never overflows the
+  /// header — the map and day spine carry the full geography.
+  private var regionSummary: String {
+    let shown = summary.regionNames.prefix(3)
+    let overflow = summary.regionNames.count - shown.count
+    return shown.joined(separator: " · ") + (overflow > 0 ? " · +\(overflow) more" : "")
   }
 }
 
-private struct JourneyStayBands: View {
+private struct JourneyStayRail: View {
   let projection: JourneyProjection
+  @Binding var selection: JourneySelection?
+
+  private var bands: [JourneyProjection.StayBand] {
+    projection.stayBands.filter { !$0.nights.isEmpty }
+  }
 
   var body: some View {
-    if !projection.stayBands.isEmpty {
+    if !bands.isEmpty {
       VStack(alignment: .leading, spacing: 8) {
-        Text("Stays")
+        Text("Where you’ll stay")
           .font(.headline)
-        ForEach(projection.stayBands) { band in
-          HStack(spacing: 2) {
-            ForEach(projection.days) { day in
-              JourneyStayBandCell(
-                day: day,
+          .padding(.horizontal)
+        ScrollView(.horizontal, showsIndicators: false) {
+          HStack(alignment: .top, spacing: 10) {
+            ForEach(Array(bands.enumerated()), id: \.element.id) { index, band in
+              JourneyStayChip(
                 band: band,
-                isCovered: band.nights.contains(day.dayNumber))
+                color: StayPalette.color(forStay: index),
+                isSelected: selection == .stay(band.id))
+              .contentShape(RoundedRectangle(cornerRadius: 12))
+              .onTapGesture { toggle(band.id) }
             }
           }
-          .accessibilityElement(children: .combine)
-          .accessibilityLabel("\(band.title), \(band.nights.count) nights")
+          .padding(.horizontal)
         }
       }
     }
   }
+
+  private func toggle(_ id: TripStay.ID) {
+    selection = selection == .stay(id) ? nil : .stay(id)
+  }
 }
 
-private struct JourneyStayBandCell: View {
-  let day: JourneyProjection.DaySummary
+/// A stay's colour, shared by its "Where you'll stay" chip and its numbered map
+/// pin so a lodging reads as one colour across the surface. Reuses `DayPalette`'s
+/// distinct cycle, keyed by stay order rather than day.
+private enum StayPalette {
+  static func color(forStay index: Int) -> Color {
+    DayPalette.colors[((index % DayPalette.colors.count) + DayPalette.colors.count)
+      % DayPalette.colors.count]
+  }
+}
+
+private struct JourneyStayChip: View {
   let band: JourneyProjection.StayBand
-  let isCovered: Bool
+  let color: Color
+  let isSelected: Bool
 
   var body: some View {
-    let ordinal = band.nights.distance(
-      from: band.nights.startIndex,
-      to: day.dayNumber)
-    VStack(alignment: .leading, spacing: 2) {
-      if isCovered, day.dayNumber == band.nights.first {
-        Text(band.title)
+    VStack(alignment: .leading, spacing: 3) {
+      Label {
+        Text(headline)
           .font(.caption.weight(.semibold))
-          .lineLimit(1)
+      } icon: {
+        Image(systemName: Icon.stay.systemName)
       }
-      if isCovered {
-        Text("Night \(ordinal + 1) of \(band.nights.count)")
-          .font(.caption2)
-          .lineLimit(1)
-      }
+      .lineLimit(1)
+      .minimumScaleFactor(0.8)
+      Text(band.title)
+        .font(.caption2)
+        .lineLimit(2)
+        .opacity(0.9)
     }
-    .frame(maxWidth: .infinity, minHeight: 38, alignment: .leading)
-    .padding(.horizontal, 8)
-    .background(
-      isCovered ? Color.accentColor.opacity(0.16) : Color.clear,
-      in: RoundedRectangle(cornerRadius: 8))
-    .overlay(alignment: .leading) {
-      if isCovered {
-        Capsule()
-          .fill(.tint)
-          .frame(width: 3)
-      }
+    .frame(width: 190, alignment: .leading)
+    .frame(minHeight: 52, alignment: .topLeading)
+    .padding(.horizontal, 12)
+    .padding(.vertical, 10)
+    .foregroundStyle(.white)
+    .background(color.gradient, in: RoundedRectangle(cornerRadius: 12))
+    .overlay {
+      RoundedRectangle(cornerRadius: 12)
+        .strokeBorder(.white, lineWidth: isSelected ? 3 : 0)
     }
+    .shadow(color: isSelected ? color.opacity(0.5) : .clear, radius: 6)
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel("\(band.regionName ?? band.title), \(band.nightCount) nights")
+    .accessibilityAddTraits(isSelected ? [.isSelected, .isButton] : .isButton)
+  }
+
+  private var headline: String {
+    let nights = "\(band.nightCount) night\(band.nightCount == 1 ? "" : "s")"
+    return band.regionName.map { "\($0) · \(nights)" } ?? nights
   }
 }
 
 private struct JourneyDaySpine: View {
   let projection: JourneyProjection
   let model: JourneyModel
+  @Binding var selection: JourneySelection?
 
   var body: some View {
     LazyVStack(alignment: .leading, spacing: 10) {
       Text("The trip")
         .font(.headline)
       ForEach(projection.days) { day in
-        JourneyDayCard(day: day, model: model)
+        JourneyDayCard(
+          day: day,
+          model: model,
+          isSelected: selection == .day(day.dayNumber))
+        .contentShape(RoundedRectangle(cornerRadius: 14))
+        .onTapGesture { toggle(day.dayNumber) }
       }
     }
+  }
+
+  private func toggle(_ dayNumber: Int) {
+    selection = selection == .day(dayNumber) ? nil : .day(dayNumber)
   }
 }
 
 private struct JourneyDayCard: View {
   let day: JourneyProjection.DaySummary
   let model: JourneyModel
+  let isSelected: Bool
 
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
@@ -204,7 +307,7 @@ private struct JourneyDayCard: View {
       }
 
       if day.stops.isEmpty {
-        Text("A quiet day")
+        Text(day.locality != nil ? "At leisure" : "A quiet day")
           .foregroundStyle(.secondary)
       } else {
         Text(day.stopTitles.joined(separator: "  ·  "))
@@ -219,9 +322,18 @@ private struct JourneyDayCard: View {
       }
 
       if day.isTransfer, let from = day.transferFrom, let to = day.transferTo {
-        Label("\(from.title) → \(to.title)", systemImage: "arrow.right")
-          .font(.subheadline.weight(.medium))
-          .foregroundStyle(.orange)
+        HStack(spacing: 6) {
+          Image(systemName: day.transferMode?.systemImageName ?? TransportMode.driving.systemImageName)
+          Text("\(from.title) → \(to.title)")
+          if let time = day.transferTime, let mode = day.transferMode {
+            Text("· \(time.formatted(mode: mode))")
+          }
+        }
+        .font(.subheadline.weight(.medium))
+        .foregroundStyle(.orange)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(.orange.opacity(0.12), in: Capsule())
       }
 
       if !day.weatherAnchors.isEmpty {
@@ -239,10 +351,13 @@ private struct JourneyDayCard: View {
     .background(.background, in: RoundedRectangle(cornerRadius: 14))
     .overlay {
       RoundedRectangle(cornerRadius: 14)
-        .strokeBorder(.quaternary)
+        .strokeBorder(
+          isSelected ? Color.accentColor : Color.gray.opacity(0.25),
+          lineWidth: isSelected ? 2 : 1)
     }
     .accessibilityElement(children: .combine)
     .accessibilityLabel(dayAccessibilityLabel)
+    .accessibilityAddTraits(isSelected ? [.isSelected, .isButton] : .isButton)
   }
 
   private var dayAccessibilityLabel: String {
@@ -284,41 +399,74 @@ private struct JourneyWeatherBadge: View {
 private struct JourneyMap: View {
   let projection: JourneyProjection
   let plan: TripPlan
+  let selection: JourneySelection?
+
+  @State private var position: MapCameraPosition = .automatic
+
+  private var hasMapContent: Bool {
+    plan.hasLocatedStops
+      || !plan.baseStays(forDay: nil).isEmpty
+      || projection.days.contains { plan.region(forDay: $0.dayNumber) != nil }
+  }
+
+  /// Each locality once, in trip order — one pin per region instead of one per
+  /// day, which otherwise stacks identical markers on a multi-day stay.
+  private var uniqueRegions: [MapRegion] {
+    var seen = Set<String>()
+    var result: [MapRegion] = []
+    for day in projection.days {
+      guard let region = plan.region(forDay: day.dayNumber) else { continue }
+      if seen.insert(region.name).inserted { result.append(region) }
+    }
+    return result
+  }
 
   var body: some View {
-    Map {
+    Map(position: $position) {
       journeyPathContent
       ForEach(projection.days) { day in
         dayMapContent(day)
       }
-      ForEach(projection.days) { day in
-        if let region = plan.region(forDay: day.dayNumber) {
-          Marker(
-            "Day \(day.dayNumber) · \(region.name)",
-            systemImage: "mappin.and.ellipse",
-            coordinate: CLLocationCoordinate2D(
-              latitude: region.centerLatitude,
-              longitude: region.centerLongitude))
-            .tint(.orange)
-        }
+      ForEach(uniqueRegions, id: \.name) { region in
+        Marker(
+          region.name,
+          systemImage: "mappin.and.ellipse",
+          coordinate: CLLocationCoordinate2D(
+            latitude: region.centerLatitude,
+            longitude: region.centerLongitude))
+          .tint(.orange)
       }
-      ForEach(projection.stayBands) { band in
+      ForEach(Array(projection.stayBands.enumerated()), id: \.element.id) { index, band in
         if let coordinate = coordinate(for: band.stay) {
-          Marker(band.title, systemImage: Icon.stay.systemName, coordinate: coordinate)
-            .tint(.gray)
+          Annotation(band.title, coordinate: coordinate) {
+            ZStack {
+              Circle().fill(StayPalette.color(forStay: index))
+              Text("\(index + 1)")
+                .font(.caption2.bold())
+                .foregroundStyle(.white)
+            }
+            .frame(width: 22, height: 22)
+            .overlay(Circle().strokeBorder(.white, lineWidth: 2))
+            .scaleEffect(stayScale(band.id))
+            .opacity(stayOpacity(band.id))
+          }
         }
       }
     }
     .mapStyle(.standard)
     .clipShape(.rect(cornerRadius: 16))
     .overlay {
-      if !plan.hasLocatedStops && plan.baseStays(forDay: nil).isEmpty {
+      if !hasMapContent {
         ContentUnavailableView(
           "No map points yet",
           systemImage: Icon.map.systemName,
           description: Text("Add locations to see the shape of this trip."))
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16))
       }
+    }
+    .onAppear { position = cameraPosition(for: selection) }
+    .onChange(of: selection) { _, newValue in
+      withAnimation(.easeInOut) { position = cameraPosition(for: newValue) }
     }
   }
 
@@ -337,9 +485,12 @@ private struct JourneyMap: View {
   private func dayMapContent(_ day: JourneyProjection.DaySummary) -> some MapContent {
     let stops = plan.locatedStops(forDay: day.dayNumber)
     let coordinates = stops.compactMap(coordinate(for:))
+    let opacity = stopOpacity(day: day.dayNumber)
     if coordinates.count >= 2 {
       MapPolyline(coordinates: coordinates)
-        .stroke(DayPalette.color(forDay: day.dayNumber), style: StrokeStyle(lineWidth: 4))
+        .stroke(
+          DayPalette.color(forDay: day.dayNumber).opacity(opacity),
+          style: StrokeStyle(lineWidth: 4))
     }
     ForEach(stops) { stop in
       if let coordinate = coordinate(for: stop) {
@@ -348,9 +499,113 @@ private struct JourneyMap: View {
             .fill(DayPalette.color(forDay: day.dayNumber))
             .frame(width: 16, height: 16)
             .overlay(Circle().strokeBorder(.white, lineWidth: 2))
+            .opacity(opacity)
         }
       }
     }
+  }
+
+  // MARK: Camera
+
+  private func cameraPosition(for selection: JourneySelection?) -> MapCameraPosition {
+    guard let region = focusRegion(for: selection) else { return .automatic }
+    return .region(region)
+  }
+
+  /// The camera target for the current focus, falling back to the whole trip.
+  private func focusRegion(for selection: JourneySelection?) -> MKCoordinateRegion? {
+    switch selection {
+    case .none:
+      return tripRegion
+    case .day(let dayNumber):
+      let coordinates = plan.locatedStops(forDay: dayNumber).compactMap(coordinate(for:))
+      if let region = Self.boundingRegion(for: coordinates) { return region }
+      if let region = plan.region(forDay: dayNumber) {
+        return Self.region(around: CLLocationCoordinate2D(
+          latitude: region.centerLatitude, longitude: region.centerLongitude), span: 0.12)
+      }
+      return tripRegion
+    case .stay(let id):
+      if let band = projection.stayBands.first(where: { $0.id == id }),
+        let coordinate = coordinate(for: band.stay) {
+        return Self.region(around: coordinate, span: 0.08)
+      }
+      return tripRegion
+    }
+  }
+
+  /// The default whole-trip frame. Deliberately built from the places the trip
+  /// actually touches (stays, then stops) and only falls back to region
+  /// centroids when nothing is located — a region like "Bavaria" centres on the
+  /// state, which would otherwise drag the camera far from the itinerary.
+  private var tripRegion: MKCoordinateRegion? {
+    var points: [CLLocationCoordinate2D] = []
+    for band in projection.stayBands {
+      if let coordinate = coordinate(for: band.stay) { points.append(coordinate) }
+    }
+    for day in projection.days {
+      points.append(contentsOf: plan.locatedStops(forDay: day.dayNumber).compactMap(coordinate(for:)))
+    }
+    if points.isEmpty {
+      for day in projection.days {
+        if let region = plan.region(forDay: day.dayNumber) {
+          points.append(
+            CLLocationCoordinate2D(
+              latitude: region.centerLatitude, longitude: region.centerLongitude))
+        }
+      }
+    }
+    return Self.boundingRegion(for: points)
+  }
+
+  private static func region(
+    around center: CLLocationCoordinate2D, span: CLLocationDegrees
+  ) -> MKCoordinateRegion {
+    MKCoordinateRegion(
+      center: center, span: MKCoordinateSpan(latitudeDelta: span, longitudeDelta: span))
+  }
+
+  private static func boundingRegion(for coordinates: [CLLocationCoordinate2D]) -> MKCoordinateRegion? {
+    guard let first = coordinates.first else { return nil }
+    var minLat = first.latitude, maxLat = first.latitude
+    var minLon = first.longitude, maxLon = first.longitude
+    for coordinate in coordinates.dropFirst() {
+      minLat = min(minLat, coordinate.latitude)
+      maxLat = max(maxLat, coordinate.latitude)
+      minLon = min(minLon, coordinate.longitude)
+      maxLon = max(maxLon, coordinate.longitude)
+    }
+    let center = CLLocationCoordinate2D(
+      latitude: (minLat + maxLat) / 2, longitude: (minLon + maxLon) / 2)
+    // 1.4× leaves breathing room around the edge pins; the floor keeps a
+    // single-point focus from zooming to street level.
+    let span = MKCoordinateSpan(
+      latitudeDelta: Swift.max((maxLat - minLat) * 1.4, 0.05),
+      longitudeDelta: Swift.max((maxLon - minLon) * 1.4, 0.05))
+    return MKCoordinateRegion(center: center, span: span)
+  }
+
+  // MARK: Emphasis
+
+  private func stopOpacity(day: Int) -> Double {
+    switch selection {
+    case .none: 1
+    case .day(let selected): selected == day ? 1 : 0.25
+    case .stay: 0.25
+    }
+  }
+
+  private func stayOpacity(_ id: TripStay.ID) -> Double {
+    switch selection {
+    case .none: 1
+    case .stay(let selected): selected == id ? 1 : 0.25
+    case .day: 0.25
+    }
+  }
+
+  private func stayScale(_ id: TripStay.ID) -> Double {
+    if case .stay(let selected) = selection, selected == id { return 1.3 }
+    return 1
   }
 
   private func coordinate(for stop: ResolvedStop) -> CLLocationCoordinate2D? {

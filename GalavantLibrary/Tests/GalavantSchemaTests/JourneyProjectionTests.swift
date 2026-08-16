@@ -53,8 +53,10 @@ import Testing
     #expect(projection.days[3].transferFrom?.title == "First Hotel")
     #expect(projection.days[3].transferTo?.title == "Second Hotel")
     #expect(projection.summary.dayCount == 5)
+    #expect(projection.summary.nightCount == 4)
     #expect(projection.summary.regionNames == ["Old Town", "New Town"])
     #expect(projection.summary.stayCount == 2)
+    #expect(projection.summary.transferDayCount == 1)
   }
 
   @Test func dayWeatherFallsBackToRegionAndOmitsWhenNothingLocates() {

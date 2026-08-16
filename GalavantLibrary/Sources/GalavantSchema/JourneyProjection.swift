@@ -25,6 +25,8 @@ public struct JourneyProjection: Equatable, Sendable {
     public var weatherAnchors: [WeatherAnchor]
     public var transferFrom: TravelEndpoint?
     public var transferTo: TravelEndpoint?
+    public var transferMode: TransportMode?
+    public var transferTime: TravelTime?
 
     public var id: Int { dayNumber }
     public var stopTitles: [String] { stops.map(\.title) }
@@ -39,7 +41,9 @@ public struct JourneyProjection: Equatable, Sendable {
       definingStop: StopDigest?,
       weatherAnchors: [WeatherAnchor],
       transferFrom: TravelEndpoint? = nil,
-      transferTo: TravelEndpoint? = nil
+      transferTo: TravelEndpoint? = nil,
+      transferMode: TransportMode? = nil,
+      transferTime: TravelTime? = nil
     ) {
       self.dayNumber = dayNumber
       self.date = date
@@ -49,6 +53,8 @@ public struct JourneyProjection: Equatable, Sendable {
       self.weatherAnchors = weatherAnchors
       self.transferFrom = transferFrom
       self.transferTo = transferTo
+      self.transferMode = transferMode
+      self.transferTime = transferTime
     }
   }
 
@@ -58,6 +64,8 @@ public struct JourneyProjection: Equatable, Sendable {
     public var title: String
 
     public var id: TripStay.ID { stay.id }
+    public var nightCount: Int { nights.count }
+    public var regionName: String? { stay.idea?.regionName }
 
     public init(stay: ResolvedStay, nights: Range<Int>, title: String) {
       self.stay = stay
@@ -72,19 +80,26 @@ public struct JourneyProjection: Equatable, Sendable {
     public var dayCount: Int
     public var regionNames: [String]
     public var stayCount: Int
+    public var transferDayCount: Int
+
+    /// Nights slept equals days minus one — the framing hotels and travellers
+    /// use ("15 nights"), which reads more naturally than a raw day count.
+    public var nightCount: Int { max(0, dayCount - 1) }
 
     public init(
       startDate: Date,
       endDate: Date,
       dayCount: Int,
       regionNames: [String],
-      stayCount: Int
+      stayCount: Int,
+      transferDayCount: Int = 0
     ) {
       self.startDate = startDate
       self.endDate = endDate
       self.dayCount = dayCount
       self.regionNames = regionNames
       self.stayCount = stayCount
+      self.transferDayCount = transferDayCount
     }
   }
 
@@ -115,17 +130,7 @@ public struct JourneyProjection: Equatable, Sendable {
         StopDigest(id: $0.id, title: $0.content.title, kind: $0.idea?.kind)
       }
       let definingStop = digests.first(where: { isWeatherSensitive($0.kind) }) ?? digests.first
-      let items = tripPlan.itineraryItems(
-        forDay: dayNumber,
-        travelTimes: travelTimes,
-        effectiveModes: [:],
-        stays: tripPlan.stays(coveringDay: dayNumber))
-      let transfer = items.compactMap { item -> TravelConnector? in
-        guard case let .connector(connector) = item,
-          connector.kind == .betweenLodgings
-        else { return nil }
-        return connector
-      }.first
+      let transfer = tripPlan.transferConnector(forDay: dayNumber, travelTimes: travelTimes)
 
       return DaySummary(
         dayNumber: dayNumber,
@@ -139,11 +144,14 @@ public struct JourneyProjection: Equatable, Sendable {
           tripStartDate: tripStartDate,
           travelTimes: travelTimes),
         transferFrom: transfer?.from,
-        transferTo: transfer?.to)
+        transferTo: transfer?.to,
+        transferMode: transfer?.mode,
+        transferTime: transfer?.travelTime)
     }
 
-    let stayBands = tripPlan.stays.map {
-      StayBand(stay: $0, nights: $0.stay.nights, title: $0.content.title)
+    let stayBands = tripPlan.stays.compactMap { stay -> StayBand? in
+      guard !stay.stay.nights.isEmpty else { return nil }
+      return StayBand(stay: stay, nights: stay.stay.nights, title: stay.content.title)
     }
     let regionNames = days.reduce(into: [String]()) { names, day in
       guard let locality = day.locality, !names.contains(locality) else { return }
@@ -161,7 +169,8 @@ public struct JourneyProjection: Equatable, Sendable {
         endDate: endDate,
         dayCount: days.count,
         regionNames: regionNames,
-        stayCount: stayBands.count))
+        stayCount: stayBands.count,
+        transferDayCount: days.filter(\.isTransfer).count))
   }
 
   private static func locality(
