@@ -113,59 +113,6 @@ struct BookingDraft: Identifiable {
   var id: TripIdea.ID { stopID }
 }
 
-struct RecommendationHandoffPresentation: Identifiable {
-  let session: HandoffSession
-  var id: HandoffSession.ID { session.id }
-}
-
-struct RecommendationWorkspacePresentation: Identifiable {
-  let sessionID: HandoffSession.ID
-  var id: HandoffSession.ID { sessionID }
-}
-
-struct RecommendationCandidateDraft: Identifiable {
-  let id: UUID
-  var name: String
-  var locality: String
-  var searchHint: String
-  var why: String
-  var fit: String
-  var visit: String
-  let dayRef: String?
-  let placementAfter: String?
-  let priority: Int?
-
-  init(candidate: TripCandidate) {
-    id = candidate.id
-    name = candidate.name ?? ""
-    locality = candidate.locality ?? ""
-    searchHint = candidate.searchHint ?? ""
-    why = candidate.why ?? ""
-    fit = candidate.fit ?? ""
-    visit = candidate.visit ?? ""
-    dayRef = candidate.dayRef
-    placementAfter = candidate.placementAfter
-    priority = candidate.priority
-  }
-
-  var candidate: TripCandidate {
-    TripCandidate(
-      id: id,
-      name: name,
-      locality: locality,
-      searchHint: searchHint,
-      why: why,
-      fit: fit,
-      visit: visit,
-      priority: priority,
-      dayRef: dayRef,
-      placementAfter: placementAfter
-    )
-  }
-
-  var canCommit: Bool { !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-}
-
 /// Owns one trip's planning surface (ADR-0004): the shortlist + considering
 /// pile of pulled ideas, and the filtered pool you pull *from*. Persistence
 /// delegates to the tested `TripIdea` operations; pool scoping reuses the pure
@@ -221,8 +168,10 @@ final class TripPlanningModel {
   var travelTimes: [LegKey: [TransportMode: TravelTime]] = [:]
   /// Immediate local projection of a choice while the persisted query refreshes.
   var modeOverrides: [LegKey: TransportMode] = [:]
-  private var isFetchingETAs = false
-  private var pendingETAFetch = false
+  // Non-private so the ETA-fetch loop can live with the rest of the directions
+  // subsystem in TripPlanningModel+Directions.swift (stored state must stay here).
+  var isFetchingETAs = false
+  var pendingETAFetch = false
 
   static let autoSwitchThreshold: TimeInterval = 20 * 60  // 20 minutes
   // The two surfaces the bottom sheet hosts (the segment moved into the sheet).
@@ -276,108 +225,6 @@ final class TripPlanningModel {
   // MARK: - Derived state
 
   var trip: Trip? { trips.first { $0.id == tripID } }
-
-  func startRecommendationHandoff() {
-    guard let trip else { return }
-    let scope = RecommendationHandoffScope.trip
-    let promptSession = HandoffSession(
-      sourceType: scope.sourceType,
-      sourceID: trip.id,
-      taskType: RecommendationHandoffTask.candidatePlaces,
-      scopeKey: scope.scopeKey,
-      exportedPrompt: ""
-    )
-    let session = HandoffSession(
-      id: promptSession.id,
-      sourceType: promptSession.sourceType,
-      sourceID: promptSession.sourceID,
-      taskType: promptSession.taskType,
-      scopeKey: promptSession.scopeKey,
-      createdAt: promptSession.createdAt,
-      exportedPrompt: RecommendationHandoffContract.brief(
-        session: promptSession,
-        tripName: trip.name,
-        tripNotes: trip.notes
-      )
-    )
-    do {
-      try handoffSessionStore.save(session)
-      recommendationReview = []
-      recommendationHandoffWarning = nil
-      destination = .recommendationHandoff(RecommendationHandoffPresentation(session: session))
-    } catch {
-      recommendationHandoffError = error.localizedDescription
-    }
-  }
-
-  func pasteRecommendationResult(_ strings: [String], for session: HandoffSession) {
-    guard let pasted = strings.first else { return }
-    do {
-      var warnings: [String] = []
-
-      // The handoff token is a routing hint, not an admission ticket. A dropped or
-      // mismatched token attaches the result to the handoff you're pasting into
-      // rather than rejecting it — commit always targets this trip regardless of
-      // which session recorded the candidates, so the blast radius is bookkeeping.
-      let bodyText: String
-      if let routed = try? HandoffRouting.route(pasted) {
-        bodyText = routed.text
-        if routed.sessionID != session.id {
-          warnings.append("This result was tagged for a different recommendation handoff — added it to this one anyway.")
-        }
-      } else {
-        bodyText = pasted
-        warnings.append("This result had no Galavant handoff token — added it to this handoff anyway.")
-      }
-
-      let contract = try RecommendationHandoffContract.marker.strippingMarker(from: bodyText)
-      if let warning = contract.warning { warnings.append(warning) }
-      let candidates = try TripCandidate.decodeReturn(contract.text)
-      var updatedSession = session
-      try updatedSession.storeRecommendationCandidates(candidates)
-      try handoffSessionStore.save(updatedSession)
-      recommendationReview = candidates.map(RecommendationCandidateDraft.init(candidate:))
-      recommendationHandoffWarning = warnings.isEmpty ? nil : warnings.joined(separator: "\n\n")
-    } catch {
-      recommendationHandoffError = error.localizedDescription
-    }
-  }
-
-  func commitRecommendationCandidate(_ candidate: RecommendationCandidateDraft, from session: HandoffSession) {
-    guard candidate.canCommit else { return }
-    withErrorReporting {
-      let committed = try database.write { db in
-        try TripIdea.commit(candidate: candidate.candidate, into: tripID, in: db)
-      }
-      var updatedSession = handoffSessionStore.session(session.id) ?? session
-      // `.imported` records that this session has produced a durable row, rather
-      // than claiming every row in its review sheet has been consumed.
-      updatedSession.importedAt = .now
-      updatedSession.status = .imported
-      try updatedSession.replaceRecommendationCandidate(candidate.candidate)
-      updatedSession.link(candidateID: candidate.id, to: committed.id)
-      try handoffSessionStore.save(updatedSession)
-      recommendationReview.removeAll { $0.id == candidate.id }
-    }
-  }
-
-  var mostRecentRecommendationWorkspaceSession: HandoffSession? {
-    handoffSessionStore.sessions()
-      .filter {
-          $0.sourceID == tripID
-          && $0.taskType == RecommendationHandoffTask.candidatePlaces
-          && $0.hasCommittedRecommendationCandidates
-      }
-      .max { $0.createdAt < $1.createdAt }
-  }
-
-  func recommendationWorkspaceButtonTapped(sessionID: HandoffSession.ID) {
-    destination = .recommendationWorkspace(RecommendationWorkspacePresentation(sessionID: sessionID))
-  }
-
-  func recommendationWorkspaceIsAvailable(for sessionID: HandoffSession.ID) -> Bool {
-    handoffSessionStore.session(sessionID)?.hasCommittedRecommendationCandidates ?? false
-  }
 
   private var entries: [TripIdea] { allTripIdeas.filter { $0.tripID == tripID } }
   private var stays: [TripStay] { allTripStays.filter { $0.tripID == tripID } }
@@ -539,71 +386,6 @@ final class TripPlanningModel {
     selectedKinds = []
     selectedTagIDs = []
     includeVisited = true
-  }
-
-  // MARK: - ETA mode resolution
-
-  /// The effective transport mode for a leg: user override > trip default >
-  /// auto-detect. Auto-detect keeps the original walking ≥ 20 min → transit
-  /// behavior for existing trips whose shared default is still unset.
-  func effectiveMode(for leg: LegKey) -> TransportMode {
-    if let override = modeOverrides[leg] { return override }
-    if let override = persistedModeOverrides[leg] { return override }
-    if let mainMode = trip?.mainTransportationMode { return mainMode }
-    if let walking = travelTimes[leg]?[.walking],
-      walking.seconds >= Self.autoSwitchThreshold {
-      return .transit
-    }
-    return .walking
-  }
-
-  /// Pre-computed effective modes for all legs — passed into `itineraryItems`
-  /// so the pure plan function doesn't need to call back into the model.
-  var effectiveModes: [LegKey: TransportMode] {
-    Dictionary(plan.allLegs.map { ($0, effectiveMode(for: $0)) },
-               uniquingKeysWith: { first, _ in first })
-  }
-
-  // MARK: - ETA fetch
-
-  /// Fetch ETAs for uncached legs, sequentially (MKDirections: one in-flight
-  /// request at a time). A per-leg override or the shared trip default fetches
-  /// that chosen mode directly. Otherwise the legacy automatic mode first fetches
-  /// walking, then fetches transit for a long walk.
-  /// If called while already running, enqueues one re-run for after.
-  func fetchMissingETAs() async {
-    if isFetchingETAs { pendingETAFetch = true; return }
-    isFetchingETAs = true
-    defer {
-      isFetchingETAs = false
-      if pendingETAFetch {
-        pendingETAFetch = false
-        Task { await fetchMissingETAs() }
-      }
-    }
-    for leg in plan.allLegs {
-      guard !Task.isCancelled else { break }
-      if let chosenMode = modeOverrides[leg] ?? persistedModeOverrides[leg] ?? trip?.mainTransportationMode {
-        if travelTimes[leg]?[chosenMode] == nil,
-          let tt = try? await directionsClient.calculateETA(leg, chosenMode) {
-          travelTimes[leg, default: [:]][chosenMode] = tt
-        }
-      } else {
-        // Automatic trips retain walking as the baseline and prefetch transit
-        // only when the walking time makes it the more useful default.
-        if travelTimes[leg]?[.walking] == nil,
-          let tt = try? await directionsClient.calculateETA(leg, .walking) {
-          travelTimes[leg, default: [:]][.walking] = tt
-        }
-        guard !Task.isCancelled else { break }
-        let walkingTime = travelTimes[leg]?[.walking]
-        let longLeg = (walkingTime?.seconds ?? 0) >= Self.autoSwitchThreshold
-        if longLeg, travelTimes[leg]?[.transit] == nil,
-          let tt = try? await directionsClient.calculateETA(leg, .transit) {
-          travelTimes[leg, default: [:]][.transit] = tt
-        }
-      }
-    }
   }
 
   // MARK: - Actions

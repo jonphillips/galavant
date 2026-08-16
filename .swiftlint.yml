@@ -25,18 +25,24 @@ excluded:
 # 2026-08-15 re-baseline: CI runs `swiftlint lint --strict`, so these warnings are
 # hard CI errors. The baseline had drifted red (TripPlanningModel, Recommendation-
 # WorkspaceModel, CaptureModel.persistCapture all grew past the old ceilings), so
-# every PR's lint job was failing on inherited debt. These ceilings are set just
-# above today's worst to restore a green baseline; they are TEMPORARY and should be
-# ratcheted back down as the tracked fat-model refactors land, not treated as the
-# new normal.
+# every PR's lint job was failing on inherited debt. The ceilings were temporarily
+# raised to 600/450 and are ratcheted back down as each tracked fat-model refactor
+# lands — never treated as the new normal.
+#
+# 2026-08-15 TripPlanningModel split landed (→ file 410 / body 306, via the
+# +Recommendation and +Directions extension files). file_length is back to its
+# original 450. type_body_length can't return all the way to its original 350 yet:
+# the next-worst type is RecommendationWorkspaceModel @ 379, so 380 is as low as it
+# ratchets without turning that inherited debt red — drop it to 350 once that model
+# is split too.
 file_length:
-  warning: 600   # worst: TripPlanningModel.swift @ 591 — ratchet down after its split
-  error: 800
+  warning: 450   # worst now: RecommendationWorkspaceModel.swift @ 433
+  error: 650
   ignore_comment_only_lines: true
 
 type_body_length:
-  warning: 450   # worst: TripPlanningModel @ 440 — ratchet down after its split
-  error: 600
+  warning: 380   # worst now: RecommendationWorkspaceModel @ 379 — ratchet to 350 after its split
+  error: 500
 
 function_body_length:
   warning: 65    # worst: CaptureModel.persistCapture @ 63 — ratchet down after refactor
