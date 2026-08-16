@@ -48,3 +48,4 @@ at creation). See `docs/README.md` (the atlas) and `jon-platform/docs/agent-work
 | [0036](0036-recommendation-handoff.md) | Recommendation handoff — candidate places from an external-LLM round-trip |
 | [0037](0037-recommendation-evaluation-workspace.md) | Recommendation evaluation workspace — a candidate set processed like an inbox |
 | [0038](0038-journey-today-projections-and-weather.md) | Journey & Today are read-only `TripPlan` projections; WeatherKit forecasts planned presence |
+| [0039](0039-today-execution-completion-skip-defer.md) | Today becomes an execution surface — stop completion/skip/defer as reversible overlays on `TripIdea` |

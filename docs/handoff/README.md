@@ -14,7 +14,7 @@ backfilled **on touch**; the table below is the current index.
 | [logical-uniqueness-dedup.md](logical-uniqueness-dedup.md) | ADR-0008 — sync-dedup convergence hardening | Done (shipped) |
 | [m9-adr0037-evaluation-workspace.md](m9-adr0037-evaluation-workspace.md) | ADR-0036/0037 — recommendation evaluation workspace (Phases 1–4) | Dispatched — P1–2 done; P3 (browser) + P4 (iPhone) built, **layout in active revision** |
 | [trip-view-declutter.md](trip-view-declutter.md) | Trip View / Edit UX declutter | See doc |
-| [today-day-preview.md](today-day-preview.md) | ADR-0038 — preview any trip day in Today (start-of-day) | Dispatched |
+| [today-execution.md](today-execution.md) | ADR-0039 — Today execution: complete/skip/defer + tap-to-detail | Dispatched |
 
 **Authoring a brief:** add its entry here in the same change (index at creation), give it a
 `Status:` + one-line `Summary:` header, and link the ADR it implements. See `docs/README.md`
