@@ -99,7 +99,19 @@ exactly like `DirectionsClient`.
 
 **Acceptance:** on a real device, requesting a known coordinate returns a decoded `WeatherSummary`;
 cache respects `expirationDate`; attribution visible. (Device-only per the FM/sim caveats — no
-simulator Apple-services verification.)
+simulator Apple-services verification.) **Verified on device 2026-08-15** (iPhone 17 Pro, iOS 27
+beta) via a throwaway DEBUG harness (Settings ▸ Developer ▸ Weather Test).
+
+> **WeatherKit device gotcha — `WDSJWTAuthenticator ... Code=2` (cost ~3h once).** If a device
+> fetch fails with `Failed to generate jwt token for com.apple.weatherkit.authservice ... Code=2`,
+> the app/entitlement/profile/code are almost certainly fine — the fix is portal-side. WeatherKit
+> must be enabled in **two independent places** for the App ID on developer.apple.com: the
+> **Capabilities** list **and** the **App Services** tab. The Capabilities entry is what flows into
+> the provisioning profile (so the profile listing WeatherKit looks complete and is *not* proof of
+> full enablement); the **App Services** tab is what authorizes the auth service to mint JWTs.
+> Capabilities-on + App-Services-off = `Code=2` indefinitely, unfixable by waiting. Ruled-out
+> non-causes (all confirmed innocent here): paid membership, pending Program License Agreement,
+> network/VPN, cached `weatherd` state (reboot+reinstall), and the iOS 27 beta — none was the cause.
 
 ### Slice 3 — the Today SwiftUI surface (iPhone)
 

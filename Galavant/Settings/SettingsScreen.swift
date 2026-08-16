@@ -41,6 +41,16 @@ struct SettingsScreen: View {
       } footer: {
         Text("Invite your travel party to share the same ideas, trips, and ratings over iCloud.")
       }
+
+      #if DEBUG
+      Section("Developer") {
+        NavigationLink {
+          WeatherDebugView()
+        } label: {
+          Label("Weather Test", systemImage: "sun.max")
+        }
+      }
+      #endif
     }
     .navigationTitle("Settings")
     .sheet(item: $model.sharedRecord) { sharedRecord in
