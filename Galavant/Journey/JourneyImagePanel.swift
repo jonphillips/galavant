@@ -24,6 +24,7 @@ struct JourneyImagePanel: View {
   @State private var pickerRegion: MapRegion?
 
   private static let cardHeight: CGFloat = 132
+  private static let cardSpacing: CGFloat = 12
   /// Three cards need three readable surfaces plus two existing gaps. Below this
   /// width, the panel stays at two cards rather than making each hero too narrow.
   private static let minimumThreeCardWidth: CGFloat = 444
@@ -34,6 +35,7 @@ struct JourneyImagePanel: View {
       content(width: geometry.size.width)
     }
       .frame(height: Self.cardHeight)
+      .clipped()
       .task(id: request) { await model.loadDisplayImages(request) }
       .sheet(item: $pickerRegion) { region in
         RegionPhotoPickerSheet(
@@ -47,13 +49,12 @@ struct JourneyImagePanel: View {
   private func content(width: CGFloat) -> some View {
     switch selection {
     case .day(let dayNumber):
-      dayImages(dayNumber)
+      dayImages(dayNumber, width: width)
     case .stay(let id):
       stayImages(id, width: width)
     case .none:
       if let region = focusedRegion {
-        regionCard(region)
-          .frame(maxWidth: .infinity)
+        regionCard(region, width: width)
       } else {
         EmptyView()
       }
@@ -72,10 +73,11 @@ struct JourneyImagePanel: View {
         days: projection.days,
         hasImage: { model.thumbnail(forIdea: $0) != nil })
       let showThirdCard = width >= Self.minimumThreeCardWidth && region != nil && legStop != nil
-      HStack(spacing: 12) {
+      let cardCount = (region == nil ? 0 : 1) + 1 + (showThirdCard ? 1 : 0)
+      let cardWidth = Self.cardWidth(for: width, count: cardCount)
+      HStack(spacing: Self.cardSpacing) {
         if let region {
-          regionCard(region)
-            .frame(maxWidth: .infinity)
+          regionCard(region, width: cardWidth)
         }
         JourneyImageCard(
           thumbnail: model.thumbnail(forIdea: band.stay.idea?.id),
@@ -83,7 +85,7 @@ struct JourneyImagePanel: View {
           title: band.title,
           subtitle: "Where you'll stay",
           systemFallback: Icon.stay.systemName)
-        .frame(maxWidth: .infinity)
+        .frame(width: cardWidth, height: Self.cardHeight)
         if showThirdCard, let legStop {
           JourneyImageCard(
             thumbnail: model.thumbnail(forIdea: legStop.ideaID),
@@ -91,25 +93,25 @@ struct JourneyImagePanel: View {
             title: legStop.title,
             subtitle: legStop.kind?.label,
             systemFallback: legStop.kind?.systemImage ?? "mappin.and.ellipse")
-            .frame(maxWidth: .infinity)
+            .frame(width: cardWidth, height: Self.cardHeight)
         }
       }
-      .frame(maxWidth: .infinity)
+      .frame(width: width, alignment: .leading)
     }
   }
 
   // MARK: Day — stops, dinner first
 
   @ViewBuilder
-  private func dayImages(_ dayNumber: Int) -> some View {
+  private func dayImages(_ dayNumber: Int, width: CGFloat) -> some View {
     let stops = orderedStops(forDay: dayNumber)
     if stops.isEmpty {
       if let region = region(forDay: dayNumber) {
-        regionCard(region).frame(maxWidth: .infinity)
+        regionCard(region, width: width)
       }
     } else {
       ScrollView(.horizontal, showsIndicators: false) {
-        HStack(spacing: 12) {
+      HStack(spacing: Self.cardSpacing) {
           ForEach(stops) { stop in
             JourneyImageCard(
               thumbnail: model.thumbnail(forIdea: stop.ideaID),
@@ -117,7 +119,7 @@ struct JourneyImagePanel: View {
               title: stop.title,
               subtitle: stop.kind == .food ? "Dinner" : stop.kind?.label,
               systemFallback: stop.kind?.systemImage ?? "mappin.and.ellipse")
-            .frame(width: 200)
+            .frame(width: 200, height: Self.cardHeight)
           }
         }
         .padding(.trailing, 4)
@@ -137,7 +139,7 @@ struct JourneyImagePanel: View {
 
   // MARK: Region card
 
-  private func regionCard(_ region: MapRegion) -> some View {
+  private func regionCard(_ region: MapRegion, width: CGFloat) -> some View {
     JourneyImageCard(
       thumbnail: model.regionThumbnail(forRegion: region.id),
       displayImage: model.displayImage(forRegion: region.id),
@@ -147,6 +149,13 @@ struct JourneyImagePanel: View {
       attribution: model.regionAttribution(forRegion: region.id),
       placeholderPrompt: "Add region photo",
       onTap: { pickerRegion = region })
+      .frame(width: width, height: Self.cardHeight)
+  }
+
+  private static func cardWidth(for width: CGFloat, count: Int) -> CGFloat {
+    guard count > 0 else { return 0 }
+    let gaps = CGFloat(max(0, count - 1)) * cardSpacing
+    return max(0, (width - gaps) / CGFloat(count))
   }
 
   private var focusedRegion: MapRegion? {
@@ -170,7 +179,7 @@ struct JourneyImagePanel: View {
   }
 }
 
-/// One image card in the panel: a fill-style thumbnail with a bottom gradient scrim
+/// One image card in the panel: a fill-style image with a bottom gradient scrim
 /// and title, an SF-symbol placeholder when there's no image, and an optional
 /// Unsplash attribution caption. Tappable region cards carry an "add photo" prompt.
 struct JourneyImageCard: View {
@@ -227,13 +236,9 @@ struct JourneyImageCard: View {
   @ViewBuilder
   private var image: some View {
     if let displayImage {
-      Image(uiImage: displayImage)
-        .resizable()
-        .scaledToFill()
+      JourneyAspectFillImage(image: displayImage, focalPoint: .center)
     } else if let thumbnail, let uiImage = UIImage(data: thumbnail) {
-      Image(uiImage: uiImage)
-        .resizable()
-        .scaledToFill()
+      JourneyAspectFillImage(image: uiImage, focalPoint: .center)
     } else {
       ZStack {
         Color(.secondarySystemBackground)
@@ -275,5 +280,66 @@ struct JourneyImageCard: View {
       "Photo by \(photographer) on "
       + "[Unsplash](https://unsplash.com/?utm_source=galavant&utm_medium=referral)"
     return try? AttributedString(markdown: markdown)
+  }
+}
+
+/// Places an image at its aspect-fill size, then applies a bounded crop inside
+/// the card. SwiftUI's `scaledToFill()` is correct for simple cases, but this
+/// explicit placement prevents an image's intrinsic size from escaping the
+/// card when the parent is measured through a `GeometryReader` and gives us a
+/// focal point for future per-photo tuning.
+private struct JourneyAspectFillImage: View {
+  let image: UIImage
+  let focalPoint: UnitPoint
+
+  var body: some View {
+    GeometryReader { geometry in
+      let placement = JourneyAspectFillPlacement(
+        sourceSize: image.size,
+        containerSize: geometry.size,
+        focalPoint: focalPoint)
+
+      Image(uiImage: image)
+        .resizable()
+        .frame(width: placement.renderedSize.width, height: placement.renderedSize.height)
+        .position(x: placement.center.x, y: placement.center.y)
+    }
+    .clipped()
+  }
+}
+
+/// Pure aspect-fill geometry. The rendered image always covers the destination
+/// rectangle; the origin is shifted only along an overflowing axis, so no image
+/// content can hang outside the card and no letterboxing is introduced.
+private struct JourneyAspectFillPlacement {
+  let renderedSize: CGSize
+  let center: CGPoint
+
+  init(sourceSize: CGSize, containerSize: CGSize, focalPoint: UnitPoint) {
+    guard sourceSize.width > 0, sourceSize.height > 0,
+      containerSize.width > 0, containerSize.height > 0
+    else {
+      renderedSize = .zero
+      center = CGPoint(x: containerSize.width / 2, y: containerSize.height / 2)
+      return
+    }
+
+    let scale = max(
+      containerSize.width / sourceSize.width,
+      containerSize.height / sourceSize.height)
+    let renderedSize = CGSize(
+      width: sourceSize.width * scale,
+      height: sourceSize.height * scale)
+    let overflow = CGSize(
+      width: max(0, renderedSize.width - containerSize.width),
+      height: max(0, renderedSize.height - containerSize.height))
+    let origin = CGPoint(
+      x: -overflow.width * min(max(focalPoint.x, 0), 1),
+      y: -overflow.height * min(max(focalPoint.y, 0), 1))
+
+    self.renderedSize = renderedSize
+    center = CGPoint(
+      x: origin.x + renderedSize.width / 2,
+      y: origin.y + renderedSize.height / 2)
   }
 }
