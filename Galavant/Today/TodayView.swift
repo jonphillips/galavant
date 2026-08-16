@@ -53,6 +53,12 @@ struct TodayView: View {
       Group {
         if let projection {
           today(projection)
+        } else if let tripStartDate = planningModel.trip?.startDate {
+          ContentUnavailableView(
+            "This trip is not active today",
+            systemImage: "calendar.badge.clock",
+            description: Text(
+              "Today opens while a trip is underway. This trip starts \(tripStartDate.formatted(date: .abbreviated, time: .omitted))."))
         } else {
           ContentUnavailableView(
             "Today is not available",
