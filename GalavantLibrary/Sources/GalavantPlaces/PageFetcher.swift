@@ -1,5 +1,6 @@
 import Dependencies
 import Foundation
+import GalavantCapture
 import WebExtractorKit
 
 /// A Safari-like User-Agent — many travel sites serve a fuller, more parseable page
@@ -30,7 +31,8 @@ public struct PageFetcher: Sendable {
 
 extension PageFetcher: DependencyKey {
   public static let liveValue = PageFetcher { url in
-    var request = URLRequest(url: url)
+    let target = URLHygiene.httpsUpgraded(url)
+    var request = URLRequest(url: target)
     request.setValue(CaptureUserAgent.safari, forHTTPHeaderField: "User-Agent")
     guard
       let (data, response) = try? await URLSession.shared.data(for: request),
@@ -72,7 +74,7 @@ public struct RenderedPageFetcher: Sendable {
 
 extension RenderedPageFetcher: DependencyKey {
   public static let liveValue = RenderedPageFetcher { url in
-    await RenderedDOMFetcher.renderedHTML(of: url)
+    await RenderedDOMFetcher.renderedHTML(of: URLHygiene.httpsUpgraded(url))
   }
 
   /// No WebKit in tests/previews — the escalation logic is exercised with fixtures.

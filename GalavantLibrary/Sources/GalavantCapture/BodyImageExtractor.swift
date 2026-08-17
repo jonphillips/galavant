@@ -95,9 +95,13 @@ enum BodyImageExtractor {
 
   /// The first candidate URL in a `srcset` ("a.jpg 1x, b.jpg 2x" → "a.jpg").
   private static func firstSrcsetURL(_ srcset: String) -> String? {
-    guard let firstEntry = srcset.split(separator: ",").first else { return nil }
-    let token = firstEntry.split(whereSeparator: { $0 == " " || $0 == "\n" || $0 == "\t" }).first
-    return token.map(String.init)
+    let trimmed = srcset.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard var token = trimmed
+      .split(whereSeparator: { $0 == " " || $0 == "\n" || $0 == "\t" })
+      .first.map(String.init)
+    else { return nil }
+    while token.hasSuffix(",") { token.removeLast() }
+    return token.isEmpty ? nil : token
   }
 
   /// Every `url(...)` target in a CSS string (inline style or stylesheet), quotes
