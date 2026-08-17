@@ -47,17 +47,27 @@ struct TripDetailContent: View {
   /// The drilled-in detail with its own back header (chevron labelled with the
   /// list it came from), opaque so it reads as a push over the list.
   private func detailPanel(_ idea: Idea) -> some View {
-    VStack(spacing: 0) {
+    VStack(alignment: .leading, spacing: 0) {
+      // Back header carries ONLY the "where you came from" chevron. The stop's name
+      // used to be centered over this bar as an overlay, which — unbounded — overran
+      // the back button on a long name (the "Itinerary" bleeding through the title).
+      // The name now lives in the body below, above the map, with room to truncate.
       HStack {
         Button { model.detailIdeaID = nil } label: {
           Label(model.sheetTab.label, systemImage: "chevron.backward")
         }
         Spacer()
       }
-      .overlay { Text(idea.name).font(.headline).lineLimit(1) }
       .padding(.horizontal)
       .padding(.vertical, 10)
       .background(.bar)
+      Text(idea.name)
+        .font(.title2.weight(.semibold))
+        .lineLimit(2)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal)
+        .padding(.top, 12)
+        .padding(.bottom, 4)
       IdeaDetailView(
         idea: idea,
         tagNames: model.tagNames(for: idea),
