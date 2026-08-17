@@ -1,5 +1,18 @@
 # Done Log — completed enhancements
 
+## M7 calendar dogfood amendments (ADR-0041) — IMPLEMENTED, pending device verification
+
+Implemented on `feat/m7-dogfood-followups` (2026-08-17) in three sequential
+commits. The reconciliation matcher now promotes one unambiguous exact raw-title
+match, while manual link/unlink uses the same durable binding path and preserves
+eligibility gates. A synced trip-scoped ignore table hides ignored events before
+matching and constraint planning, supports un-ignore, supersedes stale
+Calendar-originated constraints, and only reaps an ignored row after confirmed
+deletion evidence. Absolute constraint rows recompute display from their full
+Calendar snapshot in the event's own zone; synced per-day zone overrides resolve
+override → day region → trip centroid, with coordinate-derived centroid fallback
+when regions are absent. See `docs/M7-DOGFOOD.md` Part 3 for the device pass.
+
 Granular enhancement notes that have **fully shipped**, kept for history/context
 (not milestone-scoped — see `ROADMAP.md` for those). Companion to
 `docs/CURRENT_HANDOFF.md` (what's still open) — this file used to be one long

@@ -93,7 +93,11 @@ extension CalendarReconciliationSheet {
     stop: ResolvedStop?
   ) -> some View {
     let eligible = candidate.input.event.isEligibleForSharedReconciliation
+      && candidate.input.event.hasStableLocalIdentity
     let reason = candidate.input.event.sharedReconciliationIneligibilityReason
+      ?? (candidate.input.event.hasStableLocalIdentity
+        ? nil
+        : "This event has no stable local identity on this device.")
     if model.isLinked(candidate) {
       Button("Unlink") {
         Task { await model.unlink(candidate, tripID: trip.id) }

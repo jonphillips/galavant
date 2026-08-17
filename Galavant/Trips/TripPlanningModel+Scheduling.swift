@@ -264,6 +264,21 @@ extension TripPlanningModel {
   /// selection.
   func dayRegion(forDay day: Int) -> MapRegion? { plan.region(forDay: day) }
 
+  func dayTimeZone(forDay day: Int) -> TimeZone? {
+    allTripDayTimeZones.first {
+      $0.tripID == tripID && $0.dayNumber == day
+    }.flatMap { $0.timeZoneIdentifier.flatMap(TimeZone.init(identifier:)) }
+  }
+
+  func setDayTimeZone(_ identifier: String?, forDay day: Int) {
+    let tripID = tripID
+    withErrorReporting {
+      try database.write { db in
+        try TripDayTimeZone.set(identifier, forTrip: tripID, day: day, in: db)
+      }
+    }
+  }
+
   /// Commit a stop to the itinerary without a day — it lands in the "To Be
   /// Scheduled" bucket, where the user assigns it a day.
   func sendToBeScheduled(_ stopID: TripIdea.ID) {

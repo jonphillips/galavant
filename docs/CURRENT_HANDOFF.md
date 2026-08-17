@@ -6,6 +6,18 @@ Companion to `docs/DONE_LOG.md` (what's already shipped) — this file used to b
 one long `docs/BACKLOG.md`; split 2026-07-11 to keep token cost down when an agent
 reads it for context.
 
+## Pending PR — M7 calendar dogfood amendments (ADR-0041)
+
+Branch `feat/m7-dogfood-followups` implements the post-dogfood amendments in
+three sequential slices: raw-title exact-name promotion plus manual link/unlink;
+trip-scoped synced ignored events with ignore/un-ignore UI and conservative
+deletion reaping; and own-zone absolute display with synced per-day time-zone
+overrides resolving override → day region → trip centroid. Pure reconciliation,
+constraint, temporal, and ignore behavior is covered in `GalavantSchemaTests`.
+The focused device checklist is `docs/M7-DOGFOOD.md` Part 3. Device/calendar
+verification is still Jon's; do not mark the ADR accepted from simulator/build
+results alone.
+
 Ordered roughly **active/blocked first, someday/design-only last** — not a strict
 priority queue, just enough to skim top-to-bottom sensibly. Each entry carries
 enough context to act on cold.

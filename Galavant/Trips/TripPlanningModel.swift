@@ -132,6 +132,7 @@ final class TripPlanningModel {
   @ObservationIgnored @FetchAll(TripStay.all) var allTripStays
   @ObservationIgnored @FetchAll(TripRegion.all) var allTripRegions
   @ObservationIgnored @FetchAll(TripDayRegion.all) var allTripDayRegions
+  @ObservationIgnored @FetchAll(TripDayTimeZone.all) var allTripDayTimeZones
   @ObservationIgnored @FetchAll(TripTravelModeOverride.all) var allTravelModeOverrides
   @ObservationIgnored @FetchAll(CalendarTripConstraint.all) var allCalendarConstraints
   @ObservationIgnored @FetchAll(CalendarPlanRepair.all) var allCalendarPlanRepairs

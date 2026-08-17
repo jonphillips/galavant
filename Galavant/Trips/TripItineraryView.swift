@@ -129,6 +129,9 @@ struct TripItineraryView: View {
       if let day, model.tripRegions.count >= 2 {
         dayRegionMenu(day: day)
       }
+      if let day {
+        dayTimeZoneMenu(day: day)
+      }
     }
   }
 
@@ -151,6 +154,37 @@ struct TripItineraryView: View {
       HStack(spacing: 5) {
         Icon.map.image.imageScale(.medium)
         Text(assigned?.name ?? "Set region").lineLimit(1)
+      }
+      .font(.subheadline)
+      .foregroundStyle(assigned == nil ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
+      .padding(.horizontal, 11)
+      .padding(.vertical, 6)
+      .background(Capsule().fill(Color(.tertiarySystemFill)))
+    }
+    .buttonStyle(.borderless)
+    .textCase(nil)
+  }
+
+  private func dayTimeZoneMenu(day: Int) -> some View {
+    let assigned = model.dayTimeZone(forDay: day)
+    return Menu {
+      Button("Use trip default") { model.setDayTimeZone(nil, forDay: day) }
+      Divider()
+      ForEach(TimeZone.knownTimeZoneIdentifiers.sorted(), id: \.self) { identifier in
+        Button {
+          model.setDayTimeZone(identifier, forDay: day)
+        } label: {
+          if identifier == assigned?.identifier {
+            Label(identifier, systemImage: "checkmark")
+          } else {
+            Text(identifier)
+          }
+        }
+      }
+    } label: {
+      HStack(spacing: 5) {
+        Image(systemName: "clock")
+        Text(assigned?.identifier ?? "Set time zone").lineLimit(1)
       }
       .font(.subheadline)
       .foregroundStyle(assigned == nil ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
@@ -220,7 +254,7 @@ struct TripItineraryView: View {
         }
       }
       Spacer()
-      Text(constraintTime(constraint))
+      Text(constraint.displayTime ?? constraintTime(constraint))
         .font(.subheadline.monospaced())
         .foregroundStyle(.secondary)
     }

@@ -416,6 +416,12 @@ the shipped export survives as a possible future deliberate "Add to Shared Calen
 Riskiest-unknown-first slices; nothing durable/synced is written until the semantics
 are proven locally. Full rationale + acceptance criteria in ADR-0034.
 
+**ADR-0041 dogfood amendments are implemented on `feat/m7-dogfood-followups`**
+(pending PR/device verification): raw-title exact-name promotion plus manual
+link/unlink, trip-scoped ignored events with conservative reap evidence, and
+own-zone/per-day time-zone display and resolution. Use `docs/M7-DOGFOOD.md`
+Part 3 for the focused follow-up pass; the device pass remains Jon's.
+
 - ✅ **Slice 0 — spike (throwaway, gate).** Observed the shared calendar in a dated
   trip's scope, match one obvious event via `PlaceMatcher`, survive permission-revoked
   + moved-outside-trip, **no durable writes**. Confirms iOS 27 EventKit reality

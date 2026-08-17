@@ -45,13 +45,13 @@ public struct CalendarTripConstraint: Identifiable, Equatable, Sendable {
     event: CalendarObservedEvent,
     projection: CalendarTripDayProjection
   ) {
-    guard case let .day(dayNumber, itineraryTimeZone) = projection,
+    guard case let .day(dayNumber, _) = projection,
       let commitment = CalendarCommitment(event: event),
       let sourceIdentityHash = CalendarReconciliationFingerprint.constraintSource(for: event)
     else { return nil }
     let times = Self.itineraryTimes(
       for: commitment.temporal,
-      absoluteTimeZone: itineraryTimeZone)
+      assignmentTimeZone: projection.timeZone)
     self.init(
       id: CalendarReconciliationFingerprint.constraintID(
         tripID: tripID,
@@ -67,6 +67,14 @@ public struct CalendarTripConstraint: Identifiable, Equatable, Sendable {
 
   public var commitment: CalendarCommitment? {
     Self.decode(commitmentSnapshot)
+  }
+
+  /// Presentation time recomputed from the complete Calendar snapshot. An
+  /// absolute event keeps its own carried zone; `startTime` remains the canonical
+  /// assignment/sorting projection used by the itinerary engine.
+  public var displayTime: String? {
+    guard let commitment else { return nil }
+    return Self.displayTime(for: commitment.temporal)
   }
 
   public var schedule: Schedule {
@@ -87,13 +95,13 @@ public struct CalendarTripConstraint: Identifiable, Equatable, Sendable {
 
   private static func itineraryTimes(
     for temporal: CalendarEventTime,
-    absoluteTimeZone: TimeZone?
+    assignmentTimeZone: TimeZone?
   ) -> (start: String, end: String?)? {
     switch temporal {
     case let .absolute(start, end, _):
-      guard let absoluteTimeZone else { return nil }
+      guard let assignmentTimeZone else { return nil }
       var calendar = Calendar(identifier: .gregorian)
-      calendar.timeZone = absoluteTimeZone
+      calendar.timeZone = assignmentTimeZone
       return (clockTime(start, calendar: calendar), clockTime(end, calendar: calendar))
     case let .floating(start, end):
       return (start.clockDescription, end.clockDescription)
@@ -105,6 +113,39 @@ public struct CalendarTripConstraint: Identifiable, Equatable, Sendable {
   private static func clockTime(_ date: Date, calendar: Calendar) -> String {
     let components = calendar.dateComponents([.hour, .minute], from: date)
     return String(format: "%02d:%02d", components.hour ?? 0, components.minute ?? 0)
+  }
+
+  private static func displayTime(for temporal: CalendarEventTime) -> String? {
+    switch temporal {
+    case let .absolute(start, end, timeZone):
+      var calendar = Calendar(identifier: .gregorian)
+      calendar.timeZone = timeZone
+      let startDescription = displayClock(start, calendar: calendar, timeZone: timeZone)
+      let endDescription = displayClock(end, calendar: calendar, timeZone: timeZone)
+      return startDescription == endDescription
+        ? startDescription
+        : "\(startDescription)–\(endDescription)"
+    case let .floating(start, end):
+      let startDescription = start.clockDescription
+      let endDescription = end.clockDescription
+      return startDescription == endDescription
+        ? startDescription
+        : "\(startDescription)–\(endDescription)"
+    case .allDay:
+      return nil
+    }
+  }
+
+  private static func displayClock(
+    _ date: Date, calendar: Calendar, timeZone: TimeZone
+  ) -> String {
+    let components = calendar.dateComponents([.hour, .minute], from: date)
+    let hour = components.hour ?? 0
+    let minute = components.minute ?? 0
+    let suffix = hour < 12 ? "AM" : "PM"
+    let displayHour = hour % 12 == 0 ? 12 : hour % 12
+    let zone = timeZone.abbreviation(for: date) ?? timeZone.identifier
+    return String(format: "%d:%02d %@ %@", displayHour, minute, suffix, zone)
   }
 
   private static func encode(_ commitment: CalendarCommitment) -> String? {

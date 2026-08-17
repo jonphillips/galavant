@@ -177,12 +177,12 @@ final class CalendarReconciliationModel {
 
   func refresh(trip: Trip, plan: TripPlan) async {
     guard state != .loading else { return }
+    currentTripID = trip.id
     guard trip.calendarReconciliationFrozenAt == nil else {
       state = .frozen
       return
     }
-    currentTripID = trip.id
-    let regionTimeZone = await regionTimeZone(for: trip)
+    let regionTimeZone = await regionTimeZone(for: trip, plan: plan)
     var tripCalendar = Calendar(identifier: .gregorian)
     tripCalendar.timeZone = regionTimeZone ?? Self.storageTimeZone
     guard let scope = scope(for: trip, calendar: tripCalendar),
@@ -241,7 +241,10 @@ final class CalendarReconciliationModel {
     let events = try calendarClient.events(queryInterval, [selectedCalendarID]).filter {
       scope.overlaps($0.temporal, absoluteTimeZone: nil) != false
     }
-    let temporalContext = CalendarTripTemporalContext(scope: scope)
+    let temporalContext = CalendarTripTemporalContext(
+      scope: scope,
+      assignmentTimeZone: regionTimeZone,
+      dayTimeZones: await dayTimeZones(for: trip, centroid: regionTimeZone))
     let ingestedEvents = try await ingest(events, regionTimeZone: regionTimeZone)
     let ignoredSourceIdentityHashes = Set(
       allIgnoredEvents.filter { $0.tripID == trip.id }.map(\.sourceIdentityHash))
@@ -270,14 +273,16 @@ final class CalendarReconciliationModel {
       uniqueKeysWithValues: plan.entries.compactMap { entry in
         entry.dayNumber.map { (entry.id, $0) }
       })
+    let deletedEventIDs = deletedConstraintEventIDs(
+      observedEvents: events, selectedCalendarID: selectedCalendarID)
+    let ignoredEventIDsToReap = ignoredEventIDsToReap(
+      tripID: trip.id, deletedEventIDs: deletedEventIDs)
     let constraintPlan = CalendarReconciliation.constraintPlan(
       candidates: candidates,
       tripID: trip.id,
       calendarID: selectedCalendarID,
       localState: automaticPlan.localState,
-      deletedEventIDs: deletedConstraintEventIDs(
-        observedEvents: events,
-        selectedCalendarID: selectedCalendarID),
+      deletedEventIDs: deletedEventIDs,
       movedOutsideEventIDs: movedOutsideConstraintEventIDs(
         selectedCalendarID: selectedCalendarID,
         temporalContext: temporalContext,
@@ -291,7 +296,7 @@ final class CalendarReconciliationModel {
       history: constraintPlan.localState.history, tripID: trip.id)
     try await persist(
       automaticPlan, constraintPlan: constraintPlan, repairs: repairs,
-      tripID: trip.id)
+      tripID: trip.id, ignoredEventIDsToReap: ignoredEventIDsToReap)
     if trip.isPast(at: now, calendar: tripCalendar) {
       let frozenAt = now
       try await database.write { db in
@@ -304,7 +309,8 @@ final class CalendarReconciliationModel {
     _ plan: CalendarReconciliationAutomaticPlan,
     constraintPlan: CalendarConstraintAutomaticPlan,
     repairs: [CalendarPlanRepair],
-    tripID: Trip.ID
+    tripID: Trip.ID,
+    ignoredEventIDsToReap: [CalendarIgnoredEvent.ID] = []
   ) async throws {
     let newHistory = constraintPlan.localState.history.dropFirst(localState.history.count)
     let ledgerEntries = newHistory.compactMap {
@@ -314,6 +320,7 @@ final class CalendarReconciliationModel {
       || !ledgerEntries.isEmpty
       || !constraintPlan.upserts.isEmpty
       || !constraintPlan.deletions.isEmpty
+      || !ignoredEventIDsToReap.isEmpty
       || !repairs.isEmpty
     {
       try await database.write { db in
@@ -333,6 +340,9 @@ final class CalendarReconciliationModel {
         for id in constraintPlan.deletions {
           try CalendarTripConstraint.remove(id: id, in: db)
         }
+        for id in ignoredEventIDsToReap {
+          try CalendarIgnoredEvent.remove(id: id, in: db)
+        }
         for repair in repairs {
           try CalendarPlanRepair.record(repair, in: db)
         }
@@ -342,6 +352,20 @@ final class CalendarReconciliationModel {
       historyStore.setState(tripID, constraintPlan.localState)
       localState = constraintPlan.localState
     }
+  }
+
+  private func ignoredEventIDsToReap(
+    tripID: Trip.ID, deletedEventIDs: Set<String>
+  ) -> [CalendarIgnoredEvent.ID] {
+    allIgnoredEvents.filter { ignored in
+      ignored.tripID == tripID
+        && localState.linkedConstraints.contains { binding in
+          guard deletedEventIDs.contains(binding.eventID) else { return false }
+          return CalendarReconciliationFingerprint.constraintSource(
+            sourceExternalIdentifier: binding.sourceExternalIdentifier,
+            occurrenceAnchor: binding.occurrenceAnchor) == ignored.sourceIdentityHash
+        }
+    }.map(\.id)
   }
 
   func resolvePlanRepair(_ repair: CalendarPlanRepair) {

@@ -255,7 +255,7 @@ public enum CalendarReconciliation {
       }
       let projection = context?.project(
         event.event.temporal,
-        absoluteTimeZone: event.itineraryTimeZone) ?? .outsideTrip
+        absoluteTimeZone: context?.assignmentTimeZone ?? event.itineraryTimeZone) ?? .outsideTrip
       guard projection != .outsideTrip else { return nil }
       return CalendarReconciliationCandidate(
         input: event,

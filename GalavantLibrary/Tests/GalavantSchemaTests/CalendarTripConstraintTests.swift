@@ -51,6 +51,27 @@ struct CalendarTripConstraintTests {
     #expect(first.upserts.first?.sourceIdentityHash == second.upserts.first?.sourceIdentityHash)
   }
 
+  @Test func absoluteConstraintDisplaysItsOwnEventZone() throws {
+    let eastern = try #require(TimeZone(identifier: "America/New_York"))
+    var easternCalendar = Calendar(identifier: .gregorian)
+    easternCalendar.timeZone = eastern
+    let start = try #require(easternCalendar.date(from: DateComponents(
+      year: 2026, month: 8, day: 12, hour: 18)))
+    let event = CalendarObservedEvent(
+      id: "flight",
+      eventIdentifier: "flight",
+      externalIdentifier: "flight-server",
+      title: "RDU to Munich",
+      temporal: .absolute(
+        start: start, end: start.addingTimeInterval(3600), timeZone: eastern),
+      calendarTitle: "Family")
+    let constraint = try #require(CalendarTripConstraint(
+      tripID: tripID, event: event, projection: .day(2, timeZone: timeZone)))
+
+    #expect(constraint.startTime == "00:00")
+    #expect(constraint.displayTime == "6:00 PM EDT–7:00 PM EDT")
+  }
+
   @Test func replacementLocalIdentifierHealsAndUpdatesConstraint() throws {
     let firstEvent = observedEvent(identifier: "old-local-id")
     let first = CalendarReconciliation.constraintPlan(

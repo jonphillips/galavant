@@ -138,8 +138,8 @@ public struct CalendarReconciliationLedgerEntry: Identifiable, Equatable, Sendab
 /// Stable, hash-only identity for a Calendar source snapshot and the shared
 /// semantic outcome produced from it. This intentionally has no EventKit import,
 /// so its inputs and guarantees are unit-testable in the package.
-enum CalendarReconciliationFingerprint {
-  static func source(for event: CalendarObservedEvent) -> String? {
+public enum CalendarReconciliationFingerprint {
+  public static func source(for event: CalendarObservedEvent) -> String? {
     guard let sourceIdentity = nonEmpty(event.externalIdentifier) else { return nil }
     if event.recurrence == nil,
       case let .absolute(start, end, _) = event.temporal
@@ -167,14 +167,14 @@ enum CalendarReconciliationFingerprint {
       ].joined(separator: "|"))
   }
 
-  static func constraintSource(for event: CalendarObservedEvent) -> String? {
+  public static func constraintSource(for event: CalendarObservedEvent) -> String? {
     guard let sourceIdentity = nonEmpty(event.externalIdentifier) else { return nil }
     return constraintSource(
       sourceExternalIdentifier: sourceIdentity,
       occurrenceAnchor: event.recurrence?.originalOccurrence)
   }
 
-  static func constraintSource(
+  public static func constraintSource(
     sourceExternalIdentifier: String,
     occurrenceAnchor: CalendarOccurrenceAnchor?
   ) -> String {
@@ -182,7 +182,7 @@ enum CalendarReconciliationFingerprint {
     return digest("calendar-constraint-source-v1|\(sourceExternalIdentifier)|\(occurrence)")
   }
 
-  static func constraintID(
+  public static func constraintID(
     tripID: Trip.ID,
     sourceIdentityHash: String
   ) -> UUID {
@@ -196,6 +196,10 @@ enum CalendarReconciliationFingerprint {
   ) -> UUID {
     uuid(from: digest(
       "calendar-ignored-event-v1|\(tripID.uuidString)|\(sourceIdentityHash)"))
+  }
+
+  static func timeZoneID(tripID: Trip.ID, day: DayNumber) -> UUID {
+    uuid(from: digest("calendar-day-time-zone-v1|\(tripID.uuidString)|\(day)"))
   }
 
   static func planRepairID(

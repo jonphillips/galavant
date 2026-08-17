@@ -49,6 +49,35 @@ import Testing
       DateInterval(start: start, end: end))
   }
 
+  @Test func perDayZoneResolverUsesOverrideThenRegionThenCentroid() throws {
+    let eastern = try #require(TimeZone(identifier: "America/New_York"))
+    let cet = try #require(TimeZone(identifier: "Europe/Paris"))
+    let rome = try #require(TimeZone(identifier: "Europe/Rome"))
+
+    #expect(CalendarTripTimeZoneResolver.resolve(
+      dayOverride: eastern, dayRegion: cet, tripCentroid: rome) == eastern)
+    #expect(CalendarTripTimeZoneResolver.resolve(
+      dayOverride: nil, dayRegion: cet, tripCentroid: rome) == cet)
+    #expect(CalendarTripTimeZoneResolver.resolve(
+      dayOverride: nil, dayRegion: nil, tripCentroid: rome) == rome)
+  }
+
+  @Test func assignmentUsesFallbackWhileResolvedDayCarriesDisplayZone() throws {
+    let eastern = try #require(TimeZone(identifier: "America/New_York"))
+    let cet = try #require(TimeZone(identifier: "Europe/Paris"))
+    let tripStart = civilDate(2026, 8, 12)
+    let start = date(2026, 8, 11, 22, 0, in: eastern)
+    let context = try #require(CalendarTripTemporalContext(
+      tripStart: tripStart, dayCount: 3,
+      assignmentTimeZone: cet, dayTimeZones: [1: eastern]))
+
+    expectNoDifference(
+      context.project(
+        .absolute(start: start, end: start.addingTimeInterval(3600), timeZone: eastern),
+        absoluteTimeZone: eastern),
+      .day(1, timeZone: cet))
+  }
+
   @Test func floatingEventKeepsCivilTimeAcrossDeviceZones() throws {
     let start = civilDateTime(2026, 8, 12, 10, 0)
     let end = civilDateTime(2026, 8, 12, 11, 0)
