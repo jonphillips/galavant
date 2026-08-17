@@ -425,8 +425,8 @@ public struct TodayProjection: Equatable, Sendable {
 /// carries a clock, and otherwise an ETA without invented precision.
 public enum LeaveBy: Equatable, Sendable {
   case clock(Date)
-  case approximate(TravelTime)
-  case awayBy(TravelTime)
+  case approximate(TravelTime, mode: TransportMode)
+  case awayBy(TravelTime, mode: TransportMode)
 
   public static func resolve(
     schedule: Schedule,
@@ -447,9 +447,9 @@ public enum LeaveBy: Equatable, Sendable {
       else { return nil }
       return .clock(start.addingTimeInterval(-travelTime.seconds - buffer))
     case .daypart:
-      return .approximate(travelTime)
+      return .approximate(travelTime, mode: connector.mode)
     case .day, .unscheduled:
-      return .awayBy(travelTime)
+      return .awayBy(travelTime, mode: connector.mode)
     }
   }
 }

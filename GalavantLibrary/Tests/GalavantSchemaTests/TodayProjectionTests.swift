@@ -302,9 +302,25 @@ import Testing
       buffer: 0)
 
     #expect(clock == .clock(date(hour: 9, minute: 35)))
-    #expect(approximate == .approximate(travelTime))
-    #expect(anytime == .awayBy(travelTime))
-    #expect(unscheduled == .awayBy(travelTime))
+    #expect(approximate == .approximate(travelTime, mode: .driving))
+    #expect(anytime == .awayBy(travelTime, mode: .driving))
+    #expect(unscheduled == .awayBy(travelTime, mode: .driving))
+
+    let walkingConnector = TravelConnector(
+      from: connector.from,
+      to: connector.to,
+      leg: leg,
+      mode: .walking,
+      travelTime: nil,
+      kind: .fromLodging)
+    let walking = LeaveBy.resolve(
+      schedule: .day(1),
+      connector: walkingConnector,
+      travelTimes: [leg: [.walking: travelTime]],
+      tripStartDate: startDate,
+      buffer: 0)
+
+    #expect(walking == .awayBy(travelTime, mode: .walking))
   }
 
   @Test func weatherAnchorFollowsTheCoordinateLadder() {

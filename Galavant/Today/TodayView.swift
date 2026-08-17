@@ -360,7 +360,7 @@ private struct TodayNextHero: View {
           .foregroundStyle(.secondary)
 
         if let leaveBy = next.leaveBy {
-          Label(leaveBy.text, systemImage: "figure.walk.motion")
+          Label(leaveBy.text, systemImage: connector?.mode.systemImageName ?? "figure.walk.motion")
             .font(.subheadline.weight(.semibold))
             .foregroundStyle(.primary)
         }

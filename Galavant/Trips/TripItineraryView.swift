@@ -130,11 +130,13 @@ struct TripItineraryView: View {
       // The region menu lives in the header (only worth showing once a trip spans
       // 2+ regions); accommodations moved out to real timeline rows (check-in /
       // check-out / home-base) so the stay reads as part of the day, not a chip.
-      if let day, model.tripRegions.count >= 2 {
-        dayRegionMenu(day: day)
-      }
       if let day {
-        dayTimeZoneMenu(day: day)
+        HStack(spacing: 8) {
+          if model.tripRegions.count >= 2 {
+            dayRegionMenu(day: day)
+          }
+          dayTimeZoneMenu(day: day)
+        }
       }
     }
   }
@@ -188,7 +190,7 @@ struct TripItineraryView: View {
     } label: {
       HStack(spacing: 5) {
         Image(systemName: "clock")
-        Text(assigned?.identifier ?? "Set time zone").lineLimit(1)
+        Text(assigned?.identifier ?? "Default").lineLimit(1)
       }
       .font(.subheadline)
       .foregroundStyle(assigned == nil ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))

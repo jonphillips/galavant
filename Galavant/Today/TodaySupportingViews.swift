@@ -271,7 +271,9 @@ private struct TodayTimelineRow: View {
     case let .homeBase(stay):
       TodayTimelineEvent(title: "Home base", detail: stay.content.title)
     case let .calendarConstraint(constraint):
-      TodayTimelineEvent(title: constraint.title, detail: constraint.startTime ?? "All day")
+      TodayTimelineEvent(
+        title: constraint.title,
+        detail: constraint.displayTime ?? constraint.startTime ?? "All day")
     }
   }
 
@@ -464,10 +466,10 @@ extension LeaveBy {
     switch self {
     case let .clock(date):
       "Leave by \(date.formatted(date: .omitted, time: .shortened))"
-    case let .approximate(travelTime):
-      "~\(travelTime.formatted(mode: .driving))"
-    case let .awayBy(travelTime):
-      "\(travelTime.formatted(mode: .driving)) away"
+    case let .approximate(travelTime, mode):
+      "~\(travelTime.formatted(mode: mode))"
+    case let .awayBy(travelTime, mode):
+      "\(travelTime.formatted(mode: mode)) away"
     }
   }
 }
