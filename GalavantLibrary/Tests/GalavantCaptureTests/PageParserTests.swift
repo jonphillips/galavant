@@ -241,6 +241,32 @@ import Testing
     #expect(!urls.contains("https://place.com/icon-sprite.png"))
   }
 
+  @Test("srcset keeps commas inside URLs and selects the first candidate")
+  func srcsetPreservesURLCommas() {
+    let firstWixURL =
+      "https://static.wixstatic.com/media/x~mv2.png/v1/fill/w_705,h_141,q_85,enc_avif/x.png"
+    let secondWixURL =
+      "https://static.wixstatic.com/media/x~mv2.png/v1/fill/w_1410,h_282/x.png"
+    let page = PageParser.parse(
+      html: """
+        <html><body>
+        <img srcset="\(firstWixURL) 1x,
+                     \(secondWixURL) 2x">
+        <img srcset="a.jpg 1x, b.jpg 2x">
+        <img srcset="c.jpg, d.jpg">
+        </body></html>
+        """,
+      sourceURL: URL(string: "https://example.com/place")
+    )
+
+    #expect(page.imageURLs.contains(URL(string: firstWixURL)!))
+    #expect(!page.imageURLs.contains(URL(string: "https://static.wixstatic.com/media/x~mv2.png/v1/fill/w_705")!))
+    #expect(page.imageURLs.contains(URL(string: "https://example.com/a.jpg")!))
+    #expect(page.imageURLs.contains(URL(string: "https://example.com/c.jpg")!))
+    #expect(!page.imageURLs.contains(URL(string: "https://example.com/b.jpg")!))
+    #expect(!page.imageURLs.contains(URL(string: "https://example.com/d.jpg")!))
+  }
+
   // MARK: Fallbacks
 
   @Test("A barren page yields an empty ParsedPage the caller can fall back from")

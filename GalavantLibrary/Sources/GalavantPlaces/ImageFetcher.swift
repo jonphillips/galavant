@@ -1,5 +1,6 @@
 import Dependencies
 import Foundation
+import GalavantCapture
 
 /// Downloads raw image bytes for a scraped image URL — the injectable I/O boundary
 /// for capture's image storage (the cousin of `PlaceMatcher`/`ImageFetcher`). Kept
@@ -26,7 +27,8 @@ extension ImageFetcher: DependencyKey {
   static let maxBytes = 12 * 1024 * 1024
 
   public static let liveValue = ImageFetcher { url in
-    var request = URLRequest(url: url)
+    let target = URLHygiene.httpsUpgraded(url)
+    var request = URLRequest(url: target)
     request.setValue(CaptureUserAgent.safari, forHTTPHeaderField: "User-Agent")
     guard
       let (data, response) = try? await URLSession.shared.data(for: request),
