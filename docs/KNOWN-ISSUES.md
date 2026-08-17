@@ -4,6 +4,31 @@ Bugs we're tolerating for now, especially ones that may be Xcode/SDK **beta**
 regressions worth re-checking as the betas evolve. Re-verify each on every new
 Xcode 27 beta; delete an entry when it's fixed upstream or we work around it.
 
+## A `Map` steals taps from SwiftUI controls inset/overlaid over it (Xcode 27 beta) — WORKED AROUND
+
+The trip-canvas `DayChipBar` pills went dead: you could drag the pill row
+horizontally, but tapping a pill did nothing (no selection, no map reframe) on
+both iPhone and iPad. Root cause: MapKit's `Map` ignores a `.safeAreaInset` /
+`.overlay` layout inset and draws its **interactive** surface full-bleed under
+those controls, and its own tap recognizer wins tap arbitration against a SwiftUI
+`Button` on top. A `ScrollView` pan still works (SwiftUI's pan sits on top), and a
+`TextField` still gains focus (why the map-search field kept working) — only the
+discrete `Button` tap is lost.
+
+**Partial workaround:** stack the chips in a real `VStack` row *above* the map
+rather than insetting/overlaying them over it, so the map gets a bounded frame it
+can't reach past. `Galavant/Trips/TripPlanningView.swift` (`canvas`) +
+`Galavant/Trips/TripCanvasMapView.swift`. Costs the "floating chips over the map"
+look.
+
+**Residual — still broken (PUNTED, re-check next beta):** with the stacked row the
+pills now register taps, but the **hit target is offset** — you must tap slightly
+below-and-left of a pill to select it. A consistent directional offset like this is
+a hit-test *coordinate* mismatch (the `Map` appears to poison safe-area accounting
+for the surrounding views), not our layout — it reads as an SDK regression. It
+worked fine before; likely to shift/resolve on a later beta. Not chasing a fragile
+workaround for now.
+
 ## `.inspector` swallows a view's `.toolbar` on iPad (Xcode 27 beta 1) — WORKED AROUND
 
 *Observed 2026-06-23, iOS 27 iPad simulator, Xcode 27 beta 1. Surfaced when the
