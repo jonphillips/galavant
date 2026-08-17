@@ -278,9 +278,6 @@ private struct TripPlanningPresentationHost<Content: View>: View {
       ) {
         AddIdeasSheet(model: model)
       }
-      .sheet(item: $model.destination.placeIdea, id: \.id) { target in
-        PlaceIdeaSheet(model: model, target: target)
-      }
       .sheet(item: $model.destination.freeformStop, id: \.id) { draft in
         FreeformStopSheet(model: model, draft: draft)
       }

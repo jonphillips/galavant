@@ -39,6 +39,9 @@ struct TripDetailContent: View {
     .sheet(item: $model.destination.mapPlaceIdea, id: \.id) { presentation in
       MapPlaceIdeaSheet(model: model, presentation: presentation)
     }
+    .sheet(item: $model.destination.placeIdea, id: \.id) { target in
+      PlaceIdeaSheet(model: model, target: target)
+    }
   }
 
   /// The drilled-in detail with its own back header (chevron labelled with the
