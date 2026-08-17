@@ -143,17 +143,24 @@ final class CalendarReconciliationModel {
   @ObservationIgnored @Dependency(\.uuid) private var uuid
   @ObservationIgnored @FetchAll(CalendarReconciliationLedgerEntry.all) private var allLedgerEntries
   @ObservationIgnored @FetchAll(CalendarTripConstraint.all) private var allCalendarConstraints
+  @ObservationIgnored @FetchAll(CalendarIgnoredEvent.all) private var allIgnoredEvents
   @ObservationIgnored @FetchAll(CalendarPlanRepair.all) private var allPlanRepairs
   @ObservationIgnored @FetchAll(CalendarPlanRepairResolution.all) private var allPlanRepairResolutions
 
   var state: State = .idle
   var candidates: [CalendarReconciliationCandidate] = []
   var candidateForLink: CalendarReconciliationCandidate?
+  private var currentTripID: Trip.ID?
+  var isShowingIgnored = false
   var localState = CalendarReconciliationLocalState()
   var calendars: [CalendarSource] = []
   var selectedCalendarID: String? { calendarSelectionStore.calendarID() }
 
   var sharedHistory: [CalendarReconciliationLedgerEntry] { allLedgerEntries }
+  var ignoredEvents: [CalendarIgnoredEvent] {
+    guard let currentTripID else { return [] }
+    return allIgnoredEvents.filter { $0.tripID == currentTripID }
+  }
   var planRepairs: [CalendarPlanRepair] {
     let resolutions = allPlanRepairResolutions.reduce(into: [CalendarPlanRepair.ID: CalendarPlanRepairResolution]()) {
       partial, resolution in
@@ -174,6 +181,7 @@ final class CalendarReconciliationModel {
       state = .frozen
       return
     }
+    currentTripID = trip.id
     let regionTimeZone = await regionTimeZone(for: trip)
     var tripCalendar = Calendar(identifier: .gregorian)
     tripCalendar.timeZone = regionTimeZone ?? Self.storageTimeZone
@@ -235,11 +243,14 @@ final class CalendarReconciliationModel {
     }
     let temporalContext = CalendarTripTemporalContext(scope: scope)
     let ingestedEvents = try await ingest(events, regionTimeZone: regionTimeZone)
+    let ignoredSourceIdentityHashes = Set(
+      allIgnoredEvents.filter { $0.tripID == trip.id }.map(\.sourceIdentityHash))
     candidates = CalendarReconciliation.candidates(
       for: ingestedEvents,
       trip: trip,
       plan: plan,
-      temporalContext: temporalContext)
+      temporalContext: temporalContext,
+      ignoredSourceIdentityHashes: ignoredSourceIdentityHashes)
     let outsideTripObservations: [CalendarBoundEventObservation] = localState.linkedStops.compactMap { linked in
       guard
         let event = calendarClient.event(linked.eventID),
@@ -271,7 +282,9 @@ final class CalendarReconciliationModel {
         selectedCalendarID: selectedCalendarID,
         temporalContext: temporalContext,
         regionTimeZone: regionTimeZone),
-      regionTimeZone: regionTimeZone)
+      regionTimeZone: regionTimeZone,
+      existingConstraints: allCalendarConstraints.filter { $0.tripID == trip.id },
+      ignoredSourceIdentityHashes: ignoredSourceIdentityHashes)
     let repairs = CalendarReconciliation.planRepairs(
       applications: automaticPlan.applications,
       previousDayNumbers: previousDayNumbers,
@@ -384,6 +397,31 @@ final class CalendarReconciliationModel {
       }
       historyStore.setState(tripID, unlinkPlan.localState)
       localState = unlinkPlan.localState
+    } catch {
+      state = .failure(error.localizedDescription)
+    }
+  }
+
+  func ignore(_ candidate: CalendarReconciliationCandidate, trip: Trip, plan: TripPlan) async {
+    guard let ignored = CalendarIgnoredEvent(
+      tripID: trip.id, event: candidate.input.event, ignoredAt: now)
+    else { return }
+    do {
+      try await database.write { db in
+        try CalendarIgnoredEvent.upsert(ignored, in: db)
+      }
+      await refresh(trip: trip, plan: plan)
+    } catch {
+      state = .failure(error.localizedDescription)
+    }
+  }
+
+  func unignore(_ ignored: CalendarIgnoredEvent, trip: Trip, plan: TripPlan) async {
+    do {
+      try await database.write { db in
+        try CalendarIgnoredEvent.remove(id: ignored.id, in: db)
+      }
+      await refresh(trip: trip, plan: plan)
     } catch {
       state = .failure(error.localizedDescription)
     }
@@ -539,6 +577,30 @@ struct CalendarReconciliationSheet: View {
       if !unmatched.isEmpty {
         Section("No Itinerary Match") {
           ForEach(unmatched, content: candidateRow)
+        }
+      }
+    }
+    if !model.ignoredEvents.isEmpty {
+      DisclosureGroup(
+        "Ignored",
+        isExpanded: Binding(
+          get: { model.isShowingIgnored },
+          set: { model.isShowingIgnored = $0 }))
+      {
+        ForEach(model.ignoredEvents) { ignored in
+          HStack {
+            VStack(alignment: .leading, spacing: 3) {
+              Text(ignored.title)
+              Text("Dismissed for this trip.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button("Un-ignore") {
+              Task { await model.unignore(ignored, trip: trip, plan: plan) }
+            }
+            .font(.caption.weight(.semibold))
+          }
         }
       }
     }

@@ -169,8 +169,17 @@ enum CalendarReconciliationFingerprint {
 
   static func constraintSource(for event: CalendarObservedEvent) -> String? {
     guard let sourceIdentity = nonEmpty(event.externalIdentifier) else { return nil }
-    let occurrence = event.recurrence?.originalOccurrence.stableDescription ?? "standalone"
-    return digest("calendar-constraint-source-v1|\(sourceIdentity)|\(occurrence)")
+    return constraintSource(
+      sourceExternalIdentifier: sourceIdentity,
+      occurrenceAnchor: event.recurrence?.originalOccurrence)
+  }
+
+  static func constraintSource(
+    sourceExternalIdentifier: String,
+    occurrenceAnchor: CalendarOccurrenceAnchor?
+  ) -> String {
+    let occurrence = occurrenceAnchor?.stableDescription ?? "standalone"
+    return digest("calendar-constraint-source-v1|\(sourceExternalIdentifier)|\(occurrence)")
   }
 
   static func constraintID(
@@ -179,6 +188,14 @@ enum CalendarReconciliationFingerprint {
   ) -> UUID {
     uuid(from: digest(
       "calendar-constraint-v1|\(tripID.uuidString)|\(sourceIdentityHash)"))
+  }
+
+  static func ignoredEventID(
+    tripID: Trip.ID,
+    sourceIdentityHash: String
+  ) -> UUID {
+    uuid(from: digest(
+      "calendar-ignored-event-v1|\(tripID.uuidString)|\(sourceIdentityHash)"))
   }
 
   static func planRepairID(

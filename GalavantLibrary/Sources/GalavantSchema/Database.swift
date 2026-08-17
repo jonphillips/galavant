@@ -637,6 +637,28 @@ extension DependencyValues {
       )
       .execute(db)
     }
+    migrator.registerMigration("Create calendarIgnoredEvents table (ADR-0041)") { db in
+      // A human dismissal rides the trip share through its one real FK. The
+      // source hash is a logical key; the deterministic id gives both devices
+      // the same row without relying on a CloudKit-unsupported unique index.
+      try #sql(
+        """
+        CREATE TABLE "calendarIgnoredEvents" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE,
+          "tripID" TEXT NOT NULL REFERENCES "trips"("id") ON DELETE CASCADE,
+          "sourceIdentityHash" TEXT NOT NULL,
+          "title" TEXT NOT NULL DEFAULT '',
+          "ignoredAt" TEXT NOT NULL
+        ) STRICT
+        """
+      ).execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_calendarIgnoredEvents_on_tripID"
+        ON "calendarIgnoredEvents"("tripID")
+        """
+      ).execute(db)
+    }
     migrator.registerMigration("Add Calendar plan repairs and trip freeze (ADR-0034)") { db in
       // A repair is a shared human decision, derived from a deterministic Calendar
       // revision. It rides its trip through one real FK; the stop id is deliberately

@@ -239,7 +239,8 @@ public enum CalendarReconciliation {
     for events: [CalendarIngestedEvent],
     trip: Trip,
     plan: TripPlan,
-    temporalContext: CalendarTripTemporalContext? = nil
+    temporalContext: CalendarTripTemporalContext? = nil,
+    ignoredSourceIdentityHashes: Set<String> = []
   ) -> [CalendarReconciliationCandidate] {
     let context = temporalContext ?? trip.startDate.flatMap {
       CalendarTripTemporalContext(
@@ -247,6 +248,11 @@ public enum CalendarReconciliation {
         dayCount: trip.lengthInDays)
     }
     return events.compactMap { event in
+      if let source = CalendarReconciliationFingerprint.constraintSource(for: event.event),
+        ignoredSourceIdentityHashes.contains(source)
+      {
+        return nil
+      }
       let projection = context?.project(
         event.event.temporal,
         absoluteTimeZone: event.itineraryTimeZone) ?? .outsideTrip

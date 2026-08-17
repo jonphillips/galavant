@@ -55,6 +55,7 @@ extension CalendarReconciliationSheet {
         Text("Possible match: \(stop.content.title) by \(basisDescription(basis)).")
           .font(.caption)
         actionButtons(for: candidate, stop: stop)
+        ignoreButton(for: candidate)
       case let .ambiguous(stops):
         Text("Could be: \(stops.map(\.content.title).joined(separator: ", ")).")
           .font(.caption)
@@ -65,9 +66,25 @@ extension CalendarReconciliationSheet {
       case .unmatched:
         Text("No itinerary stop matches. Eligible events are added as trip constraints.")
           .font(.caption)
+        ignoreButton(for: candidate)
       }
     }
     .accessibilityElement(children: .combine)
+  }
+
+  @ViewBuilder
+  private func ignoreButton(for candidate: CalendarReconciliationCandidate) -> some View {
+    let canIgnore = candidate.input.event.externalIdentifier != nil
+    Button("Ignore") {
+      Task { await model.ignore(candidate, trip: trip, plan: plan) }
+    }
+    .disabled(!canIgnore)
+    .font(.caption.weight(.semibold))
+    if !canIgnore {
+      Text("This event has no shared Calendar identity.")
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+    }
   }
 
   @ViewBuilder
