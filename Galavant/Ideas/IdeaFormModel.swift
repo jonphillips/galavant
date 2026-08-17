@@ -1,5 +1,6 @@
 import Dependencies
 import Foundation
+import GalavantImaging
 import GalavantPlaces
 import GalavantSchema
 import SQLiteData
@@ -11,6 +12,7 @@ import SQLiteData
 final class IdeaFormModel {
   @ObservationIgnored @Dependency(\.defaultDatabase) var database
   @ObservationIgnored @Dependency(\.date) var now
+  @ObservationIgnored @Dependency(\.uuid) var uuid
   @ObservationIgnored @FetchAll(Tag.order(by: \.name)) var allTags
 
   var draft: Idea.Draft
@@ -42,6 +44,8 @@ final class IdeaFormModel {
   var images: [ImageAsset] = []
   /// True while the user-requested image refresh is running.
   var refetchingImages = false
+  /// True while a user-supplied image is being processed and stored.
+  var addingImage = false
   /// A short result line shown after an image refresh attempt.
   var imagesStatus: String?
 
@@ -74,14 +78,14 @@ final class IdeaFormModel {
 
   func task() async {
     await loadTags()
-    await loadImages()
+    await reloadImages()
   }
 
   /// The chosen cover image's display bytes, when the idea has one — for a header
   /// preview at the top of the form.
   var coverImage: Data? { images.first(where: \.isHeader)?.display ?? images.first?.display }
 
-  private func loadImages() async {
+  private func reloadImages() async {
     guard let id = draft.id else { return }
     await withErrorReporting {
       images = try await database.read { db in try ImageAsset.images(forIdea: id, in: db) }
@@ -97,7 +101,40 @@ final class IdeaFormModel {
         try ImageAsset.setHeader(image.id, ideaID: id, in: db)
       }
     }
-    await loadImages()
+    await reloadImages()
+  }
+
+  /// Store a user-supplied image from Photos or the clipboard, then reload the
+  /// gallery. The same display and thumbnail processing used by enrichment keeps
+  /// manually added images within the canonical storage budgets.
+  func addImage(_ data: Data) async {
+    guard !isNew, !addingImage, let ideaID = draft.id else { return }
+    addingImage = true
+    imagesStatus = nil
+    defer { addingImage = false }
+
+    guard let processed = ImageProcessing.process(data) else {
+      imagesStatus = "That image couldn't be read. Try another."
+      return
+    }
+
+    do {
+      let imageID = uuid()
+      try await database.write { [ideaID, imageID] db in
+        try ImageAsset.store(
+          ideaID: ideaID,
+          display: processed.display,
+          thumbnail: processed.thumbnail,
+          sourceURL: nil,
+          id: imageID,
+          in: db)
+        return ()
+      }
+      await reloadImages()
+      imagesStatus = nil
+    } catch {
+      imagesStatus = "Couldn't save that image. Try again."
+    }
   }
 
   func addTagName(_ name: String) {
@@ -197,7 +234,7 @@ final class IdeaFormModel {
     imagesStatus = nil
     defer { refetchingImages = false }
     if await PlaceEnricher().refetchImages(ideaID: id) {
-      await loadImages()
+      await reloadImages()
       imagesStatus = "Images refreshed."
     } else {
       imagesStatus = "No images found on the linked page."

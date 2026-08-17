@@ -83,6 +83,8 @@ targets:
       - package: GalavantLibrary
         product: GalavantPlaces
       - package: GalavantLibrary
+        product: GalavantImaging
+      - package: GalavantLibrary
         product: GalavantChat
       - package: GalavantLibrary
         product: GalavantAI

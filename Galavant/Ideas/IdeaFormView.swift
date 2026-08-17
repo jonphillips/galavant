@@ -2,14 +2,17 @@ import GalavantPlaces
 import GalavantSchema
 import WebExtractorKit
 import MapKit
+import PhotosUI
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 struct IdeaFormView: View {
   @State private var model: IdeaFormModel
   @State private var search: PlaceSearchModel
   @Environment(\.dismiss) private var dismiss
   @FocusState private var tagFieldFocused: Bool
+  @State private var photosItem: PhotosPickerItem?
   private let saveTitle: String
   private let onSave: (@MainActor (Idea.ID) async -> Void)?
 
@@ -29,7 +32,7 @@ struct IdeaFormView: View {
     @Bindable var model = model
     NavigationStack {
       Form {
-        if !model.images.isEmpty || model.canRefetchImages {
+        if !model.isNew || !model.images.isEmpty {
           photosSection
         }
 
@@ -189,6 +192,17 @@ struct IdeaFormView: View {
           Button("Cancel") { dismiss() }
         }
       }
+      .onChange(of: photosItem) { _, item in
+        guard let item else { return }
+        Task {
+          defer { photosItem = nil }
+          if let data = try? await item.loadTransferable(type: Data.self) {
+            await model.addImage(data)
+          } else {
+            model.imagesStatus = "Couldn't load that photo. Try another."
+          }
+        }
+      }
       .task { await model.task() }
     }
   }
@@ -297,17 +311,42 @@ struct IdeaFormView: View {
       if model.images.count > 1 {
         Text("Tap a photo to make it the cover.")
       }
-      if model.canRefetchImages {
-        Button {
-          Task { await model.refetchImages() }
-        } label: {
-          if model.refetchingImages {
-            Label { Text("Refreshing images…") } icon: { ProgressView() }
-          } else {
-            Label("Refetch images", systemImage: "arrow.clockwise")
+      if !model.isNew {
+        HStack {
+          PhotosPicker(selection: $photosItem, matching: .images) {
+            Label("Add from Photos", systemImage: "photo.on.rectangle")
+          }
+
+          PasteButton(supportedContentTypes: [.image]) { providers in
+            Task {
+              guard let provider = providers.first,
+                let data = await loadImageData(from: provider)
+              else {
+                model.imagesStatus = "Couldn't load that image. Try again."
+                return
+              }
+              await model.addImage(data)
+            }
+          }
+
+          if model.canRefetchImages {
+            Button {
+              Task { await model.refetchImages() }
+            } label: {
+              if model.refetchingImages {
+                Label { Text("Refreshing images…") } icon: { ProgressView() }
+              } else {
+                Label("Refetch images", systemImage: "arrow.clockwise")
+              }
+            }
+            .disabled(model.refetchingImages || model.addingImage)
           }
         }
-        .disabled(model.refetchingImages)
+        if model.addingImage {
+          Label { Text("Adding image…") } icon: { ProgressView() }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
       }
       if let status = model.imagesStatus {
         Text(status)
@@ -343,6 +382,16 @@ struct IdeaFormView: View {
           .padding(4)
           .background(.tint, in: Circle())
           .padding(4)
+      }
+    }
+  }
+
+  /// Bridge the paste provider's callback API to async/await for the model's
+  /// shared image-ingestion path.
+  private func loadImageData(from provider: NSItemProvider) async -> Data? {
+    await withCheckedContinuation { continuation in
+      provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, _ in
+        continuation.resume(returning: data)
       }
     }
   }
