@@ -157,6 +157,9 @@ extension CalendarObservedEvent {
     let rawTitle = event.title ?? ""
     let title = rawTitle.isEmpty ? "Untitled Event" : rawTitle
     let location = event.location
+    let notes = event.notes
+      .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+      .flatMap { $0.isEmpty ? nil : $0 }
     let latitude = event.structuredLocation?.geoLocation?.coordinate.latitude
     let longitude = event.structuredLocation?.geoLocation?.coordinate.longitude
     guard let startDate = event.startDate, let endDate = event.endDate else { return nil }
@@ -181,6 +184,7 @@ extension CalendarObservedEvent {
       lastModifiedDate: event.lastModifiedDate,
       title: title,
       location: location,
+      notes: notes,
       latitude: latitude,
       longitude: longitude,
       temporal: temporal,

@@ -710,6 +710,35 @@ import Testing
     #expect(unlinked?.localState.history.last?.kind == .unlinked)
   }
 
+  @Test func unlinkSuppressesAutomaticRelinkUntilManualLink() throws {
+    let idea = Idea(id: UUID(), name: "Ikigai")
+    let stop = stop(idea: idea, day: 1)
+    let input = ingestedEvent(event: event(title: "Ikigai", identifier: "automatic-unlink"))
+    let candidate = try #require(
+      CalendarReconciliation.candidates(
+        for: [input], trip: trip(), plan: plan([stop], ideas: [idea])).first)
+    let resolved = try #require(plan([stop], ideas: [idea]).itinerary.first?.stops.first)
+    let linked = CalendarReconciliation.automaticPlan(
+      candidates: [candidate], localState: CalendarReconciliationLocalState(),
+      observedAt: .distantPast, makeHistoryID: UUID.init)
+    let unlinked = try #require(CalendarReconciliation.unlinkPlan(
+      candidate: candidate, localState: linked.localState,
+      observedAt: Date(timeIntervalSince1970: 10), makeHistoryID: UUID.init))
+
+    let refreshed = CalendarReconciliation.automaticPlan(
+      candidates: [candidate], localState: unlinked.localState,
+      observedAt: Date(timeIntervalSince1970: 20), makeHistoryID: UUID.init)
+    #expect(refreshed.applications.isEmpty)
+    #expect(refreshed.localState.linkedStops.isEmpty)
+
+    let manuallyRelinked = CalendarReconciliation.manualLinkPlan(
+      candidate: candidate, stop: resolved, localState: refreshed.localState,
+      observedAt: Date(timeIntervalSince1970: 30), makeHistoryID: UUID.init)
+    #expect(manuallyRelinked.applications.first?.stopID == stop.id)
+    #expect(manuallyRelinked.localState.linkedStops.count == 1)
+    #expect(manuallyRelinked.localState.history.map(\.kind) == [.linked, .unlinked, .linked])
+  }
+
   @Test func linkedEventMovedOutsideTripIsRecordedWithoutChangingTheStop() {
     let frenchLaundry = Idea(id: UUID(), name: "The French Laundry", mapItemIdentifier: "maps-french-laundry")
     let stop = stop(idea: frenchLaundry, day: 1)

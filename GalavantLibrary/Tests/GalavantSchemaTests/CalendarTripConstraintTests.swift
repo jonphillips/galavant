@@ -51,6 +51,32 @@ struct CalendarTripConstraintTests {
     #expect(first.upserts.first?.sourceIdentityHash == second.upserts.first?.sourceIdentityHash)
   }
 
+  @Test func constraintCarriesCalendarNotesAndLocationButNotEmptyNotes() async throws {
+    let noted = observedEvent(
+      title: "Call Tax Advisor", identifier: "noted", location: "Via Roma 1",
+      notes: "Bring the signed forms.")
+    let notedConstraint = try #require(CalendarTripConstraint(
+      tripID: tripID, event: noted, projection: .day(2, timeZone: timeZone)))
+    #expect(notedConstraint.location == "Via Roma 1")
+    #expect(notedConstraint.notes == "Bring the signed forms.")
+    let persistedTripID = try await database.write { db in
+      try Trip.create(name: "Rome", in: db).id
+    }
+    let persistedConstraint = try #require(CalendarTripConstraint(
+      tripID: persistedTripID, event: noted, projection: .day(2, timeZone: timeZone)))
+    let saved = try await database.write { db -> CalendarTripConstraint? in
+      try CalendarTripConstraint.upsert(persistedConstraint, in: db)
+      return try CalendarTripConstraint.find(persistedConstraint.id).fetchOne(db)
+    }
+    #expect(saved?.notes == "Bring the signed forms.")
+    #expect(saved?.location == "Via Roma 1")
+
+    let blank = observedEvent(identifier: "blank-notes", notes: " \n ")
+    let blankConstraint = try #require(CalendarTripConstraint(
+      tripID: tripID, event: blank, projection: .day(2, timeZone: timeZone)))
+    #expect(blankConstraint.notes == nil)
+  }
+
   @Test func absoluteConstraintDisplaysItsOwnEventZone() throws {
     let eastern = try #require(TimeZone(identifier: "America/New_York"))
     var easternCalendar = Calendar(identifier: .gregorian)
@@ -69,7 +95,7 @@ struct CalendarTripConstraintTests {
       tripID: tripID, event: event, projection: .day(2, timeZone: timeZone)))
 
     #expect(constraint.startTime == "00:00")
-    #expect(constraint.displayTime == "6:00 PM EDT–7:00 PM EDT")
+    #expect(constraint.displayTime == "6:00P EDT–7:00P EDT")
   }
 
   @Test func replacementLocalIdentifierHealsAndUpdatesConstraint() throws {
@@ -445,7 +471,9 @@ struct CalendarTripConstraintTests {
     title: String = "Call Tax Advisor",
     identifier: String = "local-event",
     hour: Int = 10,
-    recurrence: CalendarEventRecurrence? = nil
+    recurrence: CalendarEventRecurrence? = nil,
+    location: String? = nil,
+    notes: String? = nil
   ) -> CalendarObservedEvent {
     let start = date(day: 12, hour: hour)
     return CalendarObservedEvent(
@@ -453,6 +481,8 @@ struct CalendarTripConstraintTests {
       eventIdentifier: identifier,
       externalIdentifier: "server-event",
       title: title,
+      location: location,
+      notes: notes,
       temporal: .absolute(
         start: start,
         end: start.addingTimeInterval(60 * 60),

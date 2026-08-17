@@ -100,7 +100,7 @@ extension CalendarReconciliationSheet {
         : "This event has no stable local identity on this device.")
     if model.isLinked(candidate) {
       Button("Unlink") {
-        Task { await model.unlink(candidate, tripID: trip.id) }
+        Task { await model.unlink(candidate, trip: trip, plan: plan) }
       }
       .font(.caption.weight(.semibold))
     } else if let stop {
@@ -108,7 +108,7 @@ extension CalendarReconciliationSheet {
         Task {
           guard let selectedCalendarID = model.selectedCalendarID else { return }
           await model.link(
-            candidate, to: stop, trip: trip, selectedCalendarID: selectedCalendarID)
+            candidate, to: stop, trip: trip, plan: plan, selectedCalendarID: selectedCalendarID)
         }
       }
       .disabled(!eligible)

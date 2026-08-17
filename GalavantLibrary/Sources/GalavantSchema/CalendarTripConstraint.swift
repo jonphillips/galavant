@@ -14,6 +14,8 @@ public struct CalendarTripConstraint: Identifiable, Equatable, Sendable {
   public var tripID: Trip.ID
   public var sourceIdentityHash: String
   public var title: String
+  public var location: String?
+  public var notes: String?
   public var dayNumber: DayNumber
   public var startTime: String?
   public var endTime: String?
@@ -27,13 +29,17 @@ public struct CalendarTripConstraint: Identifiable, Equatable, Sendable {
     dayNumber: DayNumber,
     startTime: String?,
     endTime: String?,
-    commitment: CalendarCommitment
+    commitment: CalendarCommitment,
+    location: String? = nil,
+    notes: String? = nil
   ) {
     guard let commitmentSnapshot = Self.encode(commitment) else { return nil }
     self.id = id
     self.tripID = tripID
     self.sourceIdentityHash = sourceIdentityHash
     self.title = title
+    self.location = location
+    self.notes = notes
     self.dayNumber = dayNumber
     self.startTime = startTime
     self.endTime = endTime
@@ -62,7 +68,9 @@ public struct CalendarTripConstraint: Identifiable, Equatable, Sendable {
       dayNumber: dayNumber,
       startTime: times?.start,
       endTime: times?.end,
-      commitment: commitment)
+      commitment: commitment,
+      location: Self.trimmed(event.location),
+      notes: Self.trimmed(event.notes))
   }
 
   public var commitment: CalendarCommitment? {
@@ -142,10 +150,10 @@ public struct CalendarTripConstraint: Identifiable, Equatable, Sendable {
     let components = calendar.dateComponents([.hour, .minute], from: date)
     let hour = components.hour ?? 0
     let minute = components.minute ?? 0
-    let suffix = hour < 12 ? "AM" : "PM"
+    let suffix = hour < 12 ? "A" : "P"
     let displayHour = hour % 12 == 0 ? 12 : hour % 12
     let zone = timeZone.abbreviation(for: date) ?? timeZone.identifier
-    return String(format: "%d:%02d %@ %@", displayHour, minute, suffix, zone)
+    return String(format: "%d:%02d%@ %@", displayHour, minute, suffix, zone)
   }
 
   private static func encode(_ commitment: CalendarCommitment) -> String? {
@@ -156,5 +164,11 @@ public struct CalendarTripConstraint: Identifiable, Equatable, Sendable {
 
   private static func decode(_ value: String) -> CalendarCommitment? {
     try? JSONDecoder().decode(CalendarCommitment.self, from: Data(value.utf8))
+  }
+
+  private static func trimmed(_ value: String?) -> String? {
+    guard let value else { return nil }
+    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    return trimmed.isEmpty ? nil : trimmed
   }
 }

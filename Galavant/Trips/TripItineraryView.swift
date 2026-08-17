@@ -15,6 +15,7 @@ struct TripItineraryView: View {
   /// When set, render only this day's stops (the canvas day lens). Nil = the
   /// whole trip.
   var focusedDay: Int?
+  @State private var selectedCalendarConstraint: CalendarTripConstraint?
 
   var body: some View {
     ScrollViewReader { proxy in
@@ -24,6 +25,9 @@ struct TripItineraryView: View {
         .onChange(of: model.canvasSelectedStopID) { _, id in
           guard let id else { return }
           withAnimation { proxy.scrollTo(id, anchor: .center) }
+        }
+        .sheet(item: $selectedCalendarConstraint) { constraint in
+          CalendarConstraintDetailSheet(constraint: constraint)
         }
     }
   }
@@ -240,27 +244,38 @@ struct TripItineraryView: View {
   }
 
   private func calendarConstraintRow(_ constraint: CalendarTripConstraint) -> some View {
-    HStack(spacing: 12) {
-      Image(systemName: "calendar.badge.clock")
-        .foregroundStyle(.secondary)
-        .frame(width: 24)
-      VStack(alignment: .leading, spacing: 2) {
-        Text(constraint.title)
-          .font(.subheadline.weight(.medium))
-        if let detail = calendarConstraintDetail(constraint) {
-          Text(detail)
-            .font(.caption)
-            .foregroundStyle(.secondary)
+    Button {
+      selectedCalendarConstraint = constraint
+    } label: {
+      HStack(spacing: 12) {
+        Image(systemName: "calendar.badge.clock")
+          .foregroundStyle(.secondary)
+          .frame(width: 24)
+        VStack(alignment: .leading, spacing: 2) {
+          Text(constraint.title)
+            .font(.subheadline.weight(.medium))
+          if let detail = calendarConstraintDetail(constraint) {
+            Text(detail)
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
+        }
+        Spacer()
+        Text(constraint.displayTime ?? constraintTime(constraint))
+          .font(.subheadline.monospaced())
+          .foregroundStyle(.secondary)
+        if constraint.notes != nil {
+          Image(systemName: "chevron.right")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.tertiary)
         }
       }
-      Spacer()
-      Text(constraint.displayTime ?? constraintTime(constraint))
-        .font(.subheadline.monospaced())
-        .foregroundStyle(.secondary)
     }
+    .buttonStyle(.plain)
     .padding(.vertical, 2)
     .accessibilityElement(children: .combine)
-    .accessibilityLabel("Calendar constraint, \(constraint.title), \(constraintTime(constraint))")
+    .accessibilityLabel(
+      "Calendar constraint, \(constraint.title), \(constraint.displayTime ?? constraintTime(constraint))")
   }
 
   /// A stay boundary row — "Check in" on the stay's check-in day, "Check out" on
@@ -446,6 +461,39 @@ struct TripItineraryView: View {
     }
   }
 
+}
+
+private struct CalendarConstraintDetailSheet: View {
+  let constraint: CalendarTripConstraint
+  @Environment(\.dismiss) private var dismiss
+
+  var body: some View {
+    NavigationStack {
+      List {
+        Section("Calendar event") {
+          LabeledContent("Title", value: constraint.title)
+          if let displayTime = constraint.displayTime {
+            LabeledContent("Time", value: displayTime)
+          }
+          if let location = constraint.location {
+            LabeledContent("Location", value: location)
+          }
+        }
+        if let notes = constraint.notes {
+          Section("Notes") {
+            Text(notes)
+              .textSelection(.enabled)
+          }
+        }
+      }
+      .navigationTitle("Calendar Event")
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          Button("Done") { dismiss() }
+        }
+      }
+    }
+  }
 }
 
 /// Hands off to Apple Maps with the connector's from→to pair and chosen mode.

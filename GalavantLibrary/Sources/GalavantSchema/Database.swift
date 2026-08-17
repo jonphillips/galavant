@@ -659,6 +659,10 @@ extension DependencyValues {
         """
       ).execute(db)
     }
+    migrator.registerMigration("Add notes and location to calendarTripConstraints (ADR-0041)") { db in
+      try #sql(#"ALTER TABLE "calendarTripConstraints" ADD COLUMN "location" TEXT"#).execute(db)
+      try #sql(#"ALTER TABLE "calendarTripConstraints" ADD COLUMN "notes" TEXT"#).execute(db)
+    }
     migrator.registerMigration("Add Calendar plan repairs and trip freeze (ADR-0034)") { db in
       // A repair is a shared human decision, derived from a deterministic Calendar
       // revision. It rides its trip through one real FK; the stop id is deliberately
