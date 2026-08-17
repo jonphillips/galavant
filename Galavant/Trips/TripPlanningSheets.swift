@@ -305,6 +305,44 @@ struct StaySheet: View {
 /// pre-filled by the caller from `Schedule.suggestedTime` over the day's
 /// neighbors, so the common case is confirm-not-type. "Remove Time" drops back to
 /// a bare "Anytime" placement on the same day.
+/// Edit a stop's short trip-specific caption (`TripIdea.inlineNote`) — the
+/// "why it's on the itinerary" nudge shown under its title. One single-line field,
+/// distinct from the pool idea's long-form notes.
+struct StopNoteSheet: View {
+  let model: TripPlanningModel
+  @State private var draft: StopNoteDraft
+  @Environment(\.dismiss) private var dismiss
+
+  init(model: TripPlanningModel, draft: StopNoteDraft) {
+    self.model = model
+    _draft = State(initialValue: draft)
+  }
+
+  var body: some View {
+    NavigationStack {
+      Form {
+        Section {
+          TextField("e.g. Michael's favorite", text: $draft.note, axis: .vertical)
+            .lineLimit(1...3)
+        } footer: {
+          Text("A short nudge shown under the stop on the itinerary.")
+        }
+      }
+      .navigationTitle(draft.stopTitle)
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          Button("Cancel") { dismiss() }
+        }
+        ToolbarItem(placement: .confirmationAction) {
+          Button("Save") { model.saveStopNote(draft) }
+        }
+      }
+    }
+    .presentationDetents([.medium])
+  }
+}
+
 struct StopTimeSheet: View {
   let model: TripPlanningModel
   @State private var draft: StopTimeDraft

@@ -135,6 +135,26 @@ extension TripPlanningModel {
       FreeformStopDraft(stopID: stop.id, title: title, note: note ?? "", day: stop.entry.dayNumber))
   }
 
+  /// Open the stop-note editor for any stop (idea-backed or freeform), seeded from
+  /// its current `inlineNote` — the short "why it's here" caption on the itinerary.
+  func editStopNote(_ stop: ResolvedStop) {
+    destination = .stopNote(
+      StopNoteDraft(
+        stopID: stop.id,
+        stopTitle: stop.content.title,
+        note: stop.entry.inlineNote ?? ""))
+  }
+
+  /// Commit the stop-note editor. A blank note clears the caption.
+  func saveStopNote(_ draft: StopNoteDraft) {
+    withErrorReporting {
+      try database.write { db in
+        try TripIdea.setInlineNote(stopID: draft.stopID, note: draft.note, in: db)
+      }
+    }
+    destination = nil
+  }
+
   /// Commit the custom-stop editor: create a new stop (placed on its chosen day,
   /// or left in the bucket), or update the edited one's content. A blank title
   /// is dropped (the sheet's Save is disabled, but guard anyway).
