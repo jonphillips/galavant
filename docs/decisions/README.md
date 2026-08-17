@@ -49,3 +49,5 @@ at creation). See `docs/README.md` (the atlas) and `jon-platform/docs/agent-work
 | [0037](0037-recommendation-evaluation-workspace.md) | Recommendation evaluation workspace — a candidate set processed like an inbox |
 | [0038](0038-journey-today-projections-and-weather.md) | Journey & Today are read-only `TripPlan` projections; WeatherKit forecasts planned presence |
 | [0039](0039-today-execution-completion-skip-defer.md) | Today becomes an execution surface — stop completion/skip/defer as reversible overlays on `TripIdea` |
+| [0040](0040-journey-region-imagery-and-image-panel.md) | Journey gains an image band — region "romance" photos (dual-source) and a selection-driven panel |
+| [0041](0041-calendar-dogfood-amendments.md) | Calendar dogfood amendments — human dismissal, manual match repair, time-zone display/assignment split + per-day zones |
