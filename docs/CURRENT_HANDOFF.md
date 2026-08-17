@@ -6,225 +6,46 @@ Companion to `docs/DONE_LOG.md` (what's already shipped) — this file used to b
 one long `docs/BACKLOG.md`; split 2026-07-11 to keep token cost down when an agent
 reads it for context.
 
+## Pending PR — M7 calendar dogfood amendments (ADR-0041), completes M7
+
+Branch `feat/m7-dogfood-followups`. Implements the ADR-0041 amendments (raw-title
+exact-name promotion + manual link/unlink; trip-scoped synced ignores with
+ignore/un-ignore + conservative reaping; own-zone absolute display + per-day
+time-zone overrides) **plus** the follow-up fixes (unlink suppression so an
+auto-match stays unlinked; unlink reverts the stop to Anytime; a fetch/reconcile
+split so ignore/unignore/link don't full-refresh; iCal notes captured + viewable by
+tapping a calendar row). Full detail in `docs/DONE_LOG.md`. **Landing this PR
+completes M7** (Slices 0–6 already merged). Device/calendar verification is still
+Jon's (`docs/M7-DOGFOOD.md` Part 3); do not flip ADR-0034/0041 to accepted from
+build results alone. This PR also carries the docs squaring for M7/M9/M10 done.
+
+**Known non-fix:** EventKit exposes only one zone per event (departure), so a
+flight's arrival zone can't be shown (a MUC→CLT flight reads instant-correct in its
+departure zone, not Apple Calendar's dual GMT+2/EDT). A curated airport-code→zone
+heuristic is the only route if it ever matters — deliberately not built.
+
 Ordered roughly **active/blocked first, someday/design-only last** — not a strict
 priority queue, just enough to skim top-to-bottom sensibly. Each entry carries
 enough context to act on cold.
 
-## In progress — M10 Today V1 (ADR-0038)
+## Open — M9 cockpit polish + yes-chef adoption (post-ship follow-ups)
 
-Today + Journey as pure read-only `TripPlan` projections; WeatherKit is the only new
-dependency, device-only verified. Authority: `docs/decisions/0038-journey-today-projections-and-weather.md`
-+ `docs/M10-EXECUTION.md` (slice-by-slice).
+M9 (recommendation handoff + evaluation cockpit) and the LLMHandoffKit lift shipped
+and are dogfooded (see `docs/DONE_LOG.md`). Remaining, non-blocking:
 
-- **Slice 1 — pure Today core. DONE** (PR #38, `feat/m10-today-slice1-core`). `TodayProjection`
-  in `GalavantSchema` (MapKit-free): NEXT selection across `now`, remaining timeline with
-  `.nowMarker` + `.earlierToday(count:)`, tonight/tomorrow, and the pure `WeatherAnchor`
-  (coordinate ladder + time window, no WeatherKit). Fully unit-tested in `GalavantSchemaTests`.
-- **Slice 2 — `WeatherClient` dependency. DONE** (PR #41, squash-merged to `main` 2026-08-15).
-  App-target `@Dependency weatherClient` over WeatherKit, decoding to a framework-free
-  `WeatherSummary`; process-local cache keyed on rounded coord + window + granularity, invalidated
-  at `expiration`. Pure request policy (granularity, cache-key window mapping, daypart→interval incl.
-  DST-safe overnight, nearest-day, expiration) lives in `GalavantSchema/WeatherRequestPolicy.swift`
-  and is unit-tested; `WeatherAttributionLink` + entitlement wired. **Device pass DONE** (2026-08-15,
-  iPhone 17 Pro / iOS 27 beta): live coord → decoded summary + attribution, via a throwaway DEBUG
-  harness (Settings ▸ Developer ▸ Weather Test). Gotcha that cost ~3h: `WDSJWTAuthenticator Code=2`
-  needed WeatherKit enabled in **both** the App ID's Capabilities list **and** its App Services tab
-  on the portal — the profile listing WeatherKit is not proof of the latter (see M10-EXECUTION).
-- **Slice 3 — Today SwiftUI surface (iPhone). HANDED TO CODEX** (2026-08-15). New `TodayView` +
-  thin `@Observable` `TodayModel` rendering the Slice-1 projection, filling weather via Slice-2
-  `weatherClient` per anchor (`anchor.weatherGranularity`). NEXT hero with destination-time forecast
-  for weather-sensitive anchors (ADR-0038 §4 correction), reuse `openInMaps(connector:)`, no-weather
-  as the first-class default. Verification (iPhone-sim layout + device weather) is Jon's — a prompt
-  can't substitute (per M10-EXECUTION "Codex handoff" note).
-- **Slice 4 — runtime coordination** (fold into 3 if small): one tick source, weather from the
-  `expiration` cache, bounded ETA freshness — no polling storm (ADR-0038 §7).
-- **Today execution — complete / skip / defer / tap-to-detail. DONE** (PR pending,
-  `feat/today-execution`). Turns Today from read-only into a live execution surface per
-  **ADR-0039** (supersedes ADR-0038's read-only restraint for Today; Journey stays read-only).
-  Two nullable overlay columns on `TripIdea` (`completedAt`/`skippedAt`, mutually exclusive,
-  stop stays `.scheduled`); pending-aware NEXT + progress + outcome-based collapse in
-  `TodayProjection`; DB ops + model wrappers; iPhone affordances (check circle, `⋯` menu with
-  Skip / Do later today / Do tomorrow, per-leg Directions on connectors, tap-to-detail sheet).
-  Live-gated writes; preview stays read-only. Also folds in the Phase 0 transfer-day REMAINING
-  fix (already on `main` via #50) and the ADR-0039 addendum (Directions belong to the leg).
-  Schema + core fully unit-tested (`GalavantSchemaTests`, 380 green); app builds clean.
-  Brief: `docs/handoff/today-execution.md`.
-  - **Undo is reachable.** The "Done · N" / "Skipped · M" collapse summaries are
-    **expandable disclosures** (`TodayProjection` surfaces `doneStops` / `skippedStops`
-    alongside the counts; `TodayTimeline.outcomeDisclosure` renders them on tap as full
-    rows that keep their check-circle + `⋯` menu). So a checked-off stop can be reopened
-    (uncheck / "Undo done") and a skipped stop unskipped, satisfying the acceptance matrix
-    without cluttering the default compact timeline. This closed the review's one open gap.
-
-Explicitly deferred in M10 (ADR-0038 §8): Journey surface, per-region photography, AI themes,
-severe-weather/minute advisory, device GPS "you are here", climatology, auto-entry into Today.
-
-**Next in the M10 arc: the iPad Journey surface** (ADR-0038's "Today first, dogfood, then
-Journey"). Journey is the iPad anticipation/comprehension view — a coarse, read-only projection
-of `TripPlan` (one weather anchor per day, the whole-trip shape: day story + stay bands +
-journey map + summary). It reuses the same pure-projection discipline and weather foundation as
-Today; no new persistent trip concept (ADR-0038 §1). **Handoff brief drafted:**
-`docs/handoff/ipad-journey.md` (Slices J1 pure core → J2 iPad view → J3 entry; V1 cut list per
-ADR-0038 §8). Ready to dispatch.
-
-## In progress — M9 evaluation cockpit (ADR-0037 layout revision, Slices 1–2 in PR #36)
-
-The evaluation-workspace **layout** was reworked into a dedicated cockpit (the pure
-model/traversal core underneath is unchanged — ADR-0037 D7, layout only). Built and in **PR #36**
-(`feat/m9-evaluation-cockpit`; depends on jon-platform branch
-`feat/webextractorkit-google-and-consent`, consumed by local path):
-
-- **Slice 1 — Evaluate section.** Evaluation is now a top-level **Evaluate** sidebar/tab
-  destination over the device-local handoff queue (lists only sets with candidates left to
-  process; tap opens the workspace), instead of a modal buried in a trip.
-- **Slice 2 — iPad cockpit.** Research browser (2/3) + map (1/3) stacked over a horizontal
-  candidate strip. Strip cards tap-to-expand their dossier (chevron collapses, one at a time);
-  **Add to Day ▸** places a candidate on a specific day or To-Be-Scheduled; a header ＋ adds a
-  candidate the AI didn't supply. Map: focused/resolve pins are prominent labeled annotations;
-  search-select resolves the focused candidate directly; tapping a candidate pans to keep its pin
-  in view (expand-to-include, never zoom-tight); framing stays put through resolves. Browser:
-  never dead-ends (title-search fallback + always browsable); compact **Connect** in the toolbar;
-  blue↔grey **Site** badge (bounces on connect) distinct from the map-based **Resolved** state;
-  **Google** search engine; opt-in cookie/consent auto-accept (via WebExtractorKit). **⌘1…⌘5**
-  jump to sections; the open Evaluate workspace is held in `AppRouter` so ⌘4 returns to it.
-
-**Deferred (still open):**
-- **Choose One day-anchoring.** Marking 2+ candidates + Choose One builds an alternatives ring
-  (ADR-0035), but the ring is dayless/`.considering`, so it never appears on the itinerary.
-  Making it useful means committing the ring **to a day** at creation (born scheduled). Day
-  placement (Add to Day) was shipped first to test the appetite before building this; the
-  free-floating "multiple named choices / add to an existing choice" manager stays deferred —
-  anchor decisions to days, not abstract choices.
-- **Slice 3 — dossier flyover.** The focused card should expand *over* its siblings to reclaim
-  their width (the original "cover the rest of the carousel" design); it currently expands inline
-  and pushes them right.
-- **Slice 4 — iPhone layout.** The compact layout still uses the pre-cockpit candidate rail/sheet;
-  give it the same candidate state in a map-first sheet + pushed browser.
-
-Merge order for the open PRs: land the two jon-platform branches first
-(`feat/webextractorkit-google-and-consent`, `feat/llmhandoffkit` — independent), then galavant
-#34 (lint), then #35/#36 (whichever lands second conflicts only on the generated
-`project.pbxproj` → resolve by regenerating with `xcodegen generate`). Rationale: ADR-0037.
-
-## M9 the lift (ADR-0036 S3) — BUILT, in PR #35; yes-chef adoption is the open follow-up
-
-The handoff spine was extracted to **`jon-platform/packages/LLMHandoffKit`** (dep branch
-`feat/llmhandoffkit`) and Galavant rewired to consume it — behavior-neutral: `GalavantAI` is now a
-thin `@_exported import LLMHandoffKit` shim, so call sites compile unchanged. In **PR #35**
-(`feat/llmhandoffkit-lift`). Moved to the package: `HandoffSession` / status / candidate-link, the
-routing + contract-marker types, `HandoffSessionStore` (+ dependency accessor) and its tests;
-domain (`RecommendationHandoffContract`/`Task`/`Scope`, `TripCandidate`) stayed in `GalavantSchema`.
-**Remaining:** **yes-chef adoption** — yes-chef already has an equivalent spine; converging it onto
-the shared package is its own repo/PR (consumer #1), exactly as the WebExtractorKit lift left its
-yes-chef rewire open. Rationale: ADR-0036.
-
-## In progress — M7 Slice 1 calendar reconciliation (ADR-0034)
-
-The calendar direction has been reversed (ADR-0034, 2026-08-10): the couple's shared
-Apple Calendar is authoritative for real commitments, and Galavant **ingests and
-reconciles** in-scope events for a dated trip instead of projecting the one-way
-`Galavant: <trip>` mirror. The shipped export is demoted, not deleted (future "Add to
-Shared Calendar"). Slice 0 cleared its EventKit observation gate on 2026-08-10.
-
-Slice 1 (`codex/m7-s1-calendar-ingest`) now reads the dated trip's full civil-day
-window, resolves every event through the existing `PlaceMatcher`, and renders a
-read-only, in-memory reconciliation view. Its conservative ladder auto-identifies
-only a unique same-day Apple Maps identity; a unique normalized name is merely a
-proposal; ties and unknowns stay visible without writing a link, ledger, or Calendar
-record. The remaining gate is **real shared-calendar dogfooding**: exercise obvious
-matches, same-name ties, unmatched obligations, denied/revoked access, and refresh on
-foreground before promoting the slice to done. Full sequence: ROADMAP M7; rationale:
-ADR-0034.
-
-## In progress — M7 Slice 3 shared ledger + cross-device dedup (ADR-0034)
-
-Slice 3 (`codex/m7-s3-shared-ledger`) promotes only the reviewable outcome into
-the trip's shared CloudKit graph. The EventKit binding remains device-local, while
-each shared ledger row is keyed by a deterministic hash of the Calendar item's
-server identity/revision and the applied semantic change. Raw EventKit identifiers
-and device observation times never sync; two phones observing the same event change
-therefore write the same record. Existing local Slice 2 history is deliberately not
-guessed into shared state because it lacks that cross-device source fingerprint.
-
-## In progress — M7 Slice 4 temporal subsystem (ADR-0034)
-
-Slice 4 (`codex/m7-s4-temporal-subsystem`) captures EventKit time as one of three
-semantic values: absolute instants with their display zone, floating civil date-time,
-or all-day civil ranges. Availability remains distinct from occupancy, so all-day,
-free, and tentative events do not manufacture hard-busy intervals. Recurrence binds
-one occurrence by its original scheduled anchor (including a detached/moved instance),
-never the whole series. Absolute instants project onto trip days in the trip's
-**destination (region) zone** — derived by reverse-geocoding the trip's planning
-region — which is the single civil-day frame for every event shape; a matched
-venue's own MapKit zone is only a fallback for a region-less trip, never an
-override (a wrong worldwide name-match must not push a just-after-midnight event
-onto the prior day). When neither a region nor a place zone resolves, the event
-stays a visible "Time Zone Needs Review" reconciliation item rather than falling
-back to the event or device zone, and is never silently dropped. Local
-recurring bindings retain source + occurrence identity and heal a replacement EventKit
-identifier before applying a detached occurrence's move. The complete semantic
-commitment round-trips through the shared ledger while legacy Slice 2 local history
-and Slice 3 ledger rows still decode. The remaining gate is the slice PR plus real
-Calendar dogfooding across home/travel zones and a modified recurring occurrence.
-
-## In progress — M7 Slice 5 Calendar-originated constraints (ADR-0034)
-
-Slice 5 (`codex/m7-s5-calendar-constraints`) promotes an eligible unmatched shared-
-Calendar event into a synced `CalendarTripConstraint`: a deterministic, cross-device
-identity; full temporal/availability snapshot; trip-day projection; and a device-local
-EventKit binding. Constraints render in the itinerary timeline without becoming pool
-ideas or Galavant-authored stops. A healthy full-access read may remove one only after
-both its local EventKit ID and server identity corroborate absence; permission loss,
-calendar-selection loss, moved events, replacement local IDs, and an individually
-missing recurrence while its series remains visible infer no deletion. Existing
-Galavant-originated linked stops never enter this deletion path.
-
-Slice 5 merged via PR #22. An architect review + two dogfood passes then surfaced two
-reap gaps where a constraint orphaned in the itinerary and never self-healed, both
-fixed in **PR #23** (branch `fix/m7-s5-constraint-moved-outside-and-rekey`): (1)
-**moved-outside** — a constraint whose event moves past the trip window now drops its
-shared row while keeping the device-local binding (recreates on return), instead of
-lingering on its old day; (2) **re-keyed recurrence** — converting a recurring series
-between all-day and timed re-keyed the occurrence anchor and left permanent duplicates,
-now superseded by a `(series externalIdentifier + trip day)` slot key (verified stable
-against the EventKit headers). Pure-core tests cover both; suite green 16/16.
-
-Remaining gate: real shared-Calendar (iCloud/CalDAV, **not** a local calendar — only
-those carry the stable `externalIdentifier` a constraint needs) dogfooding of create,
-edit, move-within, move-outside, delete, two-device convergence, and the all-day→timed
-recurrence conversion, for a non-place obligation.
-
-Deferred product notes from the review (non-blocking, revisit after dogfooding):
-- **No dismiss/convert affordance.** Every eligible in-scope event becomes an itinerary
-  row with no way to hide it or promote it to a real stop. Justified by ADR-0034 §2
-  ("reckon with every event"), but a recurring daily commitment during a trip can
-  clutter; watch during dogfooding.
-- **`free`/`tentative` events still render as rows** (with a detail line). Correct per
-  §2, but consider whether a `free` obligation deserves an itinerary row at all.
-- **24-hour clock.** `constraintTime` renders `HH:MM`; confirm it matches the rest of
-  the itinerary's clock style.
-
-## Dogfood gate — M7 Slice 2 auto-apply + local history (ADR-0034)
-
-Slice 2 (`codex/m7-s2-auto-apply`) establishes only a device-local EventKit binding:
-one unique, same-day Apple Maps identity with a stable local EventKit identifier may
-link to one itinerary stop, and later observations of that same local event
-automatically refresh the stop's pinned date and clock time. Its `.linked` authority
-disables Galavant-side time and booking edits on that device; `.manual` continues to
-cover typed pins. Every link/update is retained as device-local review history. A
-linked event that is explicitly found outside the trip window is recorded as **moved
-outside this trip** without rewriting or deleting the itinerary stop; a missing lookup
-remains unknown, never deletion. A name-only proposal, duplicate automatic candidate,
-display-only fallback identity, or malformed temporal range also never writes. Slice 4
-lifts Slice 2's former all-day, recurrence, and cross-day restrictions. The synced
-`TripIdea` cache is deliberately not a synced EventKit binding — the shared ledger
-does not make an EventKit binding global. Remaining gate: dogfood a real shared
-reservation, then inspect a later time/day move and a moved-outside-trip notice in
-local history.
-
-The read-only proposal tier also flags a nearby, differently resolved Maps place when
-both sides have coordinates within 100m and share a meaningful normalized name token.
-It is explicitly `.proposed(.nameAndProximity)`, never an automatic link or write.
+- **Choose One day-anchoring.** Marking 2+ candidates + Choose One builds an
+  alternatives ring (ADR-0035), but the ring is dayless/`.considering`, so it never
+  appears on the itinerary. Make it useful by committing the ring **to a day** at
+  creation (born scheduled) — anchor decisions to days, not abstract choices.
+- **Dossier flyover (cockpit Slice 3).** The focused candidate card should expand
+  *over* its siblings to reclaim their width; it currently expands inline and pushes
+  them right.
+- **iPhone cockpit layout (cockpit Slice 4).** The compact layout still uses the
+  pre-cockpit candidate rail/sheet; give it the same candidate state in a map-first
+  sheet + pushed browser.
+- **yes-chef adoption of LLMHandoffKit** (ADR-0036 consumer #1). yes-chef already has
+  an equivalent handoff spine; converging it onto the shared jon-platform package is
+  its own repo/PR (as the WebExtractorKit lift left its yes-chef rewire open).
 
 ## Parallel / independent — the M5 real-device gate (calendar removed)
 

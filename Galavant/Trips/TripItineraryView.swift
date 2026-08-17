@@ -15,6 +15,7 @@ struct TripItineraryView: View {
   /// When set, render only this day's stops (the canvas day lens). Nil = the
   /// whole trip.
   var focusedDay: Int?
+  @State private var selectedCalendarConstraint: CalendarTripConstraint?
 
   var body: some View {
     ScrollViewReader { proxy in
@@ -24,6 +25,9 @@ struct TripItineraryView: View {
         .onChange(of: model.canvasSelectedStopID) { _, id in
           guard let id else { return }
           withAnimation { proxy.scrollTo(id, anchor: .center) }
+        }
+        .sheet(item: $selectedCalendarConstraint) { constraint in
+          CalendarConstraintDetailSheet(constraint: constraint)
         }
     }
   }
@@ -129,6 +133,9 @@ struct TripItineraryView: View {
       if let day, model.tripRegions.count >= 2 {
         dayRegionMenu(day: day)
       }
+      if let day {
+        dayTimeZoneMenu(day: day)
+      }
     }
   }
 
@@ -151,6 +158,37 @@ struct TripItineraryView: View {
       HStack(spacing: 5) {
         Icon.map.image.imageScale(.medium)
         Text(assigned?.name ?? "Set region").lineLimit(1)
+      }
+      .font(.subheadline)
+      .foregroundStyle(assigned == nil ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
+      .padding(.horizontal, 11)
+      .padding(.vertical, 6)
+      .background(Capsule().fill(Color(.tertiarySystemFill)))
+    }
+    .buttonStyle(.borderless)
+    .textCase(nil)
+  }
+
+  private func dayTimeZoneMenu(day: Int) -> some View {
+    let assigned = model.dayTimeZone(forDay: day)
+    return Menu {
+      Button("Use trip default") { model.setDayTimeZone(nil, forDay: day) }
+      Divider()
+      ForEach(TimeZone.knownTimeZoneIdentifiers.sorted(), id: \.self) { identifier in
+        Button {
+          model.setDayTimeZone(identifier, forDay: day)
+        } label: {
+          if identifier == assigned?.identifier {
+            Label(identifier, systemImage: "checkmark")
+          } else {
+            Text(identifier)
+          }
+        }
+      }
+    } label: {
+      HStack(spacing: 5) {
+        Image(systemName: "clock")
+        Text(assigned?.identifier ?? "Set time zone").lineLimit(1)
       }
       .font(.subheadline)
       .foregroundStyle(assigned == nil ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
@@ -206,27 +244,38 @@ struct TripItineraryView: View {
   }
 
   private func calendarConstraintRow(_ constraint: CalendarTripConstraint) -> some View {
-    HStack(spacing: 12) {
-      Image(systemName: "calendar.badge.clock")
-        .foregroundStyle(.secondary)
-        .frame(width: 24)
-      VStack(alignment: .leading, spacing: 2) {
-        Text(constraint.title)
-          .font(.subheadline.weight(.medium))
-        if let detail = calendarConstraintDetail(constraint) {
-          Text(detail)
-            .font(.caption)
-            .foregroundStyle(.secondary)
+    Button {
+      selectedCalendarConstraint = constraint
+    } label: {
+      HStack(spacing: 12) {
+        Image(systemName: "calendar.badge.clock")
+          .foregroundStyle(.secondary)
+          .frame(width: 24)
+        VStack(alignment: .leading, spacing: 2) {
+          Text(constraint.title)
+            .font(.subheadline.weight(.medium))
+          if let detail = calendarConstraintDetail(constraint) {
+            Text(detail)
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
+        }
+        Spacer()
+        Text(constraint.displayTime ?? constraintTime(constraint))
+          .font(.subheadline.monospaced())
+          .foregroundStyle(.secondary)
+        if constraint.notes != nil {
+          Image(systemName: "chevron.right")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.tertiary)
         }
       }
-      Spacer()
-      Text(constraintTime(constraint))
-        .font(.subheadline.monospaced())
-        .foregroundStyle(.secondary)
     }
+    .buttonStyle(.plain)
     .padding(.vertical, 2)
     .accessibilityElement(children: .combine)
-    .accessibilityLabel("Calendar constraint, \(constraint.title), \(constraintTime(constraint))")
+    .accessibilityLabel(
+      "Calendar constraint, \(constraint.title), \(constraint.displayTime ?? constraintTime(constraint))")
   }
 
   /// A stay boundary row — "Check in" on the stay's check-in day, "Check out" on
@@ -413,6 +462,39 @@ struct TripItineraryView: View {
     }
   }
 
+}
+
+private struct CalendarConstraintDetailSheet: View {
+  let constraint: CalendarTripConstraint
+  @Environment(\.dismiss) private var dismiss
+
+  var body: some View {
+    NavigationStack {
+      List {
+        Section("Calendar event") {
+          LabeledContent("Title", value: constraint.title)
+          if let displayTime = constraint.displayTime {
+            LabeledContent("Time", value: displayTime)
+          }
+          if let location = constraint.location {
+            LabeledContent("Location", value: location)
+          }
+        }
+        if let notes = constraint.notes {
+          Section("Notes") {
+            Text(notes)
+              .textSelection(.enabled)
+          }
+        }
+      }
+      .navigationTitle("Calendar Event")
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          Button("Done") { dismiss() }
+        }
+      }
+    }
+  }
 }
 
 /// Hands off to Apple Maps with the connector's from→to pair and chosen mode.

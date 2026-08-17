@@ -286,16 +286,31 @@ public enum CalendarTripDayProjection: Equatable, Sendable {
 public struct CalendarTripTemporalContext: Equatable, Sendable {
   public let tripStart: CalendarCivilDate
   public let dayCount: Int
+  public let assignmentTimeZone: TimeZone?
+  public let dayTimeZones: [DayNumber: TimeZone]
 
-  public init?(tripStart: CalendarCivilDate, dayCount: Int) {
+  public init?(
+    tripStart: CalendarCivilDate,
+    dayCount: Int,
+    assignmentTimeZone: TimeZone? = nil,
+    dayTimeZones: [DayNumber: TimeZone] = [:]
+  ) {
     guard dayCount > 0 else { return nil }
     self.tripStart = tripStart
     self.dayCount = dayCount
+    self.assignmentTimeZone = assignmentTimeZone
+    self.dayTimeZones = dayTimeZones
   }
 
-  public init(scope: CalendarTripScope) {
+  public init(
+    scope: CalendarTripScope,
+    assignmentTimeZone: TimeZone? = nil,
+    dayTimeZones: [DayNumber: TimeZone] = [:]
+  ) {
     tripStart = scope.start
     dayCount = scope.dayCount
+    self.assignmentTimeZone = assignmentTimeZone
+    self.dayTimeZones = dayTimeZones
   }
 
   public func project(
@@ -305,8 +320,10 @@ public struct CalendarTripTemporalContext: Equatable, Sendable {
     let timeZone: TimeZone
     switch temporal {
     case .absolute:
-      guard let absoluteTimeZone else { return .unresolvedTimeZone }
-      timeZone = absoluteTimeZone
+      guard let resolved = assignmentTimeZone ?? absoluteTimeZone else {
+        return .unresolvedTimeZone
+      }
+      timeZone = resolved
     case .floating, .allDay:
       timeZone = TimeZone(secondsFromGMT: 0)!
     }
@@ -315,7 +332,13 @@ public struct CalendarTripTemporalContext: Equatable, Sendable {
     guard let day = eventStart.dayNumber(since: tripStart),
       (1...dayCount).contains(day)
     else { return .outsideTrip }
-    return .day(day, timeZone: temporal.timeZone == nil ? nil : timeZone)
+    // Assignment stays conservative for absolute instants: the trip default
+    // (or centroid fallback) determines the civil day and canonical sort key.
+    // A resolved per-day zone is still carried for floating-time interpretation
+    // and presentation, where the wall clock has no absolute zone of its own.
+    return .day(
+      day,
+      timeZone: temporal.timeZone == nil ? dayTimeZones[day] : timeZone)
   }
 }
 

@@ -18,14 +18,31 @@ extension CalendarReconciliation {
     localState: CalendarReconciliationLocalState,
     deletedEventIDs: Set<String> = [],
     movedOutsideEventIDs: Set<String> = [],
-    regionTimeZone: TimeZone? = nil
+    regionTimeZone: TimeZone? = nil,
+    existingConstraints: [CalendarTripConstraint] = [],
+    ignoredSourceIdentityHashes: Set<String> = []
   ) -> CalendarConstraintAutomaticPlan {
     var state = localState
     var upserts: [CalendarTripConstraint] = []
     var deletions: [CalendarTripConstraint.ID] = []
 
+    let ignoredConstraintIDs = Set(
+      ignoredSourceIdentityHashes.map {
+        CalendarReconciliationFingerprint.constraintID(
+          tripID: tripID, sourceIdentityHash: $0)
+      })
+    for constraint in existingConstraints
+    where constraint.tripID == tripID && ignoredConstraintIDs.contains(constraint.id) {
+      deletions.append(constraint.id)
+    }
+
     for candidate in candidates {
       let event = candidate.input.event
+      if let source = CalendarReconciliationFingerprint.constraintSource(for: event),
+        ignoredSourceIdentityHashes.contains(source)
+      {
+        continue
+      }
       guard event.isEligibleForSharedReconciliation,
         event.hasStableLocalIdentity,
         let sourceExternalIdentifier = event.externalIdentifier

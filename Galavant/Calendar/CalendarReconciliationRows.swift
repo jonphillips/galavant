@@ -50,21 +50,80 @@ extension CalendarReconciliationSheet {
         Text("Matches \(stop.content.title) by \(basisDescription(basis)).")
           .font(.caption)
           .foregroundStyle(.green)
+        actionButtons(for: candidate, stop: stop)
       case let .proposed(stop, basis):
         Text("Possible match: \(stop.content.title) by \(basisDescription(basis)).")
           .font(.caption)
+        actionButtons(for: candidate, stop: stop)
+        ignoreButton(for: candidate)
       case let .ambiguous(stops):
         Text("Could be: \(stops.map(\.content.title).joined(separator: ", ")).")
           .font(.caption)
+        actionButtons(for: candidate, stop: nil)
       case .unresolvedTimeZone:
         Text("Travel time zone needs review before this event can be placed on a trip day.")
           .font(.caption)
       case .unmatched:
         Text("No itinerary stop matches. Eligible events are added as trip constraints.")
           .font(.caption)
+        ignoreButton(for: candidate)
       }
     }
     .accessibilityElement(children: .combine)
+  }
+
+  @ViewBuilder
+  private func ignoreButton(for candidate: CalendarReconciliationCandidate) -> some View {
+    let canIgnore = candidate.input.event.externalIdentifier != nil
+    Button("Ignore") {
+      Task { await model.ignore(candidate, trip: trip, plan: plan) }
+    }
+    .disabled(!canIgnore)
+    .font(.caption.weight(.semibold))
+    if !canIgnore {
+      Text("This event has no shared Calendar identity.")
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+    }
+  }
+
+  @ViewBuilder
+  private func actionButtons(
+    for candidate: CalendarReconciliationCandidate,
+    stop: ResolvedStop?
+  ) -> some View {
+    let eligible = candidate.input.event.isEligibleForSharedReconciliation
+      && candidate.input.event.hasStableLocalIdentity
+    let reason = candidate.input.event.sharedReconciliationIneligibilityReason
+      ?? (candidate.input.event.hasStableLocalIdentity
+        ? nil
+        : "This event has no stable local identity on this device.")
+    if model.isLinked(candidate) {
+      Button("Unlink") {
+        Task { await model.unlink(candidate, trip: trip, plan: plan) }
+      }
+      .font(.caption.weight(.semibold))
+    } else if let stop {
+      Button("Link to \(stop.content.title)") {
+        Task {
+          guard let selectedCalendarID = model.selectedCalendarID else { return }
+          await model.link(
+            candidate, to: stop, trip: trip, plan: plan, selectedCalendarID: selectedCalendarID)
+        }
+      }
+      .disabled(!eligible)
+      .font(.caption.weight(.semibold))
+      if let reason, !eligible {
+        Text(reason).font(.caption2).foregroundStyle(.secondary)
+      }
+    } else {
+      Button("Link") { model.candidateForLink = candidate }
+        .disabled(!eligible)
+        .font(.caption.weight(.semibold))
+      if let reason, !eligible {
+        Text(reason).font(.caption2).foregroundStyle(.secondary)
+      }
+    }
   }
 
   func basisDescription(_ basis: CalendarMatchBasis) -> String {

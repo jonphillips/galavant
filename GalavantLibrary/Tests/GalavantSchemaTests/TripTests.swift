@@ -818,6 +818,29 @@ struct TripTests {
     #expect(entry.schedule == .timed(3, start: expectedStart, end: expectedEnd))
   }
 
+  @Test func revertingCalendarScheduleClearsTimeButKeepsTheDay() async throws {
+    let start = Date(timeIntervalSince1970: 1_700_000_000)
+    let entry = try await database.write { db -> TripIdea in
+      let trip = try Trip.create(name: "Copenhagen", certainty: .dated(start: start), in: db)
+      let idea = try seedIdea(name: "Noma", in: db)
+      let pulled = try TripIdea.pull(ideaID: idea.id, into: trip.id, in: db)
+      let commitmentStart = start.addingTimeInterval(2 * 24 * 60 * 60 + 10 * 60 * 60)
+      try TripIdea.applyCalendarCommitment(
+        .timed(start: commitmentStart, end: commitmentStart.addingTimeInterval(3600)),
+        stopID: pulled.id,
+        dayNumber: 3,
+        in: db)
+      try TripIdea.revertCalendarSchedule(stopID: pulled.id, in: db)
+      return try TripIdea.find(pulled.id).fetchOne(db)!
+    }
+
+    #expect(entry.pinnedDate == nil)
+    #expect(entry.startTime == nil)
+    #expect(entry.endTime == nil)
+    #expect(entry.status == .scheduled)
+    #expect(entry.dayNumber == 3)
+  }
+
   // ADR-0004/§4: sliding a dated trip's start date re-derives every pinned
   // stop's dayNumber so it keeps landing on the same real date; a normal
   // day-relative stop (no pin) never moves.

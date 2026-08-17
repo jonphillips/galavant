@@ -403,7 +403,14 @@ slice only.
   start weekdays keep our restaurants open *for the meals we want*; and a day's "what
   could we do" suggestions add to the itinerary in one tap.
 
-## M7 — Calendar reconciliation *(proposed 2026-08-10, ADR-0034)*
+## M7 — Calendar reconciliation ✅ *(shipped, ADR-0034 + ADR-0041)*
+
+**Done and dogfooded.** Slices 0–6 landed (PRs #12–#24); the post-dogfood amendments
+(ADR-0041 — raw-title exact-name promotion + manual link/unlink, trip-scoped synced
+ignores, own-zone absolute display + per-day time-zone overrides, and iCal-notes
+tap-through) landed on `feat/m7-dogfood-followups`. Device/calendar dogfooding is
+ongoing. See `docs/DONE_LOG.md` and `docs/M7-DOGFOOD.md`.
+
 
 Reverses the shipped M5 calendar boundary: the couple's **existing shared Apple
 Calendar** is authoritative for real commitments; Galavant **ingests** in-scope
@@ -415,6 +422,12 @@ the store), single time authority per stop (`.linked`/`.manual`). No auto-mirror
 the shipped export survives as a possible future deliberate "Add to Shared Calendar."
 Riskiest-unknown-first slices; nothing durable/synced is written until the semantics
 are proven locally. Full rationale + acceptance criteria in ADR-0034.
+
+**ADR-0041 dogfood amendments are implemented on `feat/m7-dogfood-followups`**
+(pending PR/device verification): raw-title exact-name promotion plus manual
+link/unlink, trip-scoped ignored events with conservative reap evidence, and
+own-zone/per-day time-zone display and resolution. Use `docs/M7-DOGFOOD.md`
+Part 3 for the focused follow-up pass; the device pass remains Jon's.
 
 - ✅ **Slice 0 — spike (throwaway, gate).** Observed the shared calendar in a dated
   trip's scope, match one obvious event via `PlaceMatcher`, survive permission-revoked
@@ -478,7 +491,14 @@ storage. Slot edits propagate across the ring so changing its day/time/order can
   13-inch M5 simulator, `BUILD SUCCEEDED`). On-device dogfooding continues; refinements land as
   follow-ups, not gates.
 
-## M9 — Recommendation handoff & evaluation workspace *(in progress, ADR-0036 + ADR-0037)*
+## M9 — Recommendation handoff & evaluation workspace ✅ *(shipped through the cockpit, ADR-0036 + ADR-0037)*
+
+**Done and in use.** Handoff substrate + evaluation-workspace core (S1/S2, P1–P2), the
+evaluation cockpit (Slices 1–3), and the LLMHandoffKit lift all landed and are dogfooded.
+Remaining are polish/enhancement follow-ups (Choose One day-anchoring, dossier flyover,
+iPhone cockpit layout) and the cross-repo yes-chef adoption of LLMHandoffKit — tracked in
+`docs/CURRENT_HANDOFF.md`. See `docs/DONE_LOG.md`.
+
 
 Galavant's instance of yes-chef's external-LLM handoff, specialized to place candidates. A
 trip context (day / stay / transfer / trip) exports a brief to a native LLM app; the human
@@ -505,18 +525,34 @@ the itinerary. The handoff core lifts to a shared jon-platform package (Galavant
   matcher → dedup-keyed `Idea`, AI rationale preserved on the stop); Save-to-Ideas /
   Add-to-itinerary (freeform → in-place resolved upgrade) / dismiss-with-undo; resolve-time
   duplicate warning with default merge and keep-both.
-- 🔧 **Evaluation cockpit (ADR-0037 layout revision) — Slices 1–2 in PR #36.** Evaluate is now a
-  top-level section over the device-local handoff queue (Slice 1); the iPad workspace is a cockpit
+- ✅ **Evaluation cockpit (ADR-0037 layout revision) — shipped, PR #36.** Evaluate is now a
+  top-level section over the device-local handoff queue; the iPad workspace is a cockpit
   — research browser (2/3) + map (1/3) over a horizontal candidate strip with tap-to-expand
   dossier, **Add to Day** placement, manual candidate add, prominent map pins, direct
   search-resolve, toolbar **Connect**, a **Site** badge, Google search, opt-in consent
-  auto-accept, and ⌘-number section shortcuts (Slice 2). Deferred: **Choose One day-anchoring**,
-  **Slice 3** (dossier flyover that covers siblings), **Slice 4** (iPhone map-first layout). The
-  pure model/traversal core is settled (ADR-0037 D7 — layout only). Details in
-  `CURRENT_HANDOFF.md`. (Supersedes the P3/P4 arrangement from #31/#32.)
-- 🔧 **The lift (ADR-0036 S3) — built, in PR #35.** Handoff spine extracted to
+  auto-accept, and ⌘-number section shortcuts. Dogfooded. Deferred polish: **Choose One
+  day-anchoring**, **dossier flyover** (cover siblings), **iPhone map-first layout** — in
+  `CURRENT_HANDOFF.md`. The pure model/traversal core is settled (ADR-0037 D7 — layout only).
+- ✅ **The lift (ADR-0036 S3) — shipped, PR #35.** Handoff spine extracted to
   `jon-platform/packages/LLMHandoffKit`; Galavant consumes it via an `@_exported` shim
-  (behavior-neutral). **yes-chef adoption** (consumer #1) is the open follow-up. Copy-then-lift
-  sequencing per ADR-0036 OQ2.
+  (behavior-neutral). **yes-chef adoption** (consumer #1) is the open cross-repo follow-up.
+  Copy-then-lift sequencing per ADR-0036 OQ2.
 - ⏳ **Deferred (designed, not built).** Two-part return with a synced `Learning` home; App
   Intents / hands-free `Ask ChatGPT` transport.
+
+## M10 — Today & Journey ✅ *(shipped, ADR-0038 + ADR-0039)*
+
+**Done and dogfooded.** Today and Journey as pure `TripPlan` projections over a
+framework-free `WeatherClient` (WeatherKit, device-verified). Shipped:
+- ✅ **Today (iPhone).** Pure `TodayProjection` core (NEXT / now-marker / earlier-today /
+  tonight-tomorrow / weather anchors), the `WeatherClient` dependency + pure request policy,
+  and the SwiftUI surface with destination-time forecasts (PRs #38/#41 + surface).
+- ✅ **Today execution (ADR-0039).** Reversible `completedAt`/`skippedAt` overlays on
+  `TripIdea` — complete / skip / do-later / do-tomorrow, tap-to-detail, expandable
+  done/skipped disclosures for undo (PR #52).
+- ✅ **Journey (iPad, J1–J3).** Coarse read-only whole-trip projection — day story, stay
+  bands, journey map, per-region romance imagery + selection-driven image panel
+  (PRs #53–#56).
+
+Deferred per ADR-0038 §8 (someday, not blocking): AI themes, severe-weather/minute
+advisory, device-GPS "you are here", climatology, auto-entry into Today.

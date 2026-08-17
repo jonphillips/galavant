@@ -1,5 +1,39 @@
 # Done Log — completed enhancements
 
+## M7 calendar dogfood amendments (ADR-0041) — IMPLEMENTED, pending device verification
+
+Implemented on `feat/m7-dogfood-followups` (2026-08-17), completing the M7 calendar
+milestone (Slices 0–6 shipped earlier via PRs #12–#24). The reconciliation matcher now
+promotes one unambiguous exact raw-title match, while manual link/unlink uses the same
+durable binding path and preserves eligibility gates. A synced trip-scoped ignore table
+hides ignored events before matching and constraint planning, supports un-ignore,
+supersedes stale Calendar-originated constraints, and only reaps an ignored row after
+confirmed deletion evidence. Absolute constraint rows recompute display from their full
+Calendar snapshot in the event's own zone; synced per-day zone overrides resolve
+override → day region → trip centroid, with coordinate-derived centroid fallback when
+regions are absent.
+
+A follow-up commit stabilized the repair path and cut the reconcile cost:
+- **Unlink now sticks.** A `.unlinked` history entry (keyed by source fingerprint)
+  suppresses auto-relink of an automatic match on the next reconcile; a human re-link
+  bypasses the suppression via `manuallyRelinkedSourceFingerprint`.
+- **Unlink reverts the stop** to Anytime-on-its-day (`revertCalendarSchedule`), dropping
+  the borrowed Calendar clock time with alternative-ring consistency, instead of leaving
+  a phantom manual time.
+- **Fetch/reconcile split.** Ignore / un-ignore / link / unlink now re-run only the pure
+  reconciliation over a cached ingest (no EventKit re-read, no geocoding, no loading
+  flash); EventKit-dependent passes (deletion, moved-outside, freeze) stay gated to a full
+  refresh.
+- **iCal notes are viewable.** `EKEvent.notes` (and location) are captured into
+  `CalendarObservedEvent`, stored on `CalendarTripConstraint` (fully-shared per ADR-0034
+  §2), and shown by tapping a calendar row — a detail sheet with title, own-zone time,
+  location, and selectable notes (chevron only when notes exist).
+
+Note: EventKit exposes a single time zone per event (departure); a flight's *arrival*
+zone is not in the public API, so a MUC→CLT flight displays instant-correct times in its
+departure zone rather than Apple Calendar's dual GMT+2/EDT labels. Not pursued.
+See `docs/M7-DOGFOOD.md` Part 3 for the device pass.
+
 Granular enhancement notes that have **fully shipped**, kept for history/context
 (not milestone-scoped — see `ROADMAP.md` for those). Companion to
 `docs/CURRENT_HANDOFF.md` (what's still open) — this file used to be one long
@@ -613,16 +647,16 @@ The external-LLM handoff substrate and the settled core of the evaluation worksp
   Save-to-Ideas / Add-to-itinerary / dismiss-with-undo, plus resolve-time duplicate reconcile
   (default merge, keep-both).
 
-Still **current, not done** (see `CURRENT_HANDOFF.md`): the layout was reworked into a dedicated
-**evaluation cockpit** — Evaluate promoted to a top-level section (Slice 1) plus the iPad
+**Now shipped and dogfooded** (merged): the layout was reworked into a dedicated **evaluation
+cockpit** — Evaluate promoted to a top-level section (Slice 1) plus the iPad
 browser/map/candidate-strip cockpit with Add-to-Day placement, prominent map pins, direct
 search-resolve, toolbar Connect, Site badge, Google search, opt-in consent auto-accept, and
-⌘-number section shortcuts (Slice 2) — built and in **PR #36** (supersedes the P3/P4 arrangement
-from #31/#32). The **lift** (ADR-0036 S3) is also built and in **PR #35** (`LLMHandoffKit` created;
-Galavant consumes via an `@_exported` shim, behavior-neutral; yes-chef adoption is the open
-follow-up). Both graduate to a full DONE entry here once merged. Remaining M9 layout work: Choose
-One day-anchoring, Slice 3 (dossier flyover that covers siblings), Slice 4 (iPhone map-first
-layout).
+⌘-number section shortcuts (Slice 2/3) — **PR #36** (superseded the P3/P4 arrangement from
+#31/#32). The **lift** (ADR-0036 S3) also shipped in **PR #35**: `LLMHandoffKit` created in
+`jon-platform/packages`; Galavant consumes it via an `@_exported` shim (behavior-neutral).
+Open follow-ups (in `CURRENT_HANDOFF.md`): cross-repo **yes-chef adoption** of LLMHandoffKit,
+and cockpit polish — Choose One day-anchoring, dossier flyover (cover siblings), iPhone
+map-first layout.
 
 ## App unit-test bundle + IdeasListModel filtered-delete regression (Codex review 2026-06-16) — DONE
 
@@ -688,3 +722,26 @@ read-only). Fixes the inert "Anytime day" where the clock can't advance NEXT.
 Verification: `swift test --package-path GalavantLibrary` green (380 tests, incl. four
 new outcome/ops/projection tests); `xcodebuild build -scheme Galavant` clean on iPhone 17
 Pro / iOS 27.
+
+## M10 Today SwiftUI surface + iPad Journey (ADR-0038) — DONE
+
+Completed the M10 arc around the Today execution core above. Done and dogfooded.
+
+- **Today surface (Slices 1–4).** Pure `TodayProjection` core in `GalavantSchema` (NEXT
+  across `now`, `.nowMarker` + earlier-today, tonight/tomorrow, pure `WeatherAnchor`
+  coordinate ladder) — PR #38; the app-target `@Dependency weatherClient` over WeatherKit
+  decoding to a framework-free `WeatherSummary` with a pure request policy and process-local
+  cache (PR #41, device-verified: the `WDSJWTAuthenticator Code=2` dual-enablement gotcha);
+  and the iPhone `TodayView` + thin `TodayModel` rendering the projection with
+  destination-time forecasts for weather-sensitive anchors and no-weather as the first-class
+  default. Runtime coordination (one tick source, cache-driven weather, bounded ETA
+  freshness) folded in.
+- **iPad Journey (J1–J3).** The anticipation/comprehension view — a coarse, read-only
+  `TripPlan` projection (`JourneyProjection`): whole-trip shape with day story, stay bands,
+  a journey map, one weather anchor per day, and a trip summary; reuses the same
+  pure-projection discipline and weather foundation as Today, no new persistent trip concept
+  (ADR-0038 §1). Includes per-region "romance" photography (dual-source) and a
+  selection-driven image panel (PRs #53–#56). Reachable via the iPad toolbar.
+
+Deferred per ADR-0038 §8 (someday): AI themes, severe-weather/minute advisory, device-GPS
+"you are here", climatology, auto-entry into Today.

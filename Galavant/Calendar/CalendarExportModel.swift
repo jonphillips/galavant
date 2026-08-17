@@ -142,16 +142,38 @@ final class CalendarReconciliationModel {
   @ObservationIgnored @Dependency(\.date.now) private var now
   @ObservationIgnored @Dependency(\.uuid) private var uuid
   @ObservationIgnored @FetchAll(CalendarReconciliationLedgerEntry.all) private var allLedgerEntries
+  @ObservationIgnored @FetchAll(CalendarTripConstraint.all) private var allCalendarConstraints
+  @ObservationIgnored @FetchAll(CalendarIgnoredEvent.all) private var allIgnoredEvents
   @ObservationIgnored @FetchAll(CalendarPlanRepair.all) private var allPlanRepairs
   @ObservationIgnored @FetchAll(CalendarPlanRepairResolution.all) private var allPlanRepairResolutions
 
+  private struct IngestionCache {
+    let tripID: Trip.ID
+    let calendarID: String
+    let contextFingerprint: CalendarReconciliationContextFingerprint
+    let scope: CalendarTripScope
+    let regionTimeZone: TimeZone?
+    let tripCalendar: Calendar
+    let temporalContext: CalendarTripTemporalContext
+    let observedEvents: [CalendarObservedEvent]
+    let ingestedEvents: [CalendarIngestedEvent]
+  }
+
   var state: State = .idle
   var candidates: [CalendarReconciliationCandidate] = []
+  var candidateForLink: CalendarReconciliationCandidate?
+  private var ingestionCache: IngestionCache?
+  private var currentTripID: Trip.ID?
+  var isShowingIgnored = false
   var localState = CalendarReconciliationLocalState()
   var calendars: [CalendarSource] = []
   var selectedCalendarID: String? { calendarSelectionStore.calendarID() }
 
   var sharedHistory: [CalendarReconciliationLedgerEntry] { allLedgerEntries }
+  var ignoredEvents: [CalendarIgnoredEvent] {
+    guard let currentTripID else { return [] }
+    return allIgnoredEvents.filter { $0.tripID == currentTripID }
+  }
   var planRepairs: [CalendarPlanRepair] {
     let resolutions = allPlanRepairResolutions.reduce(into: [CalendarPlanRepair.ID: CalendarPlanRepairResolution]()) {
       partial, resolution in
@@ -168,11 +190,12 @@ final class CalendarReconciliationModel {
 
   func refresh(trip: Trip, plan: TripPlan) async {
     guard state != .loading else { return }
+    currentTripID = trip.id
     guard trip.calendarReconciliationFrozenAt == nil else {
       state = .frozen
       return
     }
-    let regionTimeZone = await regionTimeZone(for: trip)
+    let regionTimeZone = await regionTimeZone(for: trip, plan: plan)
     var tripCalendar = Calendar(identifier: .gregorian)
     tripCalendar.timeZone = regionTimeZone ?? Self.storageTimeZone
     guard let scope = scope(for: trip, calendar: tripCalendar),
@@ -195,7 +218,7 @@ final class CalendarReconciliationModel {
         return
       }
 
-      try await reconcile(
+      let cache = try await fetchAndIngest(
         trip: trip,
         plan: plan,
         scope: scope,
@@ -203,6 +226,8 @@ final class CalendarReconciliationModel {
         selectedCalendarID: selectedCalendarID,
         regionTimeZone: regionTimeZone,
         tripCalendar: tripCalendar)
+      ingestionCache = cache
+      try await reconcile(trip: trip, plan: plan, cache: cache, useEventKitEvidence: true)
       state = .loaded
     } catch is CancellationError {
       // Sheet dismissal is normal view-lifecycle cancellation.
@@ -215,7 +240,7 @@ final class CalendarReconciliationModel {
     calendarSelectionStore.setCalendarID(id)
   }
 
-  private func reconcile(
+  private func fetchAndIngest(
     trip: Trip,
     plan: TripPlan,
     scope: CalendarTripScope,
@@ -223,61 +248,111 @@ final class CalendarReconciliationModel {
     selectedCalendarID: String,
     regionTimeZone: TimeZone?,
     tripCalendar: Calendar
-  ) async throws {
-    localState = historyStore.state(trip.id)
+  ) async throws -> IngestionCache {
     // Query two padded days on either side, then let the pure civil/absolute
-    // scope discard the padding. Two days covers even the widest real-world
-    // zone separation at a trip-day boundary.
-    let events = try calendarClient.events(queryInterval, [selectedCalendarID]).filter {
+    // scope discard the padding. Ignore state is deliberately not applied here:
+    // cache the complete observed list so un-ignore can reconcile locally.
+    let contextFingerprint = try await calendarContextFingerprint(for: trip, plan: plan)
+    let observedEvents = try calendarClient.events(queryInterval, [selectedCalendarID]).filter {
       scope.overlaps($0.temporal, absoluteTimeZone: nil) != false
     }
-    let temporalContext = CalendarTripTemporalContext(scope: scope)
-    let ingestedEvents = try await ingest(events, regionTimeZone: regionTimeZone)
-    candidates = CalendarReconciliation.candidates(
-      for: ingestedEvents,
+    let temporalContext = CalendarTripTemporalContext(
+      scope: scope,
+      assignmentTimeZone: regionTimeZone,
+      dayTimeZones: await dayTimeZones(for: trip, centroid: regionTimeZone))
+    let ingestedEvents = try await ingest(observedEvents, regionTimeZone: regionTimeZone)
+    return IngestionCache(
+      tripID: trip.id,
+      calendarID: selectedCalendarID,
+      contextFingerprint: contextFingerprint,
+      scope: scope,
+      regionTimeZone: regionTimeZone,
+      tripCalendar: tripCalendar,
+      temporalContext: temporalContext,
+      observedEvents: observedEvents,
+      ingestedEvents: ingestedEvents)
+  }
+
+  private func reconcile(
+    trip: Trip,
+    plan: TripPlan,
+    cache: IngestionCache,
+    useEventKitEvidence: Bool,
+    manualLink: (candidateID: String, stop: ResolvedStop)? = nil
+  ) async throws {
+    localState = historyStore.state(trip.id)
+    let ignoredSourceIdentityHashes = Set(
+      allIgnoredEvents.filter { $0.tripID == trip.id }.map(\.sourceIdentityHash))
+    var reconciledCandidates = CalendarReconciliation.candidates(
+      for: cache.ingestedEvents,
       trip: trip,
       plan: plan,
-      temporalContext: temporalContext)
-    let outsideTripObservations: [CalendarBoundEventObservation] = localState.linkedStops.compactMap { linked in
-      guard
-        let event = calendarClient.event(linked.eventID),
-        temporalContext.project(
-          event.temporal,
-          absoluteTimeZone: linked.itineraryTimeZone) == .outsideTrip
-      else { return nil }
-      return CalendarBoundEventObservation(bindingID: linked.eventID, event: event)
+      temporalContext: cache.temporalContext,
+      ignoredSourceIdentityHashes: ignoredSourceIdentityHashes)
+    if let manualLink,
+      let index = reconciledCandidates.firstIndex(where: { $0.id == manualLink.candidateID })
+    {
+      reconciledCandidates[index] = CalendarReconciliation.manuallyLinkedCandidate(
+        reconciledCandidates[index], to: manualLink.stop)
     }
+    candidates = reconciledCandidates
+
+    let outsideTripObservations: [CalendarBoundEventObservation] = useEventKitEvidence
+      ? localState.linkedStops.compactMap { linked in
+        guard
+          let event = calendarClient.event(linked.eventID),
+          cache.temporalContext.project(
+            event.temporal,
+            absoluteTimeZone: linked.itineraryTimeZone) == .outsideTrip
+        else { return nil }
+        return CalendarBoundEventObservation(bindingID: linked.eventID, event: event)
+      }
+      : []
     let automaticPlan = CalendarReconciliation.automaticPlan(
       candidates: candidates,
       outsideTripObservations: outsideTripObservations,
       localState: localState,
       observedAt: now,
-      makeHistoryID: { uuid() })
+      makeHistoryID: { uuid() },
+      manuallyRelinkedSourceFingerprint: manualLink.flatMap { manual in
+        reconciledCandidates
+          .first(where: { $0.id == manual.candidateID })
+          .flatMap { CalendarReconciliationFingerprint.source(for: $0.input.event) }
+      })
     let previousDayNumbers = Dictionary(
       uniqueKeysWithValues: plan.entries.compactMap { entry in
         entry.dayNumber.map { (entry.id, $0) }
       })
+    let deletedEventIDs = useEventKitEvidence
+      ? deletedConstraintEventIDs(
+        observedEvents: cache.observedEvents, selectedCalendarID: cache.calendarID)
+      : []
+    let ignoredEventIDsToReap = useEventKitEvidence
+      ? ignoredEventIDsToReap(tripID: trip.id, deletedEventIDs: deletedEventIDs)
+      : []
     let constraintPlan = CalendarReconciliation.constraintPlan(
       candidates: candidates,
       tripID: trip.id,
-      calendarID: selectedCalendarID,
+      calendarID: cache.calendarID,
       localState: automaticPlan.localState,
-      deletedEventIDs: deletedConstraintEventIDs(
-        observedEvents: events,
-        selectedCalendarID: selectedCalendarID),
-      movedOutsideEventIDs: movedOutsideConstraintEventIDs(
-        selectedCalendarID: selectedCalendarID,
-        temporalContext: temporalContext,
-        regionTimeZone: regionTimeZone),
-      regionTimeZone: regionTimeZone)
+      deletedEventIDs: deletedEventIDs,
+      movedOutsideEventIDs: useEventKitEvidence
+        ? movedOutsideConstraintEventIDs(
+          selectedCalendarID: cache.calendarID,
+          temporalContext: cache.temporalContext,
+          regionTimeZone: cache.regionTimeZone)
+        : [],
+      regionTimeZone: cache.regionTimeZone,
+      existingConstraints: allCalendarConstraints.filter { $0.tripID == trip.id },
+      ignoredSourceIdentityHashes: ignoredSourceIdentityHashes)
     let repairs = CalendarReconciliation.planRepairs(
       applications: automaticPlan.applications,
       previousDayNumbers: previousDayNumbers,
       history: constraintPlan.localState.history, tripID: trip.id)
     try await persist(
       automaticPlan, constraintPlan: constraintPlan, repairs: repairs,
-      tripID: trip.id)
-    if trip.isPast(at: now, calendar: tripCalendar) {
+      tripID: trip.id, ignoredEventIDsToReap: ignoredEventIDsToReap)
+    if useEventKitEvidence, trip.isPast(at: now, calendar: cache.tripCalendar) {
       let frozenAt = now
       try await database.write { db in
         try Trip.completeCalendarReconciliation(tripID: trip.id, frozenAt: frozenAt, in: db)
@@ -289,7 +364,8 @@ final class CalendarReconciliationModel {
     _ plan: CalendarReconciliationAutomaticPlan,
     constraintPlan: CalendarConstraintAutomaticPlan,
     repairs: [CalendarPlanRepair],
-    tripID: Trip.ID
+    tripID: Trip.ID,
+    ignoredEventIDsToReap: [CalendarIgnoredEvent.ID] = []
   ) async throws {
     let newHistory = constraintPlan.localState.history.dropFirst(localState.history.count)
     let ledgerEntries = newHistory.compactMap {
@@ -299,6 +375,7 @@ final class CalendarReconciliationModel {
       || !ledgerEntries.isEmpty
       || !constraintPlan.upserts.isEmpty
       || !constraintPlan.deletions.isEmpty
+      || !ignoredEventIDsToReap.isEmpty
       || !repairs.isEmpty
     {
       try await database.write { db in
@@ -318,6 +395,9 @@ final class CalendarReconciliationModel {
         for id in constraintPlan.deletions {
           try CalendarTripConstraint.remove(id: id, in: db)
         }
+        for id in ignoredEventIDsToReap {
+          try CalendarIgnoredEvent.remove(id: id, in: db)
+        }
         for repair in repairs {
           try CalendarPlanRepair.record(repair, in: db)
         }
@@ -329,6 +409,20 @@ final class CalendarReconciliationModel {
     }
   }
 
+  private func ignoredEventIDsToReap(
+    tripID: Trip.ID, deletedEventIDs: Set<String>
+  ) -> [CalendarIgnoredEvent.ID] {
+    allIgnoredEvents.filter { ignored in
+      ignored.tripID == tripID
+        && localState.linkedConstraints.contains { binding in
+          guard deletedEventIDs.contains(binding.eventID) else { return false }
+          return CalendarReconciliationFingerprint.constraintSource(
+            sourceExternalIdentifier: binding.sourceExternalIdentifier,
+            occurrenceAnchor: binding.occurrenceAnchor) == ignored.sourceIdentityHash
+        }
+    }.map(\.id)
+  }
+
   func resolvePlanRepair(_ repair: CalendarPlanRepair) {
     guard !repair.isResolved else { return }
     let resolvedAt = now
@@ -336,6 +430,120 @@ final class CalendarReconciliationModel {
       try database.write { db in
         try CalendarPlanRepair.resolve(id: repair.id, at: resolvedAt, in: db)
       }
+    }
+  }
+
+  func isLinked(_ candidate: CalendarReconciliationCandidate) -> Bool {
+    CalendarReconciliation.linkedStopIndex(
+      for: candidate.input.event, in: localState.linkedStops) != nil
+  }
+
+  private func reconcileCached(
+    trip: Trip,
+    plan: TripPlan,
+    selectedCalendarID: String,
+    manualLink: (candidateID: String, stop: ResolvedStop)? = nil
+  ) async {
+    guard ingestionCache?.tripID == trip.id,
+      ingestionCache?.calendarID == selectedCalendarID
+    else {
+      await refresh(trip: trip, plan: plan)
+      return
+    }
+    do {
+      let contextFingerprint = try await calendarContextFingerprint(for: trip, plan: plan)
+      guard let currentCache = ingestionCache,
+        currentCache.tripID == trip.id,
+        currentCache.calendarID == selectedCalendarID
+      else {
+        await refresh(trip: trip, plan: plan)
+        return
+      }
+      guard currentCache.contextFingerprint == contextFingerprint else {
+        await refresh(trip: trip, plan: plan)
+        return
+      }
+      try await reconcile(
+        trip: trip,
+        plan: plan,
+        cache: currentCache,
+        useEventKitEvidence: false,
+        manualLink: manualLink)
+      state = .loaded
+    } catch is CancellationError {
+      // Sheet dismissal is normal view-lifecycle cancellation.
+    } catch {
+      state = .failure(error.localizedDescription)
+    }
+  }
+
+  func link(
+    _ candidate: CalendarReconciliationCandidate,
+    to stop: ResolvedStop,
+    trip: Trip,
+    plan: TripPlan,
+    selectedCalendarID: String
+  ) async {
+    guard candidate.input.event.isEligibleForSharedReconciliation else { return }
+    await reconcileCached(
+      trip: trip,
+      plan: plan,
+      selectedCalendarID: selectedCalendarID,
+      manualLink: (candidateID: candidate.id, stop: stop))
+  }
+
+  func unlink(_ candidate: CalendarReconciliationCandidate, trip: Trip, plan: TripPlan) async {
+    guard let unlinkPlan = CalendarReconciliation.unlinkPlan(
+      candidate: candidate, localState: localState,
+      observedAt: now, makeHistoryID: { uuid() })
+    else { return }
+    do {
+      try await database.write { db in
+        try TripIdea.revertCalendarSchedule(stopID: unlinkPlan.stopID, in: db)
+      }
+      historyStore.setState(trip.id, unlinkPlan.localState)
+      localState = unlinkPlan.localState
+      if let selectedCalendarID {
+        await reconcileCached(
+          trip: trip, plan: plan, selectedCalendarID: selectedCalendarID)
+      }
+    } catch {
+      state = .failure(error.localizedDescription)
+    }
+  }
+
+  func ignore(_ candidate: CalendarReconciliationCandidate, trip: Trip, plan: TripPlan) async {
+    guard let ignored = CalendarIgnoredEvent(
+      tripID: trip.id, event: candidate.input.event, ignoredAt: now)
+    else { return }
+    do {
+      try await database.write { db in
+        try CalendarIgnoredEvent.upsert(ignored, in: db)
+      }
+      if let selectedCalendarID {
+        await reconcileCached(
+          trip: trip, plan: plan, selectedCalendarID: selectedCalendarID)
+      } else {
+        await refresh(trip: trip, plan: plan)
+      }
+    } catch {
+      state = .failure(error.localizedDescription)
+    }
+  }
+
+  func unignore(_ ignored: CalendarIgnoredEvent, trip: Trip, plan: TripPlan) async {
+    do {
+      try await database.write { db in
+        try CalendarIgnoredEvent.remove(id: ignored.id, in: db)
+      }
+      if let selectedCalendarID {
+        await reconcileCached(
+          trip: trip, plan: plan, selectedCalendarID: selectedCalendarID)
+      } else {
+        await refresh(trip: trip, plan: plan)
+      }
+    } catch {
+      state = .failure(error.localizedDescription)
     }
   }
 
@@ -414,6 +622,31 @@ struct CalendarReconciliationSheet: View {
         guard phase == .active else { return }
         Task { await model.refresh(trip: trip, plan: plan) }
       }
+      .sheet(item: Binding(
+        get: { model.candidateForLink },
+        set: { model.candidateForLink = $0 }
+      )) { candidate in
+        NavigationStack {
+          List(ambiguousStops(in: candidate)) { stop in
+            Button {
+              model.candidateForLink = nil
+              Task {
+                guard let selectedCalendarID = model.selectedCalendarID else { return }
+                await model.link(
+                  candidate, to: stop, trip: trip, plan: plan, selectedCalendarID: selectedCalendarID)
+              }
+            } label: {
+              Text(stop.content.title)
+            }
+          }
+          .navigationTitle("Link to Stop")
+          .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+              Button("Cancel") { model.candidateForLink = nil }
+            }
+          }
+        }
+      }
     }
   }
 
@@ -467,6 +700,30 @@ struct CalendarReconciliationSheet: View {
         }
       }
     }
+    if !model.ignoredEvents.isEmpty {
+      DisclosureGroup(
+        "Ignored",
+        isExpanded: Binding(
+          get: { model.isShowingIgnored },
+          set: { model.isShowingIgnored = $0 }))
+      {
+        ForEach(model.ignoredEvents) { ignored in
+          HStack {
+            VStack(alignment: .leading, spacing: 3) {
+              Text(ignored.title)
+              Text("Dismissed for this trip.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button("Un-ignore") {
+              Task { await model.unignore(ignored, trip: trip, plan: plan) }
+            }
+            .font(.caption.weight(.semibold))
+          }
+        }
+      }
+    }
     // A linked stop whose event drifted out of the trip window is surfaced as a
     // party-wide, actionable "Plan Repair" (below), not a separate device-local
     // notice — the shared repair supersedes the old informational section.
@@ -486,6 +743,11 @@ struct CalendarReconciliationSheet: View {
         }
       }
     }
+  }
+
+  private func ambiguousStops(in candidate: CalendarReconciliationCandidate) -> [ResolvedStop] {
+    if case let .ambiguous(stops) = candidate.result { return stops }
+    return []
   }
 
 }

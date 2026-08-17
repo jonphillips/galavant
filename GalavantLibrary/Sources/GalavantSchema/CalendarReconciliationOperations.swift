@@ -40,4 +40,21 @@ extension TripIdea {
       return
     }
   }
+
+  /// Reverts a Calendar-linked stop to Anytime on its current day when the
+  /// binding is removed. The pre-link manual clock is not stored, so restoring
+  /// it would be guesswork; clearing the Calendar-derived schedule is explicit.
+  /// Alternative-ring members receive the same day-only schedule as the active
+  /// member so the shared slot remains consistent.
+  public static func revertCalendarSchedule(stopID: TripIdea.ID, in db: Database) throws {
+    guard let entry = try TripIdea.find(stopID).fetchOne(db) else { return }
+    let members = try TripIdea.alternativeMembers(containing: entry, in: db)
+    guard TripIdea.effectiveActiveMember(in: members)?.id == stopID else { return }
+    try TripIdea.find(stopID)
+      .update { $0.pinnedDate = #bind(nil as Date?) }
+      .execute(db)
+    guard let day = entry.dayNumber else { return }
+    try TripIdea.updateSharedSlot(
+      members: members, status: .scheduled, schedule: .day(day), in: db)
+  }
 }

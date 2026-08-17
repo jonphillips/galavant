@@ -151,6 +151,73 @@ state. After that, edit one of that trip's Calendar events → Refresh →
 - **Two-device:** the frozen boundary syncs — the other phone also reads the
   trip as frozen.
 
+## Part 3 — ADR-0041 dogfood amendments
+
+These checks cover the follow-ups added after the first constraint dogfood pass.
+Run them with the same shared-calendar and Full-access preconditions above.
+
+### A. Raw-title match and manual link
+
+Create an event whose raw title exactly matches one unambiguous itinerary stop,
+but whose Maps lookup returns no place → Refresh.
+**Expect:** it is promoted to **High-Confidence** and the same durable linked
+path is used. Create a title with two possible stops → **Expect:** it remains a
+**Potential Match** until you choose the intended stop in the picker. Tap
+**Link**, verify the stop becomes Calendar-authoritative, then tap **Unlink**.
+**Expect:** the stop returns to its prior authority and the Calendar binding is
+gone, its Calendar-derived pin and clock clear to **Anytime** on the same day,
+and a subsequent refresh does not recreate the automatic link. Link it again
+manually to confirm the suppression is cleared, then unlink it once more.
+
+### B. Ignore and un-ignore
+
+For an eligible unmatched event, tap **Ignore**.
+**Expect:** it is absent from both the reconciliation proposals and itinerary
+constraints, while its **Ignored** row remains available in the sheet, with no
+"Reading shared calendars…" loading flash. Tap **Un-ignore** and **Expect:**
+the cached event returns to reconciliation without an EventKit reread or
+geocoding pass. Repeat with a proposed match and Link it; the same cache-only
+reconcile should update the row immediately.
+
+### C. Ignore safety and deletion evidence
+
+While an event is ignored, revoke Calendar permission, deselect the calendar,
+or make the event temporarily invisible through a calendar-source change.
+**Expect:** the ignored row is retained and no shared constraint or ignored row
+is deleted. Restore Full access and the selected calendar; the ignored row is
+still present. Delete the event authoritatively from Calendar, refresh with Full
+access, and **Expect:** only then may the ignored record be reaped (and only
+when the device-local binding corroborates the confirmed deletion).
+
+### D. Own-zone constraint display
+
+On a trip whose default zone differs from the event's carried zone, create a
+timed absolute event (for example, an Eastern-time flight while the trip is in
+Central Europe) → Refresh.
+**Expect:** the itinerary row keeps its canonical ordering key but displays the
+event's own clock and abbreviation, such as **6:00P EDT–7:00P EDT**.
+
+### E. Per-day time-zone override
+
+On a multi-day trip, open a day header and use the separate **Set time zone**
+control; do not change the day's region. **Expect:** only that day's zone tag
+and floating-event interpretation change. Clear the override → **Expect:** the
+day falls back to its assigned region zone, then the trip centroid when no day
+region exists. Remove all regions and confirm the centroid fallback still
+resolves from the itinerary's stop coordinates; no device zone is silently
+substituted.
+
+### F. Calendar event notes
+
+Add a note such as **"Bring the signed forms"** to an unmatched shared-calendar
+event → Refresh so it becomes a Calendar constraint. Tap the constraint row in
+the itinerary.
+**Expect:** a detail sheet shows the title, event time, location when present,
+and the full selectable notes text. Edit the Calendar note and perform a full
+Refresh → **Expect:** the same deterministic constraint row shows the updated
+note. A whitespace-only note has no notes affordance but can still show basic
+event details when opened.
+
 ---
 
 ## Known deferred (don't file as bugs)
