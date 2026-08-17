@@ -20,10 +20,17 @@ struct PlanningRow<Trailing: View>: View {
   /// is redundant, so the Itinerary and Trip Ideas tab show the **category**
   /// instead (signal, not the city context already supplies); the Add-Ideas
   /// sheet browses the wider regional pool, where the city still disambiguates.
-  enum Subtitle { case region, category }
+  /// `.none` drops the text subtitle entirely — the itinerary uses it because the
+  /// category now rides as an icon under the sequence pin (`leadingMarker`), freeing
+  /// the line for the stop's `note`.
+  enum Subtitle { case region, category, none }
 
   let content: StopContent
   var title: String?
+  /// A short trip-specific caption ("Michael's favorite") shown under the title —
+  /// the itinerary's `TripIdea.inlineNote`, a real-time nudge for why the stop is
+  /// here. Only the itinerary passes it; the pool/shortlist rows leave it nil.
+  var note: String?
   var subtitle: Subtitle = .region
   /// The leading glyph — the kind icon by default; the day itinerary passes a
   /// `.sequence` to mirror the map pins.
@@ -33,12 +40,14 @@ struct PlanningRow<Trailing: View>: View {
   init(
     content: StopContent,
     title: String? = nil,
+    note: String? = nil,
     subtitle: Subtitle = .region,
     marker: PlanningRowMarker = .kind,
     @ViewBuilder trailing: () -> Trailing
   ) {
     self.content = content
     self.title = title
+    self.note = note
     self.subtitle = subtitle
     self.marker = marker
     self.trailing = trailing()
@@ -54,6 +63,7 @@ struct PlanningRow<Trailing: View>: View {
     switch subtitle {
     case .region: content.idea?.regionName.flatMap { $0.isEmpty ? nil : $0 }
     case .category: content.idea?.kind?.label
+    case .none: nil
     }
   }
 
@@ -62,6 +72,9 @@ struct PlanningRow<Trailing: View>: View {
       leadingMarker
       VStack(alignment: .leading, spacing: 2) {
         Text(title ?? content.title)
+        if let note, !note.isEmpty {
+          Text(note).font(.footnote).italic().foregroundStyle(.secondary)
+        }
         if let subtitleText {
           Text(subtitleText).font(.subheadline).foregroundStyle(.secondary)
         }
@@ -73,8 +86,10 @@ struct PlanningRow<Trailing: View>: View {
   }
 
   /// The kind icon (default), or a day-coloured `SequencePin` matching the stop's
-  /// map pin. Both occupy a 26-wide slot so the title column stays aligned whether
-  /// a row carries a number or an icon.
+  /// map pin — with the category's kind icon tucked beneath the number, so "Food"
+  /// reads as a fork-and-knife instead of a text subtitle line. Both occupy a
+  /// 26-wide slot so the title column stays aligned whether a row carries a number
+  /// or an icon.
   @ViewBuilder private var leadingMarker: some View {
     switch marker {
     case .kind:
@@ -83,8 +98,16 @@ struct PlanningRow<Trailing: View>: View {
         .frame(width: 26)
         .padding(.top, 2)
     case let .sequence(number, color):
-      SequencePin(number: number, color: color)
-        .frame(width: 26)
+      VStack(spacing: 3) {
+        SequencePin(number: number, color: color)
+        if let symbol = content.idea?.kind?.systemImage {
+          Image(systemName: symbol)
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .accessibilityLabel(content.idea?.kind?.label ?? "")
+        }
+      }
+      .frame(width: 26)
     }
   }
 }

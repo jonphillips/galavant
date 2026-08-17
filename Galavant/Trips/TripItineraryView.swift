@@ -285,7 +285,8 @@ struct TripItineraryView: View {
       PlanningRow(
         content: resolved.content,
         title: looseTitle,
-        subtitle: .category,
+        note: resolved.entry.inlineNote,
+        subtitle: .none,
         marker: marker
       ) {
         stopRowAccessory(resolved)

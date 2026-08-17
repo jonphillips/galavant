@@ -95,6 +95,17 @@ struct StayDraft: Identifiable {
   var isIdeaBacked: Bool { ideaID != nil }
 }
 
+/// The editable state of the stop-note editor — a stop's short trip-specific
+/// caption (`TripIdea.inlineNote`), the "why it's on the itinerary" nudge shown
+/// under its title. Seeded from the stop's current note; a blank field clears it.
+/// Identifiable (keyed on the stop) so it drives a `.sheet(item:)`.
+struct StopNoteDraft: Identifiable {
+  var stopID: TripIdea.ID
+  var stopTitle: String
+  var note: String
+  var id: TripIdea.ID { stopID }
+}
+
 /// The editable state of the reservation-pin sheet (docs/trip-time-model.md §4)
 /// — give a stop an absolute calendar date plus optional booking metadata, or
 /// (from the sheet's destructive action) drop its pin back to an ordinary
@@ -209,6 +220,7 @@ final class TripPlanningModel {
     case alternativeSlot(AlternativeSlotTarget)
     case stay(StayDraft)
     case stopTime(StopTimeDraft)
+    case stopNote(StopNoteDraft)
     case booking(BookingDraft)
     case recommendationHandoff(RecommendationHandoffPresentation)
     case recommendationWorkspace(RecommendationWorkspacePresentation)

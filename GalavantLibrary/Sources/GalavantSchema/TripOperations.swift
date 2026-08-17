@@ -739,6 +739,24 @@ extension TripIdea {
     return id
   }
 
+  /// Set a stop's short trip-specific note — the one-line "why it's on the
+  /// itinerary" caption shown under the stop's title. Unlike `editFreeform`, this
+  /// applies to **any** stop, idea-backed or freeform: `inlineNote` is the stop's
+  /// trip-scoped annotation (the recommendation handoff already writes a candidate's
+  /// rationale here), distinct from the pool idea's long-form `notes`. An empty note
+  /// stores `nil`. No-op on a missing stop.
+  public static func setInlineNote(
+    stopID: TripIdea.ID,
+    note: String?,
+    in db: Database
+  ) throws {
+    let trimmed = note?.trimmingCharacters(in: .whitespacesAndNewlines)
+    let value = (trimmed?.isEmpty ?? true) ? nil : trimmed
+    try TripIdea.find(stopID)
+      .update { $0.inlineNote = #bind(value) }
+      .execute(db)
+  }
+
   /// Edit a freeform stop's inline content. No-op on an idea-backed stop (whose
   /// content lives in the pool idea, not here) or a missing stop. ADR-0010.
   public static func editFreeform(

@@ -109,6 +109,14 @@ struct StopMenu: View {
           }
         }
       }
+      // The short "why it's on the itinerary" caption. Freeform stops edit their
+      // note in the freeform editor (tap the row), so this is idea-backed only.
+      if !isFreeform {
+        let hasNote = !(stop.entry.inlineNote ?? "").isEmpty
+        Button(hasNote ? "Edit Note…" : "Add Note…", systemImage: "text.quote") {
+          model.editStopNote(stop)
+        }
+      }
       Button("Mark Skipped", systemImage: Icon.skip.systemName) { model.markSkipped(stopID) }
       if isFreeform {
         Button("Remove", systemImage: Icon.delete.systemName, role: .destructive) {
