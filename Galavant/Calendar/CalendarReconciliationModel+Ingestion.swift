@@ -3,7 +3,62 @@ import GalavantPlaces
 import GalavantSchema
 import SQLiteData
 
+struct CalendarReconciliationContextFingerprint: Equatable, Sendable {
+  struct StopCoordinate: Equatable, Sendable {
+    let id: TripIdea.ID
+    let dayNumber: DayNumber
+    let latitude: Double
+    let longitude: Double
+  }
+
+  let tripStartDate: Date?
+  let lengthInDays: Int
+  let tripRegions: [TripRegion]
+  let dayRegions: [TripDayRegion]
+  let dayTimeZones: [TripDayTimeZone]
+  let regions: [MapRegion]
+  let stopCoordinates: [StopCoordinate]
+}
+
 extension CalendarReconciliationModel {
+  /// The inputs that can change the temporal projection without changing the
+  /// observed Calendar events. This is intentionally database-only: checking
+  /// it during a cache-only mutation must not reread EventKit or geocode.
+  func calendarContextFingerprint(
+    for trip: Trip,
+    plan: TripPlan
+  ) async throws -> CalendarReconciliationContextFingerprint {
+    let persisted = try await database.read { db -> (
+      tripRegions: [TripRegion], dayRegions: [TripDayRegion],
+      dayTimeZones: [TripDayTimeZone], regions: [MapRegion]
+    ) in
+      let tripRegions = try TripRegion.where { $0.tripID.eq(trip.id) }.fetchAll(db)
+      let dayRegions = try TripDayRegion.where { $0.tripID.eq(trip.id) }.fetchAll(db)
+      let dayTimeZones = try TripDayTimeZone.where { $0.tripID.eq(trip.id) }.fetchAll(db)
+      let regionIDs = Set(tripRegions.map(\.regionID) + dayRegions.map(\.regionID))
+      let regions = regionIDs.isEmpty
+        ? []
+        : try MapRegion.where { $0.id.in(Array(regionIDs)) }.fetchAll(db)
+      return (tripRegions, dayRegions, dayTimeZones, regions)
+    }
+    let stopCoordinates = plan.itinerary.flatMap { day in
+      day.stops.compactMap { stop -> CalendarReconciliationContextFingerprint.StopCoordinate? in
+        guard let latitude = stop.content.latitude, let longitude = stop.content.longitude else {
+          return nil
+        }
+        return .init(id: stop.id, dayNumber: day.number, latitude: latitude, longitude: longitude)
+      }
+    }
+    return CalendarReconciliationContextFingerprint(
+      tripStartDate: trip.startDate,
+      lengthInDays: trip.lengthInDays,
+      tripRegions: persisted.tripRegions.sorted { $0.id.uuidString < $1.id.uuidString },
+      dayRegions: persisted.dayRegions.sorted { $0.id.uuidString < $1.id.uuidString },
+      dayTimeZones: persisted.dayTimeZones.sorted { $0.id.uuidString < $1.id.uuidString },
+      regions: persisted.regions.sorted { $0.id.uuidString < $1.id.uuidString },
+      stopCoordinates: stopCoordinates.sorted { $0.id.uuidString < $1.id.uuidString })
+  }
+
   /// A missing device-local EventKit identifier is necessary but insufficient
   /// deletion evidence because sync may replace that identifier. A healthy
   /// full-access read therefore corroborates absence through the event's server

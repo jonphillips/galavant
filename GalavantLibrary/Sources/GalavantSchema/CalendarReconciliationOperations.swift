@@ -41,12 +41,6 @@ extension TripIdea {
     }
   }
 
-  public static func removeCalendarPin(stopID: TripIdea.ID, in db: Database) throws {
-    try TripIdea.find(stopID)
-      .update { $0.pinnedDate = #bind(nil as Date?) }
-      .execute(db)
-  }
-
   /// Reverts a Calendar-linked stop to Anytime on its current day when the
   /// binding is removed. The pre-link manual clock is not stored, so restoring
   /// it would be guesswork; clearing the Calendar-derived schedule is explicit.

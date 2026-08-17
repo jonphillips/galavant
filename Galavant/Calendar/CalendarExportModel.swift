@@ -150,6 +150,7 @@ final class CalendarReconciliationModel {
   private struct IngestionCache {
     let tripID: Trip.ID
     let calendarID: String
+    let contextFingerprint: CalendarReconciliationContextFingerprint
     let scope: CalendarTripScope
     let regionTimeZone: TimeZone?
     let tripCalendar: Calendar
@@ -219,6 +220,7 @@ final class CalendarReconciliationModel {
 
       let cache = try await fetchAndIngest(
         trip: trip,
+        plan: plan,
         scope: scope,
         queryInterval: queryInterval,
         selectedCalendarID: selectedCalendarID,
@@ -240,6 +242,7 @@ final class CalendarReconciliationModel {
 
   private func fetchAndIngest(
     trip: Trip,
+    plan: TripPlan,
     scope: CalendarTripScope,
     queryInterval: DateInterval,
     selectedCalendarID: String,
@@ -249,6 +252,7 @@ final class CalendarReconciliationModel {
     // Query two padded days on either side, then let the pure civil/absolute
     // scope discard the padding. Ignore state is deliberately not applied here:
     // cache the complete observed list so un-ignore can reconcile locally.
+    let contextFingerprint = try await calendarContextFingerprint(for: trip, plan: plan)
     let observedEvents = try calendarClient.events(queryInterval, [selectedCalendarID]).filter {
       scope.overlaps($0.temporal, absoluteTimeZone: nil) != false
     }
@@ -260,6 +264,7 @@ final class CalendarReconciliationModel {
     return IngestionCache(
       tripID: trip.id,
       calendarID: selectedCalendarID,
+      contextFingerprint: contextFingerprint,
       scope: scope,
       regionTimeZone: regionTimeZone,
       tripCalendar: tripCalendar,
@@ -439,18 +444,29 @@ final class CalendarReconciliationModel {
     selectedCalendarID: String,
     manualLink: (candidateID: String, stop: ResolvedStop)? = nil
   ) async {
-    guard let cache = ingestionCache,
-      cache.tripID == trip.id,
-      cache.calendarID == selectedCalendarID
+    guard ingestionCache?.tripID == trip.id,
+      ingestionCache?.calendarID == selectedCalendarID
     else {
       await refresh(trip: trip, plan: plan)
       return
     }
     do {
+      let contextFingerprint = try await calendarContextFingerprint(for: trip, plan: plan)
+      guard let currentCache = ingestionCache,
+        currentCache.tripID == trip.id,
+        currentCache.calendarID == selectedCalendarID
+      else {
+        await refresh(trip: trip, plan: plan)
+        return
+      }
+      guard currentCache.contextFingerprint == contextFingerprint else {
+        await refresh(trip: trip, plan: plan)
+        return
+      }
       try await reconcile(
         trip: trip,
         plan: plan,
-        cache: cache,
+        cache: currentCache,
         useEventKitEvidence: false,
         manualLink: manualLink)
       state = .loaded
