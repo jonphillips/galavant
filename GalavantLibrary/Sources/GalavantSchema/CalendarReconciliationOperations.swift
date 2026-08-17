@@ -40,4 +40,10 @@ extension TripIdea {
       return
     }
   }
+
+  public static func removeCalendarPin(stopID: TripIdea.ID, in db: Database) throws {
+    try TripIdea.find(stopID)
+      .update { $0.pinnedDate = #bind(nil as Date?) }
+      .execute(db)
+  }
 }

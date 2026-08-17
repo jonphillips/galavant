@@ -163,6 +163,16 @@ public struct CalendarObservedEvent: Equatable, Sendable, Identifiable {
     externalIdentifier != nil
       && CalendarCommitment(event: self) != nil
   }
+
+  public var sharedReconciliationIneligibilityReason: String? {
+    if externalIdentifier == nil {
+      return "This event has no shared Calendar identity."
+    }
+    if CalendarCommitment(event: self) == nil {
+      return "This event has invalid or incomplete timing."
+    }
+    return nil
+  }
 }
 
 /// Why the read-only reconciliation view found a candidate. These cases are
@@ -274,19 +284,27 @@ public enum CalendarReconciliation {
     }
     let stops = plan.itinerary.first(where: { $0.number == dayNumber })?.stops ?? []
 
+    let mapMatches: [ResolvedStop]
     if let mapItemIdentifier = input.matchedPlace?.mapItemIdentifier {
-      let matches = stops.filter { $0.idea?.mapItemIdentifier == mapItemIdentifier }
-      if matches.count == 1, let match = matches.first {
+      mapMatches = stops.filter { $0.idea?.mapItemIdentifier == mapItemIdentifier }
+      if mapMatches.count == 1, let match = mapMatches.first {
         return .automatic(match, basis: .mapItemIdentifier)
       }
-      if matches.count > 1 { return .ambiguous(matches) }
+      if mapMatches.count > 1 { return .ambiguous(mapMatches) }
+    } else {
+      mapMatches = []
     }
 
-    let name = normalizedName(input.matchedPlace?.name ?? input.event.title)
-    guard !name.isEmpty else { return .unmatched }
-    let matches = stops.filter { normalizedName($0.content.title) == name }
+    let names = Set([
+      input.matchedPlace.map { normalizedName($0.name) },
+      normalizedName(input.event.title),
+    ].compactMap { $0 }).filter { !$0.isEmpty }
+    guard !names.isEmpty else { return .unmatched }
+    let matches = stops.filter { names.contains(normalizedName($0.content.title)) }
     if matches.count == 1, let match = matches.first {
-      return .proposed(match, basis: .exactName)
+      return mapMatches.isEmpty
+        ? .automatic(match, basis: .exactName)
+        : .proposed(match, basis: .exactName)
     }
     if matches.count > 1 { return .ambiguous(matches) }
 
@@ -311,8 +329,11 @@ public enum CalendarReconciliation {
     {
       return true
     }
-    let name = normalizedName(input.matchedPlace?.name ?? input.event.title)
-    return !name.isEmpty && stops.contains { normalizedName($0.content.title) == name }
+    let names = Set([
+      input.matchedPlace.map { normalizedName($0.name) },
+      normalizedName(input.event.title),
+    ].compactMap { $0 }).filter { !$0.isEmpty }
+    return !names.isEmpty && stops.contains { names.contains(normalizedName($0.content.title)) }
   }
 
   /// The pure auto-apply pass for Slice 2. A previously linked event remains
@@ -390,6 +411,51 @@ public enum CalendarReconciliation {
     return CalendarReconciliationAutomaticPlan(applications: applications, localState: state)
   }
 
+  /// Promotes a human-confirmed proposal through the exact same application path
+  /// as an automatic match. The eligibility, stable identity, and one-event/one-stop
+  /// gates therefore remain in one place.
+  public static func manualLinkPlan(
+    candidate: CalendarReconciliationCandidate,
+    stop: ResolvedStop,
+    localState: CalendarReconciliationLocalState,
+    observedAt: Date,
+    makeHistoryID: () -> UUID
+  ) -> CalendarReconciliationAutomaticPlan {
+    var linked = candidate
+    let basis: CalendarMatchBasis = switch candidate.result {
+    case let .automatic(_, basis), let .proposed(_, basis): basis
+    case .ambiguous: .exactName
+    case .unresolvedTimeZone, .unmatched: .exactName
+    }
+    linked.result = .automatic(stop, basis: basis)
+    return automaticPlan(
+      candidates: [linked], localState: localState, observedAt: observedAt,
+      makeHistoryID: makeHistoryID)
+  }
+
+  /// Removes a local EventKit binding and records the human correction. The shared
+  /// itinerary pin is cleared by the app shell in the same user action.
+  public static func unlinkPlan(
+    candidate: CalendarReconciliationCandidate,
+    localState: CalendarReconciliationLocalState,
+    observedAt: Date,
+    makeHistoryID: () -> UUID
+  ) -> CalendarReconciliationUnlinkPlan? {
+    guard let index = linkedStopIndex(for: candidate.input.event, in: localState.linkedStops) else {
+      return nil
+    }
+    var state = localState
+    let linked = state.linkedStops.remove(at: index)
+    state.history.append(
+      CalendarReconciliationHistoryEntry(
+        id: makeHistoryID(), kind: .unlinked, stopID: linked.stopID,
+        eventID: candidate.input.event.id, eventTitle: candidate.input.event.title,
+        current: linked.commitment,
+        sourceFingerprint: CalendarReconciliationFingerprint.source(for: candidate.input.event),
+        appliedAt: observedAt))
+    return CalendarReconciliationUnlinkPlan(stopID: linked.stopID, localState: state)
+  }
+
   private static func updateLinkedStop(
     at index: Int,
     with candidate: CalendarReconciliationCandidate,
@@ -444,7 +510,7 @@ public enum CalendarReconciliation {
     }
   }
 
-  private static func linkedStopIndex(
+  public static func linkedStopIndex(
     for event: CalendarObservedEvent,
     in linkedStops: [CalendarLinkedStop]
   ) -> Int? {

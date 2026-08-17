@@ -64,7 +64,9 @@ public struct CalendarReconciliationLedgerEntry: Identifiable, Equatable, Sendab
     tripID: Trip.ID,
     historyEntry: CalendarReconciliationHistoryEntry
   ) {
-    guard historyEntry.kind != .movedOutsideTrip else { return nil }
+    guard historyEntry.kind != .movedOutsideTrip,
+      historyEntry.kind != .unlinked
+    else { return nil }
     guard let sourceFingerprint = historyEntry.sourceFingerprint else { return nil }
     let fingerprint = CalendarReconciliationFingerprint.outcome(
       tripID: tripID,

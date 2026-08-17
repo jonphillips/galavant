@@ -142,11 +142,13 @@ final class CalendarReconciliationModel {
   @ObservationIgnored @Dependency(\.date.now) private var now
   @ObservationIgnored @Dependency(\.uuid) private var uuid
   @ObservationIgnored @FetchAll(CalendarReconciliationLedgerEntry.all) private var allLedgerEntries
+  @ObservationIgnored @FetchAll(CalendarTripConstraint.all) private var allCalendarConstraints
   @ObservationIgnored @FetchAll(CalendarPlanRepair.all) private var allPlanRepairs
   @ObservationIgnored @FetchAll(CalendarPlanRepairResolution.all) private var allPlanRepairResolutions
 
   var state: State = .idle
   var candidates: [CalendarReconciliationCandidate] = []
+  var candidateForLink: CalendarReconciliationCandidate?
   var localState = CalendarReconciliationLocalState()
   var calendars: [CalendarSource] = []
   var selectedCalendarID: String? { calendarSelectionStore.calendarID() }
@@ -339,6 +341,54 @@ final class CalendarReconciliationModel {
     }
   }
 
+  func isLinked(_ candidate: CalendarReconciliationCandidate) -> Bool {
+    CalendarReconciliation.linkedStopIndex(
+      for: candidate.input.event, in: localState.linkedStops) != nil
+  }
+
+  func link(
+    _ candidate: CalendarReconciliationCandidate,
+    to stop: ResolvedStop,
+    trip: Trip,
+    selectedCalendarID: String
+  ) async {
+    guard candidate.input.event.isEligibleForSharedReconciliation else { return }
+    let automaticPlan = CalendarReconciliation.manualLinkPlan(
+      candidate: candidate, stop: stop, localState: localState,
+      observedAt: now, makeHistoryID: { uuid() })
+    let constraintPlan = CalendarReconciliation.constraintPlan(
+      candidates: [candidate], tripID: trip.id, calendarID: selectedCalendarID,
+      localState: automaticPlan.localState,
+      existingConstraints: allCalendarConstraints.filter { $0.tripID == trip.id })
+    do {
+      try await persist(
+        automaticPlan, constraintPlan: constraintPlan, repairs: [], tripID: trip.id)
+      if let index = candidates.firstIndex(where: { $0.id == candidate.id }) {
+        var updated = candidate
+        updated.result = .automatic(stop, basis: .exactName)
+        candidates[index] = updated
+      }
+    } catch {
+      state = .failure(error.localizedDescription)
+    }
+  }
+
+  func unlink(_ candidate: CalendarReconciliationCandidate, tripID: Trip.ID) async {
+    guard let unlinkPlan = CalendarReconciliation.unlinkPlan(
+      candidate: candidate, localState: localState,
+      observedAt: now, makeHistoryID: { uuid() })
+    else { return }
+    do {
+      try await database.write { db in
+        try TripIdea.removeCalendarPin(stopID: unlinkPlan.stopID, in: db)
+      }
+      historyStore.setState(tripID, unlinkPlan.localState)
+      localState = unlinkPlan.localState
+    } catch {
+      state = .failure(error.localizedDescription)
+    }
+  }
+
   /// A missing device-local EventKit identifier is necessary but insufficient
   /// deletion evidence because sync may replace that identifier. A healthy
   /// full-access read therefore corroborates absence through the event's server
@@ -414,6 +464,31 @@ struct CalendarReconciliationSheet: View {
         guard phase == .active else { return }
         Task { await model.refresh(trip: trip, plan: plan) }
       }
+      .sheet(item: Binding(
+        get: { model.candidateForLink },
+        set: { model.candidateForLink = $0 }
+      )) { candidate in
+        NavigationStack {
+          List(ambiguousStops(in: candidate)) { stop in
+            Button {
+              model.candidateForLink = nil
+              Task {
+                guard let selectedCalendarID = model.selectedCalendarID else { return }
+                await model.link(
+                  candidate, to: stop, trip: trip, selectedCalendarID: selectedCalendarID)
+              }
+            } label: {
+              Text(stop.content.title)
+            }
+          }
+          .navigationTitle("Link to Stop")
+          .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+              Button("Cancel") { model.candidateForLink = nil }
+            }
+          }
+        }
+      }
     }
   }
 
@@ -486,6 +561,11 @@ struct CalendarReconciliationSheet: View {
         }
       }
     }
+  }
+
+  private func ambiguousStops(in candidate: CalendarReconciliationCandidate) -> [ResolvedStop] {
+    if case let .ambiguous(stops) = candidate.result { return stops }
+    return []
   }
 
 }

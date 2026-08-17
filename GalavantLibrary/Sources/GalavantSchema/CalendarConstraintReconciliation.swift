@@ -18,7 +18,8 @@ extension CalendarReconciliation {
     localState: CalendarReconciliationLocalState,
     deletedEventIDs: Set<String> = [],
     movedOutsideEventIDs: Set<String> = [],
-    regionTimeZone: TimeZone? = nil
+    regionTimeZone: TimeZone? = nil,
+    existingConstraints: [CalendarTripConstraint] = []
   ) -> CalendarConstraintAutomaticPlan {
     var state = localState
     var upserts: [CalendarTripConstraint] = []

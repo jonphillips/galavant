@@ -50,12 +50,15 @@ extension CalendarReconciliationSheet {
         Text("Matches \(stop.content.title) by \(basisDescription(basis)).")
           .font(.caption)
           .foregroundStyle(.green)
+        actionButtons(for: candidate, stop: stop)
       case let .proposed(stop, basis):
         Text("Possible match: \(stop.content.title) by \(basisDescription(basis)).")
           .font(.caption)
+        actionButtons(for: candidate, stop: stop)
       case let .ambiguous(stops):
         Text("Could be: \(stops.map(\.content.title).joined(separator: ", ")).")
           .font(.caption)
+        actionButtons(for: candidate, stop: nil)
       case .unresolvedTimeZone:
         Text("Travel time zone needs review before this event can be placed on a trip day.")
           .font(.caption)
@@ -65,6 +68,41 @@ extension CalendarReconciliationSheet {
       }
     }
     .accessibilityElement(children: .combine)
+  }
+
+  @ViewBuilder
+  private func actionButtons(
+    for candidate: CalendarReconciliationCandidate,
+    stop: ResolvedStop?
+  ) -> some View {
+    let eligible = candidate.input.event.isEligibleForSharedReconciliation
+    let reason = candidate.input.event.sharedReconciliationIneligibilityReason
+    if model.isLinked(candidate) {
+      Button("Unlink") {
+        Task { await model.unlink(candidate, tripID: trip.id) }
+      }
+      .font(.caption.weight(.semibold))
+    } else if let stop {
+      Button("Link to \(stop.content.title)") {
+        Task {
+          guard let selectedCalendarID = model.selectedCalendarID else { return }
+          await model.link(
+            candidate, to: stop, trip: trip, selectedCalendarID: selectedCalendarID)
+        }
+      }
+      .disabled(!eligible)
+      .font(.caption.weight(.semibold))
+      if let reason, !eligible {
+        Text(reason).font(.caption2).foregroundStyle(.secondary)
+      }
+    } else {
+      Button("Link") { model.candidateForLink = candidate }
+        .disabled(!eligible)
+        .font(.caption.weight(.semibold))
+      if let reason, !eligible {
+        Text(reason).font(.caption2).foregroundStyle(.secondary)
+      }
+    }
   }
 
   func basisDescription(_ basis: CalendarMatchBasis) -> String {

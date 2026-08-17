@@ -204,15 +204,15 @@ import Testing
     #expect(decoded.linkedStops.first?.itineraryTimeZoneIdentifier == nil)
   }
 
-  @Test func normalizedSameDayNameIsAProposalNotAnAutomaticLink() {
+  @Test func normalizedSameDayNameIsAnAutomaticLink() {
     let noma = Idea(id: UUID(), name: "Noma")
     let stop = stop(idea: noma, day: 1)
     let input = ingestedEvent(event: event(title: "NÓMA!"))
 
     let result = CalendarReconciliation.result(for: input, trip: trip(), plan: plan([stop], ideas: [noma]))
 
-    guard case let .proposed(match, basis) = result else {
-      Issue.record("Expected a name proposal, got \(result).")
+    guard case let .automatic(match, basis) = result else {
+      Issue.record("Expected an exact-name automatic match, got \(result).")
       return
     }
     #expect(match.id == stop.id)
@@ -628,10 +628,11 @@ import Testing
     #expect(updatedPlan.applications.first?.dayNumber == 2)
   }
 
-  @Test func namedProposalAndMissingLinkedEventNeverWriteOrInferDeletion() {
+  @Test func ineligibleNamedMatchNeverWritesOrInfersDeletion() {
     let noma = Idea(id: UUID(), name: "Noma")
     let stop = stop(idea: noma, day: 1)
-    let proposed = ingestedEvent(event: event(title: "Noma", identifier: "proposal"))
+    let proposed = ingestedEvent(
+      event: event(title: "Noma", identifier: "proposal", externalIdentifier: nil))
     let proposedCandidates = CalendarReconciliation.candidates(
       for: [proposed], trip: trip(), plan: plan([stop], ideas: [noma]))
 
@@ -653,6 +654,60 @@ import Testing
       candidates: [], localState: linkedState, observedAt: .distantFuture, makeHistoryID: UUID.init)
     #expect(absentPlan.applications.isEmpty)
     #expect(absentPlan.localState == linkedState)
+  }
+
+  @Test func rawEventTitleRepairsRicherMapsName() throws {
+    let idea = Idea(id: UUID(), name: "Ikigai", mapItemIdentifier: nil)
+    let stop = stop(idea: idea, day: 1)
+    let input = ingestedEvent(
+      event: event(title: "IKIGAI"),
+      matchedPlace: CalendarMatchedPlace(name: "Ikigai Restaurant"))
+
+    let result = CalendarReconciliation.result(
+      for: input, trip: trip(), plan: plan([stop], ideas: [idea]))
+    guard case let .automatic(match, basis) = result else {
+      Issue.record("Expected the raw title to repair the Maps-name mismatch, got \(result).")
+      return
+    }
+    #expect(match.id == stop.id)
+    #expect(basis == .exactName)
+  }
+
+  @Test func manualLinkUsesAutomaticApplicationPath() throws {
+    let idea = Idea(id: UUID(), name: "Ikigai")
+    let stop = stop(idea: idea, day: 1)
+    let input = ingestedEvent(event: event(title: "Dinner", identifier: "manual-link"))
+    let candidate = try #require(
+      CalendarReconciliation.candidates(
+        for: [input], trip: trip(), plan: plan([stop], ideas: [idea])).first)
+    let resolved = try #require(plan([stop], ideas: [idea]).itinerary.first?.stops.first)
+
+    let linked = CalendarReconciliation.manualLinkPlan(
+      candidate: candidate, stop: resolved, localState: CalendarReconciliationLocalState(),
+      observedAt: .distantPast, makeHistoryID: UUID.init)
+    #expect(linked.applications.first?.stopID == stop.id)
+    #expect(linked.localState.linkedStops.first?.eventID == "manual-link")
+    #expect(linked.localState.history.first?.kind == .linked)
+  }
+
+  @Test func unlinkRemovesBindingAndRecordsHumanCorrection() throws {
+    let idea = Idea(id: UUID(), name: "Ikigai")
+    let stop = stop(idea: idea, day: 1)
+    let input = ingestedEvent(event: event(title: "Dinner", identifier: "unlink"))
+    let candidate = try #require(
+      CalendarReconciliation.candidates(
+        for: [input], trip: trip(), plan: plan([stop], ideas: [idea])).first)
+    let resolved = try #require(plan([stop], ideas: [idea]).itinerary.first?.stops.first)
+    let linked = CalendarReconciliation.manualLinkPlan(
+      candidate: candidate, stop: resolved, localState: CalendarReconciliationLocalState(),
+      observedAt: .distantPast, makeHistoryID: UUID.init)
+    let unlinked = CalendarReconciliation.unlinkPlan(
+      candidate: candidate, localState: linked.localState,
+      observedAt: .distantFuture, makeHistoryID: UUID.init)
+
+    #expect(unlinked?.stopID == stop.id)
+    #expect(unlinked?.localState.linkedStops.isEmpty == true)
+    #expect(unlinked?.localState.history.last?.kind == .unlinked)
   }
 
   @Test func linkedEventMovedOutsideTripIsRecordedWithoutChangingTheStop() {
