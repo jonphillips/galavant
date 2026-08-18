@@ -1,5 +1,20 @@
 # Done Log — completed enhancements
 
+## Calendar constraint promotion — IMPLEMENTED, pending review (2026-08-18)
+
+The calendar constraint detail now offers a place-identity-only promotion path:
+tap a real Apple Maps POI or search for a named place, then create an idea-backed
+scheduled stop and route it through the existing `.linked` reconciliation path.
+Constraint reaping, Calendar commitment timing, the shared ledger, and idempotent
+reconciliation remain centralized in the existing core. Confirmed deletion of a
+promoted event removes Calendar authority but keeps the Galavant stop as an
+unbooked plan, clearing Calendar-derived timing and notes and recording `.unlinked`
+history. See `docs/handoff/calendar-constraint-to-linked-stop.md` and the ADR-0034
+amendment.
+
+Verification: Xcode 27 app build succeeded on iPhone 17 Pro / iOS 27; the filtered
+`GalavantSchemaTests` suite passed all 25 tests.
+
 ## Stable travel-mode overrides — IMPLEMENTED (2026-08-18)
 
 Travel-mode overrides now use stable stop/ring/stay endpoint identities while ETA
