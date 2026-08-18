@@ -500,6 +500,31 @@ public enum CalendarReconciliation {
     return CalendarReconciliationUnlinkPlan(stopID: linked.stopID, localState: state)
   }
 
+  /// Removes Calendar authority after a linked event is authoritatively deleted.
+  /// The app shell clears the Calendar-derived clock while retaining the real
+  /// idea-backed stop as an ordinary, unbooked plan.
+  public static func deletedLinkedStopsPlan(
+    localState: CalendarReconciliationLocalState,
+    deletedEventIDs: Set<String>,
+    observedAt: Date,
+    makeHistoryID: () -> UUID
+  ) -> CalendarReconciliationDeletedLinkedStopsPlan {
+    var state = localState
+    let deleted = state.linkedStops.filter { deletedEventIDs.contains($0.eventID) }
+    state.linkedStops.removeAll { deletedEventIDs.contains($0.eventID) }
+    for linked in deleted {
+      let sourceFingerprint = state.history.last(where: { $0.stopID == linked.stopID })?.sourceFingerprint
+      state.history.append(
+        CalendarReconciliationHistoryEntry(
+          id: makeHistoryID(), kind: .unlinked, stopID: linked.stopID,
+          eventID: linked.eventID, eventTitle: linked.eventTitle ?? "Calendar event",
+          current: linked.commitment, sourceFingerprint: sourceFingerprint,
+          appliedAt: observedAt))
+    }
+    return CalendarReconciliationDeletedLinkedStopsPlan(
+      stopIDs: deleted.map(\.stopID), localState: state)
+  }
+
   private static func updateLinkedStop(
     at index: Int,
     with candidate: CalendarReconciliationCandidate,

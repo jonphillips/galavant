@@ -396,10 +396,19 @@ final class CalendarReconciliationModel {
         return CalendarBoundEventObservation(bindingID: linked.eventID, event: event)
       }
       : []
+    let deletedEventIDs = useEventKitEvidence
+      ? deletedConstraintEventIDs(
+        observedEvents: cache.observedEvents, selectedCalendarID: cache.calendarID)
+      : []
+    let deletedLinkedStopsPlan = CalendarReconciliation.deletedLinkedStopsPlan(
+      localState: localState,
+      deletedEventIDs: deletedEventIDs,
+      observedAt: now,
+      makeHistoryID: { uuid() })
     let automaticPlan = CalendarReconciliation.automaticPlan(
       candidates: candidates,
       outsideTripObservations: outsideTripObservations,
-      localState: localState,
+      localState: deletedLinkedStopsPlan.localState,
       observedAt: now,
       makeHistoryID: { uuid() },
       manuallyRelinkedSourceFingerprint: manualLink.flatMap { manual in
@@ -411,10 +420,6 @@ final class CalendarReconciliationModel {
       uniqueKeysWithValues: plan.entries.compactMap { entry in
         entry.dayNumber.map { (entry.id, $0) }
       })
-    let deletedEventIDs = useEventKitEvidence
-      ? deletedConstraintEventIDs(
-        observedEvents: cache.observedEvents, selectedCalendarID: cache.calendarID)
-      : []
     let ignoredEventIDsToReap = useEventKitEvidence
       ? ignoredEventIDsToReap(tripID: trip.id, deletedEventIDs: deletedEventIDs)
       : []
@@ -439,7 +444,8 @@ final class CalendarReconciliationModel {
       history: constraintPlan.localState.history, tripID: trip.id)
     try await persist(
       automaticPlan, constraintPlan: constraintPlan, repairs: repairs,
-      tripID: trip.id, ignoredEventIDsToReap: ignoredEventIDsToReap)
+      tripID: trip.id, deletedLinkedStopIDs: deletedLinkedStopsPlan.stopIDs,
+      ignoredEventIDsToReap: ignoredEventIDsToReap)
     if useEventKitEvidence, trip.isPast(at: now, calendar: cache.tripCalendar) {
       let frozenAt = now
       try await database.write { db in
@@ -453,6 +459,7 @@ final class CalendarReconciliationModel {
     constraintPlan: CalendarConstraintAutomaticPlan,
     repairs: [CalendarPlanRepair],
     tripID: Trip.ID,
+    deletedLinkedStopIDs: [TripIdea.ID] = [],
     ignoredEventIDsToReap: [CalendarIgnoredEvent.ID] = []
   ) async throws {
     let newHistory = constraintPlan.localState.history.dropFirst(localState.history.count)
@@ -463,6 +470,7 @@ final class CalendarReconciliationModel {
       || !ledgerEntries.isEmpty
       || !constraintPlan.upserts.isEmpty
       || !constraintPlan.deletions.isEmpty
+      || !deletedLinkedStopIDs.isEmpty
       || !ignoredEventIDsToReap.isEmpty
       || !repairs.isEmpty
     {
@@ -483,6 +491,9 @@ final class CalendarReconciliationModel {
         }
         for id in constraintPlan.deletions {
           try CalendarTripConstraint.remove(id: id, in: db)
+        }
+        for stopID in deletedLinkedStopIDs {
+          try TripIdea.revertCalendarSchedule(stopID: stopID, in: db)
         }
         for id in ignoredEventIDsToReap {
           try CalendarIgnoredEvent.remove(id: id, in: db)
