@@ -183,7 +183,12 @@ struct TripCanvasMapView: View {
     start: CLLocationCoordinate2D?,
     dropped: CLLocationCoordinate2D?
   ) {
-    guard let start, let dropped, !isNearExistingPin(start) else { return }
+    guard let dropped else { return }
+    if case let .freeformStop(draft) = model.destination, draft.stopID == nil {
+      model.updateFreeformDraftCoordinate(dropped)
+      return
+    }
+    guard let start, !isNearExistingPin(start) else { return }
     model.destination = .freeformStop(
       FreeformStopDraft(coordinate: dropped, day: model.canvasSelectedDay))
     dropFeedback += 1
@@ -200,6 +205,12 @@ struct TripCanvasMapView: View {
         coordinateSpace: .named("canvas")
       ))
       .onEnded { value in
+        guard case let .second(true, drag?) = value else { return }
+        let start = convertCanvasPoint(drag.startLocation, proxy: proxy)
+        let dropped = convertCanvasPoint(drag.location, proxy: proxy)
+        handleFreeformDrop(start: start, dropped: dropped)
+      }
+      .onChanged { value in
         guard case let .second(true, drag?) = value else { return }
         let start = convertCanvasPoint(drag.startLocation, proxy: proxy)
         let dropped = convertCanvasPoint(drag.location, proxy: proxy)

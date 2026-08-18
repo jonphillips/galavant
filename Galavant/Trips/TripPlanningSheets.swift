@@ -148,12 +148,14 @@ struct FreeformStopSheet: View {
             .lineLimit(2...5)
         }
         Section("Location") {
-          FreeformStopLocationMap(
-            coordinate: $draft.coordinate,
-            title: draft.title,
-            fallbackRegion: model.plan.framingCoordinates(forDay: nil).mapRegion)
-            .frame(height: draft.coordinate == nil ? 220 : 120)
-            .listRowInsets(EdgeInsets())
+          if draft.coordinate == nil {
+            FreeformStopLocationMap(
+              coordinate: $draft.coordinate,
+              title: draft.title,
+              fallbackRegion: model.plan.framingCoordinates(forDay: nil).mapRegion)
+              .frame(height: 220)
+              .listRowInsets(EdgeInsets())
+          }
 
           NavigationLink {
             FreeformStopLocationSearchView { place in
@@ -201,14 +203,10 @@ struct FreeformStopSheet: View {
         }
       }
       .onAppear { titleFocused = !isEditing }
-      .onChange(of: draft.coordinate?.latitude) { _, _ in
-        model.updateFreeformDraftCoordinate(draft.coordinate)
-      }
-      .onChange(of: draft.coordinate?.longitude) { _, _ in
-        model.updateFreeformDraftCoordinate(draft.coordinate)
-      }
+      .onChange(of: draft.coordinate?.latitude) { _, _ in model.updateFreeformDraftCoordinate(draft.coordinate) }
+      .onChange(of: draft.coordinate?.longitude) { _, _ in model.updateFreeformDraftCoordinate(draft.coordinate) }
     }
-    .presentationDetents([.medium])
+    .presentationDetents([.large]).presentationDragIndicator(.visible)
   }
 }
 
