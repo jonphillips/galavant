@@ -17,10 +17,6 @@ extension TripPlanningModel {
   /// or left in the bucket), or update the edited one's content. A blank title
   /// is dropped (the sheet's Save is disabled, but guard anyway).
   func saveFreeform(_ draft: FreeformStopDraft) {
-    var draft = draft
-    if case let .freeformStop(presentedDraft) = destination, presentedDraft.id == draft.id {
-      draft.coordinate = presentedDraft.coordinate
-    }
     let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !title.isEmpty, let tripID = trip?.id else { return }
     let trimmedNote = draft.note.trimmingCharacters(in: .whitespacesAndNewlines)

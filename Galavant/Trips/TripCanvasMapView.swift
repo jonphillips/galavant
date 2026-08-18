@@ -22,6 +22,7 @@ struct TripCanvasMapView: View {
   /// map-first capture flow.
   @State private var mapSelection: MapSelection<TripIdea.ID>?
   @State private var dropFeedback = 0
+  @State private var draftPinCoordinate: CLLocationCoordinate2D?
 
   /// The days the map draws: just the selected day, or all when the lens is
   /// "All" (`canvasSelectedDay == nil`).
@@ -172,26 +173,12 @@ struct TripCanvasMapView: View {
   }
 
   private var transientFreeformCoordinate: CLLocationCoordinate2D? {
+    if let draftPinCoordinate { return draftPinCoordinate }
     guard case let .freeformStop(draft) = model.destination,
       draft.stopID == nil,
       let coordinate = draft.coordinate
     else { return nil }
     return coordinate
-  }
-
-  private func handleFreeformDrop(
-    start: CLLocationCoordinate2D?,
-    dropped: CLLocationCoordinate2D?
-  ) {
-    guard let dropped else { return }
-    if case let .freeformStop(draft) = model.destination, draft.stopID == nil {
-      model.updateFreeformDraftCoordinate(dropped)
-      return
-    }
-    guard let start, !isNearExistingPin(start) else { return }
-    model.destination = .freeformStop(
-      FreeformStopDraft(coordinate: dropped, day: model.canvasSelectedDay))
-    dropFeedback += 1
   }
 
   private func convertCanvasPoint(_ point: CGPoint, proxy: MapProxy) -> CLLocationCoordinate2D? {
@@ -205,16 +192,24 @@ struct TripCanvasMapView: View {
         coordinateSpace: .named("canvas")
       ))
       .onEnded { value in
-        guard case let .second(true, drag?) = value else { return }
-        let start = convertCanvasPoint(drag.startLocation, proxy: proxy)
-        let dropped = convertCanvasPoint(drag.location, proxy: proxy)
-        handleFreeformDrop(start: start, dropped: dropped)
+        guard case .second(true, _) = value, let draftPinCoordinate else {
+          self.draftPinCoordinate = nil
+          return
+        }
+        model.destination = .freeformStop(
+          FreeformStopDraft(coordinate: draftPinCoordinate, day: model.canvasSelectedDay))
+        dropFeedback += 1
+        self.draftPinCoordinate = nil
       }
       .onChanged { value in
         guard case let .second(true, drag?) = value else { return }
-        let start = convertCanvasPoint(drag.startLocation, proxy: proxy)
-        let dropped = convertCanvasPoint(drag.location, proxy: proxy)
-        handleFreeformDrop(start: start, dropped: dropped)
+        guard let dropped = convertCanvasPoint(drag.location, proxy: proxy) else { return }
+        if draftPinCoordinate == nil {
+          guard let start = convertCanvasPoint(drag.startLocation, proxy: proxy),
+            !isNearExistingPin(start)
+          else { return }
+        }
+        draftPinCoordinate = dropped
       }
   }
 
