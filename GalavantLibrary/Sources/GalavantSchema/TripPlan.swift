@@ -415,7 +415,7 @@ public struct TripPlan: Equatable, Sendable {
   /// now-marker continues to key off point stops only (ADR-0011); a stay's middle
   /// days carry no row here — they show only the home-base chip in the header.
   // The timeline's one-pass weave intentionally owns stop, boundary, now-marker,
-  // and base-direction ordering so both itinerary projections agree.
+  // and lodging-direction ordering so both itinerary projections agree.
   // swiftlint:disable:next function_body_length
   public func itineraryItems(
     forDay day: Int,
@@ -492,6 +492,9 @@ public struct TripPlan: Equatable, Sendable {
     let stayTransferConnector = stayTransferConnector(
       forDay: day, stops: stops, stays: stays,
       travelTimes: travelTimes, effectiveModes: effectiveModes)
+    let returnConnector = returnConnector(
+      forDay: day, stops: stops, stays: stays,
+      travelTimes: travelTimes, effectiveModes: effectiveModes)
     var markerInserted = false
     var baseConnectorInserted = false
     var stayTransferInserted = false
@@ -518,6 +521,9 @@ public struct TripPlan: Equatable, Sendable {
           baseConnectorInserted = true
         }
         items.append(.stop(stop))
+        if returnConnector?.from.id == "stop-\(stop.id)", let returnConnector {
+          items.append(.connector(returnConnector))
+        }
         // A connector trails a stop when the next route stop (i+1) is also located.
         guard i < stops.count - 1 else { continue }
         let next = stops[i + 1]

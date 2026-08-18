@@ -432,7 +432,7 @@ struct TripItineraryView: View {
       Image(systemName: connector.mode.systemImageName)
         .imageScale(.small)
         .foregroundStyle(.tertiary)
-      if connector.kind == .betweenLodgings {
+      if connector.kind == .betweenLodgings || connector.kind == .toLodging {
         Text("Travel to \(connector.to.title)")
           .font(.caption)
           .foregroundStyle(.secondary)

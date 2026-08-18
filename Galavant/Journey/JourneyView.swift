@@ -582,9 +582,10 @@ private struct JourneyMap: View {
   @MapContentBuilder
   private func dayMapContent(_ day: JourneyProjection.DaySummary) -> some MapContent {
     let stops = plan.locatedStops(forDay: day.dayNumber)
-    let stopCoordinates = stops.compactMap(coordinate(for:))
     let opacity = stopOpacity(day: day.dayNumber)
-    let route = dayRouteCoordinates(day: day, stopCoordinates: stopCoordinates)
+    let route = plan.routeEndpoints(forDay: day.dayNumber).map { endpoint in
+      CLLocationCoordinate2D(latitude: endpoint.latitude, longitude: endpoint.longitude)
+    }
     if route.count >= 2 {
       MapPolyline(coordinates: route)
         .stroke(
@@ -602,19 +603,6 @@ private struct JourneyMap: View {
         }
       }
     }
-  }
-
-  /// The polyline a day draws. For the focused day it becomes an out-and-back
-  /// loop from that day's lodging — out through the activities and home again —
-  /// so an hour's drive to a single stop is visible, not hidden. Other days keep
-  /// the plain stop-to-stop line so the whole-trip overview stays legible.
-  private func dayRouteCoordinates(
-    day: JourneyProjection.DaySummary, stopCoordinates: [CLLocationCoordinate2D]
-  ) -> [CLLocationCoordinate2D] {
-    guard selection == .day(day.dayNumber), !stopCoordinates.isEmpty,
-      let lodging = plan.baseStays(forDay: day.dayNumber).compactMap(coordinate(for:)).first
-    else { return stopCoordinates }
-    return [lodging] + stopCoordinates + [lodging]
   }
 
   // MARK: Camera

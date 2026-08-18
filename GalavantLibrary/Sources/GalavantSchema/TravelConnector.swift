@@ -84,6 +84,8 @@ public struct TravelConnector: Identifiable, Equatable, Sendable {
     case betweenStops
     /// Directions from a day's unambiguous lodging base to its first stop.
     case fromLodging
+    /// Directions from the day's last located stop back to its lodging base.
+    case toLodging
     /// A direct same-day lodging change with no stops in between.
     case betweenLodgings
   }
