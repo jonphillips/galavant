@@ -8,11 +8,26 @@ import SwiftUI
 /// the pin refines it. The map uses MapKit only at this app-layer boundary, while
 /// named-place lookup below goes through the injectable PlaceSearchModel.
 struct FreeformStopLocationMap: View {
+  private struct MapCoordinate: Equatable {
+    let latitude: Double
+    let longitude: Double
+
+    init(_ coordinate: CLLocationCoordinate2D) {
+      latitude = coordinate.latitude
+      longitude = coordinate.longitude
+    }
+
+    var location: CLLocationCoordinate2D {
+      CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+    }
+  }
+
   @Binding var coordinate: CLLocationCoordinate2D?
   let title: String
   let fallbackRegion: MKCoordinateRegion?
 
   @State private var cameraPosition: MapCameraPosition
+  @State private var isDragging = false
 
   init(
     coordinate: Binding<CLLocationCoordinate2D?>,
@@ -42,10 +57,14 @@ struct FreeformStopLocationMap: View {
               .gesture(
                 DragGesture(coordinateSpace: .named("freeform-stop-map"))
                   .onChanged { value in
+                    isDragging = true
                     if let location = proxy.convert(
                       value.location, from: .named("freeform-stop-map")) {
                       self.coordinate = location
                     }
+                  }
+                  .onEnded { _ in
+                    isDragging = false
                   })
               .accessibilityLabel("Custom stop location")
               .accessibilityHint("Drag to adjust the pin")
@@ -55,14 +74,15 @@ struct FreeformStopLocationMap: View {
       .coordinateSpace(name: "freeform-stop-map")
       .simultaneousGesture(
         SpatialTapGesture().onEnded { value in
+          guard coordinate == nil else { return }
           if let location = proxy.convert(
             value.location, from: .named("freeform-stop-map")) {
             coordinate = location
           }
         })
-      .onChange(of: coordinate == nil) { wasEmpty, isEmpty in
-        guard wasEmpty, !isEmpty, let coordinate else { return }
-        cameraPosition = .region(Self.region(around: coordinate))
+      .onChange(of: coordinate.map { MapCoordinate($0) }) { _, newValue in
+        guard !isDragging, let newValue else { return }
+        cameraPosition = .region(Self.region(around: newValue.location))
       }
       .onAppear {
         if coordinate == nil, let fallbackRegion {
