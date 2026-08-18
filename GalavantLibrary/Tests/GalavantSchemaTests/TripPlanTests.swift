@@ -588,4 +588,115 @@ import Testing
     #expect(freeformStop.content.latitude == nil)
     #expect(freeformStop.content.longitude == nil)
   }
+
+  // MARK: - Leg-identity resolution cost (itinerary lockup regression, 2026-08)
+
+  /// The contract `TripPlanningModel.effectiveModes` depends on: iterating
+  /// `legIdentities` visits exactly the legs `allLegs` exposes, and every leg
+  /// resolves to the identity the map holds. The model now builds `legIdentities`
+  /// **once** and resolves each leg against it; if this equivalence drifts, that
+  /// build-once path would silently drop or misroute a leg's mode.
+  @Test func legIdentitiesCoverEveryLegExactlyOnce() {
+    let ids = (0..<5).map { _ in UUID() }
+    let entries = [
+      entry(idea: ids[0], status: .scheduled, rank: 0, schedule: .day(1)),
+      entry(idea: ids[1], status: .scheduled, rank: 1, schedule: .day(1)),
+      entry(idea: ids[2], status: .scheduled, rank: 2, schedule: .day(1)),
+      entry(idea: ids[3], status: .scheduled, rank: 0, schedule: .day(2)),
+      entry(idea: ids[4], status: .scheduled, rank: 1, schedule: .day(2)),
+    ]
+    let ideas = ids.enumerated().map { i, id in
+      idea(id, lat: 40 + Double(i), lon: 11 + Double(i))
+    }
+    let p = plan(entries, ideas: ideas)
+
+    #expect(p.allLegs.count == 3)  // day 1: 2 legs, day 2: 1 leg
+    #expect(Set(p.allLegs) == Set(p.legIdentities.keys))
+    for leg in p.allLegs {
+      #expect(p.legIdentity(for: leg) != nil)
+      #expect(p.legIdentity(for: leg) == p.legIdentities[leg])
+    }
+  }
+
+  /// Resolving every leg's mode must stay ~linear in the leg count. The itinerary
+  /// lockup came from resolving legs one at a time, where each `legIdentity(for:)`
+  /// rebuilt the whole leg-graph — O(legs²·days) per render, a multi-second hang on
+  /// a real trip. `effectiveModes` now builds the map once. This guards the shared
+  /// substrate (`allLegPairs`/`itinerary`) from regressing into superlinear cost.
+  ///
+  /// Note: the model-level "build once" choice itself is not unit-testable — the app
+  /// target has no test bundle — so a fully deterministic guard needs the resolution
+  /// lifted into this core (see handoff follow-up). The `.timeLimit` is a coarse net;
+  /// the fixed path runs in low-single-digit milliseconds here.
+  @Test(.timeLimit(.minutes(1)))
+  func resolvingAllLegModesOverALargeItineraryStaysCheap() {
+    let days = 40, stopsPerDay = 6
+    var entries: [TripIdea] = []
+    var ideas: [Idea] = []
+    var offset = 0.0
+    for day in 1...days {
+      for k in 0..<stopsPerDay {
+        let id = UUID()
+        offset += 1
+        entries.append(
+          entry(idea: id, status: .scheduled, rank: k, dayRank: Double(k), schedule: .day(day)))
+        ideas.append(idea(id, lat: 40 + offset * 0.001, lon: 11 + offset * 0.001))
+      }
+    }
+    let p = plan(entries, ideas: ideas, lengthInDays: days)
+
+    // The production entry point: one pass, graph built once.
+    let start = Date()
+    let modes = p.legModes(
+      overrides: [:], mainMode: nil, travelTimes: [:], autoSwitchThreshold: 20 * 60)
+    let elapsed = Date().timeIntervalSince(start)
+
+    #expect(modes.count == days * (stopsPerDay - 1))  // 5 legs/day × 40 days
+    #expect(modes.count == p.allLegs.count)           // one mode per leg
+    #expect(elapsed < 2.0, "resolving \(modes.count) leg modes took \(elapsed)s")
+  }
+
+  /// The resolution rule, now pure and testable (lifted out of `TripPlanningModel`):
+  /// a leg override wins; else the trip's main mode; else auto-detect — walking,
+  /// upgraded to transit once the walk reaches `autoSwitchThreshold`.
+  @Test func legModesResolveOverrideThenMainModeThenAutoDetect() {
+    let (a, b, c) = (UUID(), UUID(), UUID())
+    let entries = [
+      entry(idea: a, status: .scheduled, rank: 0, schedule: .day(1)),
+      entry(idea: b, status: .scheduled, rank: 1, schedule: .day(1)),
+      entry(idea: c, status: .scheduled, rank: 2, schedule: .day(1)),
+    ]
+    let p = plan(
+      entries,
+      ideas: [idea(a, lat: 1, lon: 1), idea(b, lat: 2, lon: 2), idea(c, lat: 3, lon: 3)])
+    let legs = p.allLegs
+    #expect(legs.count == 2)  // a→b, b→c
+    let (leg1, leg2) = (legs[0], legs[1])
+    let id1 = p.legIdentity(for: leg1)!
+    let threshold: TimeInterval = 20 * 60
+
+    // Override on leg1 wins; leg2 (no override) falls through to the main mode.
+    var modes = p.legModes(
+      overrides: [id1: .driving], mainMode: .transit, travelTimes: [:],
+      autoSwitchThreshold: threshold)
+    #expect(modes[leg1] == .driving)
+    #expect(modes[leg2] == .transit)
+
+    // No override, no main mode → auto-detect off the walking time vs threshold.
+    modes = p.legModes(
+      overrides: [:], mainMode: nil,
+      travelTimes: [
+        leg1: [.walking: TravelTime(seconds: threshold, meters: 1000)],  // long → transit
+        leg2: [.walking: TravelTime(seconds: 60, meters: 80)],           // short → walking
+      ],
+      autoSwitchThreshold: threshold)
+    #expect(modes[leg1] == .transit)
+    #expect(modes[leg2] == .walking)
+
+    // No signal at all → walking default.
+    modes = p.legModes(
+      overrides: [:], mainMode: nil, travelTimes: [:], autoSwitchThreshold: threshold)
+    #expect(modes[leg1] == .walking)
+    #expect(modes[leg2] == .walking)
+  }
 }

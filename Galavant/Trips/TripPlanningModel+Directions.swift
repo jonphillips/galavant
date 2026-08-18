@@ -4,27 +4,26 @@ import GalavantSchema
 extension TripPlanningModel {
   // MARK: - ETA mode resolution
 
-  /// The effective transport mode for a leg: user override > trip default >
-  /// auto-detect. Auto-detect keeps the original walking ≥ 20 min → transit
-  /// behavior for existing trips whose shared default is still unset.
+  /// The effective transport mode for a leg — single-leg convenience over the pure
+  /// `TripPlan.legMode` rule (override > trip default > auto-detect). It rebuilds
+  /// the plan's leg-identity map for one lookup, so any caller resolving *many* legs
+  /// must use `effectiveModes` (one pass) — never call this in a loop.
   func effectiveMode(for leg: LegKey) -> TransportMode {
-    if let identity = plan.legIdentity(for: leg) {
-      if let override = modeOverrides[identity] { return override }
-      if let override = persistedModeOverrides[identity] { return override }
-    }
-    if let mainMode = trip?.mainTransportationMode { return mainMode }
-    if let walking = travelTimes[leg]?[.walking],
-      walking.seconds >= Self.autoSwitchThreshold {
-      return .transit
-    }
-    return .walking
+    TripPlan.legMode(
+      leg: leg, identity: plan.legIdentity(for: leg),
+      overrides: currentModeOverrides, mainMode: trip?.mainTransportationMode,
+      travelTimes: travelTimes, autoSwitchThreshold: Self.autoSwitchThreshold)
   }
 
-  /// Pre-computed effective modes for all legs — passed into `itineraryItems`
-  /// so the pure plan function doesn't need to call back into the model.
+  /// Pre-computed effective modes for all legs — passed into `itineraryItems` so the
+  /// pure plan function doesn't call back into the model. Resolution now lives in
+  /// `TripPlan.legModes`, which builds the leg-graph exactly once. (It previously
+  /// resolved per leg here, rebuilding the graph every leg — O(legs²·days) per
+  /// render and the itinerary lockup.)
   var effectiveModes: [LegKey: TransportMode] {
-    Dictionary(plan.allLegs.map { ($0, effectiveMode(for: $0)) },
-               uniquingKeysWith: { first, _ in first })
+    plan.legModes(
+      overrides: currentModeOverrides, mainMode: trip?.mainTransportationMode,
+      travelTimes: travelTimes, autoSwitchThreshold: Self.autoSwitchThreshold)
   }
 
   // MARK: - ETA fetch
@@ -44,10 +43,13 @@ extension TripPlanningModel {
         Task { await fetchMissingETAs() }
       }
     }
+    let plan = self.plan
+    let identities = plan.legIdentities
+    let overrides = currentModeOverrides
     for leg in plan.allLegs {
       guard !Task.isCancelled else { break }
-      let identity = plan.legIdentity(for: leg)
-      if let chosenMode = identity.flatMap({ modeOverrides[$0] ?? persistedModeOverrides[$0] })
+      let identity = identities[leg]
+      if let chosenMode = identity.flatMap({ overrides[$0] })
         ?? trip?.mainTransportationMode {
         if travelTimes[leg]?[chosenMode] == nil,
           let tt = try? await directionsClient.calculateETA(leg, chosenMode) {

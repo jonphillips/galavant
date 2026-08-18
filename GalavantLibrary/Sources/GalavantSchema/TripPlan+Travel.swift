@@ -23,6 +23,50 @@ extension TripPlan {
     legIdentities[leg]
   }
 
+  // MARK: - Effective transport modes
+
+  /// The effective transport mode for every leg, resolved in a single pass. This
+  /// lives in the pure core (not the model) so it is testable and, crucially, so
+  /// the leg-identity map is built **once**: resolving legs one at a time rebuilds
+  /// the whole graph per leg — the cause of the itinerary lockup (2026-08).
+  ///
+  /// Per-leg order: a leg override (the caller merges local-over-persisted into
+  /// `overrides`) > the trip's `mainMode` > auto-detect (walk, upgraded to transit
+  /// once the walking time reaches `autoSwitchThreshold`).
+  public func legModes(
+    overrides: [LegIdentity: TransportMode],
+    mainMode: TransportMode?,
+    travelTimes: [LegKey: [TransportMode: TravelTime]],
+    autoSwitchThreshold: TimeInterval
+  ) -> [LegKey: TransportMode] {
+    legIdentities.reduce(into: [LegKey: TransportMode]()) { result, pair in
+      result[pair.key] = Self.legMode(
+        leg: pair.key, identity: pair.value, overrides: overrides,
+        mainMode: mainMode, travelTimes: travelTimes,
+        autoSwitchThreshold: autoSwitchThreshold)
+    }
+  }
+
+  /// The per-leg resolution rule over already-built lookups — pure and O(1). A
+  /// single-leg caller may reuse it; batch callers MUST use `legModes(_:)` rather
+  /// than calling this in a loop (each `legIdentity(for:)` they'd need rebuilds the
+  /// graph).
+  public static func legMode(
+    leg: LegKey,
+    identity: LegIdentity?,
+    overrides: [LegIdentity: TransportMode],
+    mainMode: TransportMode?,
+    travelTimes: [LegKey: [TransportMode: TravelTime]],
+    autoSwitchThreshold: TimeInterval
+  ) -> TransportMode {
+    if let identity, let override = overrides[identity] { return override }
+    if let mainMode { return mainMode }
+    if let walking = travelTimes[leg]?[.walking], walking.seconds >= autoSwitchThreshold {
+      return .transit
+    }
+    return .walking
+  }
+
   private var allLegPairs: [(leg: LegKey, identity: LegIdentity)] {
     itinerary.flatMap {
       legPairs(forDay: $0.number)

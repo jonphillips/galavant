@@ -15,6 +15,18 @@ successor. The override table is local-only (not in the SyncEngine table list) a
 the migration safely recreates it, resetting old coordinate-keyed rows once. Schema
 tests and the Xcode 27 app build are green; the local-only decision is in ADR-0043.
 
+**Itinerary lockup fix (same branch).** The first cut keyed mode lookup through
+`plan.legIdentity(for:)`, which rebuilds the whole leg-graph per call; sitting inside
+`effectiveModes` (per leg) and evaluated per day, it went O(legs²·days) per render
+and froze large trips (device backtrace: main thread pinned in `TripPlan.itinerary`,
+not sync). Fixed by resolving in one pass: mode resolution lifted into pure
+`TripPlan.legModes` / `legMode` (built once), the model + `TripItineraryView` now
+call it once instead of per leg/per day, and the ETA loop hoists its lookups. Added
+pure tests (`legModes*`, `legIdentitiesCoverEveryLegExactlyOnce`). **Still owed:**
+run the schema suite (FM-disabled path) and confirm the large trip's itinerary is
+responsive on device. Open follow-up: memoize `TripPlanningModel.plan` so it isn't
+rebuilt on every view-tree access.
+
 ## Pending PR — M7 calendar dogfood amendments (ADR-0041), completes M7
 
 Branch `feat/m7-dogfood-followups`. Implements the ADR-0041 amendments (raw-title
