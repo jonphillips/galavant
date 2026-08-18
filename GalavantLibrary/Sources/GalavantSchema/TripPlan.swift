@@ -88,6 +88,7 @@ public struct ResolvedDay: Identifiable, Equatable, Sendable {
 /// than imposing an active-first presentation order (ADR-0035).
 public struct ResolvedAlternativeRing: Equatable, Sendable {
   public var groupID: UUID
+  public var label: String?
   public var members: [ResolvedStop]
   public var activeIndex: Int
 
@@ -123,6 +124,9 @@ public struct TripPlan: Equatable, Sendable {
   /// trip-scoped shared domain state and weave into the itinerary by their
   /// projected trip day and civil time.
   public var calendarConstraints: [CalendarTripConstraint]
+  /// Optional labels for ADR-0035 alternatives rings, joined by group ID during
+  /// projection. A missing row intentionally produces no label.
+  public var alternativeGroups: [TripAlternativeGroup]
 
   public init(
     entries: [TripIdea],
@@ -131,7 +135,8 @@ public struct TripPlan: Equatable, Sendable {
     tripStays: [TripStay] = [],
     dayRegions: [TripDayRegion] = [],
     regionsByID: [MapRegion.ID: MapRegion] = [:],
-    calendarConstraints: [CalendarTripConstraint] = []
+    calendarConstraints: [CalendarTripConstraint] = [],
+    alternativeGroups: [TripAlternativeGroup] = []
   ) {
     self.entries = entries
     self.ideasByID = ideasByID
@@ -140,6 +145,7 @@ public struct TripPlan: Equatable, Sendable {
     self.dayRegions = dayRegions
     self.regionsByID = regionsByID
     self.calendarConstraints = calendarConstraints
+    self.alternativeGroups = alternativeGroups
     // A stop must carry either an `ideaID` or a non-empty inline title (ADR-0010);
     // one that carries neither is a corrupt row we cannot place. Reported once per
     // read-model build (not once per projection, which now resolves entries several
@@ -165,10 +171,17 @@ public struct TripPlan: Equatable, Sendable {
   /// deliberately non-mutating: a later explicit ring operation persists the
   /// effective winner and clears a one-member remnant.
   private var resolvedAlternativeRings: [UUID: ResolvedAlternativeRing] {
-    alternativeRings(in: entries.compactMap(resolve))
+    alternativeRings(
+      in: entries.compactMap(resolve),
+      labelsByGroupID: Dictionary(
+        alternativeGroups.map { ($0.id, $0.label) },
+        uniquingKeysWith: { first, _ in first }))
   }
 
-  private func alternativeRings(in resolved: [ResolvedStop]) -> [UUID: ResolvedAlternativeRing] {
+  private func alternativeRings(
+    in resolved: [ResolvedStop],
+    labelsByGroupID: [UUID: String] = [:]
+  ) -> [UUID: ResolvedAlternativeRing] {
     let grouped = Dictionary(grouping: resolved) { $0.entry.alternativeGroupID }
     return Dictionary(uniqueKeysWithValues: grouped.compactMap { groupID, members in
       guard let groupID else { return nil }
@@ -179,6 +192,10 @@ public struct TripPlan: Equatable, Sendable {
       let activeIndex = ordered.firstIndex { $0.entry.isActive } ?? ordered.startIndex
       return (groupID, ResolvedAlternativeRing(
         groupID: groupID,
+        label: labelsByGroupID[groupID].flatMap {
+          let label = $0.trimmingCharacters(in: .whitespacesAndNewlines)
+          return label.isEmpty ? nil : label
+        },
         members: ordered,
         activeIndex: activeIndex))
     })

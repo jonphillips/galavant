@@ -32,11 +32,16 @@ import Testing
     return stop
   }
 
-  private func plan(_ entries: [TripIdea], ideas: [Idea]) -> TripPlan {
+  private func plan(
+    _ entries: [TripIdea],
+    ideas: [Idea],
+    alternativeGroups: [TripAlternativeGroup] = []
+  ) -> TripPlan {
     TripPlan(
       entries: entries,
       ideasByID: Dictionary(ideas.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }),
-      lengthInDays: 2)
+      lengthInDays: 2,
+      alternativeGroups: alternativeGroups)
   }
 
   @Test func inactiveAlternativesNeverEnterTheRoutedSequence() {
@@ -135,6 +140,28 @@ import Testing
     #expect(itinerary.itinerary[0].stops.map(\.id) == entries.map(\.id))
     #expect(itinerary.legs(forDay: 1).count == 1)
   }
+
+  @Test func alternativeGroupLabelJoinsIntoTheRingAndAbsentRowsStayUnlabeled() {
+    let (firstID, secondID) = (UUID(), UUID())
+    let groupID = UUID()
+    let first = stop(ideaID: firstID, rank: 0, dayRank: 0, groupID: groupID)
+    let second = stop(
+      ideaID: secondID, rank: 1, dayRank: 0, groupID: groupID, isActive: false)
+    let ideas = [
+      idea(firstID, latitude: 0, longitude: 0),
+      idea(secondID, latitude: 1, longitude: 1),
+    ]
+
+    let labeled = plan(
+      [first, second],
+      ideas: ideas,
+      alternativeGroups: [TripAlternativeGroup(
+        id: groupID, tripID: first.tripID, label: "Dinner Pregame Options")])
+    #expect(labeled.alternatives(forStop: first.id)?.label == "Dinner Pregame Options")
+
+    let unlabeled = plan([first, second], ideas: ideas)
+    #expect(unlabeled.alternatives(forStop: first.id)?.label == nil)
+  }
 }
 
 @Suite(.dependencies { try $0.bootstrapDatabase() })
@@ -164,6 +191,39 @@ struct ItineraryAlternativeOperationTests {
       try TripIdea.insert { TripIdea.Draft(member) }.execute(db)
     }
     return members
+  }
+
+  @Test func alternativeGroupLabelUpsertsAndReadsByRingID() async throws {
+    let groupID = UUID()
+    let tripID = try await database.write { db in
+      try Trip.create(name: "Label", in: db).id
+    }
+
+    try await database.write { db in
+      try TripAlternativeGroup.rename(
+        groupID: groupID, tripID: tripID, label: "  Lunch  ", in: db)
+    }
+    let saved = try await database.read { db in
+      try TripAlternativeGroup.find(groupID).fetchOne(db)
+    }
+    #expect(saved?.label == "Lunch")
+    #expect(try await database.read { db in
+      try TripAlternativeGroup.readLabel(for: groupID, in: db)
+    } == "Lunch")
+
+    try await database.write { db in
+      try TripAlternativeGroup.rename(groupID: groupID, tripID: tripID, label: "Dinner", in: db)
+    }
+    #expect(try await database.read { db in
+      try TripAlternativeGroup.readLabel(for: groupID, in: db)
+    } == "Dinner")
+
+    try await database.write { db in
+      try TripAlternativeGroup.rename(groupID: groupID, tripID: tripID, label: " \n ", in: db)
+    }
+    #expect(try await database.read { db in
+      try TripAlternativeGroup.readLabel(for: groupID, in: db)
+    } == nil)
   }
 
   @Test func addCycleAndRemoveKeepOneStableSlot() async throws {

@@ -759,6 +759,23 @@ extension DependencyValues {
     migrator.registerMigration("Add Calendar booking details to tripIdeas") { db in
       try #sql(#"ALTER TABLE "tripIdeas" ADD COLUMN "calendarNotes" TEXT"#).execute(db)
     }
+    migrator.registerMigration("Create tripAlternativeGroups table (ADR-0035 labels)") { db in
+      try #sql(
+        """
+        CREATE TABLE "tripAlternativeGroups" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE,
+          "tripID" TEXT NOT NULL REFERENCES "trips"("id") ON DELETE CASCADE,
+          "label" TEXT NOT NULL DEFAULT ''
+        ) STRICT
+        """
+      ).execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_tripAlternativeGroups_on_tripID"
+        ON "tripAlternativeGroups"("tripID")
+        """
+      ).execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if case let .configured(startImmediately) = syncMode {

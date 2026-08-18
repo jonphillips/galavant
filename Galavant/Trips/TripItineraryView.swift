@@ -340,6 +340,9 @@ struct TripItineraryView: View {
       ? "\(resolved.content.title) · \(ring?.members.count ?? 0) options"
       : nil
     return VStack(alignment: .leading, spacing: 8) {
+      if let ring {
+        AlternativeGroupHeader(model: model, ring: ring)
+      }
       PlanningRow(
         content: resolved.content,
         title: looseTitle,

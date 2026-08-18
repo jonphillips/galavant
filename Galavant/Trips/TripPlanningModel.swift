@@ -146,6 +146,7 @@ final class TripPlanningModel {
   @ObservationIgnored @FetchAll(TripDayTimeZone.all) var allTripDayTimeZones
   @ObservationIgnored @FetchAll(TripTravelModeOverride.all) var allTravelModeOverrides
   @ObservationIgnored @FetchAll(CalendarTripConstraint.all) var allCalendarConstraints
+  @ObservationIgnored @FetchAll(TripAlternativeGroup.all) var allAlternativeGroups
   @ObservationIgnored @FetchAll(CalendarPlanRepair.all) var allCalendarPlanRepairs
   @ObservationIgnored @FetchAll(MapRegion.order(by: \.name)) var regions
   @ObservationIgnored @FetchAll(Tag.order(by: \.name)) var tags
@@ -174,6 +175,8 @@ final class TripPlanningModel {
   var canvasSelectedDay: Int?
   var canvasSelectedStopID: TripIdea.ID?
   var expandedAlternativeGroupIDs: Set<UUID> = []
+  var editingAlternativeGroupID: UUID?
+  var alternativeGroupLabelDraft = ""
 
   // ETA cache (docs/trip-canvas.md): travel times keyed by leg + mode. A trip's
   // main mode is the shared default; the per-leg menu remains a local override.
@@ -246,6 +249,9 @@ final class TripPlanningModel {
   private var calendarConstraints: [CalendarTripConstraint] {
     allCalendarConstraints.filter { $0.tripID == tripID }
   }
+  private var alternativeGroups: [TripAlternativeGroup] {
+    allAlternativeGroups.filter { $0.tripID == tripID }
+  }
   var calendarPlanRepairs: [CalendarPlanRepair] {
     allCalendarPlanRepairs.filter { $0.tripID == tripID }
   }
@@ -265,7 +271,8 @@ final class TripPlanningModel {
       entries: entries, ideasByID: ideaByID,
       lengthInDays: trip?.lengthInDays ?? 1, tripStays: stays,
       dayRegions: dayRegions, regionsByID: regionByID,
-      calendarConstraints: calendarConstraints)
+      calendarConstraints: calendarConstraints,
+      alternativeGroups: alternativeGroups)
   }
 
   // MARK: - Start-day solver (ADR-0029 §5)

@@ -145,6 +145,17 @@ struct AlternativeSlotControls: View {
 
   var body: some View {
     HStack(spacing: 8) {
+      if ring.label == nil {
+        Button {
+          model.beginAlternativeGroupLabelEdit(ring.groupID)
+        } label: {
+          Label("Add title", systemImage: "pencil")
+        }
+        .buttonStyle(.borderless)
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .accessibilityLabel("Add alternatives title")
+      }
       Button {
         model.cycleAlternativeButtonTapped(ring.activeMember.id)
       } label: {
@@ -166,6 +177,55 @@ struct AlternativeSlotControls: View {
       .buttonStyle(.borderless)
       .accessibilityLabel("\(ring.members.count) alternatives")
       .accessibilityValue(model.isAlternativeDisclosureExpanded(ring.groupID) ? "Expanded" : "Collapsed")
+    }
+  }
+}
+
+struct AlternativeGroupHeader: View {
+  let model: TripPlanningModel
+  let ring: ResolvedAlternativeRing
+  @FocusState private var isFocused: Bool
+
+  private var isEditing: Bool {
+    model.editingAlternativeGroupID == ring.groupID
+  }
+
+  var body: some View {
+    if isEditing {
+      HStack(spacing: 8) {
+        TextField("Alternatives title", text: Binding(
+          get: { model.alternativeGroupLabelDraft },
+          set: { model.alternativeGroupLabelDraft = $0 }))
+          .focused($isFocused)
+          .textFieldStyle(.roundedBorder)
+          .onSubmit { model.saveAlternativeGroupLabel() }
+        Button {
+          model.saveAlternativeGroupLabel()
+        } label: {
+          Icon.checkmark.image
+        }
+        .buttonStyle(.borderless)
+        .accessibilityLabel("Save alternatives title")
+        Button {
+          model.cancelAlternativeGroupLabelEdit()
+        } label: {
+          Icon.remove.image
+        }
+        .buttonStyle(.borderless)
+        .accessibilityLabel("Cancel alternatives title")
+      }
+      .onAppear { isFocused = true }
+    } else if let label = ring.label {
+      Button {
+        model.beginAlternativeGroupLabelEdit(ring.groupID)
+      } label: {
+        Text(label)
+          .font(.subheadline.weight(.semibold))
+          .foregroundStyle(.primary)
+          .frame(maxWidth: .infinity, alignment: .leading)
+      }
+      .buttonStyle(.plain)
+      .accessibilityLabel("Rename alternatives title, \(label)")
     }
   }
 }
