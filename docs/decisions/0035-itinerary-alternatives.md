@@ -78,6 +78,21 @@ one member `isActive`.** The active member is an ordinary sequenced stop; the in
 are off-sequence and never enter the route. There is no undecided state — cycling only ever moves
 *which* peer is active.
 
+### 0. Ring-scoped labels are a deliberate side-table exception
+
+ADR-0035 originally rejected an `AlternativeGroup` side-table for expressing the ring itself:
+the grouping and winner relationship are already two loose, member-owned columns on `TripIdea`.
+The itinerary title is different metadata: it belongs to the ring as a whole, has no existing
+member column, and should not be duplicated across every member. We therefore add the dedicated
+`TripAlternativeGroup` side-table only for this label, keyed by the ring's
+`alternativeGroupID` and carrying the single real `tripID` foreign key required for CloudKit
+sharing. It is optional and created lazily on first rename.
+
+The side-table does not weaken the dissolution rule: any operation that reduces a ring to one
+member, or dissolves the whole slot with `unschedule`, deletes the label in the same database
+transaction. A stale row is therefore not an accepted lifecycle state; a missing row simply
+means the ring has no title.
+
 ### 1. Two additive flat columns on `TripIdea`
 
 Per ADR-0006 (flat columns) and ADR-0007 (the one real FK is to `Trip`; everything else is a
@@ -225,15 +240,16 @@ undecided domain state. The Ideas pool stays the home for "maybe someday" — a 
 | **Primary + off-sequence backups** (draft 2) | Considered, near-miss — removes the undecided state (one column, `backupForStopID`), but is **asymmetric**: it imposes a canonical "real plan" the product doesn't need, and a *cycle* interaction has to rotate a star of pointers (re-point every sibling per press). The ring makes cycling a single flag flip and the members true peers. |
 | **Two separate features — "alternatives" (a backup) vs "considerations" (a day menu)** | Rejected — identical structure (one slot, N candidates, one happens, no leg between); the only difference is *firmness/mood*, which the slot's schedule already carries. Two records + two UIs would encode a mood as a type and clutter the UI with a "which kind is this?" choice. One ring, presentation keyed off firmness (firm → current-pick + alternatives; loose → neutral peers), while both retain one effective active. |
 | **UI-only grouping** (view hides inactive members, model unchanged) | Rejected — `legs`/`allLegs` still zip the hidden member upstream of the view (AC #3 unmet) and directions pre-warm the phantom leg. The exclusion must live in the read-model. |
-| **`AlternativeGroup` side-table** (like `TripStay`) | Rejected — a second synced record and a winner pointer that can dangle, for a relationship two loose columns on the members already express. |
+| **`AlternativeGroup` side-table** (like `TripStay`) | Rejected for expressing the ring/winner relationship — that remains in the two loose member columns. Accepted narrowly for the new ring-scoped label: it avoids duplicating metadata across members, is keyed by `alternativeGroupID`, and is deleted during every ring-dissolution transaction. |
 | **A new `.alternative`/`.inactive` status** (vs. the `isActive` column) | Rejected — touches the ADR-0004 status lifecycle and every status switch; the column guard is one `&& isActive` clause per partition and leaves the enum alone (the ADR-0033 "no redundant case" lesson). |
 | **Generalized branching graph** | Rejected — out of all proportion; the brief's explicit non-goal. |
 | **`alternativeGroupID` + `isActive`, members share the slot, inactive off-sequence, cycle/disclosure (chosen)** | Leanest fit: two additive columns, **no changes to the tested leg/numbering core**, no undecided state, no collapse fold, O(1) cycle, co-equal peers, and the ring composes with the solver / reconciliation as a ready-made constraint fix. |
 
 ## Relationship to prior decisions
 
-- **ADR-0006 (flat `TripIdea` columns):** two additive flat columns; SQLiteData additive-column,
-  no migration friction, CloudKit-friendly.
+- **ADR-0006 (flat `TripIdea` columns):** the ring/winner facts remain two additive flat columns;
+  the label is a deliberately narrow group-scoped exception because duplicating it across
+  members would make the flat representation carry normalized metadata.
 - **ADR-0007 (single-FK / reconcile-on-read):** `alternativeGroupID` is a loose UUID reconciled on
   read like `ideaID`; a dissolved/raced ring degrades to an ordinary stop or a deterministically
   selected effective-active ring.
