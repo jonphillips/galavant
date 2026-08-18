@@ -88,8 +88,9 @@ extension TripPlanningModel {
     persistedModeOverrides.merging(modeOverrides) { _, local in local }
   }
 
-  /// User-override the transport mode for a leg. The choice is a shared trip
-  /// fact, so reopening the trip—or opening it on the other device—keeps it.
+  /// User-override the transport mode for a leg. The choice is device-local and
+  /// survives reopening this trip on this device; it is not registered with the
+  /// CloudKit sync engine.
   func setMode(_ mode: TransportMode, for leg: LegKey) {
     guard let identity = plan.legIdentity(for: leg) else { return }
     modeOverrides[identity] = mode

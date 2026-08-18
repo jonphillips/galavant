@@ -1,9 +1,9 @@
 import Foundation
 import SQLiteData
 
-/// A shared choice for one directed itinerary leg. Endpoint identities deliberately
-/// avoid coordinates so alternatives and stop moves can preserve a logical slot's
-/// chosen mode while the ETA cache continues to use `LegKey`.
+/// A device-local choice for one directed itinerary leg. Endpoint identities
+/// deliberately avoid coordinates so alternatives and stop moves can preserve a
+/// logical slot's chosen mode while the ETA cache continues to use `LegKey`.
 @Table
 public struct TripTravelModeOverride: Identifiable, Equatable, Sendable {
   public let id: UUID
@@ -29,7 +29,7 @@ public struct TripTravelModeOverride: Identifiable, Equatable, Sendable {
 
 extension TripTravelModeOverride {
   /// Replace the selected mode for one leg. Replacing rather than appending keeps
-  /// the common path to one synced row per `(trip, legIdentity)`.
+  /// the common path to one local row per `(trip, legIdentity)`.
   public static func setMode(
     _ mode: TransportMode,
     for leg: LegIdentity,

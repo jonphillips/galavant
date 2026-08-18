@@ -183,8 +183,8 @@ final class TripPlanningModel {
   var alternativeGroupLabelDraft = ""
 
   // ETA cache (docs/trip-canvas.md): travel times keyed by coordinate leg + mode.
-  // A trip's main mode is the shared default; per-leg overrides use stable endpoint
-  // identities so alternatives and stop moves do not lose a user's choice.
+  // A trip's main mode is the shared default; device-local per-leg overrides use
+  // stable endpoint identities so alternatives and stop moves do not lose a choice.
   // Trips without a main mode retain the original walking→transit auto choice.
   var travelTimes: [LegKey: [TransportMode: TravelTime]] = [:]
   /// Immediate local projection of a choice while the persisted query refreshes.

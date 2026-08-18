@@ -787,9 +787,9 @@ extension DependencyValues {
       try #sql(#"ALTER TABLE "tripIdeas" ADD COLUMN "inlineLongitude" REAL"#).execute(db)
     }
     migrator.registerMigration("Re-key trip travel mode overrides by stable endpoint identity") { db in
-      // The old table keyed overrides by coordinates. Existing rows cannot be
-      // resolved to a stop identity in a pure migration, so reset them once and
-      // keep the synced record clean rather than carrying dead coordinate columns.
+      // This table is local-only; it is deliberately absent from SyncEngine's
+      // table list. The old table keyed overrides by coordinates, so reset them
+      // locally once rather than carrying dead coordinate columns.
       try #sql(#"DROP TABLE "tripTravelModeOverrides""#).execute(db)
       try #sql(
         """

@@ -4,8 +4,8 @@
 
 Travel-mode overrides now use stable stop/ring/stay endpoint identities while ETA
 results remain coordinate-keyed. Alternative swaps retain a slot's mode, and moving
-a stop carries its outgoing mode to the new successor. The synced override table is
-recreated by migration, intentionally resetting existing coordinate-keyed overrides.
+a stop carries its outgoing mode to the new successor. The local-only override table
+is recreated by migration, intentionally resetting existing coordinate-keyed overrides.
 
 ## Lodging official vs. planned times — DONE (2026-08-18)
 

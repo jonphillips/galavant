@@ -11,9 +11,9 @@ reads it for context.
 Branch `feat/stable-travel-modes`. Travel-mode overrides are keyed by stable
 stop/ring/stay endpoint identities while ETA results remain coordinate-keyed;
 alternative swaps retain modes and stop moves carry the outgoing mode to the new
-successor. The migration intentionally recreates the synced override table and
-resets old coordinate-keyed rows once. Schema tests and the Xcode 27 app build are
-green; the migration-reset choice is called out in ADR-0043 and the PR description.
+successor. The override table is local-only (not in the SyncEngine table list) and
+the migration safely recreates it, resetting old coordinate-keyed rows once. Schema
+tests and the Xcode 27 app build are green; the local-only decision is in ADR-0043.
 
 ## Pending PR — M7 calendar dogfood amendments (ADR-0041), completes M7
 

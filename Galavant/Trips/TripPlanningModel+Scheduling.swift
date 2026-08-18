@@ -316,21 +316,29 @@ extension TripPlanningModel {
   /// database write.
   private func moveSchedule(_ schedule: Schedule, for stop: ResolvedStop) {
     guard calendarTimeAuthority(for: stop.id) == .manual else { return }
-    let beforeLegs = Array(plan.legIdentities.values)
-    withErrorReporting {
-      try database.write { db in
+    let beforePlan = plan
+    let beforeLegs = Array(beforePlan.legIdentities.values)
+    let afterLegs = withErrorReporting {
+      try database.write { db -> [LegIdentity] in
         try TripIdea.schedule(schedule, stopID: stop.id, in: db)
+        let entries = try TripIdea.where { $0.tripID.eq(tripID) }.fetchAll(db)
+        return legIdentities(for: entries, basedOn: beforePlan)
       }
     }
-    carryOutgoingMode(for: stop, beforeLegs: beforeLegs)
+    carryOutgoingMode(
+      for: stop, beforeLegs: beforeLegs, afterLegs: afterLegs ?? beforeLegs)
   }
 
-  private func carryOutgoingMode(for stop: ResolvedStop, beforeLegs: [LegIdentity]) {
+  private func carryOutgoingMode(
+    for stop: ResolvedStop,
+    beforeLegs: [LegIdentity],
+    afterLegs: [LegIdentity]
+  ) {
     let writes = TripPlan.carryOutgoingOnMove(
       movedEndpointID: stop.travelEndpointID,
       overrides: currentModeOverrides,
       beforeLegs: beforeLegs,
-      afterLegs: Array(plan.legIdentities.values))
+      afterLegs: afterLegs)
     guard !writes.isEmpty else { return }
     let tripID = tripID
     for write in writes {
@@ -344,6 +352,22 @@ extension TripPlanningModel {
         }
       }
     }
+  }
+
+  /// Build a post-write read model from rows fetched inside the same transaction.
+  /// `@FetchAll` refreshes asynchronously after the write returns, so the move
+  /// heuristic must not use `plan` as its after-snapshot.
+  private func legIdentities(for entries: [TripIdea], basedOn base: TripPlan) -> [LegIdentity] {
+    Array(TripPlan(
+      entries: entries,
+      ideasByID: base.ideasByID,
+      lengthInDays: base.lengthInDays,
+      tripStays: base.tripStays,
+      dayRegions: base.dayRegions,
+      regionsByID: base.regionsByID,
+      calendarConstraints: base.calendarConstraints,
+      alternativeGroups: base.alternativeGroups
+    ).legIdentities.values)
   }
 
   // MARK: - Stop clock-time editor (ADR-0033 Slice 4)
@@ -499,13 +523,17 @@ extension TripPlanningModel {
       if case .day = entry.entry.schedule { return true }
       return false
     })
-    let beforeLegs = Array(plan.legIdentities.values)
-    withErrorReporting {
-      try database.write { db in
+    let beforePlan = plan
+    let beforeLegs = Array(beforePlan.legIdentities.values)
+    let afterLegs = withErrorReporting {
+      try database.write { db -> [LegIdentity] in
         try TripIdea.reorderDayStops(ids, leadingAnytimeIDs: leadingAnytimeIDs, in: db)
+        let entries = try TripIdea.where { $0.tripID.eq(tripID) }.fetchAll(db)
+        return legIdentities(for: entries, basedOn: beforePlan)
       }
     }
-    carryOutgoingMode(for: stop, beforeLegs: beforeLegs)
+    carryOutgoingMode(
+      for: stop, beforeLegs: beforeLegs, afterLegs: afterLegs ?? beforeLegs)
   }
 
   /// The day's stop IDs after moving `stop` one slot in `earlier`/later direction,
