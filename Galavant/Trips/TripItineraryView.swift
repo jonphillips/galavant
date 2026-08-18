@@ -314,15 +314,13 @@ struct TripItineraryView: View {
     .onTapGesture { model.editStay(stay) }
   }
 
-  /// A stop row: the stop content, optional info/edit buttons (idea-backed only),
+  /// A stop row: the stop content, optional info/edit buttons,
   /// a pinned-reservation indicator (docs/trip-time-model.md §4), its
-  /// `StopMenu`, and a tap. An idea-backed row taps to select on the shared
-  /// canvas (the info button is its own hit target); a freeform row has no map
-  /// pin to select, so it taps to open its inline editor instead (ADR-0010).
+  /// `StopMenu`, and a tap. Tapping the name selects the stop on the shared
+  /// canvas; the pencil remains the explicit edit affordance.
   private func stopRow(
     _ resolved: ResolvedStop, sequence: [TripIdea.ID: Int] = [:]
   ) -> some View {
-    let isFreeform = resolved.idea == nil
     let ring = model.plan.alternatives(forStop: resolved.id)
     let looseRing = ring.map { isLooseAlternativeSlot($0.activeMember.entry.schedule) } ?? false
     // A located stop wears its day-coloured map-pin number; everything else
@@ -367,18 +365,12 @@ struct TripItineraryView: View {
       model.canvasSelectedStopID == resolved.id ? Color.accentColor.opacity(0.12) : nil
     )
     .contentShape(Rectangle())
-    .onTapGesture {
-      if isFreeform {
-        model.editFreeform(resolved)
-      } else {
-        model.selectStop(resolved.id)
-      }
-    }
+    .onTapGesture { model.selectStop(resolved.id) }
     .id(resolved.id)
   }
 
   /// The trailing accessory cluster for a stop row: a pinned-reservation glyph and
-  /// the `StopMenu`, plus (idea-backed rows only) the info/edit buttons. Extracted
+  /// the `StopMenu`, plus the info/edit buttons. Extracted
   /// from `stopRow` to keep that view builder within the body-length gate.
   @ViewBuilder
   private func stopRowAccessory(_ resolved: ResolvedStop) -> some View {
@@ -403,6 +395,14 @@ struct TripItineraryView: View {
           }
           .buttonStyle(.borderless)
           .accessibilityLabel("Edit title and details")
+        }
+      } else {
+        HStack(spacing: 14) {
+          Button { model.editFreeform(resolved) } label: {
+            Icon.edit.image.foregroundStyle(.secondary)
+          }
+          .buttonStyle(.borderless)
+          .accessibilityLabel("Edit custom stop")
         }
       }
     }

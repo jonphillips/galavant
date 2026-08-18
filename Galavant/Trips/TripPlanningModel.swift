@@ -1,4 +1,5 @@
 import CasePaths
+import CoreLocation
 import Dependencies
 import Foundation
 import GalavantAI
@@ -18,6 +19,7 @@ struct FreeformStopDraft: Identifiable {
   var alternativeToStopID: TripIdea.ID?
   var title = ""
   var note = ""
+  var coordinate: CLLocationCoordinate2D?
   var day: Int?
 }
 

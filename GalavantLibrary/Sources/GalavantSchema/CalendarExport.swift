@@ -107,7 +107,7 @@ extension TripPlan {
     case let .idea(idea):
       let text = idea.notes.isEmpty ? idea.description : idea.notes
       return text.isEmpty ? nil : text
-    case let .freeform(_, note):
+    case let .freeform(_, note, _), let .stay(_, note):
       return note
     }
   }

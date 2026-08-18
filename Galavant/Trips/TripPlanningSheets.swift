@@ -1,3 +1,4 @@
+import CoreLocation
 import GalavantSchema
 import SwiftUI
 
@@ -117,7 +118,7 @@ struct AddIdeasSheet: View {
 /// ("lunch", "train to Aarhus", "check in"). One sheet for both. When creating,
 /// a day picker (default: To Be Scheduled) lands it directly; when editing, only
 /// the content changes — day placement is the `StopMenu`'s job, as for any stop
-/// (ADR-0010 Slice 3). The title is required; the note is optional.
+/// (ADR-0010 Slice 3). The title is required; the note and location are optional.
 struct FreeformStopSheet: View {
   let model: TripPlanningModel
   @State private var draft: FreeformStopDraft
@@ -146,6 +147,35 @@ struct FreeformStopSheet: View {
           TextField("Optional details", text: $draft.note, axis: .vertical)
             .lineLimit(2...5)
         }
+        Section("Location") {
+          if draft.coordinate == nil {
+            FreeformStopLocationMap(
+              coordinate: $draft.coordinate,
+              title: draft.title,
+              fallbackRegion: model.plan.framingCoordinates(forDay: nil).mapRegion)
+              .frame(height: 220)
+              .listRowInsets(EdgeInsets())
+          }
+
+          NavigationLink {
+            FreeformStopLocationSearchView { place in
+              draft.coordinate = CLLocationCoordinate2D(
+                latitude: place.latitude, longitude: place.longitude)
+              if draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                draft.title = place.name
+              }
+            }
+          } label: {
+            Label(
+              draft.coordinate == nil ? "Search for a place" : "Choose a different place",
+              systemImage: "magnifyingglass")
+          }
+          if draft.coordinate != nil {
+            Button("Clear location", role: .destructive) {
+              draft.coordinate = nil
+            }
+          }
+        }
         // Placement is offered only at create time; editing leaves it to the
         // StopMenu, as for any stop.
         if !isEditing && !isAlternative {
@@ -163,15 +193,20 @@ struct FreeformStopSheet: View {
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
-          Button("Cancel") { dismiss() }
+          Button("Cancel") {
+            model.destination = nil
+            dismiss()
+          }
         }
         ToolbarItem(placement: .confirmationAction) {
           Button(isEditing ? "Save" : "Add") { model.saveFreeform(draft) }.disabled(!canSave)
         }
       }
       .onAppear { titleFocused = !isEditing }
+      .onChange(of: draft.coordinate?.latitude) { _, _ in model.updateFreeformDraftCoordinate(draft.coordinate) }
+      .onChange(of: draft.coordinate?.longitude) { _, _ in model.updateFreeformDraftCoordinate(draft.coordinate) }
     }
-    .presentationDetents([.medium])
+    .presentationDetents([.large]).presentationDragIndicator(.visible)
   }
 }
 

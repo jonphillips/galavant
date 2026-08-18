@@ -919,12 +919,19 @@ struct TripTests {
     let entry = try await database.write { db -> TripIdea in
       let trip = try Trip.create(name: "Copenhagen", lengthInDays: 3, in: db)
       let id = try TripIdea.createFreeform(
-        tripID: trip.id, title: "Lunch break", note: "Try the smørrebrød place", in: db)
+        tripID: trip.id,
+        title: "Lunch break",
+        note: "Try the smørrebrød place",
+        latitude: 55.6761,
+        longitude: 12.5683,
+        in: db)
       return try TripIdea.find(id).fetchOne(db)!
     }
     #expect(entry.ideaID == nil)
     #expect(entry.inlineTitle == "Lunch break")
     #expect(entry.inlineNote == "Try the smørrebrød place")
+    #expect(entry.inlineLatitude == 55.6761)
+    #expect(entry.inlineLongitude == 12.5683)
     // Born scheduled but unplaced — the To-Be-Scheduled bucket.
     #expect(entry.status == .scheduled)
     #expect(entry.schedule == .unscheduled)
@@ -949,11 +956,19 @@ struct TripTests {
     let entry = try await database.write { db -> TripIdea in
       let trip = try Trip.create(name: "Copenhagen", in: db)
       let id = try TripIdea.createFreeform(tripID: trip.id, title: "Lunch", in: db)
-      try TripIdea.editFreeform(stopID: id, title: "Late lunch", note: "1pm-ish", in: db)
+      try TripIdea.editFreeform(
+        stopID: id,
+        title: "Late lunch",
+        note: "1pm-ish",
+        latitude: 55.6761,
+        longitude: 12.5683,
+        in: db)
       return try TripIdea.find(id).fetchOne(db)!
     }
     #expect(entry.inlineTitle == "Late lunch")
     #expect(entry.inlineNote == "1pm-ish")
+    #expect(entry.inlineLatitude == 55.6761)
+    #expect(entry.inlineLongitude == 12.5683)
   }
 
   @Test func editFreeformIsANoOpOnAnIdeaBackedStop() async throws {

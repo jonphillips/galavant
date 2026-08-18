@@ -21,6 +21,14 @@ struct TripCanvasMapView: View {
   /// Maps feature. The former keeps the map/timeline link; the latter opens the
   /// map-first capture flow.
   @State private var mapSelection: MapSelection<TripIdea.ID>?
+  @State private var dropFeedback = 0
+  /// Map-first placement mode (crosshair): the user pans the map under a fixed
+  /// centre reticle, then taps "Place here". Kept as a plain mode flag rather than
+  /// a live drag so nothing competes with MapKit's own pan/zoom recognizers — the
+  /// continuous long-press-then-drag fought them and stalled ("gesture gate timed
+  /// out"). Entering the mode is the only custom gesture, and it is a single
+  /// stationary long press.
+  @State private var isPlacingPin = false
 
   /// The days the map draws: just the selected day, or all when the lens is
   /// "All" (`canvasSelectedDay == nil`).
@@ -31,35 +39,44 @@ struct TripCanvasMapView: View {
     return model.plan.itinerary
   }
 
+  @MapContentBuilder
+  private var canvasMapContent: some MapContent {
+    lodgingPathContent
+    ForEach(visibleDays) { day in
+      dayContent(day)
+    }
+    baseContent
+    transientFreeformContent
+  }
+
   var body: some View {
     @Bindable var model = model
-    Map(position: $cameraPosition, selection: $mapSelection) {
-      lodgingPathContent
-      ForEach(visibleDays) { day in
-        dayContent(day)
+    MapReader { proxy in
+      Map(position: $cameraPosition, selection: $mapSelection) { canvasMapContent }
+      .simultaneousGesture(placementEntryGesture)
+      .overlay { if isPlacingPin { placementReticle(proxy: proxy) } }
+      .sensoryFeedback(.impact(weight: .light), trigger: dropFeedback)
+      .onMapCameraChange(frequency: .onEnd) { context in
+        visibleRegion = context.region
       }
-      baseContent
-    }
-    .onMapCameraChange(frequency: .onEnd) { context in
-      visibleRegion = context.region
-    }
-    // Keep the existing itinerary selection in sync when it originated from the
-    // timeline rather than a pin tap.
-    .onChange(of: model.canvasSelectedStopID) { _, id in
-      let selection = id.map(MapSelection.init)
-      if mapSelection != selection { mapSelection = selection }
-      revealStop(id)
-    }
-    .task(id: mapSelection) {
-      await handleMapSelection()
-    }
-    // The app presents its own confirm-and-tweak sheet after a POI selection, so
-    // don't put the system's Maps detail card in front of that flow.
-    .mapFeatureSelectionAccessory(nil)
-    // The map's labels are useful only when they represent a place we can add.
-    // Leave cities, regions, and physical geography nonselectable.
-    .mapFeatureSelectionDisabled { feature in
-      feature.kind != .pointOfInterest
+      // Keep the existing itinerary selection in sync when it originated from the
+      // timeline rather than a pin tap.
+      .onChange(of: model.canvasSelectedStopID) { _, id in
+        let selection = id.map(MapSelection.init)
+        if mapSelection != selection { mapSelection = selection }
+        revealStop(id)
+      }
+      .task(id: mapSelection) {
+        await handleMapSelection()
+      }
+      // The app presents its own confirm-and-tweak sheet after a POI selection, so
+      // don't put the system's Maps detail card in front of that flow.
+      .mapFeatureSelectionAccessory(nil)
+      // The map's labels are useful only when they represent a place we can add.
+      // Leave cities, regions, and physical geography nonselectable.
+      .mapFeatureSelectionDisabled { feature in
+        feature.kind != .pointOfInterest
+      }
     }
     .onChange(of: model.canvasSelectedDay, initial: true) { _, _ in frameSelection() }
     .onChange(of: model.trip?.mainTransportationMode) { _, _ in
@@ -148,6 +165,88 @@ struct TripCanvasMapView: View {
         }
       }
     }
+  }
+
+  /// A draft-only marker for a newly created freeform stop. It is intentionally
+  /// untagged, so it cannot enter selection, route, or numbering projections.
+  @MapContentBuilder
+  private var transientFreeformContent: some MapContent {
+    if let coordinate = transientFreeformCoordinate {
+      // `.center` so the placed round pin sits exactly where the crosshair reticle
+      // marked (the reticle centres `DraftFreeformPin` on the drop point), rather
+      // than jumping up by half its height on a `.bottom` anchor.
+      Annotation("New custom stop", coordinate: coordinate, anchor: .center) {
+        DraftFreeformPin()
+      }
+    }
+  }
+
+  private var transientFreeformCoordinate: CLLocationCoordinate2D? {
+    guard case let .freeformStop(draft) = model.destination,
+      draft.stopID == nil,
+      let coordinate = draft.coordinate
+    else { return nil }
+    return coordinate
+  }
+
+  private func convertCanvasPoint(_ point: CGPoint, proxy: MapProxy) -> CLLocationCoordinate2D? {
+    proxy.convert(point, from: .local)
+  }
+
+  /// The only custom map gesture: a single stationary long press to *enter*
+  /// crosshair placement mode. A bare `LongPressGesture` (no drag phase) doesn't
+  /// fight MapKit's pan/zoom recognizers the way the old sequenced press-then-drag
+  /// did, so entering the mode is reliable; positioning is then native map panning.
+  private var placementEntryGesture: some Gesture {
+    LongPressGesture(minimumDuration: 0.5).onEnded { _ in
+      guard !isPlacingPin else { return }
+      isPlacingPin = true
+      dropFeedback += 1
+    }
+  }
+
+  /// The crosshair overlay shown while placing a pin: a fixed reticle at the centre
+  /// of the *clear* area (above the bottom sheet) and the Cancel / Place controls.
+  /// The reticle itself ignores hits so drags fall through to the map's native pan;
+  /// only the buttons capture taps.
+  private func placementReticle(proxy: MapProxy) -> some View {
+    GeometryReader { geo in
+      let reticle = CGPoint(
+        x: geo.size.width / 2,
+        y: geo.size.height * (1 - bottomInsetFraction) / 2)
+      ZStack {
+        DraftFreeformPin()
+          .position(reticle)
+          .allowsHitTesting(false)
+        VStack {
+          Spacer()
+          HStack(spacing: 12) {
+            Button(role: .cancel) { isPlacingPin = false } label: {
+              Text("Cancel").frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            Button { placePin(at: reticle, proxy: proxy) } label: {
+              Label("Place here", systemImage: "mappin.and.ellipse")
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+          }
+          .padding(.horizontal, 24)
+          .padding(.bottom, geo.size.height * bottomInsetFraction + 20)
+        }
+      }
+    }
+  }
+
+  /// Commit the crosshair position: convert the reticle's screen point (a one-shot
+  /// `.local` conversion — no live gesture, so no arbitration to stall) into a
+  /// coordinate, then open the freeform editor seeded with it.
+  private func placePin(at point: CGPoint, proxy: MapProxy) {
+    guard let coordinate = convertCanvasPoint(point, proxy: proxy) else { return }
+    isPlacingPin = false
+    dropFeedback += 1
+    model.destination = .freeformStop(
+      FreeformStopDraft(coordinate: coordinate, day: model.canvasSelectedDay))
   }
 
   /// The off-sequence home-base pins for the current lens (ADR-0011): a stay you
@@ -292,9 +391,24 @@ private struct AlternativePin: View {
   }
 }
 
+private struct DraftFreeformPin: View {
+  var body: some View {
+    Image(systemName: "mappin.and.ellipse")
+      .font(.title2)
+      .foregroundStyle(.tint)
+      .padding(5)
+      .background(.thinMaterial, in: Circle())
+      .overlay(Circle().strokeBorder(.white, lineWidth: 2))
+      .shadow(radius: 2)
+  }
+}
+
 extension ResolvedStop {
-  /// The stop's map coordinate, when its idea has one. Freeform stops return nil.
-  fileprivate var coordinate: CLLocationCoordinate2D? { idea.flatMap(\.coordinate) }
+  /// The stop's map coordinate, when its resolved content has one.
+  fileprivate var coordinate: CLLocationCoordinate2D? {
+    guard let latitude = content.latitude, let longitude = content.longitude else { return nil }
+    return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+  }
 }
 
 extension ResolvedStay {

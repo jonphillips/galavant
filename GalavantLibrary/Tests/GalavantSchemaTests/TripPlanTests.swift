@@ -32,11 +32,15 @@ import Testing
   func freeformEntry(
     title: String,
     note: String? = nil,
+    latitude: Double? = nil,
+    longitude: Double? = nil,
     rank: Int = 0,
     dayRank: Double? = nil,
     schedule: Schedule = .unscheduled
   ) -> TripIdea {
-    var e = TripIdea.freeform(id: UUID(), tripID: UUID(), title: title, note: note, shortlistRank: rank)
+    var e = TripIdea.freeform(
+      id: UUID(), tripID: UUID(), title: title, note: note,
+      latitude: latitude, longitude: longitude, shortlistRank: rank)
     e.dayRank = dayRank ?? Double(rank)
     e.apply(schedule)
     return e
@@ -262,17 +266,33 @@ import Testing
   }
 
   @Test func unlocatedStopBreaksConnectorChain() {
-    let (a, b, c) = (UUID(), UUID(), UUID())
+    let (a, c) = (UUID(), UUID())
     let entries = [
       entry(idea: a, status: .scheduled, schedule: .day(1)),
-      entry(idea: b, status: .scheduled, schedule: .day(1)),  // unlocated
+      freeformEntry(title: "Unplaced note", schedule: .day(1)),  // unlocated
       entry(idea: c, status: .scheduled, schedule: .day(1)),
     ]
     let p = plan(entries, ideas: [
-      idea(a, lat: 1, lon: 1), idea(b, lat: nil, lon: nil), idea(c, lat: 3, lon: 3),
+      idea(a, lat: 1, lon: 1), idea(c, lat: 3, lon: 3),
     ])
-    // b has no coordinates: a→b and b→c both lack a full located pair
+    // The location-less freeform stop breaks both sides of the connector chain.
     #expect(p.legs(forDay: 1).isEmpty)
+  }
+
+  @Test func locatedFreeformStopIsLocatedAndProducesLegs() {
+    let ideaID = UUID()
+    let freeform = freeformEntry(
+      title: "Train station",
+      latitude: 2,
+      longitude: 2,
+      schedule: .day(1))
+    let ideaStop = entry(idea: ideaID, status: .scheduled, schedule: .day(1))
+    let p = plan([freeform, ideaStop], ideas: [idea(ideaID, lat: 3, lon: 3)])
+
+    #expect(p.locatedStops(forDay: 1).map(\.id) == [freeform.id, ideaStop.id])
+    #expect(p.itinerary[0].stops[0].content.latitude == 2)
+    #expect(p.itinerary[0].stops[0].content.longitude == 2)
+    #expect(p.legs(forDay: 1) == [LegKey(fromLat: 2, fromLon: 2, toLat: 3, toLon: 3)])
   }
 
   @Test func itineraryItemsInterleaveConnectors() {
@@ -399,7 +419,7 @@ import Testing
     let p2 = plan([e2], ideas: [], lengthInDays: 2)
     #expect(p2.itinerary[0].stops.count == 1)
     let stop = p2.itinerary[0].stops[0]
-    if case let .freeform(title, note) = stop.content {
+    if case let .freeform(title, note, _) = stop.content {
       #expect(title == "Check in")
       #expect(note == nil)
     } else {
@@ -408,7 +428,7 @@ import Testing
     #expect(stop.idea == nil)
     _ = p  // suppress unused-variable warning; unplaced entry lands in toBeScheduled
     #expect(p.toBeScheduled.count == 1)
-    if case let .freeform(title, note) = p.toBeScheduled[0].content {
+    if case let .freeform(title, note, _) = p.toBeScheduled[0].content {
       #expect(title == "Lunch break")
       #expect(note == "Try the local place")
     } else {
@@ -417,12 +437,6 @@ import Testing
   }
 
   @Test func freeformStopHasNoCoordinateAndProducesNoLeg() {
-    let id = UUID()
-    let entries = [
-      entry(idea: id, status: .scheduled, schedule: .day(1)),
-      freeformEntry(title: "Lunch", schedule: .day(1)),
-      entry(idea: id, status: .scheduled, schedule: .day(1)),  // same coords; forces duplicate — use different
-    ]
     let (a, b) = (UUID(), UUID())
     let entries2 = [
       entry(idea: a, status: .scheduled, schedule: .day(1)),
@@ -439,6 +453,15 @@ import Testing
     #expect(p.locatedStops(forDay: 1).allSatisfy { $0.content.latitude != nil })
   }
 
+  @Test func partialFreeformCoordinateResolvesAsUnlocated() {
+    let stop = freeformEntry(title: "Incomplete location", latitude: 1, longitude: nil)
+    let resolved = plan([stop], ideas: [], lengthInDays: 2).toBeScheduled[0]
+
+    #expect(resolved.content.coordinate == nil)
+    #expect(resolved.content.latitude == nil)
+    #expect(resolved.content.longitude == nil)
+  }
+
   @Test func freeformStopAppearsInItineraryItems() {
     let (a, b) = (UUID(), UUID())
     let entries = [
@@ -453,7 +476,7 @@ import Testing
     #expect(items.count == 3)
     #expect(items.allSatisfy { if case .stop = $0 { true } else { false } })
     if case let .stop(resolved) = items[1] {
-      if case let .freeform(title, _) = resolved.content {
+      if case let .freeform(title, _, _) = resolved.content {
         #expect(title == "Lunch")
       } else {
         Issue.record("middle item should be freeform stop")
@@ -476,7 +499,7 @@ import Testing
     }
     // Only the valid freeform stop survives
     #expect(p.itinerary[0].stops.count == 1)
-    if case let .freeform(title, _) = p.itinerary[0].stops[0].content {
+    if case let .freeform(title, _, _) = p.itinerary[0].stops[0].content {
       #expect(title == "Check in")
     } else {
       Issue.record("expected freeform content")
@@ -491,7 +514,7 @@ import Testing
     )
     let freeformStop = ResolvedStop(
       entry: TripIdea.freeform(id: UUID(), tripID: UUID(), title: "Train to Aarhus"),
-      content: .freeform(title: "Train to Aarhus", note: nil)
+      content: .freeform(title: "Train to Aarhus", note: nil, coordinate: nil)
     )
     #expect(ideaStop.content.title == "Tivoli")
     #expect(freeformStop.content.title == "Train to Aarhus")

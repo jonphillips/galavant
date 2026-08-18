@@ -23,6 +23,10 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
   public var ideaID: Idea.ID?
   public var inlineTitle: String?
   public var inlineNote: String?
+  /// Optional coordinates for a freeform stop. Both values are populated together
+  /// by the custom-stop editor; a partial pair remains unlocated in the read model.
+  public var inlineLatitude: Double?
+  public var inlineLongitude: Double?
   /// Booking details supplied by a Calendar event linked to this stop. Kept
   /// separate from the user's idea/stop notes so reconciliation never overwrites
   /// planning text.
@@ -76,6 +80,8 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
     ideaID: Idea.ID?,
     inlineTitle: String? = nil,
     inlineNote: String? = nil,
+    inlineLatitude: Double? = nil,
+    inlineLongitude: Double? = nil,
     calendarNotes: String? = nil,
     status: TripIdeaStatus = .considering,
     shortlistRank: Int = 0,
@@ -98,6 +104,8 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
     self.ideaID = ideaID
     self.inlineTitle = inlineTitle
     self.inlineNote = inlineNote
+    self.inlineLatitude = inlineLatitude
+    self.inlineLongitude = inlineLongitude
     self.calendarNotes = calendarNotes
     self.status = status
     self.shortlistRank = shortlistRank
@@ -123,6 +131,8 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
     tripID: Trip.ID,
     title: String,
     note: String? = nil,
+    latitude: Double? = nil,
+    longitude: Double? = nil,
     shortlistRank: Int = 0
   ) -> TripIdea {
     TripIdea(
@@ -131,6 +141,8 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
       ideaID: nil,
       inlineTitle: title,
       inlineNote: note,
+      inlineLatitude: latitude,
+      inlineLongitude: longitude,
       status: .scheduled,
       shortlistRank: shortlistRank
     )

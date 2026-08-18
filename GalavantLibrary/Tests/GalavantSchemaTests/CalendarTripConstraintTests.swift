@@ -164,7 +164,7 @@ struct CalendarTripConstraintTests {
     let event = observedEvent()
     let stop = ResolvedStop(
       entry: TripIdea(id: UUID(), tripID: tripID, ideaID: nil, inlineTitle: "Tax Advisor"),
-      content: .freeform(title: "Tax Advisor", note: nil))
+      content: .freeform(title: "Tax Advisor", note: nil, coordinate: nil))
     let proposed = candidate(event, result: .proposed(stop, basis: .exactName))
 
     let plan = CalendarReconciliation.constraintPlan(
@@ -186,7 +186,7 @@ struct CalendarTripConstraintTests {
       localState: CalendarReconciliationLocalState())
     let stop = ResolvedStop(
       entry: TripIdea(id: UUID(), tripID: tripID, ideaID: nil, inlineTitle: "Tax Advisor"),
-      content: .freeform(title: "Tax Advisor", note: nil))
+      content: .freeform(title: "Tax Advisor", note: nil, coordinate: nil))
 
     let refreshed = CalendarReconciliation.constraintPlan(
       candidates: [candidate(event, result: .proposed(stop, basis: .exactName))],
@@ -217,7 +217,7 @@ struct CalendarTripConstraintTests {
       sourceExternalIdentifier: event.externalIdentifier)]
     let stop = ResolvedStop(
       entry: TripIdea(id: stopID, tripID: tripID, ideaID: nil, inlineTitle: "Tax Advisor"),
-      content: .freeform(title: "Tax Advisor", note: nil))
+      content: .freeform(title: "Tax Advisor", note: nil, coordinate: nil))
 
     let linked = CalendarReconciliation.constraintPlan(
       candidates: [candidate(event, result: .automatic(stop, basis: .exactName))],

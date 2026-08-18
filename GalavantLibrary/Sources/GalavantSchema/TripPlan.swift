@@ -2,18 +2,18 @@ import Foundation
 import IssueReporting
 
 /// What a stop *is* — the pool idea it was pulled from, or an inline freeform
-/// entry with no idea (ADR-0010). The two cases have exactly the coordinate
-/// difference: `.idea` may carry lat/lon for pins and legs; `.freeform` never
-/// does, so it falls out of canvas/leg logic automatically.
+/// entry with no idea (ADR-0010, amended by ADR-0042). A stop's coordinate is one
+/// optional value, so it is either complete or absent.
 public enum StopContent: Equatable, Sendable {
   case idea(Idea)
-  case freeform(title: String, note: String?)
+  case freeform(title: String, note: String?, coordinate: TripCoordinate?)
+  case stay(title: String, note: String?)
 
   /// Display title for the stop row.
   public var title: String {
     switch self {
     case let .idea(idea): idea.name
-    case let .freeform(title, _): title
+    case let .freeform(title, _, _), let .stay(title, _): title
     }
   }
 
@@ -22,16 +22,28 @@ public enum StopContent: Equatable, Sendable {
     if case let .idea(idea) = self { idea } else { nil }
   }
 
-  /// Latitude for canvas/leg geometry — nil when not a located idea.
+  /// Latitude for canvas/leg geometry.
   public var latitude: Double? {
-    guard case let .idea(idea) = self else { return nil }
-    return idea.latitude
+    coordinate?.latitude
   }
 
-  /// Longitude for canvas/leg geometry — nil when not a located idea.
+  /// Longitude for canvas/leg geometry.
   public var longitude: Double? {
-    guard case let .idea(idea) = self else { return nil }
-    return idea.longitude
+    coordinate?.longitude
+  }
+
+  /// The complete coordinate for pins and leg geometry, when this content is
+  /// located. An idea with only one persisted coordinate is treated as absent.
+  public var coordinate: TripCoordinate? {
+    switch self {
+    case let .idea(idea):
+      guard let latitude = idea.latitude, let longitude = idea.longitude else { return nil }
+      return TripCoordinate(latitude: latitude, longitude: longitude)
+    case let .freeform(_, _, coordinate):
+      return coordinate
+    case .stay:
+      return nil
+    }
   }
 }
 
@@ -54,9 +66,10 @@ public struct ResolvedStop: Identifiable, Equatable, Sendable {
 
 /// A `TripStay` resolved to its content (ADR-0011) — the home-base unit the
 /// itinerary chip and the canvas base pin render. Reuses `StopContent`: a stay
-/// resolves to `.idea` when its pool hotel is found, `.freeform` when it carries
-/// an inline title. Orphans (pool hotel deleted) and malformed entries (no title)
-/// drop on read, exactly as a stop does.
+/// resolves to `.idea` when its pool hotel is found, `.stay` when it carries an
+/// inline title. Orphans (pool hotel deleted) and malformed entries (no title)
+/// drop on read, exactly as a stop does. Stays intentionally have no coordinate
+/// in this content model.
 public struct ResolvedStay: Identifiable, Equatable, Sendable {
   public var stay: TripStay
   public var content: StopContent
@@ -161,7 +174,17 @@ public struct TripPlan: Equatable, Sendable {
       guard let idea = ideasByID[ideaID] else { return nil }  // orphan — drop
       return ResolvedStop(entry: entry, content: .idea(idea))
     } else if let title = entry.inlineTitle, !title.isEmpty {
-      return ResolvedStop(entry: entry, content: .freeform(title: title, note: entry.inlineNote))
+      let coordinate = entry.inlineLatitude.flatMap { latitude in
+        entry.inlineLongitude.map { longitude in
+          TripCoordinate(latitude: latitude, longitude: longitude)
+        }
+      }
+      return ResolvedStop(
+        entry: entry,
+        content: .freeform(
+          title: title,
+          note: entry.inlineNote,
+          coordinate: coordinate))
     } else {
       return nil
     }
@@ -232,7 +255,9 @@ public struct TripPlan: Equatable, Sendable {
       guard let idea = ideasByID[ideaID] else { return nil }  // orphan — drop
       return ResolvedStay(stay: stay, content: .idea(idea))
     } else if let title = stay.inlineTitle, !title.isEmpty {
-      return ResolvedStay(stay: stay, content: .freeform(title: title, note: stay.inlineNote))
+      return ResolvedStay(
+        stay: stay,
+        content: .stay(title: title, note: stay.inlineNote))
     } else {
       reportIssue("TripStay \(stay.id) has neither ideaID nor inlineTitle — dropping")
       return nil
