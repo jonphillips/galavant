@@ -77,6 +77,44 @@ struct CalendarTripConstraintTests {
     #expect(blankConstraint.notes == nil)
   }
 
+  @Test func standaloneTimedEventNotesMaterializeThroughConstraintPlan() throws {
+    let event = observedEvent(
+      title: "Dinner reservation", identifier: "timed-notes", notes: "Booking code 1234")
+    let plan = CalendarReconciliation.constraintPlan(
+      candidates: [candidate(event)],
+      tripID: tripID,
+      calendarID: calendarID,
+      localState: CalendarReconciliationLocalState())
+
+    let constraint = try #require(plan.upserts.first)
+    #expect(constraint.notes == "Booking code 1234")
+    #expect(constraint.startTime == "10:00")
+  }
+
+  @Test func standaloneAllDayEventNotesMaterializeThroughConstraintPlan() throws {
+    let start = CalendarCivilDate(year: 2026, month: 8, day: 12)!
+    let event = CalendarObservedEvent(
+      id: "all-day-notes",
+      eventIdentifier: "all-day-notes",
+      externalIdentifier: "all-day-notes-server",
+      title: "Reservation details",
+      notes: "Check in at the front desk",
+      temporal: .allDay(
+        start: start,
+        endExclusive: CalendarCivilDate(year: 2026, month: 8, day: 13)!),
+      calendarTitle: "Family")
+    let plan = CalendarReconciliation.constraintPlan(
+      candidates: [candidate(event)],
+      tripID: tripID,
+      calendarID: calendarID,
+      localState: CalendarReconciliationLocalState())
+
+    let constraint = try #require(plan.upserts.first)
+    #expect(constraint.notes == "Check in at the front desk")
+    #expect(constraint.startTime == nil)
+    #expect(constraint.schedule == .day(2))
+  }
+
   @Test func absoluteConstraintDisplaysItsOwnEventZone() throws {
     let eastern = try #require(TimeZone(identifier: "America/New_York"))
     var easternCalendar = Calendar(identifier: .gregorian)

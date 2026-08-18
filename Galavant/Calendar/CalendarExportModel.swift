@@ -384,6 +384,7 @@ final class CalendarReconciliationModel {
             application.commitment,
             stopID: application.stopID,
             dayNumber: application.dayNumber,
+            calendarNotes: application.calendarNotes,
             in: db)
         }
         for entry in ledgerEntries {

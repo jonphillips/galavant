@@ -23,6 +23,10 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
   public var ideaID: Idea.ID?
   public var inlineTitle: String?
   public var inlineNote: String?
+  /// Booking details supplied by a Calendar event linked to this stop. Kept
+  /// separate from the user's idea/stop notes so reconciliation never overwrites
+  /// planning text.
+  public var calendarNotes: String?
   public var status: TripIdeaStatus = .considering
   public var shortlistRank = 0
   /// Manual order **within a day** — the intra-day tiebreaker that lets an
@@ -72,6 +76,7 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
     ideaID: Idea.ID?,
     inlineTitle: String? = nil,
     inlineNote: String? = nil,
+    calendarNotes: String? = nil,
     status: TripIdeaStatus = .considering,
     shortlistRank: Int = 0,
     dayRank: Double = 0,
@@ -93,6 +98,7 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
     self.ideaID = ideaID
     self.inlineTitle = inlineTitle
     self.inlineNote = inlineNote
+    self.calendarNotes = calendarNotes
     self.status = status
     self.shortlistRank = shortlistRank
     self.dayRank = dayRank

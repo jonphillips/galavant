@@ -261,6 +261,12 @@ struct TripItineraryView: View {
               .font(.caption)
               .foregroundStyle(.secondary)
           }
+          if let notes = constraint.notes {
+            Text(notes)
+              .font(.caption)
+              .foregroundStyle(.secondary)
+              .lineLimit(1)
+          }
         }
         Spacer()
         Text(constraint.displayTime ?? constraintTime(constraint))
@@ -277,7 +283,8 @@ struct TripItineraryView: View {
     .padding(.vertical, 2)
     .accessibilityElement(children: .combine)
     .accessibilityLabel(
-      "Calendar constraint, \(constraint.title), \(constraint.displayTime ?? constraintTime(constraint))")
+      "Calendar constraint, \(constraint.title), \(constraint.displayTime ?? constraintTime(constraint))"
+        + (constraint.notes.map { ", Notes: \($0)" } ?? ""))
   }
 
   /// A stay boundary row — "Check in" on the stay's check-in day, "Check out" on
@@ -336,7 +343,7 @@ struct TripItineraryView: View {
       PlanningRow(
         content: resolved.content,
         title: looseTitle,
-        note: resolved.entry.inlineNote,
+        note: resolved.entry.calendarNotes ?? resolved.entry.inlineNote,
         subtitle: .none,
         marker: marker
       ) {

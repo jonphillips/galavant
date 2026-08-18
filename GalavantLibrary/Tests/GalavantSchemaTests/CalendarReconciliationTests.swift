@@ -20,7 +20,8 @@ import Testing
     identifier: String = UUID().uuidString,
     externalIdentifier: String? = "server-item",
     isAllDay: Bool = false,
-    isRecurring: Bool = false
+    isRecurring: Bool = false,
+    notes: String? = nil
   ) -> CalendarObservedEvent {
     let start = calendar.date(
       byAdding: .day,
@@ -32,6 +33,7 @@ import Testing
       eventIdentifier: identifier,
       externalIdentifier: externalIdentifier,
       title: title,
+      notes: notes,
       startDate: start,
       endDate: start.addingTimeInterval(60 * 60),
       isAllDay: isAllDay,
@@ -95,6 +97,26 @@ import Testing
     }
     #expect(match.id == stop.id)
     #expect(basis == .mapItemIdentifier)
+  }
+
+  @Test func matchedEventCarriesCalendarNotesIntoStopApplication() {
+    let noma = Idea(id: UUID(), name: "Noma", mapItemIdentifier: "maps-noma")
+    let stop = stop(idea: noma, day: 1)
+    let candidates = mapsMatchCandidate(
+      for: stop,
+      idea: noma,
+      event: event(
+        title: "Dinner at Noma", identifier: "noma-booking", notes: "Confirmation 5678"))
+
+    let automaticPlan = CalendarReconciliation.automaticPlan(
+      candidates: candidates,
+      localState: CalendarReconciliationLocalState(),
+      observedAt: .distantPast,
+      makeHistoryID: UUID.init)
+
+    #expect(automaticPlan.applications.first?.stopID == stop.id)
+    #expect(automaticPlan.applications.first?.calendarNotes == "Confirmation 5678")
+    #expect(automaticPlan.localState.linkedStops.first?.eventNotes == "Confirmation 5678")
   }
 
   @Test func absoluteEventMatchesTheTripDayInTheItineraryZone() throws {
