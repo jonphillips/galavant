@@ -776,6 +776,12 @@ extension DependencyValues {
         """
       ).execute(db)
     }
+    migrator.registerMigration("Add inline coordinates to freeform tripIdeas (ADR-0042)") { db in
+      // Optional, additive columns keep existing freeform stops location-less and
+      // let the shared TripIdea record carry a manually chosen map location.
+      try #sql(#"ALTER TABLE "tripIdeas" ADD COLUMN "inlineLatitude" REAL"#).execute(db)
+      try #sql(#"ALTER TABLE "tripIdeas" ADD COLUMN "inlineLongitude" REAL"#).execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if case let .configured(startImmediately) = syncMode {

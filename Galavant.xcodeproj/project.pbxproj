@@ -112,6 +112,7 @@
 		CC3F96678DFB64539736A6A7 /* Sharing in Frameworks */ = {isa = PBXBuildFile; productRef = 5A93A34322120B8F1DC99E7B /* Sharing */; };
 		CFF79112580C0EBC8D933DE2 /* IdeaDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F02C470667EF6E9AC8AC761 /* IdeaDetailView.swift */; };
 		D1D88C6469FB21204DA80CA3 /* ReorderDifference+Apply.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91589ABCCE6CEFC2EC1F72F4 /* ReorderDifference+Apply.swift */; };
+		D5EFD53E633A9C43FADEAC53 /* TripPlanningModel+Freeform.swift in Sources */ = {isa = PBXBuildFile; fileRef = E754846D1941C6A46BF20DFB /* TripPlanningModel+Freeform.swift */; };
 		D852704AE73F605F6205258E /* SyncStatusSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DC1E6463D9CC2DF49548F37 /* SyncStatusSection.swift */; };
 		D992DF9897F424912B7ED10C /* TripBadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC86C7931F1026669DFCE6AB /* TripBadgeView.swift */; };
 		DA333E1DC58A089ED9E9C3E1 /* GalavantApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43AABFB8B03E2303AECAF355 /* GalavantApp.swift */; };
@@ -122,6 +123,7 @@
 		E4012E1E8A6634279CD3ECFA /* CasePaths in Frameworks */ = {isa = PBXBuildFile; productRef = 26D83C2182F9FE47C3A1CA25 /* CasePaths */; };
 		E7664E213A70698E975C00E2 /* TripPlanningModel+AlternativeGroups.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62969DCE60557E7FE251E473 /* TripPlanningModel+AlternativeGroups.swift */; };
 		E77D186E6B692AD25BC8C9F3 /* SQLiteData in Frameworks */ = {isa = PBXBuildFile; productRef = A641D3ABA375BA009278F435 /* SQLiteData */; };
+		EEACD2B427DF5C20CDD17950 /* FreeformStopLocationEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5448AA5F448341633752E5D /* FreeformStopLocationEditor.swift */; };
 		EFF6015EBFCC08925785A2EB /* EvaluateScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = D48C8AE52183B8D3DE346D07 /* EvaluateScreen.swift */; };
 		F009B3192D02321202419379 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5AD27A1248EEA1D9B580277 /* ShareViewController.swift */; };
 		F03422C3671BFFD56B78737A /* TripCanvasMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED4DA130D3A7069430825C31 /* TripCanvasMapView.swift */; };
@@ -264,6 +266,7 @@
 		D3BFE6AAFB0EDC36E3BB7755 /* GalavantShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GalavantShare.entitlements; sourceTree = "<group>"; };
 		D40170C4D56FC7F76E1992FF /* WeatherKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WeatherKit.framework; path = System/Library/Frameworks/WeatherKit.framework; sourceTree = SDKROOT; };
 		D48C8AE52183B8D3DE346D07 /* EvaluateScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EvaluateScreen.swift; sourceTree = "<group>"; };
+		D5448AA5F448341633752E5D /* FreeformStopLocationEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FreeformStopLocationEditor.swift; sourceTree = "<group>"; };
 		D8A01FBA56D01193ABBE48E6 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		DC0B58BAA1F3B550A331C182 /* RecommendationHandoffSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationHandoffSheet.swift; sourceTree = "<group>"; };
 		DDD6629168771E53AD5C86CF /* TripAddButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripAddButton.swift; sourceTree = "<group>"; };
@@ -275,6 +278,7 @@
 		E13450922E6B719B55DC57BC /* IdeasScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeasScreen.swift; sourceTree = "<group>"; };
 		E146770B6C9957BA19FC94EC /* IdeasListModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeasListModel.swift; sourceTree = "<group>"; };
 		E35BE6CD061373B731E38031 /* SequencePin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencePin.swift; sourceTree = "<group>"; };
+		E754846D1941C6A46BF20DFB /* TripPlanningModel+Freeform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripPlanningModel+Freeform.swift"; sourceTree = "<group>"; };
 		E818B469EB6F7EB6FB4F33D6 /* CloudSyncKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = CloudSyncKit; path = "../../jon-platform/packages/CloudSyncKit"; sourceTree = SOURCE_ROOT; };
 		EA2BBF3B289FD7D02957833B /* AppContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainer.swift; sourceTree = "<group>"; };
 		EC86C7931F1026669DFCE6AB /* TripBadgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripBadgeView.swift; sourceTree = "<group>"; };
@@ -401,6 +405,7 @@
 				BAA9983C3B6D9D9B731F96F9 /* DayChipBar.swift */,
 				95C568B98EA55277C2DDA065 /* DayPalette.swift */,
 				386282278C0DEBD19BF1925E /* DirectionsClient.swift */,
+				D5448AA5F448341633752E5D /* FreeformStopLocationEditor.swift */,
 				0EFBA67DB304DCD293D72575 /* PlaceIdeaSheet.swift */,
 				97954EEA93EDDCB81E746016 /* PlanningRow.swift */,
 				9E4F11F80427DFD1A59F56B7 /* RecommendationCandidateStrip.swift */,
@@ -425,6 +430,7 @@
 				8238F43F540641D1FD4267BA /* TripPlanningModel.swift */,
 				62969DCE60557E7FE251E473 /* TripPlanningModel+AlternativeGroups.swift */,
 				0F84BC54D6D414EBFC202ED7 /* TripPlanningModel+Directions.swift */,
+				E754846D1941C6A46BF20DFB /* TripPlanningModel+Freeform.swift */,
 				47B9767D73E65C3D4D10CC30 /* TripPlanningModel+Recommendation.swift */,
 				72A6C6AEFAD6483C0E0AF70C /* TripPlanningModel+Scheduling.swift */,
 				74F16970DCFE2E14E475DB66 /* TripPlanningSheets.swift */,
@@ -846,6 +852,7 @@
 				9515962CEF69E6D64F9B0322 /* DemoFixtures.swift in Sources */,
 				466236484A344B3C7C6F3823 /* DirectionsClient.swift in Sources */,
 				EFF6015EBFCC08925785A2EB /* EvaluateScreen.swift in Sources */,
+				EEACD2B427DF5C20CDD17950 /* FreeformStopLocationEditor.swift in Sources */,
 				DA333E1DC58A089ED9E9C3E1 /* GalavantApp.swift in Sources */,
 				1AF90BB39A9A3751AA9A22E2 /* Icon.swift in Sources */,
 				5FC0A092CF36738BE434FB6D /* IdeaCoordinate.swift in Sources */,
@@ -907,6 +914,7 @@
 				43267C623EF3B32592F6BCF0 /* TripItineraryView.swift in Sources */,
 				E7664E213A70698E975C00E2 /* TripPlanningModel+AlternativeGroups.swift in Sources */,
 				5E128AA508FD75DB537A0366 /* TripPlanningModel+Directions.swift in Sources */,
+				D5EFD53E633A9C43FADEAC53 /* TripPlanningModel+Freeform.swift in Sources */,
 				67E36BA27F8A9760AAC49994 /* TripPlanningModel+Recommendation.swift in Sources */,
 				8B65E5CA383B4D16F3685A39 /* TripPlanningModel+Scheduling.swift in Sources */,
 				C4D03D83083C9022183ABEF2 /* TripPlanningModel.swift in Sources */,

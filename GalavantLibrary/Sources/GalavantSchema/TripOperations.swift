@@ -543,6 +543,8 @@ extension TripIdea {
   public static func addFreeformAlternative(
     title: String,
     note: String? = nil,
+    latitude: Double? = nil,
+    longitude: Double? = nil,
     to targetStopID: TripIdea.ID,
     groupID: UUID = UUID(),
     in db: Database
@@ -564,6 +566,8 @@ extension TripIdea {
       ideaID: nil,
       inlineTitle: title,
       inlineNote: note,
+      inlineLatitude: latitude,
+      inlineLongitude: longitude,
       status: .scheduled,
       shortlistRank: target.shortlistRank,
       dayRank: target.dayRank,
@@ -726,6 +730,8 @@ extension TripIdea {
     tripID: Trip.ID,
     title: String,
     note: String? = nil,
+    latitude: Double? = nil,
+    longitude: Double? = nil,
     in db: Database
   ) throws -> TripIdea.ID {
     let id = UUID()
@@ -735,6 +741,7 @@ extension TripIdea {
         TripIdea(
           id: id, tripID: tripID, ideaID: nil,
           inlineTitle: title, inlineNote: note,
+          inlineLatitude: latitude, inlineLongitude: longitude,
           status: .scheduled, shortlistRank: rank
         )
       )
@@ -767,6 +774,8 @@ extension TripIdea {
     stopID: TripIdea.ID,
     title: String,
     note: String?,
+    latitude: Double? = nil,
+    longitude: Double? = nil,
     in db: Database
   ) throws {
     guard let existing = try TripIdea.find(stopID).fetchOne(db), existing.ideaID == nil else { return }
@@ -774,6 +783,8 @@ extension TripIdea {
       .update {
         $0.inlineTitle = #bind(title)
         $0.inlineNote = #bind(note)
+        $0.inlineLatitude = #bind(latitude)
+        $0.inlineLongitude = #bind(longitude)
       }
       .execute(db)
   }

@@ -2,18 +2,18 @@ import Foundation
 import IssueReporting
 
 /// What a stop *is* — the pool idea it was pulled from, or an inline freeform
-/// entry with no idea (ADR-0010). The two cases have exactly the coordinate
-/// difference: `.idea` may carry lat/lon for pins and legs; `.freeform` never
-/// does, so it falls out of canvas/leg logic automatically.
+/// entry with no idea (ADR-0010, amended by ADR-0042). Both cases can carry
+/// coordinates for pins and legs; freeform coordinates come from the inline stop
+/// columns and remain optional.
 public enum StopContent: Equatable, Sendable {
   case idea(Idea)
-  case freeform(title: String, note: String?)
+  case freeform(title: String, note: String?, latitude: Double?, longitude: Double?)
 
   /// Display title for the stop row.
   public var title: String {
     switch self {
     case let .idea(idea): idea.name
-    case let .freeform(title, _): title
+    case let .freeform(title, _, _, _): title
     }
   }
 
@@ -22,16 +22,20 @@ public enum StopContent: Equatable, Sendable {
     if case let .idea(idea) = self { idea } else { nil }
   }
 
-  /// Latitude for canvas/leg geometry — nil when not a located idea.
+  /// Latitude for canvas/leg geometry.
   public var latitude: Double? {
-    guard case let .idea(idea) = self else { return nil }
-    return idea.latitude
+    switch self {
+    case let .idea(idea): idea.latitude
+    case let .freeform(_, _, latitude, _): latitude
+    }
   }
 
-  /// Longitude for canvas/leg geometry — nil when not a located idea.
+  /// Longitude for canvas/leg geometry.
   public var longitude: Double? {
-    guard case let .idea(idea) = self else { return nil }
-    return idea.longitude
+    switch self {
+    case let .idea(idea): idea.longitude
+    case let .freeform(_, _, _, longitude): longitude
+    }
   }
 }
 
@@ -161,7 +165,13 @@ public struct TripPlan: Equatable, Sendable {
       guard let idea = ideasByID[ideaID] else { return nil }  // orphan — drop
       return ResolvedStop(entry: entry, content: .idea(idea))
     } else if let title = entry.inlineTitle, !title.isEmpty {
-      return ResolvedStop(entry: entry, content: .freeform(title: title, note: entry.inlineNote))
+      return ResolvedStop(
+        entry: entry,
+        content: .freeform(
+          title: title,
+          note: entry.inlineNote,
+          latitude: entry.inlineLatitude,
+          longitude: entry.inlineLongitude))
     } else {
       return nil
     }
@@ -232,7 +242,9 @@ public struct TripPlan: Equatable, Sendable {
       guard let idea = ideasByID[ideaID] else { return nil }  // orphan — drop
       return ResolvedStay(stay: stay, content: .idea(idea))
     } else if let title = stay.inlineTitle, !title.isEmpty {
-      return ResolvedStay(stay: stay, content: .freeform(title: title, note: stay.inlineNote))
+      return ResolvedStay(
+        stay: stay,
+        content: .freeform(title: title, note: stay.inlineNote, latitude: nil, longitude: nil))
     } else {
       reportIssue("TripStay \(stay.id) has neither ideaID nor inlineTitle — dropping")
       return nil

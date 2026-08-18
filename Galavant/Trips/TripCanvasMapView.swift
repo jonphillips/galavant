@@ -293,8 +293,11 @@ private struct AlternativePin: View {
 }
 
 extension ResolvedStop {
-  /// The stop's map coordinate, when its idea has one. Freeform stops return nil.
-  fileprivate var coordinate: CLLocationCoordinate2D? { idea.flatMap(\.coordinate) }
+  /// The stop's map coordinate, when its resolved content has one.
+  fileprivate var coordinate: CLLocationCoordinate2D? {
+    guard let latitude = content.latitude, let longitude = content.longitude else { return nil }
+    return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+  }
 }
 
 extension ResolvedStay {

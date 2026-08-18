@@ -1,3 +1,4 @@
+import CoreLocation
 import Dependencies
 import Foundation
 import GalavantSchema
@@ -130,9 +131,18 @@ extension TripPlanningModel {
   /// Re-open the editor seeded from an existing freeform stop. No-op on an
   /// idea-backed stop (those edit through the pool idea, not here).
   func editFreeform(_ stop: ResolvedStop) {
-    guard case let .freeform(title, note) = stop.content else { return }
+    guard case let .freeform(title, note, latitude, longitude) = stop.content else { return }
     destination = .freeformStop(
-      FreeformStopDraft(stopID: stop.id, title: title, note: note ?? "", day: stop.entry.dayNumber))
+      FreeformStopDraft(
+        stopID: stop.id,
+        title: title,
+        note: note ?? "",
+        coordinate: latitude.flatMap { latitude in
+          longitude.map { longitude in
+            CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+          }
+        },
+        day: stop.entry.dayNumber))
   }
 
   /// Open the stop-note editor for any stop (idea-backed or freeform), seeded from
@@ -150,31 +160,6 @@ extension TripPlanningModel {
     withErrorReporting {
       try database.write { db in
         try TripIdea.setInlineNote(stopID: draft.stopID, note: draft.note, in: db)
-      }
-    }
-    destination = nil
-  }
-
-  /// Commit the custom-stop editor: create a new stop (placed on its chosen day,
-  /// or left in the bucket), or update the edited one's content. A blank title
-  /// is dropped (the sheet's Save is disabled, but guard anyway).
-  func saveFreeform(_ draft: FreeformStopDraft) {
-    let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !title.isEmpty, let tripID = trip?.id else { return }
-    let trimmedNote = draft.note.trimmingCharacters(in: .whitespacesAndNewlines)
-    let note = trimmedNote.isEmpty ? nil : trimmedNote
-    withErrorReporting {
-      try database.write { db in
-        if let stopID = draft.stopID {
-          try TripIdea.editFreeform(stopID: stopID, title: title, note: note, in: db)
-        } else if let targetStopID = draft.alternativeToStopID {
-          try TripIdea.addFreeformAlternative(title: title, note: note, to: targetStopID, in: db)
-        } else {
-          let id = try TripIdea.createFreeform(tripID: tripID, title: title, note: note, in: db)
-          if let day = draft.day {
-            try TripIdea.schedule(.day(day), stopID: id, in: db)
-          }
-        }
       }
     }
     destination = nil
@@ -209,7 +194,7 @@ extension TripPlanningModel {
     let stay = resolved.stay
     var title = ""
     var note = ""
-    if case let .freeform(t, n) = resolved.content {
+    if case let .freeform(t, n, _, _) = resolved.content {
       title = t
       note = n ?? ""
     }
