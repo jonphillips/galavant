@@ -2,6 +2,7 @@ import Foundation
 import GalavantSchema
 import MapKit
 import SwiftUI
+import UIKit
 
 enum TodayDirectionsEmphasis {
   case prominent
@@ -185,7 +186,9 @@ struct TodayView: View {
   }
 
   private func today(_ projection: TodayProjection) -> some View {
-    ScrollView {
+    let thumbnailByIdea = model.thumbnailByIdea
+
+    return ScrollView {
       VStack(alignment: .leading, spacing: 24) {
         TodayDayHeader(
           context: projection.dayContext,
@@ -200,7 +203,8 @@ struct TodayView: View {
             canExecute: !isPreviewing,
             planningModel: planningModel,
             onSelectIdea: { detailIdea = $0 },
-            weather: model.weather)
+            weather: model.weather,
+            thumbnailByIdea: thumbnailByIdea)
         } else {
           TodayNoNextCard()
         }
@@ -218,7 +222,8 @@ struct TodayView: View {
             skippedStops: projection.skippedStops,
             canExecute: !isPreviewing,
             planningModel: planningModel,
-            onSelectIdea: { detailIdea = $0 })
+            onSelectIdea: { detailIdea = $0 },
+            thumbnailByIdea: thumbnailByIdea)
         }
 
         if let tonight = projection.tonight {
@@ -291,6 +296,7 @@ private struct TodayNextHero: View {
   let planningModel: TripPlanningModel
   let onSelectIdea: (Idea) -> Void
   let weather: WeatherSummary?
+  let thumbnailByIdea: [Idea.ID: Data]
 
   private var stop: ResolvedStop? {
     guard case let .stop(stop) = next.item else { return nil }
@@ -349,7 +355,24 @@ private struct TodayNextHero: View {
   }
 
   private func stopSummary(_ stop: ResolvedStop) -> some View {
-    HStack(alignment: .top, spacing: 16) {
+    VStack(alignment: .leading, spacing: 14) {
+      if let ideaID = stop.idea?.id,
+        let thumbnail = thumbnailByIdea[ideaID],
+        let image = UIImage(data: thumbnail) {
+        Image(uiImage: image)
+          .resizable()
+          .scaledToFill()
+          .frame(maxWidth: .infinity)
+          .frame(height: 180)
+          .clipped()
+          .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+          .accessibilityHidden(true)
+      } else if let coordinate = trailCoordinate(for: stop) {
+        TodayTrailThumbnail(coordinate: coordinate, title: stop.content.title)
+          .frame(maxWidth: .infinity)
+          .frame(height: 180)
+      }
+
       VStack(alignment: .leading, spacing: 8) {
         Text(stop.content.title)
           .font(.title.weight(.bold))
@@ -364,11 +387,6 @@ private struct TodayNextHero: View {
             .font(.subheadline.weight(.semibold))
             .foregroundStyle(.primary)
         }
-      }
-
-      if let coordinate = trailCoordinate(for: stop) {
-        TodayTrailThumbnail(coordinate: coordinate, title: stop.content.title)
-          .frame(width: 112, height: 112)
       }
     }
   }

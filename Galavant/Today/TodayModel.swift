@@ -1,19 +1,45 @@
 import Dependencies
 import Foundation
 import GalavantSchema
+import SQLiteData
 
 /// Owns Today’s ephemeral weather request and one minute-level clock. The
 /// projection remains a pure value supplied by the trip-planning read model.
 @MainActor
 @Observable
 final class TodayModel {
+  /// One idea's header thumbnail bytes — the compressed, syncable tier, never the
+  /// heavy display BLOB (mirrors `JourneyModel`).
+  @Selection struct HeaderThumb {
+    let ideaID: Idea.ID
+    let thumbnail: Data
+  }
+
   @ObservationIgnored @Dependency(\.weatherClient) private var weatherClient
   @ObservationIgnored @Dependency(\.date) private var date
   @ObservationIgnored @Dependency(\.continuousClock) private var clock
 
+  // Today only needs compact stop imagery. The display BLOBs never ride this
+  // query; lookup is performed only for the active trip's resolved stop ideas.
+  @ObservationIgnored @FetchAll(
+    ImageAsset.where { $0.isHeader.eq(true) }
+      .select { HeaderThumb.Columns(ideaID: $0.ideaID, thumbnail: $0.thumbnail) }
+  ) var headerThumbs
+
   private(set) var now: Date
   private(set) var weather: WeatherSummary?
   private(set) var weatherAnchor: WeatherAnchor?
+
+  /// Header thumbnail bytes per idea, for the active stop's leading image.
+  var thumbnailByIdea: [Idea.ID: Data] {
+    Dictionary(headerThumbs.map { ($0.ideaID, $0.thumbnail) }, uniquingKeysWith: { first, _ in first })
+  }
+
+  /// The thumbnail for one idea, if it has a header image.
+  func thumbnail(forIdea ideaID: Idea.ID?) -> Data? {
+    guard let ideaID else { return nil }
+    return thumbnailByIdea[ideaID]
+  }
 
   init() {
     @Dependency(\.date) var date
