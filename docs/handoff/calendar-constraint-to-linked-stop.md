@@ -1,6 +1,6 @@
 # Handoff: Promote a Calendar constraint into a linked stop
 
-Status: **Shipped** — 2026-08-18. Branch: `feat/promote-calendar-constraint-v1` (PR created at completion).
+Status: **Shipped** — 2026-08-18. Branch: `feat/promote-calendar-constraint-v1`; [PR #71](https://github.com/jonphillips/galavant/pull/71).
 Design agreed 2026-08-18. V1 decisions locked (below).
 Summary: A Calendar event that lands in the itinerary as a `CalendarTripConstraint`
 (no place match) can currently only be **ignored** or left alone. This adds the

@@ -8,14 +8,13 @@ reads it for context.
 
 ## Pending PR — calendar constraint promotion
 
-Branch `feat/promote-calendar-constraint-v1` implements the complete
+Branch `feat/promote-calendar-constraint-v1` ([PR #71](https://github.com/jonphillips/galavant/pull/71)) implements the complete
 `docs/handoff/calendar-constraint-to-linked-stop.md` sequence. Calendar-only
 constraints can be assigned a real Apple Maps place, promoted into an idea-backed
 `.linked` stop through the existing reconciliation path, and reaped without a
 duplicate stop or orphaned constraint. If the linked event is later deleted, the
 V1 decision is to retain the stop as an unbooked plan while clearing Calendar's
-derived schedule and recording the provenance transition. PR link is added when
-the review PR is created.
+derived schedule and recording the provenance transition.
 
 Verification: `xcodebuild -scheme Galavant -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -skipMacroValidation build`
 and `swift test --package-path GalavantLibrary --filter CalendarTripConstraintTests`.
