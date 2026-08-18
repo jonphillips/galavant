@@ -2,6 +2,7 @@ import Foundation
 import GalavantSchema
 import MapKit
 import SwiftUI
+import UIKit
 
 enum TodayDirectionsEmphasis {
   case prominent
@@ -200,7 +201,8 @@ struct TodayView: View {
             canExecute: !isPreviewing,
             planningModel: planningModel,
             onSelectIdea: { detailIdea = $0 },
-            weather: model.weather)
+            weather: model.weather,
+            thumbnail: model.thumbnail(for: next))
         } else {
           TodayNoNextCard()
         }
@@ -291,6 +293,7 @@ private struct TodayNextHero: View {
   let planningModel: TripPlanningModel
   let onSelectIdea: (Idea) -> Void
   let weather: WeatherSummary?
+  let thumbnail: Data?
 
   private var stop: ResolvedStop? {
     guard case let .stop(stop) = next.item else { return nil }
@@ -350,6 +353,19 @@ private struct TodayNextHero: View {
 
   private func stopSummary(_ stop: ResolvedStop) -> some View {
     HStack(alignment: .top, spacing: 16) {
+      if let thumbnail, let image = UIImage(data: thumbnail) {
+        Image(uiImage: image)
+          .resizable()
+          .scaledToFit()
+          .frame(width: 72, height: 72)
+          .background(Color(.secondarySystemFill))
+          .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+          .accessibilityHidden(true)
+      } else if let coordinate = trailCoordinate(for: stop) {
+        TodayTrailThumbnail(coordinate: coordinate, title: stop.content.title)
+          .frame(width: 72, height: 72)
+      }
+
       VStack(alignment: .leading, spacing: 8) {
         Text(stop.content.title)
           .font(.title.weight(.bold))
@@ -366,10 +382,6 @@ private struct TodayNextHero: View {
         }
       }
 
-      if let coordinate = trailCoordinate(for: stop) {
-        TodayTrailThumbnail(coordinate: coordinate, title: stop.content.title)
-          .frame(width: 112, height: 112)
-      }
     }
   }
 
