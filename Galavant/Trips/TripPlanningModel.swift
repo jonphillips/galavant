@@ -182,12 +182,13 @@ final class TripPlanningModel {
   var editingAlternativeGroupID: UUID?
   var alternativeGroupLabelDraft = ""
 
-  // ETA cache (docs/trip-canvas.md): travel times keyed by leg + mode. A trip's
-  // main mode is the shared default; the per-leg menu remains a local override.
+  // ETA cache (docs/trip-canvas.md): travel times keyed by coordinate leg + mode.
+  // A trip's main mode is the shared default; device-local per-leg overrides use
+  // stable endpoint identities so alternatives and stop moves do not lose a choice.
   // Trips without a main mode retain the original walking→transit auto choice.
   var travelTimes: [LegKey: [TransportMode: TravelTime]] = [:]
   /// Immediate local projection of a choice while the persisted query refreshes.
-  var modeOverrides: [LegKey: TransportMode] = [:]
+  var modeOverrides: [LegIdentity: TransportMode] = [:]
   // Non-private so the ETA-fetch loop can live with the rest of the directions
   // subsystem in TripPlanningModel+Directions.swift (stored state must stay here).
   var isFetchingETAs = false

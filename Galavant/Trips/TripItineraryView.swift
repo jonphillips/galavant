@@ -43,11 +43,12 @@ struct TripItineraryView: View {
   /// One day's stops, for the canvas's day lens. Its header "+" adds straight
   /// onto this day.
   private func focusedDayList(_ day: Int) -> some View {
-    let items = model.plan.itineraryItems(
+    let plan = model.plan
+    let items = plan.itineraryItems(
       forDay: day, travelTimes: model.travelTimes, effectiveModes: model.effectiveModes,
       now: Date.now, tripStartDate: model.trip?.startDate,
-      stays: model.plan.stays(coveringDay: day))
-    let sequence = model.plan.locatedSequenceNumbers(forDay: day)
+      stays: plan.stays(coveringDay: day))
+    let sequence = plan.locatedSequenceNumbers(forDay: day)
     return List {
       inlineAddSection
       Section {
@@ -72,8 +73,13 @@ struct TripItineraryView: View {
   /// See KNOWN-ISSUES.)
   private var fullItinerary: some View {
     List {
+      // Build the plan and the leg-mode map once for the whole list — both are
+      // computed properties; reading them per day rebuilt the plan's leg-graph
+      // O(days) times per layout pass and locked up large trips.
+      let plan = model.plan
+      let modes = model.effectiveModes
       inlineAddSection
-      let bucket = model.plan.toBeScheduled
+      let bucket = plan.toBeScheduled
       if !bucket.isEmpty {
         Section {
           ForEach(bucket) { resolved in stopRow(resolved) }
@@ -81,12 +87,12 @@ struct TripItineraryView: View {
           sectionHeader("To Be Scheduled", day: nil)
         }
       }
-      ForEach(model.plan.itinerary) { day in
-        let items = model.plan.itineraryItems(
-          forDay: day.number, travelTimes: model.travelTimes, effectiveModes: model.effectiveModes,
+      ForEach(plan.itinerary) { day in
+        let items = plan.itineraryItems(
+          forDay: day.number, travelTimes: model.travelTimes, effectiveModes: modes,
           now: Date.now, tripStartDate: model.trip?.startDate,
-          stays: model.plan.stays(coveringDay: day.number))
-        let sequence = model.plan.locatedSequenceNumbers(forDay: day.number)
+          stays: plan.stays(coveringDay: day.number))
+        let sequence = plan.locatedSequenceNumbers(forDay: day.number)
         Section {
           if items.isEmpty {
             Text("No stops yet")

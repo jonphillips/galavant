@@ -1,5 +1,17 @@
 # Done Log — completed enhancements
 
+## Stable travel-mode overrides — IMPLEMENTED (2026-08-18)
+
+Travel-mode overrides now use stable stop/ring/stay endpoint identities while ETA
+results remain coordinate-keyed. Alternative swaps retain a slot's mode, and moving
+a stop carries its outgoing mode to the new successor. The local-only override table
+is recreated by migration, intentionally resetting existing coordinate-keyed overrides.
+
+Fixed a follow-on itinerary lockup: keying mode lookup through `plan.legIdentity(for:)`
+rebuilt the whole leg-graph per leg (O(legs²·days) per render, froze large trips).
+Resolution now lives in pure `TripPlan.legModes` / `legMode`, built once per render;
+the model and `TripItineraryView` resolve in a single pass. Covered by pure tests.
+
 ## Lodging official vs. planned times — DONE (2026-08-18)
 
 `TripStay` now stores independent planned check-in/check-out times alongside the

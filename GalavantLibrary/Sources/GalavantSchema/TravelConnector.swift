@@ -59,6 +59,20 @@ public struct LegKey: Hashable, Sendable {
   }
 }
 
+/// A directed itinerary leg keyed by the stable identities of its endpoints.
+/// Unlike `LegKey`, this identity deliberately does not include coordinates:
+/// alternative members share their ring identity so a swap does not create a
+/// new logical leg.
+public struct LegIdentity: Hashable, Sendable {
+  public var from: String
+  public var to: String
+
+  public init(from: String, to: String) {
+    self.from = from
+    self.to = to
+  }
+}
+
 /// A location participating in a travel-time connector. Keeping the resolved
 /// title and coordinate on the value lets a base stay and a regular stop share
 /// exactly one direction-row representation.

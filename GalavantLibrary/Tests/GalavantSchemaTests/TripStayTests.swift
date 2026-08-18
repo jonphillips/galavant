@@ -291,6 +291,18 @@ import Testing
     else { Issue.record("want check-in last") }
   }
 
+  @Test func lodgingLegIdentityUsesStayIDs() {
+    let (h1, h2) = (UUID(), UUID())
+    let leaving = stay(idea: h1, checkIn: 1, checkOut: 2)
+    let arriving = stay(idea: h2, checkIn: 2, checkOut: 4)
+    let p = plan(
+      stays: [leaving, arriving],
+      ideas: [idea(h1, lat: 1, lon: 2), idea(h2, lat: 3, lon: 4)])
+    let leg = LegKey(fromLat: 1, fromLon: 2, toLat: 3, toLon: 4)
+    #expect(p.legIdentity(for: leg) == LegIdentity(
+      from: "stay-\(leaving.id)", to: "stay-\(arriving.id)"))
+  }
+
   @Test func lodgingTransitionShowsTransferAndArrivalToFirstStop() {
     let (h1, h2, stopID) = (UUID(), UUID(), UUID())
     let leaving = stay(idea: h1, checkIn: 1, checkOut: 2)

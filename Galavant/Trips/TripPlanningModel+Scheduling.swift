@@ -311,6 +311,65 @@ extension TripPlanningModel {
     }
   }
 
+  /// Move a stop's schedule and then carry its outgoing mode onto the new
+  /// successor, using stable endpoint identities captured before and after the
+  /// database write.
+  private func moveSchedule(_ schedule: Schedule, for stop: ResolvedStop) {
+    guard calendarTimeAuthority(for: stop.id) == .manual else { return }
+    let beforePlan = plan
+    let beforeLegs = Array(beforePlan.legIdentities.values)
+    let afterLegs = withErrorReporting {
+      try database.write { db -> [LegIdentity] in
+        try TripIdea.schedule(schedule, stopID: stop.id, in: db)
+        let entries = try TripIdea.where { $0.tripID.eq(tripID) }.fetchAll(db)
+        return legIdentities(for: entries, basedOn: beforePlan)
+      }
+    }
+    carryOutgoingMode(
+      for: stop, beforeLegs: beforeLegs, afterLegs: afterLegs ?? beforeLegs)
+  }
+
+  private func carryOutgoingMode(
+    for stop: ResolvedStop,
+    beforeLegs: [LegIdentity],
+    afterLegs: [LegIdentity]
+  ) {
+    let writes = TripPlan.carryOutgoingOnMove(
+      movedEndpointID: stop.travelEndpointID,
+      overrides: currentModeOverrides,
+      beforeLegs: beforeLegs,
+      afterLegs: afterLegs)
+    guard !writes.isEmpty else { return }
+    let tripID = tripID
+    for write in writes {
+      modeOverrides[write.leg] = write.mode
+    }
+    withErrorReporting {
+      try database.write { db in
+        for write in writes {
+          try TripTravelModeOverride.setMode(
+            write.mode, for: write.leg, tripID: tripID, in: db)
+        }
+      }
+    }
+  }
+
+  /// Build a post-write read model from rows fetched inside the same transaction.
+  /// `@FetchAll` refreshes asynchronously after the write returns, so the move
+  /// heuristic must not use `plan` as its after-snapshot.
+  private func legIdentities(for entries: [TripIdea], basedOn base: TripPlan) -> [LegIdentity] {
+    Array(TripPlan(
+      entries: entries,
+      ideasByID: base.ideasByID,
+      lengthInDays: base.lengthInDays,
+      tripStays: base.tripStays,
+      dayRegions: base.dayRegions,
+      regionsByID: base.regionsByID,
+      calendarConstraints: base.calendarConstraints,
+      alternativeGroups: base.alternativeGroups
+    ).legIdentities.values)
+  }
+
   // MARK: - Stop clock-time editor (ADR-0033 Slice 4)
 
   /// Present the clock-time editor for a placed stop, pre-filled from
@@ -419,19 +478,23 @@ extension TripPlanningModel {
   /// stop to reason from.
   func moveToDay(_ stop: ResolvedStop, day: Int) {
     let schedule = stop.entry.schedule
-    guard case let .timed(_, start, end) = schedule, day != schedule.dayNumber else {
+    guard day != schedule.dayNumber else {
       setSchedule(schedule.onDay(day), for: stop.id)
+      return
+    }
+    guard case let .timed(_, start, end) = schedule else {
+      moveSchedule(schedule.onDay(day), for: stop)
       return
     }
     let destTimed = orderedStops(onDay: day)
       .last { if case .timed = $0.entry.schedule { return true } else { return false } }
     guard let suggestion = Schedule.suggestedTime(after: destTimed?.entry.schedule, before: nil) else {
-      setSchedule(schedule.onDay(day), for: stop.id)
+      moveSchedule(schedule.onDay(day), for: stop)
       return
     }
-    setSchedule(
+    moveSchedule(
       .timed(day, start: suggestion, end: Self.shiftedEnd(start: start, end: end, to: suggestion)),
-      for: stop.id)
+      for: stop)
   }
 
   // MARK: - Non-drag intra-day reorder (ADR-0033 Slice 4)
@@ -460,11 +523,17 @@ extension TripPlanningModel {
       if case .day = entry.entry.schedule { return true }
       return false
     })
-    withErrorReporting {
-      try database.write { db in
+    let beforePlan = plan
+    let beforeLegs = Array(beforePlan.legIdentities.values)
+    let afterLegs = withErrorReporting {
+      try database.write { db -> [LegIdentity] in
         try TripIdea.reorderDayStops(ids, leadingAnytimeIDs: leadingAnytimeIDs, in: db)
+        let entries = try TripIdea.where { $0.tripID.eq(tripID) }.fetchAll(db)
+        return legIdentities(for: entries, basedOn: beforePlan)
       }
     }
+    carryOutgoingMode(
+      for: stop, beforeLegs: beforeLegs, afterLegs: afterLegs ?? beforeLegs)
   }
 
   /// The day's stop IDs after moving `stop` one slot in `earlier`/later direction,
