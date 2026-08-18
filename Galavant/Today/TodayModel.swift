@@ -41,11 +41,6 @@ final class TodayModel {
     return thumbnailByIdea[ideaID]
   }
 
-  func thumbnail(for next: TodayProjection.Next) -> Data? {
-    guard case let .stop(stop) = next.item else { return nil }
-    return thumbnail(forIdea: stop.idea?.id)
-  }
-
   init() {
     @Dependency(\.date) var date
     now = date()

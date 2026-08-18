@@ -1,6 +1,7 @@
 import Foundation
 import GalavantSchema
 import SwiftUI
+import UIKit
 
 struct TodayTimeline: View {
   let remaining: [TodayProjection.RemainingItem]
@@ -9,6 +10,7 @@ struct TodayTimeline: View {
   let canExecute: Bool
   let planningModel: TripPlanningModel
   let onSelectIdea: (Idea) -> Void
+  let thumbnailByIdea: [Idea.ID: Data]
 
   @State private var isDoneExpanded = false
   @State private var isSkippedExpanded = false
@@ -100,7 +102,8 @@ struct TodayTimeline: View {
               return visibleEndpointIDs.contains(connector.from.id)
             }(),
             isCurrentConnector: item.id == currentConnectorID,
-            onSelectIdea: onSelectIdea)
+            onSelectIdea: onSelectIdea,
+            thumbnailByIdea: thumbnailByIdea)
         }
       }
       .padding(16)
@@ -145,7 +148,8 @@ struct TodayTimeline: View {
           planningModel: planningModel,
           hasVisibleOrigin: true,
           isCurrentConnector: false,
-          onSelectIdea: onSelectIdea)
+          onSelectIdea: onSelectIdea,
+          thumbnailByIdea: thumbnailByIdea)
       }
     }
   }
@@ -158,6 +162,7 @@ private struct TodayTimelineRow: View {
   let hasVisibleOrigin: Bool
   let isCurrentConnector: Bool
   let onSelectIdea: (Idea) -> Void
+  let thumbnailByIdea: [Idea.ID: Data]
 
   var body: some View {
     HStack(alignment: .top, spacing: 12) {
@@ -278,9 +283,30 @@ private struct TodayTimelineRow: View {
   }
 
   private func stopSummary(_ stop: ResolvedStop) -> some View {
-    VStack(alignment: .leading, spacing: 3) {
-      Text(stop.content.title).font(.body.weight(.semibold))
-      Text(stop.entry.schedule.display).font(.caption).foregroundStyle(.secondary)
+    HStack(alignment: .top, spacing: 10) {
+      if let ideaID = stop.idea?.id,
+        let thumbnail = thumbnailByIdea[ideaID],
+        let image = UIImage(data: thumbnail) {
+        Image(uiImage: image)
+          .resizable()
+          .scaledToFit()
+          .frame(width: 44, height: 44)
+          .background(Color(.secondarySystemFill))
+          .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+          .accessibilityHidden(true)
+      } else {
+        Image(systemName: stop.idea?.kind?.systemImage ?? "mappin.and.ellipse")
+          .foregroundStyle(.secondary)
+          .frame(width: 44, height: 44)
+          .background(Color(.secondarySystemFill))
+          .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+          .accessibilityHidden(true)
+      }
+
+      VStack(alignment: .leading, spacing: 3) {
+        Text(stop.content.title).font(.body.weight(.semibold))
+        Text(stop.entry.schedule.display).font(.caption).foregroundStyle(.secondary)
+      }
     }
   }
 
