@@ -483,6 +483,10 @@ public struct TripPlan: Equatable, Sendable {
     stream.sort {
       ($0.key, $0.rank.rawValue) < ($1.key, $1.rank.rawValue)
     }
+    let lastStopStreamIndex = stream.lastIndex { entry in
+      if case .stop = entry.slot { return true }
+      return false
+    }
 
     // Home-base rows lead the day (the persistent "you're staying here" anchor).
     var items: [ItineraryItem] = homeBaseRows
@@ -498,7 +502,7 @@ public struct TripPlan: Equatable, Sendable {
     var markerInserted = false
     var baseConnectorInserted = false
     var stayTransferInserted = false
-    for entry in stream {
+    for (streamIndex, entry) in stream.enumerated() {
       switch entry.slot {
       case let .boundary(item):
         items.append(item)
@@ -521,7 +525,7 @@ public struct TripPlan: Equatable, Sendable {
           baseConnectorInserted = true
         }
         items.append(.stop(stop))
-        if returnConnector?.from.id == "stop-\(stop.id)", let returnConnector {
+        if streamIndex == lastStopStreamIndex, let returnConnector {
           items.append(.connector(returnConnector))
         }
         // A connector trails a stop when the next route stop (i+1) is also located.

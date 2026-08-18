@@ -166,6 +166,7 @@ extension TripPlan {
     guard let origin = stops.last(where: isLocated) else { return nil }
     let destination: ResolvedStay?
     if stays.count == 1 {
+      guard stays[0].stay.checkOutDay != day else { return nil }
       destination = stays[0]
     } else {
       let arrivals = stays.filter { $0.stay.checkInDay == day }

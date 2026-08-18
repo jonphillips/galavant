@@ -323,6 +323,62 @@ import Testing
     #expect(p.allLegs == [outbound, returning])
   }
 
+  @Test func returnConnectorTrailsALaterUnlocatedStop() {
+    let (hotelID, locatedID, unlocatedID) = (UUID(), UUID(), UUID())
+    let lodging = stay(idea: hotelID, checkIn: 1, checkOut: 4)
+    let locatedStop = scheduledStop(locatedID, at: "12:00")
+    let unlocatedStop = scheduledStop(unlocatedID, at: "18:00")
+    let p = planWith(
+      stops: [locatedStop, unlocatedStop],
+      stays: [lodging],
+      ideas: [
+        idea(hotelID, name: "Hotel", lat: 1, lon: 2),
+        idea(locatedID, name: "Museum", lat: 3, lon: 4),
+        idea(unlocatedID, name: "Dinner", lat: nil, lon: nil),
+      ])
+    let items = p.itineraryItems(
+      forDay: 2, travelTimes: [:], effectiveModes: [:], stays: p.stays(coveringDay: 2))
+
+    #expect(items.count == 5)
+    if case .homeBase = items[0] {} else { Issue.record("want the lodging context row first") }
+    if case .connector(let connector) = items[1] {
+      #expect(connector.kind == .fromLodging)
+    } else { Issue.record("want outbound lodging directions first") }
+    if case .stop(let stop) = items[2] { #expect(stop.id == locatedStop.id) }
+    else { Issue.record("want located stop before unlocated stop") }
+    if case .stop(let stop) = items[3] { #expect(stop.id == unlocatedStop.id) }
+    else { Issue.record("want later unlocated stop before return") }
+    if case .connector(let connector) = items[4] {
+      #expect(connector.kind == .toLodging)
+    } else { Issue.record("want return after the final timeline stop") }
+  }
+
+  @Test func pureCheckOutDayKeepsOutboundButHasNoReturnLeg() {
+    let (hotelID, stopID) = (UUID(), UUID())
+    let lodging = stay(idea: hotelID, checkIn: 1, checkOut: 2)
+    let p = planWith(
+      stops: [scheduledStop(stopID, at: "12:00")],
+      stays: [lodging],
+      ideas: [
+        idea(hotelID, name: "Hotel", lat: 1, lon: 2),
+        idea(stopID, name: "Museum", lat: 3, lon: 4),
+      ])
+    let outbound = LegKey(fromLat: 1, fromLon: 2, toLat: 3, toLon: 4)
+    let items = p.itineraryItems(
+      forDay: 2, travelTimes: [:], effectiveModes: [:], stays: p.stays(coveringDay: 2))
+
+    #expect(p.baseLegs(forDay: 2) == [outbound])
+    #expect(p.returnLegs(forDay: 2).isEmpty)
+    #expect(!items.contains { item in
+      if case .connector(let connector) = item { return connector.kind == .toLodging }
+      return false
+    })
+    #expect(items.contains { item in
+      if case .connector(let connector) = item { return connector.kind == .fromLodging }
+      return false
+    })
+  }
+
   @Test func middleDayShowsAHomeBaseRowAtopItsStops() {
     // Day 3 sits inside stay (checkIn 2, checkOut 4) — a covered middle day, so it
     // shows a persistent home-base row leading the day, then the stop (ADR-0011,

@@ -583,9 +583,7 @@ private struct JourneyMap: View {
   private func dayMapContent(_ day: JourneyProjection.DaySummary) -> some MapContent {
     let stops = plan.locatedStops(forDay: day.dayNumber)
     let opacity = stopOpacity(day: day.dayNumber)
-    let route = plan.routeEndpoints(forDay: day.dayNumber).map { endpoint in
-      CLLocationCoordinate2D(latitude: endpoint.latitude, longitude: endpoint.longitude)
-    }
+    let route = dayRouteCoordinates(for: day.dayNumber, stops: stops)
     if route.count >= 2 {
       MapPolyline(coordinates: route)
         .stroke(
@@ -602,6 +600,15 @@ private struct JourneyMap: View {
             .opacity(opacity)
         }
       }
+    }
+  }
+
+  private func dayRouteCoordinates(
+    for dayNumber: Int, stops: [ResolvedStop]
+  ) -> [CLLocationCoordinate2D] {
+    guard selection == .day(dayNumber) else { return stops.compactMap(coordinate(for:)) }
+    return plan.routeEndpoints(forDay: dayNumber).map { endpoint in
+      CLLocationCoordinate2D(latitude: endpoint.latitude, longitude: endpoint.longitude)
     }
   }
 
