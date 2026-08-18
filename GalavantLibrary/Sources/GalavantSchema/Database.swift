@@ -401,6 +401,10 @@ extension DependencyValues {
       )
       .execute(db)
     }
+    migrator.registerMigration("Add planned check times to tripStays") { db in
+      try #sql(#"ALTER TABLE "tripStays" ADD COLUMN "plannedCheckInTime" TEXT"#).execute(db)
+      try #sql(#"ALTER TABLE "tripStays" ADD COLUMN "plannedCheckOutTime" TEXT"#).execute(db)
+    }
     migrator.registerMigration("Create tripDayRegions table (ADR-0012)") { db in
       // One of the trip's regions assigned to a day; rides the trip (single real
       // FK, cascade-deletes), regionID a loose UUID reconciled on read (ADR-0007).

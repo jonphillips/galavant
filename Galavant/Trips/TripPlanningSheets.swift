@@ -264,11 +264,17 @@ struct StaySheet: View {
             .onChange(of: draft.checkInDay) { _, day in
               if draft.checkOutDay <= day { draft.checkOutDay = day + 1 }
             }
-          timeRow(label: "Time", time: $draft.checkInTime, seed: "15:00")
+          timeRow(label: "Official", time: $draft.checkInTime, seed: "15:00")
+          timeRow(
+            label: "Planned", time: $draft.plannedCheckInTime,
+            seed: draft.checkInTime ?? "15:00")
         }
         Section("Check-out") {
           dayPicker(selection: $draft.checkOutDay, range: (draft.checkInDay + 1)...tripLength)
-          timeRow(label: "Time", time: $draft.checkOutTime, seed: "10:00")
+          timeRow(label: "Official", time: $draft.checkOutTime, seed: "10:00")
+          timeRow(
+            label: "Planned", time: $draft.plannedCheckOutTime,
+            seed: draft.checkOutTime ?? "10:00")
         }
         if isEditing {
           Section {

@@ -270,9 +270,13 @@ private struct TodayTimelineRow: View {
         .foregroundStyle(.tint)
         .padding(.top, 1)
     case let .checkIn(stay):
-      TodayTimelineEvent(title: "Check in", detail: stay.content.title)
+      TodayTimelineEvent(
+        title: "Check in", detail: stay.content.title,
+        display: stay.stay.checkInDisplay)
     case let .checkOut(stay):
-      TodayTimelineEvent(title: "Check out", detail: stay.content.title)
+      TodayTimelineEvent(
+        title: "Check out", detail: stay.content.title,
+        display: stay.stay.checkOutDisplay)
     case let .homeBase(stay):
       TodayTimelineEvent(title: "Home base", detail: stay.content.title)
     case let .calendarConstraint(constraint):
@@ -371,11 +375,27 @@ private struct TodayTimelineRow: View {
 private struct TodayTimelineEvent: View {
   let title: String
   let detail: String
+  var display: TripStay.CheckDisplay? = nil
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 3) {
-      Text(title).font(.body.weight(.semibold))
-      Text(detail).font(.caption).foregroundStyle(.secondary)
+    HStack(alignment: .top, spacing: 12) {
+      VStack(alignment: .leading, spacing: 3) {
+        HStack(spacing: 4) {
+          Text(title).font(.body.weight(.semibold))
+          if let official = display?.officialParenthetical {
+            Text("(\(official))")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
+        }
+        Text(detail).font(.caption).foregroundStyle(.secondary)
+      }
+      Spacer(minLength: 0)
+      if let trailing = display?.trailing {
+        Text(trailing)
+          .font(.body.monospaced())
+          .foregroundStyle(.secondary)
+      }
     }
   }
 }

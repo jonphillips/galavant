@@ -50,8 +50,10 @@ not a `TripIdea` and not a `Schedule` case.**
   public var inlineNote: String?
   public var checkInDay: Int          // 1…N, required at creation
   public var checkOutDay: Int         // > checkInDay
-  public var checkInTime: String?     // optional "HH:mm" (Schedule's convention)
-  public var checkOutTime: String?    // optional "HH:mm"
+  public var checkInTime: String?     // official property time, optional "HH:mm"
+  public var checkOutTime: String?    // official property time, optional "HH:mm"
+  public var plannedCheckInTime: String?  // personal expected time, optional "HH:mm"
+  public var plannedCheckOutTime: String? // personal expected time, optional "HH:mm"
   // Seam for trip-time-model §4: pinnedDate / confirmation# / bookingURL — NOT this slice.
 }
 ```
@@ -67,10 +69,14 @@ not a `TripIdea` and not a `Schedule` case.**
 3. **Freeform stays are allowed** (Q1). A stay may be just a name + nights with no
    pool idea (an unsaved Airbnb, "staying with friends"). `inlineTitle`/`inlineNote`
    carry it, mirroring ADR-0010's freeform stop.
-4. **Optional check-in/check-out times** (Q2). Day numbers are required; the times
-   are optional `"HH:mm"` strings (Schedule's convention) so two planners can hold
-   shared expectations ("check-in 15:00"). Absent a time, the check-in row sorts to
-   evening and the check-out row to morning.
+4. **Official vs. planned check-in/check-out times** (Q2). Day numbers are
+   required. `checkInTime` / `checkOutTime` retain the property's optional official
+   times, while `plannedCheckInTime` / `plannedCheckOutTime` hold the travel party's
+   independent expectations. The planned time wins timeline ordering and display;
+   when both exist, the official time remains visible parenthetically as the
+   contrast. Absent a time, the check-in row sorts to evening and the check-out row
+   to morning. This partially realizes the booked-vs-planned seam for times only;
+   `pinnedDate`, confirmation number, and booking URL remain future seams.
 5. **Lifecycle: born on the trip, not pulled.** A `TripStay` does **not** travel
    `considering → shortlisted → scheduled` it is created directly, like a freeform
    stop. Two entry points: **"Stay here"** stamps `ideaID` + nights from a pool /
