@@ -227,7 +227,7 @@ struct ItineraryAlternativeOperationTests {
   }
 
   @Test func addCycleAndRemoveKeepOneStableSlot() async throws {
-    let result = try await database.write { db -> (TripIdea, TripIdea) in
+    let result = try await database.write { db -> (TripIdea, TripIdea, TripAlternativeGroup?) in
       let trip = try Trip.create(name: "Alternatives", in: db)
       var target = TripIdea(
         id: UUID(), tripID: trip.id, ideaID: UUID(), status: .scheduled,
@@ -239,7 +239,9 @@ struct ItineraryAlternativeOperationTests {
       try TripIdea.insert { TripIdea.Draft(target) }.execute(db)
       try TripIdea.insert { TripIdea.Draft(source) }.execute(db)
 
-      try TripIdea.addAlternative(sourceStopID: source.id, to: target.id, groupID: UUID(), in: db)
+      let groupID = UUID()
+      try TripIdea.addAlternative(sourceStopID: source.id, to: target.id, groupID: groupID, in: db)
+      try TripAlternativeGroup.rename(groupID: groupID, tripID: trip.id, label: "Lunch", in: db)
       let added = try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db)
       #expect(added.filter { $0.alternativeGroupID != nil }.count == 2)
       #expect(added.first(where: { $0.id == target.id })?.isActive == true)
@@ -247,26 +249,33 @@ struct ItineraryAlternativeOperationTests {
       #expect(try TripIdea.cycleAlternative(stopID: target.id, in: db) == source.id)
       try TripIdea.remove(stopID: source.id, in: db)
       let survivor = try #require(try TripIdea.find(target.id).fetchOne(db))
-      return (survivor, source)
+      return (survivor, source, try TripAlternativeGroup.find(groupID).fetchOne(db))
     }
     #expect(result.0.status == .scheduled)
     #expect(result.0.schedule == .day(1))
     #expect(result.0.alternativeGroupID == nil)
     #expect(result.0.isActive)
+    #expect(result.2 == nil)
   }
 
   @Test func unscheduleDissolvesEveryPeerIntoContiguousShortlist() async throws {
-    let entries = try await database.write { db -> [TripIdea] in
+    let result = try await database.write { db -> ([TripIdea], TripAlternativeGroup?) in
       let trip = try Trip.create(name: "Unscheduled", in: db)
       let members = try insertRing(tripID: trip.id, in: db)
+      let groupID = try #require(members.first?.alternativeGroupID)
+      try TripAlternativeGroup.rename(groupID: groupID, tripID: trip.id, label: "Dinner", in: db)
       try TripIdea.unschedule(stopID: members[0].id, in: db)
-      return try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db)
+      return (
+        try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db),
+        try TripAlternativeGroup.find(groupID).fetchOne(db))
     }
+    let entries = result.0
     #expect(entries.map(\.status).allSatisfy { $0 == .shortlisted })
     #expect(entries.map(\.alternativeGroupID).allSatisfy { $0 == nil })
     #expect(entries.map(\.isActive).allSatisfy { $0 })
     #expect(entries.map(\.schedule).allSatisfy { $0 == .unscheduled })
     #expect(entries.map(\.shortlistRank).sorted() == [0, 1, 2])
+    #expect(result.1 == nil)
   }
 
   @Test func skipAndDoneRemoveOnePeerAndKeepTheRing() async throws {

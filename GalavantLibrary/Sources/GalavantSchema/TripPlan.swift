@@ -174,7 +174,9 @@ public struct TripPlan: Equatable, Sendable {
     alternativeRings(
       in: entries.compactMap(resolve),
       labelsByGroupID: Dictionary(
-        alternativeGroups.map { ($0.id, $0.label) },
+        alternativeGroups.compactMap { group in
+          TripAlternativeGroup.normalizedLabel(group.label).map { (group.id, $0) }
+        },
         uniquingKeysWith: { first, _ in first }))
   }
 
@@ -192,10 +194,7 @@ public struct TripPlan: Equatable, Sendable {
       let activeIndex = ordered.firstIndex { $0.entry.isActive } ?? ordered.startIndex
       return (groupID, ResolvedAlternativeRing(
         groupID: groupID,
-        label: labelsByGroupID[groupID].flatMap {
-          let label = $0.trimmingCharacters(in: .whitespacesAndNewlines)
-          return label.isEmpty ? nil : label
-        },
+        label: labelsByGroupID[groupID],
         members: ordered,
         activeIndex: activeIndex))
     })

@@ -129,6 +129,7 @@ extension TripIdea {
           $0.isActive = #bind(true)
         }
         .execute(db)
+      try TripAlternativeGroup.remove(groupID: groupID, in: db)
       return
     }
     guard let active = effectiveActiveMember(in: members) else { return }

@@ -149,7 +149,7 @@ struct AlternativeSlotControls: View {
         Button {
           model.beginAlternativeGroupLabelEdit(ring.groupID)
         } label: {
-          Label("Add title", systemImage: "pencil")
+          Icon.edit.label("Add title")
         }
         .buttonStyle(.borderless)
         .font(.caption)

@@ -401,6 +401,7 @@ extension TripIdea {
     guard let existing = try TripIdea.find(stopID).fetchOne(db) else { return }
     let members = try alternativeMembers(containing: existing, in: db)
     if existing.alternativeGroupID != nil {
+      let groupID = existing.alternativeGroupID
       for member in members {
         try TripIdea.find(member.id)
           .update {
@@ -413,6 +414,9 @@ extension TripIdea {
             $0.isActive = #bind(true)
           }
           .execute(db)
+      }
+      if let groupID {
+        try TripAlternativeGroup.remove(groupID: groupID, in: db)
       }
       try reindexShortlist(tripID: existing.tripID, in: db)
       return

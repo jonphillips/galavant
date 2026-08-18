@@ -1,3 +1,4 @@
+import Dependencies
 import Foundation
 import GalavantSchema
 import SQLiteData

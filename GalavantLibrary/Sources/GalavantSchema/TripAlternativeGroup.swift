@@ -16,6 +16,12 @@ public struct TripAlternativeGroup: Identifiable, Equatable, Sendable {
     self.label = label
   }
 
+  /// Normalize the optional user-facing label at the domain boundary.
+  static func normalizedLabel(_ label: String) -> String? {
+    let normalizedLabel = label.trimmingCharacters(in: .whitespacesAndNewlines)
+    return normalizedLabel.isEmpty ? nil : normalizedLabel
+  }
+
   /// Create or rename a ring label. An empty label removes the optional row so
   /// the read model naturally renders no header.
   public static func rename(
@@ -24,9 +30,8 @@ public struct TripAlternativeGroup: Identifiable, Equatable, Sendable {
     label: String,
     in db: Database
   ) throws {
-    let normalizedLabel = label.trimmingCharacters(in: .whitespacesAndNewlines)
-    if normalizedLabel.isEmpty {
-      try Self.find(groupID).delete().execute(db)
+    guard let normalizedLabel = Self.normalizedLabel(label) else {
+      try remove(groupID: groupID, in: db)
       return
     }
     try Self.upsert {
@@ -36,8 +41,11 @@ public struct TripAlternativeGroup: Identifiable, Equatable, Sendable {
 
   /// Read the label for a ring, treating an empty stored value as absent.
   public static func readLabel(for groupID: UUID, in db: Database) throws -> String? {
-    guard let group = try Self.find(groupID).fetchOne(db) else { return nil }
-    let label = group.label.trimmingCharacters(in: .whitespacesAndNewlines)
-    return label.isEmpty ? nil : label
+    try Self.find(groupID).fetchOne(db).flatMap { Self.normalizedLabel($0.label) }
+  }
+
+  /// Remove a ring label during a ring-dissolution write.
+  static func remove(groupID: UUID, in db: Database) throws {
+    try Self.find(groupID).delete().execute(db)
   }
 }
