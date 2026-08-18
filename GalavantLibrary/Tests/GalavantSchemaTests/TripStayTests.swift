@@ -167,14 +167,18 @@ import Testing
     // The noon stop is before the 18:00 arrival, so it correctly starts at the
     // departing hotel. The direct hotel-transfer row stays absent because this
     // stop is genuinely between checkout and check-in.
-    #expect(items.count == 4)
+    #expect(items.count == 5)
     if case .checkOut(let r) = items[0] { #expect(r.id == leaving.id) } else { Issue.record("want check-out first") }
     if case .connector(let connector) = items[1] {
       #expect(connector.kind == .fromLodging)
       #expect(connector.from.title == "Hotel")
     } else { Issue.record("want departing-hotel directions") }
     if case .stop = items[2] {} else { Issue.record("want stop between lodging boundaries") }
-    if case .checkIn(let r) = items[3] { #expect(r.id == arriving.id) } else { Issue.record("want check-in last") }
+    if case .connector(let connector) = items[3] {
+      #expect(connector.kind == .toLodging)
+      #expect(connector.to.title == "Hotel")
+    } else { Issue.record("want return to arriving hotel") }
+    if case .checkIn(let r) = items[4] { #expect(r.id == arriving.id) } else { Issue.record("want check-in last") }
   }
 
   @Test func emptyLodgingTransitionShowsOnlyTheDirectTravelRow() {
@@ -230,7 +234,7 @@ import Testing
 
     #expect(p.stayTransferLegs(forDay: 2) == [transfer])
     #expect(p.baseLegs(forDay: 2) == [arrivalLeg])
-    #expect(items.count == 5)
+    #expect(items.count == 6)
     if case .checkOut = items[0] {} else { Issue.record("want check-out first") }
     if case .connector(let connector) = items[1] { #expect(connector.kind == .betweenLodgings) }
     else { Issue.record("want hotel transfer") }
@@ -241,6 +245,138 @@ import Testing
       #expect(connector.to.title == "Dinner")
     } else { Issue.record("want arriving-hotel directions") }
     if case .stop = items[4] {} else { Issue.record("want dinner last") }
+    if case .connector(let connector) = items[5] {
+      #expect(connector.kind == .toLodging)
+      #expect(connector.to.title == "New lodge")
+    } else { Issue.record("want return to arriving hotel") }
+  }
+
+  @Test func normalLodgingDayReturnsFromTheLastLocatedStop() {
+    let (hotelID, stopID) = (UUID(), UUID())
+    let lodging = stay(idea: hotelID, checkIn: 1, checkOut: 4)
+    let p = planWith(
+      stops: [scheduledStop(stopID, at: "12:00")],
+      stays: [lodging],
+      ideas: [
+        idea(hotelID, name: "Hotel", lat: 1, lon: 2),
+        idea(stopID, name: "Museum", lat: 3, lon: 4),
+      ])
+    let leg = LegKey(fromLat: 3, fromLon: 4, toLat: 1, toLon: 2)
+
+    #expect(p.returnLegs(forDay: 2) == [leg])
+    #expect(p.routeEndpoints(forDay: 2).map(\.id) == [
+      "stay-\(lodging.id)", "stop-\(p.itinerary[1].stops[0].id)", "stay-\(lodging.id)",
+    ])
+  }
+
+  @Test func changeoverDayReturnsToTheArrivingStay() {
+    let (oldID, newID, stopID) = (UUID(), UUID(), UUID())
+    let leaving = stay(idea: oldID, checkIn: 1, checkOut: 2)
+    let arriving = stay(idea: newID, checkIn: 2, checkOut: 4, checkInTime: "15:00")
+    let p = planWith(
+      stops: [scheduledStop(stopID, at: "18:30")],
+      stays: [leaving, arriving],
+      ideas: [
+        idea(oldID, name: "Old hotel", lat: 1, lon: 2),
+        idea(newID, name: "New hotel", lat: 3, lon: 4),
+        idea(stopID, name: "Dinner", lat: 5, lon: 6),
+      ])
+    let leg = LegKey(fromLat: 5, fromLon: 6, toLat: 3, toLon: 4)
+
+    #expect(p.returnLegs(forDay: 2) == [leg])
+    #expect(p.routeEndpoints(forDay: 2).map(\.id) == [
+      "stay-\(arriving.id)", "stop-\(p.itinerary[1].stops[0].id)", "stay-\(arriving.id)",
+    ])
+  }
+
+  @Test func unlocatedLastStopStillUsesTheLastLocatedStopForReturn() {
+    let (hotelID, locatedID, unlocatedID) = (UUID(), UUID(), UUID())
+    let lodging = stay(idea: hotelID, checkIn: 1, checkOut: 4)
+    let p = planWith(
+      stops: [scheduledStop(locatedID, at: "12:00"), scheduledStop(unlocatedID, at: "18:00")],
+      stays: [lodging],
+      ideas: [
+        idea(hotelID, name: "Hotel", lat: 1, lon: 2),
+        idea(locatedID, name: "Museum", lat: 3, lon: 4),
+        idea(unlocatedID, name: "Dinner", lat: nil, lon: nil),
+      ])
+    let leg = LegKey(fromLat: 3, fromLon: 4, toLat: 1, toLon: 2)
+
+    #expect(p.returnLegs(forDay: 2) == [leg])
+  }
+
+  @Test func singleStopDayHasOutboundAndReturnLegs() {
+    let (hotelID, stopID) = (UUID(), UUID())
+    let lodging = stay(idea: hotelID, checkIn: 1, checkOut: 4)
+    let p = planWith(
+      stops: [scheduledStop(stopID, at: "12:00")],
+      stays: [lodging],
+      ideas: [
+        idea(hotelID, name: "Hotel", lat: 1, lon: 2),
+        idea(stopID, name: "Museum", lat: 3, lon: 4),
+      ])
+    let outbound = LegKey(fromLat: 1, fromLon: 2, toLat: 3, toLon: 4)
+    let returning = LegKey(fromLat: 3, fromLon: 4, toLat: 1, toLon: 2)
+
+    #expect(p.baseLegs(forDay: 2) == [outbound])
+    #expect(p.returnLegs(forDay: 2) == [returning])
+    #expect(p.allLegs == [outbound, returning])
+  }
+
+  @Test func returnConnectorTrailsALaterUnlocatedStop() {
+    let (hotelID, locatedID, unlocatedID) = (UUID(), UUID(), UUID())
+    let lodging = stay(idea: hotelID, checkIn: 1, checkOut: 4)
+    let locatedStop = scheduledStop(locatedID, at: "12:00")
+    let unlocatedStop = scheduledStop(unlocatedID, at: "18:00")
+    let p = planWith(
+      stops: [locatedStop, unlocatedStop],
+      stays: [lodging],
+      ideas: [
+        idea(hotelID, name: "Hotel", lat: 1, lon: 2),
+        idea(locatedID, name: "Museum", lat: 3, lon: 4),
+        idea(unlocatedID, name: "Dinner", lat: nil, lon: nil),
+      ])
+    let items = p.itineraryItems(
+      forDay: 2, travelTimes: [:], effectiveModes: [:], stays: p.stays(coveringDay: 2))
+
+    #expect(items.count == 5)
+    if case .homeBase = items[0] {} else { Issue.record("want the lodging context row first") }
+    if case .connector(let connector) = items[1] {
+      #expect(connector.kind == .fromLodging)
+    } else { Issue.record("want outbound lodging directions first") }
+    if case .stop(let stop) = items[2] { #expect(stop.id == locatedStop.id) }
+    else { Issue.record("want located stop before unlocated stop") }
+    if case .stop(let stop) = items[3] { #expect(stop.id == unlocatedStop.id) }
+    else { Issue.record("want later unlocated stop before return") }
+    if case .connector(let connector) = items[4] {
+      #expect(connector.kind == .toLodging)
+    } else { Issue.record("want return after the final timeline stop") }
+  }
+
+  @Test func pureCheckOutDayKeepsOutboundButHasNoReturnLeg() {
+    let (hotelID, stopID) = (UUID(), UUID())
+    let lodging = stay(idea: hotelID, checkIn: 1, checkOut: 2)
+    let p = planWith(
+      stops: [scheduledStop(stopID, at: "12:00")],
+      stays: [lodging],
+      ideas: [
+        idea(hotelID, name: "Hotel", lat: 1, lon: 2),
+        idea(stopID, name: "Museum", lat: 3, lon: 4),
+      ])
+    let outbound = LegKey(fromLat: 1, fromLon: 2, toLat: 3, toLon: 4)
+    let items = p.itineraryItems(
+      forDay: 2, travelTimes: [:], effectiveModes: [:], stays: p.stays(coveringDay: 2))
+
+    #expect(p.baseLegs(forDay: 2) == [outbound])
+    #expect(p.returnLegs(forDay: 2).isEmpty)
+    #expect(!items.contains { item in
+      if case .connector(let connector) = item { return connector.kind == .toLodging }
+      return false
+    })
+    #expect(items.contains { item in
+      if case .connector(let connector) = item { return connector.kind == .fromLodging }
+      return false
+    })
   }
 
   @Test func middleDayShowsAHomeBaseRowAtopItsStops() {
@@ -254,11 +390,14 @@ import Testing
     let p = planWith(stops: [stop], stays: [spanning], ideas: [idea(h), idea(s)])
     let items = p.itineraryItems(
       forDay: 3, travelTimes: [:], effectiveModes: [:], stays: p.stays(coveringDay: 3))
-    #expect(items.count == 3)
+    #expect(items.count == 4)
     if case .homeBase(let r) = items[0] { #expect(r.id == spanning.id) }
     else { Issue.record("middle day should lead with the home-base row") }
     if case .connector = items[1] {} else { Issue.record("then the base directions") }
     if case .stop = items[2] {} else { Issue.record("then the day's stop") }
+    if case .connector(let connector) = items[3] {
+      #expect(connector.kind == .toLodging)
+    } else { Issue.record("then the return directions") }
   }
 
   @Test func boundaryDaysGetTheirEventRowNotAHomeBaseRow() {

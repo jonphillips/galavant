@@ -111,7 +111,9 @@ struct TripCanvasMapView: View {
   private func dayContent(_ day: ResolvedDay) -> some MapContent {
     let stops = model.plan.locatedStops(forDay: day.number)
     let color = DayPalette.color(forDay: day.number)
-    let route = stops.compactMap(\.coordinate)
+    let route = model.plan.routeEndpoints(forDay: day.number).map { endpoint in
+      CLLocationCoordinate2D(latitude: endpoint.latitude, longitude: endpoint.longitude)
+    }
     if route.count >= 2 {
       MapPolyline(coordinates: route)
         .stroke(color, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))

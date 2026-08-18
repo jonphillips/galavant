@@ -10,6 +10,7 @@ extension TripPlan {
     itinerary.flatMap {
       legs(forDay: $0.number)
         + baseLegs(forDay: $0.number)
+        + returnLegs(forDay: $0.number)
         + stayTransferLegs(forDay: $0.number)
     }
   }
@@ -35,6 +36,17 @@ extension TripPlan {
   public func baseLegs(forDay day: Int) -> [LegKey] {
     let stops = itinerary.first(where: { $0.number == day })?.stops ?? []
     guard let route = lodgingToStopRoute(
+      forDay: day, stops: stops, stays: stays(coveringDay: day))
+    else { return [] }
+    return [route.leg]
+  }
+
+  /// The last located stop → lodging leg that is unambiguous in the day
+  /// timeline. A normal lodging day returns to its one base. On a changeover
+  /// day, the last located stop returns to the arriving stay.
+  public func returnLegs(forDay day: Int) -> [LegKey] {
+    let stops = itinerary.first(where: { $0.number == day })?.stops ?? []
+    guard let route = stopToLodgingRoute(
       forDay: day, stops: stops, stays: stays(coveringDay: day))
     else { return [] }
     return [route.leg]
@@ -83,6 +95,25 @@ extension TripPlan {
     )
   }
 
+  func returnConnector(
+    forDay day: Int,
+    stops: [ResolvedStop],
+    stays: [ResolvedStay],
+    travelTimes: [LegKey: [TransportMode: TravelTime]],
+    effectiveModes: [LegKey: TransportMode]
+  ) -> TravelConnector? {
+    guard let route = stopToLodgingRoute(forDay: day, stops: stops, stays: stays) else { return nil }
+    let mode = effectiveModes[route.leg] ?? .walking
+    return TravelConnector(
+      from: route.from,
+      to: route.to,
+      leg: route.leg,
+      mode: mode,
+      travelTime: travelTimes[route.leg]?[mode],
+      kind: .toLodging
+    )
+  }
+
   func stayTransferConnector(
     forDay day: Int,
     stops: [ResolvedStop],
@@ -120,6 +151,30 @@ extension TripPlan {
     }
     guard let base, let destination, let from = endpoint(for: base) else { return nil }
     let to = endpoint(for: destination)
+    return (
+      from: from,
+      to: to,
+      leg: LegKey(
+        fromLat: from.latitude, fromLon: from.longitude,
+        toLat: to.latitude, toLon: to.longitude)
+    )
+  }
+
+  private func stopToLodgingRoute(
+    forDay day: Int, stops: [ResolvedStop], stays: [ResolvedStay]
+  ) -> (from: TravelEndpoint, to: TravelEndpoint, leg: LegKey)? {
+    guard let origin = stops.last(where: isLocated) else { return nil }
+    let destination: ResolvedStay?
+    if stays.count == 1 {
+      guard stays[0].stay.checkOutDay != day else { return nil }
+      destination = stays[0]
+    } else {
+      let arrivals = stays.filter { $0.stay.checkInDay == day }
+      guard arrivals.count == 1 else { return nil }
+      destination = arrivals[0]
+    }
+    guard let destination, let to = endpoint(for: destination) else { return nil }
+    let from = endpoint(for: origin)
     return (
       from: from,
       to: to,
@@ -172,5 +227,22 @@ extension TripPlan {
     return TravelEndpoint(
       id: "stay-\(stay.id)", title: stay.content.title,
       latitude: latitude, longitude: longitude)
+  }
+
+  /// The ordered geographic endpoints for a day's route: lodging (when the
+  /// first leg is unambiguous), located stops in itinerary order, then lodging
+  /// (when the return leg is unambiguous). The same connector resolution that
+  /// powers timeline rows supplies both lodging endpoints.
+  public func routeEndpoints(forDay day: Int) -> [TravelEndpoint] {
+    let stops = itinerary.first(where: { $0.number == day })?.stops ?? []
+    let dayStays = stays(coveringDay: day)
+    let base = baseConnector(
+      forDay: day, stops: stops, stays: dayStays, travelTimes: [:], effectiveModes: [:])
+    let returning = returnConnector(
+      forDay: day, stops: stops, stays: dayStays, travelTimes: [:], effectiveModes: [:])
+    var endpoints = base.map { [$0.from] } ?? []
+    endpoints += stops.filter(isLocated).map(endpoint(for:))
+    if let returning { endpoints.append(returning.to) }
+    return endpoints
   }
 }
