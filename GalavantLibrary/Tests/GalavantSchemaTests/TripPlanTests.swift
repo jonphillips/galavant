@@ -419,7 +419,7 @@ import Testing
     let p2 = plan([e2], ideas: [], lengthInDays: 2)
     #expect(p2.itinerary[0].stops.count == 1)
     let stop = p2.itinerary[0].stops[0]
-    if case let .freeform(title, note, _, _) = stop.content {
+    if case let .freeform(title, note, _) = stop.content {
       #expect(title == "Check in")
       #expect(note == nil)
     } else {
@@ -428,7 +428,7 @@ import Testing
     #expect(stop.idea == nil)
     _ = p  // suppress unused-variable warning; unplaced entry lands in toBeScheduled
     #expect(p.toBeScheduled.count == 1)
-    if case let .freeform(title, note, _, _) = p.toBeScheduled[0].content {
+    if case let .freeform(title, note, _) = p.toBeScheduled[0].content {
       #expect(title == "Lunch break")
       #expect(note == "Try the local place")
     } else {
@@ -453,6 +453,15 @@ import Testing
     #expect(p.locatedStops(forDay: 1).allSatisfy { $0.content.latitude != nil })
   }
 
+  @Test func partialFreeformCoordinateResolvesAsUnlocated() {
+    let stop = freeformEntry(title: "Incomplete location", latitude: 1, longitude: nil)
+    let resolved = plan([stop], ideas: [], lengthInDays: 2).toBeScheduled[0]
+
+    #expect(resolved.content.coordinate == nil)
+    #expect(resolved.content.latitude == nil)
+    #expect(resolved.content.longitude == nil)
+  }
+
   @Test func freeformStopAppearsInItineraryItems() {
     let (a, b) = (UUID(), UUID())
     let entries = [
@@ -467,7 +476,7 @@ import Testing
     #expect(items.count == 3)
     #expect(items.allSatisfy { if case .stop = $0 { true } else { false } })
     if case let .stop(resolved) = items[1] {
-      if case let .freeform(title, _, _, _) = resolved.content {
+      if case let .freeform(title, _, _) = resolved.content {
         #expect(title == "Lunch")
       } else {
         Issue.record("middle item should be freeform stop")
@@ -490,7 +499,7 @@ import Testing
     }
     // Only the valid freeform stop survives
     #expect(p.itinerary[0].stops.count == 1)
-    if case let .freeform(title, _, _, _) = p.itinerary[0].stops[0].content {
+    if case let .freeform(title, _, _) = p.itinerary[0].stops[0].content {
       #expect(title == "Check in")
     } else {
       Issue.record("expected freeform content")
@@ -505,7 +514,7 @@ import Testing
     )
     let freeformStop = ResolvedStop(
       entry: TripIdea.freeform(id: UUID(), tripID: UUID(), title: "Train to Aarhus"),
-      content: .freeform(title: "Train to Aarhus", note: nil, latitude: nil, longitude: nil)
+      content: .freeform(title: "Train to Aarhus", note: nil, coordinate: nil)
     )
     #expect(ideaStop.content.title == "Tivoli")
     #expect(freeformStop.content.title == "Train to Aarhus")

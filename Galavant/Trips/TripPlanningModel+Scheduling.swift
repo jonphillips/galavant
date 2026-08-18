@@ -131,16 +131,14 @@ extension TripPlanningModel {
   /// Re-open the editor seeded from an existing freeform stop. No-op on an
   /// idea-backed stop (those edit through the pool idea, not here).
   func editFreeform(_ stop: ResolvedStop) {
-    guard case let .freeform(title, note, latitude, longitude) = stop.content else { return }
+    guard case let .freeform(title, note, coordinate) = stop.content else { return }
     destination = .freeformStop(
       FreeformStopDraft(
         stopID: stop.id,
         title: title,
         note: note ?? "",
-        coordinate: latitude.flatMap { latitude in
-          longitude.map { longitude in
-            CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
-          }
+        coordinate: coordinate.map {
+          CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
         },
         day: stop.entry.dayNumber))
   }
@@ -194,7 +192,7 @@ extension TripPlanningModel {
     let stay = resolved.stay
     var title = ""
     var note = ""
-    if case let .freeform(t, n, _, _) = resolved.content {
+    if case let .stay(t, n) = resolved.content {
       title = t
       note = n ?? ""
     }

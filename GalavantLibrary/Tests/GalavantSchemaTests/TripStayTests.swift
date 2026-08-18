@@ -109,6 +109,12 @@ import Testing
     #expect(resolved.count == 1)
     #expect(resolved[0].content.title == "Airbnb — conf #1234")
     #expect(resolved[0].idea == nil)
+    if case let .stay(title, note) = resolved[0].content {
+      #expect(title == "Airbnb — conf #1234")
+      #expect(note == nil)
+    } else {
+      Issue.record("expected a stay content case")
+    }
     #expect(resolved[0].content.latitude == nil)  // freeform → falls out of canvas
   }
 
