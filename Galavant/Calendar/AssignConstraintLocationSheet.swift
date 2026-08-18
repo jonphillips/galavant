@@ -70,12 +70,10 @@ struct AssignConstraintLocationSheet: View {
               EmptyMapContent()
             }
           case .search:
-            NavigationStack {
-              FreeformStopLocationSearchView(
-                initialQuery: constraint.location ?? constraint.title,
-                onSelect: select
-              )
-            }
+            FreeformStopLocationSearchView(
+              initialQuery: constraint.location ?? constraint.title,
+              onSelect: select
+            )
           }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

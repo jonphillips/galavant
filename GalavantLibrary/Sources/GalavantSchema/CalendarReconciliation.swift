@@ -516,7 +516,7 @@ public enum CalendarReconciliation {
       let sourceFingerprint = state.history.last(where: { $0.stopID == linked.stopID })?.sourceFingerprint
       state.history.append(
         CalendarReconciliationHistoryEntry(
-          id: makeHistoryID(), kind: .unlinked, stopID: linked.stopID,
+          id: makeHistoryID(), kind: .commitmentDeleted, stopID: linked.stopID,
           eventID: linked.eventID, eventTitle: linked.eventTitle ?? "Calendar event",
           current: linked.commitment, sourceFingerprint: sourceFingerprint,
           appliedAt: observedAt))

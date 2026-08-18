@@ -56,16 +56,18 @@ public struct CalendarReconciliationLedgerEntry: Identifiable, Equatable, Sendab
   /// transition (`linked` versus `updated`, including its previous value) remains
   /// in device-local history; this shared row records the resulting *applied* fact.
   ///
-  /// A `.movedOutsideTrip` entry never promotes: it applied nothing to the shared
-  /// itinerary (the cache is deliberately preserved), so it is a device-local
-  /// observation, not a shared outcome. Surfacing a moved commitment as a party-wide
-  /// conflict is Slice 6 (plan-repair), not this ledger.
+  /// A `.movedOutsideTrip` or `.commitmentDeleted` entry never promotes: it
+  /// applied no new commitment to the shared itinerary, so it is a device-local
+  /// observation rather than a shared applied outcome. Surfacing a moved
+  /// commitment as a party-wide conflict is Slice 6 (plan-repair), not this
+  /// ledger.
   public init?(
     tripID: Trip.ID,
     historyEntry: CalendarReconciliationHistoryEntry
   ) {
     guard historyEntry.kind != .movedOutsideTrip,
-      historyEntry.kind != .unlinked
+      historyEntry.kind != .unlinked,
+      historyEntry.kind != .commitmentDeleted
     else { return nil }
     guard let sourceFingerprint = historyEntry.sourceFingerprint else { return nil }
     let fingerprint = CalendarReconciliationFingerprint.outcome(

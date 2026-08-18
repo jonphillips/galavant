@@ -107,6 +107,7 @@ public struct CalendarReconciliationHistoryEntry: Codable, Equatable, Sendable, 
     case updated
     case movedOutsideTrip
     case unlinked
+    case commitmentDeleted
   }
 
   public var id: UUID
