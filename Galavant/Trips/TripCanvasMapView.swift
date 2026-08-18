@@ -22,7 +22,13 @@ struct TripCanvasMapView: View {
   /// map-first capture flow.
   @State private var mapSelection: MapSelection<TripIdea.ID>?
   @State private var dropFeedback = 0
-  @State private var draftPinCoordinate: CLLocationCoordinate2D?
+  /// Map-first placement mode (crosshair): the user pans the map under a fixed
+  /// centre reticle, then taps "Place here". Kept as a plain mode flag rather than
+  /// a live drag so nothing competes with MapKit's own pan/zoom recognizers — the
+  /// continuous long-press-then-drag fought them and stalled ("gesture gate timed
+  /// out"). Entering the mode is the only custom gesture, and it is a single
+  /// stationary long press.
+  @State private var isPlacingPin = false
 
   /// The days the map draws: just the selected day, or all when the lens is
   /// "All" (`canvasSelectedDay == nil`).
@@ -47,8 +53,8 @@ struct TripCanvasMapView: View {
     @Bindable var model = model
     MapReader { proxy in
       Map(position: $cameraPosition, selection: $mapSelection) { canvasMapContent }
-      .coordinateSpace(name: "canvas")
-      .simultaneousGesture(canvasDropGesture(proxy: proxy))
+      .simultaneousGesture(placementEntryGesture)
+      .overlay { if isPlacingPin { placementReticle(proxy: proxy) } }
       .sensoryFeedback(.impact(weight: .light), trigger: dropFeedback)
       .onMapCameraChange(frequency: .onEnd) { context in
         visibleRegion = context.region
@@ -166,14 +172,16 @@ struct TripCanvasMapView: View {
   @MapContentBuilder
   private var transientFreeformContent: some MapContent {
     if let coordinate = transientFreeformCoordinate {
-      Annotation("New custom stop", coordinate: coordinate, anchor: .bottom) {
+      // `.center` so the placed round pin sits exactly where the crosshair reticle
+      // marked (the reticle centres `DraftFreeformPin` on the drop point), rather
+      // than jumping up by half its height on a `.bottom` anchor.
+      Annotation("New custom stop", coordinate: coordinate, anchor: .center) {
         DraftFreeformPin()
       }
     }
   }
 
   private var transientFreeformCoordinate: CLLocationCoordinate2D? {
-    if let draftPinCoordinate { return draftPinCoordinate }
     guard case let .freeformStop(draft) = model.destination,
       draft.stopID == nil,
       let coordinate = draft.coordinate
@@ -182,62 +190,63 @@ struct TripCanvasMapView: View {
   }
 
   private func convertCanvasPoint(_ point: CGPoint, proxy: MapProxy) -> CLLocationCoordinate2D? {
-    proxy.convert(point, from: .named("canvas"))
+    proxy.convert(point, from: .local)
   }
 
-  private func canvasDropGesture(proxy: MapProxy) -> some Gesture {
-    LongPressGesture(minimumDuration: 0.6)
-      .sequenced(before: DragGesture(
-        minimumDistance: 0,
-        coordinateSpace: .named("canvas")
-      ))
-      .onEnded { value in
-        guard case .second(true, _) = value, let draftPinCoordinate else {
-          self.draftPinCoordinate = nil
-          return
-        }
-        model.destination = .freeformStop(
-          FreeformStopDraft(coordinate: draftPinCoordinate, day: model.canvasSelectedDay))
-        dropFeedback += 1
-        self.draftPinCoordinate = nil
-      }
-      .onChanged { value in
-        guard case let .second(true, drag?) = value else { return }
-        guard let dropped = convertCanvasPoint(drag.location, proxy: proxy) else { return }
-        if draftPinCoordinate == nil {
-          guard let start = convertCanvasPoint(drag.startLocation, proxy: proxy),
-            !isNearExistingPin(start)
-          else { return }
-        }
-        draftPinCoordinate = dropped
-      }
-  }
-
-  /// MapKit's map gesture remains available everywhere, but a long press that
-  /// starts within an existing marker's hit area belongs to that marker instead.
-  /// The tolerance is expressed in the settled map region so it scales with zoom.
-  private func isNearExistingPin(_ coordinate: CLLocationCoordinate2D) -> Bool {
-    guard let visibleRegion else { return false }
-    let tolerance = max(
-      max(visibleRegion.span.latitudeDelta, visibleRegion.span.longitudeDelta) * 0.06,
-      0.0005)
-    return existingPinCoordinates.contains { pin in
-      abs(pin.latitude - coordinate.latitude) <= tolerance
-        && abs(pin.longitude - coordinate.longitude) <= tolerance
+  /// The only custom map gesture: a single stationary long press to *enter*
+  /// crosshair placement mode. A bare `LongPressGesture` (no drag phase) doesn't
+  /// fight MapKit's pan/zoom recognizers the way the old sequenced press-then-drag
+  /// did, so entering the mode is reliable; positioning is then native map panning.
+  private var placementEntryGesture: some Gesture {
+    LongPressGesture(minimumDuration: 0.5).onEnded { _ in
+      guard !isPlacingPin else { return }
+      isPlacingPin = true
+      dropFeedback += 1
     }
   }
 
-  private var existingPinCoordinates: [CLLocationCoordinate2D] {
-    let activeStops = visibleDays.flatMap { model.plan.locatedStops(forDay: $0.number) }
-    let stopCoordinates = activeStops.compactMap(\.coordinate)
-    let baseCoordinates = model.plan.baseStays(forDay: model.canvasSelectedDay).compactMap(\.coordinate)
-    let alternativeCoordinates = activeStops.flatMap { stop in
-      guard let ring = model.plan.alternatives(forStop: stop.id),
-        model.alternativesAreVisible(for: ring)
-      else { return [CLLocationCoordinate2D]() }
-      return ring.members.compactMap(\.coordinate)
+  /// The crosshair overlay shown while placing a pin: a fixed reticle at the centre
+  /// of the *clear* area (above the bottom sheet) and the Cancel / Place controls.
+  /// The reticle itself ignores hits so drags fall through to the map's native pan;
+  /// only the buttons capture taps.
+  private func placementReticle(proxy: MapProxy) -> some View {
+    GeometryReader { geo in
+      let reticle = CGPoint(
+        x: geo.size.width / 2,
+        y: geo.size.height * (1 - bottomInsetFraction) / 2)
+      ZStack {
+        DraftFreeformPin()
+          .position(reticle)
+          .allowsHitTesting(false)
+        VStack {
+          Spacer()
+          HStack(spacing: 12) {
+            Button(role: .cancel) { isPlacingPin = false } label: {
+              Text("Cancel").frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            Button { placePin(at: reticle, proxy: proxy) } label: {
+              Label("Place here", systemImage: "mappin.and.ellipse")
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+          }
+          .padding(.horizontal, 24)
+          .padding(.bottom, geo.size.height * bottomInsetFraction + 20)
+        }
+      }
     }
-    return stopCoordinates + baseCoordinates + alternativeCoordinates
+  }
+
+  /// Commit the crosshair position: convert the reticle's screen point (a one-shot
+  /// `.local` conversion — no live gesture, so no arbitration to stall) into a
+  /// coordinate, then open the freeform editor seeded with it.
+  private func placePin(at point: CGPoint, proxy: MapProxy) {
+    guard let coordinate = convertCanvasPoint(point, proxy: proxy) else { return }
+    isPlacingPin = false
+    dropFeedback += 1
+    model.destination = .freeformStop(
+      FreeformStopDraft(coordinate: coordinate, day: model.canvasSelectedDay))
   }
 
   /// The off-sequence home-base pins for the current lens (ADR-0011): a stay you
