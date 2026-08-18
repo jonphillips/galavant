@@ -3,6 +3,7 @@ import Foundation
 import GalavantCapture
 import GalavantImaging
 import GalavantSchema
+import ImageIO
 import SQLiteData
 
 /// The app-side **second enrichment hop** (M4g): once an idea is in the pool, fetch
@@ -30,6 +31,8 @@ public final class PlaceEnricher {
   /// Cap on candidate images fetched + stored per idea — bounds network, Vision
   /// work, and synced bytes.
   static let maxImages = 6
+  /// Hard ceiling on candidate URLs fetched before size filtering and ranking.
+  static let maxImageCandidates = 20
 
   public init() {}
 
@@ -233,26 +236,62 @@ public final class PlaceEnricher {
     var id: UUID
   }
 
-  /// Download, score, and process the candidates: best photo first, utility images
-  /// (logos/screenshots) sunk by the recommender, parser order preserved on ties.
+  /// Download, size-filter, score, and process the candidates: best photo first,
+  /// utility images (logos/screenshots) excluded or sunk, parser order preserved on
+  /// ties. Only the final `maxImages` candidates are fully processed and stored.
   private func rankedImages(_ candidates: [URL]) async -> [RankedImage] {
-    var scored: [(index: Int, url: URL, data: Data, score: Double)] = []
-    for (index, candidate) in candidates.prefix(Self.maxImages).enumerated() {
+    var fetched: [
+      (candidate: ImageRankingCandidate, url: URL, data: Data)
+    ] = []
+    for (index, candidate) in candidates.prefix(Self.maxImageCandidates).enumerated() {
       guard let data = await imageFetcher(candidate) else { continue }
+      guard let dimensions = Self.imageDimensions(in: data) else { continue }
+      guard max(dimensions.width, dimensions.height) >= ImageRanking.minimumLongestEdge else {
+        continue
+      }
       let score = await imageRecommender(data)
-      scored.append((index, candidate, data, score))
+      fetched.append(
+        (
+          candidate: ImageRankingCandidate(
+            index: index,
+            visionScore: score,
+            width: dimensions.width,
+            height: dimensions.height
+          ),
+          url: candidate,
+          data: data
+        )
+      )
     }
+
+    let ranked = ImageRanking.ordered(fetched.map(\.candidate))
     return
-      scored
-      .sorted { $0.score == $1.score ? $0.index < $1.index : $0.score > $1.score }
+      ranked.prefix(Self.maxImages)
       .compactMap { item in
-        guard let processed = ImageProcessing.process(item.data) else { return nil }
+        guard
+          let fetched = fetched.first(where: { $0.candidate.index == item.index }),
+          let processed = ImageProcessing.process(fetched.data)
+        else { return nil }
         return RankedImage(
-          sourceURL: item.url.absoluteString,
+          sourceURL: fetched.url.absoluteString,
           display: processed.display,
           thumbnail: processed.thumbnail,
           id: uuid()
         )
       }
+  }
+
+  /// Reads encoded pixel dimensions from ImageIO metadata without decoding the
+  /// image. This keeps the size filter cheap before the final display processing.
+  private nonisolated static func imageDimensions(in data: Data) -> (width: Int, height: Int)? {
+    guard
+      let source = CGImageSourceCreateWithData(data as CFData, nil),
+      let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+      let width = (properties[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue,
+      let height = (properties[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue,
+      width > 0,
+      height > 0
+    else { return nil }
+    return (width, height)
   }
 }
