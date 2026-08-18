@@ -227,9 +227,16 @@ public struct TripPlan: Equatable, Sendable {
 
   /// Shortlisted-but-not-yet-scheduled entries in rank order. The Ideas page's
   /// Shortlist section and the Itinerary's Add-Stop sheet draw from this set.
+  /// A lodging idea that has become a stay is no longer actionable here; the
+  /// stay's itinerary row is its trip-scoped home instead.
   public var shortlist: [ResolvedStop] {
-    entries
-      .filter { $0.status == .shortlisted }
+    let stayedIdeaIDs = Set(tripStays.compactMap(\.ideaID))
+    return entries
+      .filter { entry in
+        guard entry.status == .shortlisted else { return false }
+        guard let ideaID = entry.ideaID, stayedIdeaIDs.contains(ideaID) else { return true }
+        return ideasByID[ideaID]?.kind != .stay
+      }
       .sorted { $0.shortlistRank < $1.shortlistRank }
       .compactMap(resolve)
   }
