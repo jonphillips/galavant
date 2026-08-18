@@ -230,6 +230,169 @@ struct CalendarTripConstraintTests {
     #expect(linked.localState.linkedConstraints.isEmpty)
   }
 
+  @Test func manualPromotionLinksOnceAndReapsConstraint() throws {
+    let event = observedEvent(identifier: "promoted-event")
+    let initial = CalendarReconciliation.constraintPlan(
+      candidates: [candidate(event)],
+      tripID: tripID,
+      calendarID: calendarID,
+      localState: CalendarReconciliationLocalState())
+    let constraint = try #require(initial.upserts.first)
+    let stopID = UUID()
+    let stop = ResolvedStop(
+      entry: TripIdea(id: stopID, tripID: tripID, ideaID: UUID(), inlineTitle: "Dinner"),
+      content: .freeform(title: "Dinner", note: nil, coordinate: nil))
+
+    let promoted = CalendarReconciliation.manualLinkPlan(
+      candidate: candidate(event),
+      stop: stop,
+      localState: initial.localState,
+      observedAt: .distantPast,
+      makeHistoryID: UUID.init)
+    var promotedState = initial.localState
+    promotedState.linkedStops = promoted.localState.linkedStops
+    promotedState.history = promoted.localState.history
+    let linkedCandidate = CalendarReconciliation.manuallyLinkedCandidate(
+      candidate(event), to: stop)
+    let reaped = CalendarReconciliation.constraintPlan(
+      candidates: [linkedCandidate],
+      tripID: tripID,
+      calendarID: calendarID,
+      localState: promotedState,
+      existingConstraints: [constraint])
+    let ledgerEntries = promotedState.history.compactMap {
+      CalendarReconciliationLedgerEntry(tripID: tripID, historyEntry: $0)
+    }
+
+    #expect(promotedState.linkedStops.count == 1)
+    #expect(ledgerEntries.count == 1)
+    #expect(ledgerEntries.first?.stopID == stopID)
+    expectNoDifference(reaped.deletions, [constraint.id])
+    #expect(reaped.upserts.isEmpty)
+    #expect(reaped.localState.linkedStops.count == 1)
+    #expect(reaped.localState.linkedConstraints.isEmpty)
+  }
+
+  @Test func manualPromotionPreservesStrongMapsIdentityRung() throws {
+    let event = observedEvent(identifier: "maps-promotion")
+    let stop = ResolvedStop(
+      entry: TripIdea(id: UUID(), tripID: tripID, ideaID: UUID(), inlineTitle: "Dinner"),
+      content: .freeform(title: "Dinner", note: nil, coordinate: nil))
+    let candidate = candidate(
+      event, result: .automatic(stop, basis: .mapItemIdentifier))
+
+    let promoted = CalendarReconciliation.manualLinkPlan(
+      candidate: candidate,
+      stop: stop,
+      localState: CalendarReconciliationLocalState(),
+      observedAt: .distantPast,
+      makeHistoryID: UUID.init)
+
+    #expect(promoted.applications.count == 1)
+    #expect(candidate.result == .automatic(stop, basis: .mapItemIdentifier))
+  }
+
+  @Test func allDayPromotionProducesDayLevelStop() throws {
+    let event = CalendarObservedEvent(
+      id: "all-day-promotion",
+      eventIdentifier: "all-day-promotion",
+      externalIdentifier: "all-day-promotion-server",
+      title: "Museum visit",
+      temporal: .allDay(
+        start: CalendarCivilDate(year: 2026, month: 8, day: 12)!,
+        endExclusive: CalendarCivilDate(year: 2026, month: 8, day: 13)!),
+      calendarTitle: "Family")
+    let stop = ResolvedStop(
+      entry: TripIdea(id: UUID(), tripID: tripID, ideaID: UUID(), inlineTitle: "Museum"),
+      content: .freeform(title: "Museum", note: nil, coordinate: nil))
+    let promoted = CalendarReconciliation.manualLinkPlan(
+      candidate: candidate(event),
+      stop: stop,
+      localState: CalendarReconciliationLocalState(),
+      observedAt: .distantPast,
+      makeHistoryID: UUID.init)
+
+    #expect(promoted.applications.count == 1)
+    #expect(promoted.applications.first?.dayNumber == 2)
+    #expect(promoted.applications.first?.commitment.schedule(on: 2) == .day(2))
+  }
+
+  @Test func promotedStopIsIdempotentOnTheNextReconcile() throws {
+    let event = observedEvent(identifier: "idempotent-promotion")
+    let initial = CalendarReconciliation.constraintPlan(
+      candidates: [candidate(event)],
+      tripID: tripID,
+      calendarID: calendarID,
+      localState: CalendarReconciliationLocalState())
+    let stop = ResolvedStop(
+      entry: TripIdea(id: UUID(), tripID: tripID, ideaID: UUID(), inlineTitle: "Dinner"),
+      content: .freeform(title: "Dinner", note: nil, coordinate: nil))
+    let promoted = CalendarReconciliation.manualLinkPlan(
+      candidate: candidate(event),
+      stop: stop,
+      localState: initial.localState,
+      observedAt: .distantPast,
+      makeHistoryID: UUID.init)
+    var promotedState = initial.localState
+    promotedState.linkedStops = promoted.localState.linkedStops
+    promotedState.history = promoted.localState.history
+    let firstPass = CalendarReconciliation.constraintPlan(
+      candidates: [CalendarReconciliation.manuallyLinkedCandidate(candidate(event), to: stop)],
+      tripID: tripID,
+      calendarID: calendarID,
+      localState: promotedState,
+      existingConstraints: initial.upserts)
+    let secondAutomatic = CalendarReconciliation.automaticPlan(
+      candidates: [CalendarReconciliation.manuallyLinkedCandidate(candidate(event), to: stop)],
+      localState: firstPass.localState,
+      observedAt: .distantFuture,
+      makeHistoryID: UUID.init)
+    let secondConstraint = CalendarReconciliation.constraintPlan(
+      candidates: [CalendarReconciliation.manuallyLinkedCandidate(candidate(event), to: stop)],
+      tripID: tripID,
+      calendarID: calendarID,
+      localState: firstPass.localState)
+
+    #expect(firstPass.localState.linkedStops.count == 1)
+    #expect(secondAutomatic.applications.isEmpty)
+    #expect(secondAutomatic.localState.linkedStops.count == 1)
+    #expect(secondConstraint.upserts.isEmpty)
+    #expect(secondConstraint.deletions.isEmpty)
+    #expect(secondConstraint.localState.linkedConstraints.isEmpty)
+  }
+
+  @Test func deletedPromotedEventRemovesAuthorityButKeepsPlan() throws {
+    let event = observedEvent(identifier: "deleted-promoted-event")
+    let stopID = UUID()
+    let commitment = try #require(CalendarCommitment(event: event))
+    let linked = CalendarLinkedStop(
+      stopID: stopID,
+      eventID: event.id,
+      commitment: commitment,
+      observedAt: .distantPast,
+      eventTitle: event.title,
+      sourceExternalIdentifier: event.externalIdentifier)
+    let history = CalendarReconciliationHistoryEntry(
+      id: UUID(),
+      kind: .linked,
+      stopID: stopID,
+      eventID: event.id,
+      eventTitle: event.title,
+      current: commitment,
+      sourceFingerprint: "promoted-source",
+      appliedAt: .distantPast)
+    let plan = CalendarReconciliation.deletedLinkedStopsPlan(
+      localState: CalendarReconciliationLocalState(linkedStops: [linked], history: [history]),
+      deletedEventIDs: [event.id],
+      observedAt: .distantFuture,
+      makeHistoryID: UUID.init)
+
+    #expect(plan.stopIDs == [stopID])
+    #expect(plan.localState.linkedStops.isEmpty)
+    #expect(plan.localState.history.last?.kind == .unlinked)
+    #expect(plan.localState.history.last?.sourceFingerprint == "promoted-source")
+  }
+
   @Test func confirmedDeletionRemovesOnlyCalendarOriginatedConstraint() throws {
     let event = observedEvent(identifier: "deleted-local-id")
     let initial = CalendarReconciliation.constraintPlan(
