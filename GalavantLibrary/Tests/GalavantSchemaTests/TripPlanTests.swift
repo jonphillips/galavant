@@ -265,6 +265,72 @@ import Testing
     #expect(p.allLegs.first == LegKey(fromLat: 1, fromLon: 1, toLat: 2, toLon: 2))
   }
 
+  @Test func alternativeSwapKeepsTheSlotLegIdentitiesStable() {
+    let (beforeID, firstID, secondID, afterID) = (UUID(), UUID(), UUID(), UUID())
+    let groupID = UUID()
+    var first = entry(idea: firstID, status: .scheduled, rank: 1, schedule: .day(1))
+    first.alternativeGroupID = groupID
+    first.isActive = true
+    var second = entry(idea: secondID, status: .scheduled, rank: 2, schedule: .day(1))
+    second.alternativeGroupID = groupID
+    second.isActive = false
+    let beforeStop = entry(idea: beforeID, status: .scheduled, rank: 0, schedule: .day(1))
+    let afterStop = entry(idea: afterID, status: .scheduled, rank: 3, schedule: .day(1))
+    let ideas = [
+      idea(beforeID, lat: 0, lon: 0),
+      idea(firstID, lat: 1, lon: 1),
+      idea(secondID, lat: 2, lon: 2),
+      idea(afterID, lat: 3, lon: 3),
+    ]
+    let before = plan([
+      beforeStop,
+      first, second,
+      afterStop,
+    ], ideas: ideas)
+
+    first.isActive = false
+    second.isActive = true
+    let after = plan([
+      beforeStop,
+      first, second,
+      afterStop,
+    ], ideas: ideas)
+
+    #expect(Set(before.legIdentities.values) == Set(after.legIdentities.values))
+    #expect(before.itinerary[0].stops[1].travelEndpointID == "ring-\(groupID)")
+  }
+
+  @Test func endpointIdentitiesUseStopAndStayPrefixes() {
+    let stopID = UUID()
+    let secondID = UUID()
+    let p = plan([
+      entry(idea: stopID, status: .scheduled, schedule: .day(1)),
+      entry(idea: secondID, status: .scheduled, schedule: .day(1)),
+    ], ideas: [idea(stopID, lat: 1, lon: 1), idea(secondID, lat: 2, lon: 2)])
+    let stop = p.itinerary[0].stops[0]
+    #expect(stop.travelEndpointID == "stop-\(stop.id)")
+  }
+
+  @Test func carryOutgoingOnMoveCarriesOnlyAChangedSuccessor() {
+    let old = LegIdentity(from: "stop-moved", to: "stop-old")
+    let new = LegIdentity(from: "stop-moved", to: "stop-new")
+    let mode = TripPlan.carryOutgoingOnMove(
+      movedEndpointID: "stop-moved",
+      overrides: [old: .driving],
+      beforeLegs: [old],
+      afterLegs: [new])
+    #expect(mode.count == 1)
+    #expect(mode.first?.leg == new)
+    #expect(mode.first?.mode == .driving)
+
+    #expect(TripPlan.carryOutgoingOnMove(
+      movedEndpointID: "stop-moved", overrides: [:],
+      beforeLegs: [old], afterLegs: [new]).isEmpty)
+    #expect(TripPlan.carryOutgoingOnMove(
+      movedEndpointID: "stop-moved", overrides: [old: .driving],
+      beforeLegs: [old], afterLegs: [old]).isEmpty)
+  }
+
   @Test func unlocatedStopBreaksConnectorChain() {
     let (a, c) = (UUID(), UUID())
     let entries = [

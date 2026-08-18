@@ -786,6 +786,29 @@ extension DependencyValues {
       try #sql(#"ALTER TABLE "tripIdeas" ADD COLUMN "inlineLatitude" REAL"#).execute(db)
       try #sql(#"ALTER TABLE "tripIdeas" ADD COLUMN "inlineLongitude" REAL"#).execute(db)
     }
+    migrator.registerMigration("Re-key trip travel mode overrides by stable endpoint identity") { db in
+      // The old table keyed overrides by coordinates. Existing rows cannot be
+      // resolved to a stop identity in a pure migration, so reset them once and
+      // keep the synced record clean rather than carrying dead coordinate columns.
+      try #sql(#"DROP TABLE "tripTravelModeOverrides""#).execute(db)
+      try #sql(
+        """
+        CREATE TABLE "tripTravelModeOverrides" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "tripID" TEXT NOT NULL REFERENCES "trips"("id") ON DELETE CASCADE,
+          "fromEndpointID" TEXT NOT NULL,
+          "toEndpointID" TEXT NOT NULL,
+          "transportMode" TEXT NOT NULL
+        ) STRICT
+        """
+      ).execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_tripTravelModeOverrides_on_tripID"
+        ON "tripTravelModeOverrides"("tripID")
+        """
+      ).execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if case let .configured(startImmediately) = syncMode {

@@ -217,7 +217,7 @@ struct TripTests {
   @Test func travelModeOverridePersistsPerTripAndLeg() async throws {
     let modes = try await database.write { db -> [TransportMode?] in
       let trip = try Trip.create(name: "Italy", in: db)
-      let leg = LegKey(fromLat: 1, fromLon: 2, toLat: 3, toLon: 4)
+      let leg = LegIdentity(from: "stop-a", to: "stop-b")
       try TripTravelModeOverride.setMode(.transit, for: leg, tripID: trip.id, in: db)
       try TripTravelModeOverride.setMode(.driving, for: leg, tripID: trip.id, in: db)
       return try TripTravelModeOverride

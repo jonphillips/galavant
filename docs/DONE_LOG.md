@@ -1,5 +1,12 @@
 # Done Log — completed enhancements
 
+## Stable travel-mode overrides — IMPLEMENTED (2026-08-18)
+
+Travel-mode overrides now use stable stop/ring/stay endpoint identities while ETA
+results remain coordinate-keyed. Alternative swaps retain a slot's mode, and moving
+a stop carries its outgoing mode to the new successor. The synced override table is
+recreated by migration, intentionally resetting existing coordinate-keyed overrides.
+
 ## Lodging official vs. planned times — DONE (2026-08-18)
 
 `TripStay` now stores independent planned check-in/check-out times alongside the

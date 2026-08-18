@@ -311,6 +311,41 @@ extension TripPlanningModel {
     }
   }
 
+  /// Move a stop's schedule and then carry its outgoing mode onto the new
+  /// successor, using stable endpoint identities captured before and after the
+  /// database write.
+  private func moveSchedule(_ schedule: Schedule, for stop: ResolvedStop) {
+    guard calendarTimeAuthority(for: stop.id) == .manual else { return }
+    let beforeLegs = Array(plan.legIdentities.values)
+    withErrorReporting {
+      try database.write { db in
+        try TripIdea.schedule(schedule, stopID: stop.id, in: db)
+      }
+    }
+    carryOutgoingMode(for: stop, beforeLegs: beforeLegs)
+  }
+
+  private func carryOutgoingMode(for stop: ResolvedStop, beforeLegs: [LegIdentity]) {
+    let writes = TripPlan.carryOutgoingOnMove(
+      movedEndpointID: stop.travelEndpointID,
+      overrides: currentModeOverrides,
+      beforeLegs: beforeLegs,
+      afterLegs: Array(plan.legIdentities.values))
+    guard !writes.isEmpty else { return }
+    let tripID = tripID
+    for write in writes {
+      modeOverrides[write.leg] = write.mode
+    }
+    withErrorReporting {
+      try database.write { db in
+        for write in writes {
+          try TripTravelModeOverride.setMode(
+            write.mode, for: write.leg, tripID: tripID, in: db)
+        }
+      }
+    }
+  }
+
   // MARK: - Stop clock-time editor (ADR-0033 Slice 4)
 
   /// Present the clock-time editor for a placed stop, pre-filled from
@@ -419,19 +454,23 @@ extension TripPlanningModel {
   /// stop to reason from.
   func moveToDay(_ stop: ResolvedStop, day: Int) {
     let schedule = stop.entry.schedule
-    guard case let .timed(_, start, end) = schedule, day != schedule.dayNumber else {
+    guard day != schedule.dayNumber else {
       setSchedule(schedule.onDay(day), for: stop.id)
+      return
+    }
+    guard case let .timed(_, start, end) = schedule else {
+      moveSchedule(schedule.onDay(day), for: stop)
       return
     }
     let destTimed = orderedStops(onDay: day)
       .last { if case .timed = $0.entry.schedule { return true } else { return false } }
     guard let suggestion = Schedule.suggestedTime(after: destTimed?.entry.schedule, before: nil) else {
-      setSchedule(schedule.onDay(day), for: stop.id)
+      moveSchedule(schedule.onDay(day), for: stop)
       return
     }
-    setSchedule(
+    moveSchedule(
       .timed(day, start: suggestion, end: Self.shiftedEnd(start: start, end: end, to: suggestion)),
-      for: stop.id)
+      for: stop)
   }
 
   // MARK: - Non-drag intra-day reorder (ADR-0033 Slice 4)
@@ -460,11 +499,13 @@ extension TripPlanningModel {
       if case .day = entry.entry.schedule { return true }
       return false
     })
+    let beforeLegs = Array(plan.legIdentities.values)
     withErrorReporting {
       try database.write { db in
         try TripIdea.reorderDayStops(ids, leadingAnytimeIDs: leadingAnytimeIDs, in: db)
       }
     }
+    carryOutgoingMode(for: stop, beforeLegs: beforeLegs)
   }
 
   /// The day's stop IDs after moving `stop` one slot in `earlier`/later direction,

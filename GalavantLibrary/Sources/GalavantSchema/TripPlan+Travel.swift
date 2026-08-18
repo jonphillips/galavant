@@ -7,11 +7,28 @@ extension TripPlan {
   /// the directions client should pre-warm. Only pairs where both endpoints are
   /// located produce a leg.
   public var allLegs: [LegKey] {
+    allLegPairs.map(\.leg)
+  }
+
+  /// Stable identities for the same coordinate legs exposed by `allLegs`.
+  /// Coordinates remain the ETA cache key; identities are the persisted mode
+  /// override key.
+  public var legIdentities: [LegKey: LegIdentity] {
+    Dictionary(
+      allLegPairs.map { ($0.leg, $0.identity) },
+      uniquingKeysWith: { first, _ in first })
+  }
+
+  public func legIdentity(for leg: LegKey) -> LegIdentity? {
+    legIdentities[leg]
+  }
+
+  private var allLegPairs: [(leg: LegKey, identity: LegIdentity)] {
     itinerary.flatMap {
-      legs(forDay: $0.number)
-        + baseLegs(forDay: $0.number)
-        + returnLegs(forDay: $0.number)
-        + stayTransferLegs(forDay: $0.number)
+      legPairs(forDay: $0.number)
+        + baseLegPairs(forDay: $0.number)
+        + returnLegPairs(forDay: $0.number)
+        + stayTransferLegPairs(forDay: $0.number)
     }
   }
 
@@ -19,13 +36,19 @@ extension TripPlan {
   /// Iterates all stops in order — an unlocated stop between two located ones
   /// breaks the chain on both sides (no phantom A→C leg when B has no coords).
   public func legs(forDay day: Int) -> [LegKey] {
+    legPairs(forDay: day).map(\.leg)
+  }
+
+  private func legPairs(forDay day: Int) -> [(leg: LegKey, identity: LegIdentity)] {
     let stops = itinerary.first(where: { $0.number == day })?.stops ?? []
     return zip(stops, stops.dropFirst()).compactMap { a, b in
       guard
         let fromLat = a.content.latitude, let fromLon = a.content.longitude,
         let toLat = b.content.latitude, let toLon = b.content.longitude
       else { return nil }
-      return LegKey(fromLat: fromLat, fromLon: fromLon, toLat: toLat, toLon: toLon)
+      return (
+        leg: LegKey(fromLat: fromLat, fromLon: fromLon, toLat: toLat, toLon: toLon),
+        identity: LegIdentity(from: a.travelEndpointID, to: b.travelEndpointID))
     }
   }
 
@@ -34,29 +57,46 @@ extension TripPlan {
   /// first stop before check-in starts from the departing stay; one after it
   /// starts from the arriving stay.
   public func baseLegs(forDay day: Int) -> [LegKey] {
+    baseLegPairs(forDay: day).map(\.leg)
+  }
+
+  private func baseLegPairs(forDay day: Int) -> [(leg: LegKey, identity: LegIdentity)] {
     let stops = itinerary.first(where: { $0.number == day })?.stops ?? []
     guard let route = lodgingToStopRoute(
       forDay: day, stops: stops, stays: stays(coveringDay: day))
     else { return [] }
-    return [route.leg]
+    return [(route.leg, route.identity)]
   }
 
   /// The last located stop → lodging leg that is unambiguous in the day
   /// timeline. A normal lodging day returns to its one base. On a changeover
   /// day, the last located stop returns to the arriving stay.
   public func returnLegs(forDay day: Int) -> [LegKey] {
+    returnLegPairs(forDay: day).map(\.leg)
+  }
+
+  private func returnLegPairs(forDay day: Int) -> [(leg: LegKey, identity: LegIdentity)] {
     let stops = itinerary.first(where: { $0.number == day })?.stops ?? []
     guard let route = stopToLodgingRoute(
       forDay: day, stops: stops, stays: stays(coveringDay: day))
     else { return [] }
-    return [route.leg]
+    return [(route.leg, route.identity)]
   }
 
   /// A direct lodging transfer appears when check-out and check-in are adjacent
   /// in the timeline. Stops before check-out or after check-in do not suppress
   /// it; only a scheduled stop *between* those events does.
   public func stayTransferLegs(forDay day: Int) -> [LegKey] {
-    transferConnector(forDay: day).map { [$0.leg] } ?? []
+    stayTransferLegPairs(forDay: day).map(\.leg)
+  }
+
+  private func stayTransferLegPairs(forDay day: Int) -> [(leg: LegKey, identity: LegIdentity)] {
+    guard let transfer = stayTransfer(
+      forDay: day,
+      stops: itinerary.first(where: { $0.number == day })?.stops ?? [],
+      stays: stays(coveringDay: day))
+    else { return [] }
+    return [(transfer.leg, transfer.identity)]
   }
 
   /// The direct lodging transfer on `day`, if the two stay boundaries are
@@ -135,7 +175,7 @@ extension TripPlan {
 
   private func lodgingToStopRoute(
     forDay day: Int, stops: [ResolvedStop], stays: [ResolvedStay]
-  ) -> (from: TravelEndpoint, to: TravelEndpoint, leg: LegKey)? {
+  ) -> (from: TravelEndpoint, to: TravelEndpoint, leg: LegKey, identity: LegIdentity)? {
     let sortKeys = TripIdea.effectiveIntraDaySort(stops.map(\.entry))
     let base: ResolvedStay?
     let destination = stops.first(where: isLocated)
@@ -156,13 +196,14 @@ extension TripPlan {
       to: to,
       leg: LegKey(
         fromLat: from.latitude, fromLon: from.longitude,
-        toLat: to.latitude, toLon: to.longitude)
+        toLat: to.latitude, toLon: to.longitude),
+      identity: LegIdentity(from: base.travelEndpointID, to: destination.travelEndpointID)
     )
   }
 
   private func stopToLodgingRoute(
     forDay day: Int, stops: [ResolvedStop], stays: [ResolvedStay]
-  ) -> (from: TravelEndpoint, to: TravelEndpoint, leg: LegKey)? {
+  ) -> (from: TravelEndpoint, to: TravelEndpoint, leg: LegKey, identity: LegIdentity)? {
     guard let origin = stops.last(where: isLocated) else { return nil }
     let destination: ResolvedStay?
     if stays.count == 1 {
@@ -180,13 +221,14 @@ extension TripPlan {
       to: to,
       leg: LegKey(
         fromLat: from.latitude, fromLon: from.longitude,
-        toLat: to.latitude, toLon: to.longitude)
+        toLat: to.latitude, toLon: to.longitude),
+      identity: LegIdentity(from: origin.travelEndpointID, to: destination.travelEndpointID)
     )
   }
 
   private func stayTransfer(
     forDay day: Int, stops: [ResolvedStop], stays: [ResolvedStay]
-  ) -> (from: TravelEndpoint, to: TravelEndpoint, leg: LegKey)? {
+  ) -> (from: TravelEndpoint, to: TravelEndpoint, leg: LegKey, identity: LegIdentity)? {
     let leaving = stays.filter { $0.stay.checkOutDay == day }
     let arriving = stays.filter { $0.stay.checkInDay == day }
     guard
@@ -208,7 +250,8 @@ extension TripPlan {
       to: to,
       leg: LegKey(
         fromLat: from.latitude, fromLon: from.longitude,
-        toLat: to.latitude, toLon: to.longitude)
+        toLat: to.latitude, toLon: to.longitude),
+      identity: LegIdentity(from: leaving[0].travelEndpointID, to: arriving[0].travelEndpointID)
     )
   }
 
@@ -218,14 +261,14 @@ extension TripPlan {
 
   func endpoint(for stop: ResolvedStop) -> TravelEndpoint {
     TravelEndpoint(
-      id: "stop-\(stop.id)", title: stop.content.title,
+      id: stop.travelEndpointID, title: stop.content.title,
       latitude: stop.content.latitude!, longitude: stop.content.longitude!)
   }
 
   private func endpoint(for stay: ResolvedStay) -> TravelEndpoint? {
     guard let latitude = stay.content.latitude, let longitude = stay.content.longitude else { return nil }
     return TravelEndpoint(
-      id: "stay-\(stay.id)", title: stay.content.title,
+      id: stay.travelEndpointID, title: stay.content.title,
       latitude: latitude, longitude: longitude)
   }
 
@@ -244,5 +287,40 @@ extension TripPlan {
     endpoints += stops.filter(isLocated).map(endpoint(for:))
     if let returning { endpoints.append(returning.to) }
     return endpoints
+  }
+}
+
+extension ResolvedStop {
+  /// The stable endpoint identity for a stop. All members of an alternatives
+  /// ring intentionally share the ring identity.
+  public var travelEndpointID: String {
+    if let groupID = entry.alternativeGroupID {
+      return "ring-\(groupID)"
+    }
+    return "stop-\(id)"
+  }
+}
+
+extension ResolvedStay {
+  public var travelEndpointID: String { "stay-\(id)" }
+}
+
+extension TripPlan {
+  /// Carry the moved stop's outgoing mode onto its new successor. This is a
+  /// deliberately small heuristic: incoming legs and unrelated new legs are
+  /// left alone, while a changed outgoing successor gets the old outgoing mode.
+  public static func carryOutgoingOnMove(
+    movedEndpointID: String,
+    overrides: [LegIdentity: TransportMode],
+    beforeLegs: [LegIdentity],
+    afterLegs: [LegIdentity]
+  ) -> [(leg: LegIdentity, mode: TransportMode)] {
+    guard
+      let before = beforeLegs.first(where: { $0.from == movedEndpointID }),
+      let after = afterLegs.first(where: { $0.from == movedEndpointID }),
+      before.to != after.to,
+      let mode = overrides[before]
+    else { return [] }
+    return [(leg: after, mode: mode)]
   }
 }

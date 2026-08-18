@@ -8,8 +8,10 @@ extension TripPlanningModel {
   /// auto-detect. Auto-detect keeps the original walking ≥ 20 min → transit
   /// behavior for existing trips whose shared default is still unset.
   func effectiveMode(for leg: LegKey) -> TransportMode {
-    if let override = modeOverrides[leg] { return override }
-    if let override = persistedModeOverrides[leg] { return override }
+    if let identity = plan.legIdentity(for: leg) {
+      if let override = modeOverrides[identity] { return override }
+      if let override = persistedModeOverrides[identity] { return override }
+    }
     if let mainMode = trip?.mainTransportationMode { return mainMode }
     if let walking = travelTimes[leg]?[.walking],
       walking.seconds >= Self.autoSwitchThreshold {
@@ -44,7 +46,9 @@ extension TripPlanningModel {
     }
     for leg in plan.allLegs {
       guard !Task.isCancelled else { break }
-      if let chosenMode = modeOverrides[leg] ?? persistedModeOverrides[leg] ?? trip?.mainTransportationMode {
+      let identity = plan.legIdentity(for: leg)
+      if let chosenMode = identity.flatMap({ modeOverrides[$0] ?? persistedModeOverrides[$0] })
+        ?? trip?.mainTransportationMode {
         if travelTimes[leg]?[chosenMode] == nil,
           let tt = try? await directionsClient.calculateETA(leg, chosenMode) {
           travelTimes[leg, default: [:]][chosenMode] = tt
@@ -70,22 +74,29 @@ extension TripPlanningModel {
   /// Persisted choices win after the in-memory projection has served the current
   /// interaction. Invalid future raw values gracefully fall back to the trip
   /// default rather than breaking all direction rows.
-  var persistedModeOverrides: [LegKey: TransportMode] {
+  var persistedModeOverrides: [LegIdentity: TransportMode] {
     allTravelModeOverrides
       .filter { $0.tripID == tripID }
       .reduce(into: [:]) { result, override in
-        if let mode = override.mode { result[override.leg] = mode }
+        if let mode = override.mode { result[override.legIdentity] = mode }
       }
+  }
+
+  /// The mode map visible to scheduling heuristics, with the optimistic local
+  /// projection taking precedence over the observed persisted rows.
+  var currentModeOverrides: [LegIdentity: TransportMode] {
+    persistedModeOverrides.merging(modeOverrides) { _, local in local }
   }
 
   /// User-override the transport mode for a leg. The choice is a shared trip
   /// fact, so reopening the trip—or opening it on the other device—keeps it.
   func setMode(_ mode: TransportMode, for leg: LegKey) {
-    modeOverrides[leg] = mode
+    guard let identity = plan.legIdentity(for: leg) else { return }
+    modeOverrides[identity] = mode
     let tripID = tripID
     withErrorReporting {
       try database.write { db in
-        try TripTravelModeOverride.setMode(mode, for: leg, tripID: tripID, in: db)
+        try TripTravelModeOverride.setMode(mode, for: identity, tripID: tripID, in: db)
       }
     }
     Task { await fetchMissingETAs() }

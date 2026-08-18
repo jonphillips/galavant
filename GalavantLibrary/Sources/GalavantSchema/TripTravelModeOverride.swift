@@ -1,31 +1,27 @@
 import Foundation
 import SQLiteData
 
-/// A shared choice for one directed itinerary leg. The coordinates deliberately
-/// match `LegKey`: an override belongs to the route, not a transient timeline row,
-/// so it survives reopening the trip and syncs to the other planner.
+/// A shared choice for one directed itinerary leg. Endpoint identities deliberately
+/// avoid coordinates so alternatives and stop moves can preserve a logical slot's
+/// chosen mode while the ETA cache continues to use `LegKey`.
 @Table
 public struct TripTravelModeOverride: Identifiable, Equatable, Sendable {
   public let id: UUID
   public var tripID: Trip.ID
-  public var fromLat: Double
-  public var fromLon: Double
-  public var toLat: Double
-  public var toLon: Double
+  public var fromEndpointID: String
+  public var toEndpointID: String
   public var transportMode: String
 
-  public init(id: UUID, tripID: Trip.ID, leg: LegKey, mode: TransportMode) {
+  public init(id: UUID, tripID: Trip.ID, leg: LegIdentity, mode: TransportMode) {
     self.id = id
     self.tripID = tripID
-    fromLat = leg.fromLat
-    fromLon = leg.fromLon
-    toLat = leg.toLat
-    toLon = leg.toLon
+    fromEndpointID = leg.from
+    toEndpointID = leg.to
     transportMode = mode.rawValue
   }
 
-  public var leg: LegKey {
-    LegKey(fromLat: fromLat, fromLon: fromLon, toLat: toLat, toLon: toLon)
+  public var legIdentity: LegIdentity {
+    LegIdentity(from: fromEndpointID, to: toEndpointID)
   }
 
   public var mode: TransportMode? { TransportMode(rawValue: transportMode) }
@@ -33,20 +29,18 @@ public struct TripTravelModeOverride: Identifiable, Equatable, Sendable {
 
 extension TripTravelModeOverride {
   /// Replace the selected mode for one leg. Replacing rather than appending keeps
-  /// the common path to one synced row per `(trip, leg)`.
+  /// the common path to one synced row per `(trip, legIdentity)`.
   public static func setMode(
     _ mode: TransportMode,
-    for leg: LegKey,
+    for leg: LegIdentity,
     tripID: Trip.ID,
     in db: Database
   ) throws {
     try TripTravelModeOverride
       .where {
         $0.tripID.eq(tripID)
-          && $0.fromLat.eq(leg.fromLat)
-          && $0.fromLon.eq(leg.fromLon)
-          && $0.toLat.eq(leg.toLat)
-          && $0.toLon.eq(leg.toLon)
+          && $0.fromEndpointID.eq(leg.from)
+          && $0.toEndpointID.eq(leg.to)
       }
       .delete()
       .execute(db)

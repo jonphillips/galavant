@@ -6,6 +6,15 @@ Companion to `docs/DONE_LOG.md` (what's already shipped) — this file used to b
 one long `docs/BACKLOG.md`; split 2026-07-11 to keep token cost down when an agent
 reads it for context.
 
+## Pending PR — stable travel-mode overrides
+
+Branch `feat/stable-travel-modes`. Travel-mode overrides are keyed by stable
+stop/ring/stay endpoint identities while ETA results remain coordinate-keyed;
+alternative swaps retain modes and stop moves carry the outgoing mode to the new
+successor. The migration intentionally recreates the synced override table and
+resets old coordinate-keyed rows once. Schema tests and the Xcode 27 app build are
+green; the migration-reset choice is called out in ADR-0043 and the PR description.
+
 ## Pending PR — M7 calendar dogfood amendments (ADR-0041), completes M7
 
 Branch `feat/m7-dogfood-followups`. Implements the ADR-0041 amendments (raw-title
