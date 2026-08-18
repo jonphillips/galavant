@@ -195,6 +195,7 @@ struct TripPlanningView: View {
       Divider()
       TripDetailContent(
         model: model,
+        reconciliationModel: calendarReconciliationModel,
         usesColumn: usesColumn,
         onShowStartDay: { showingStartDay = true },
         onShowCalendarReconciliation: { showingCalendarReconciliation = true }
@@ -213,6 +214,7 @@ struct TripPlanningView: View {
       .sheet(isPresented: $showDetailSheet, onDismiss: detailSheetDismissed) {
         TripDetailContent(
           model: model,
+          reconciliationModel: calendarReconciliationModel,
           usesColumn: usesColumn,
           onShowStartDay: { showingStartDay = true },
           onShowCalendarReconciliation: { showingCalendarReconciliation = true }
