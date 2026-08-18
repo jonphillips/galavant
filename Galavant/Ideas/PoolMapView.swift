@@ -31,7 +31,17 @@ struct PoolMapView: View {
   }
 
   var body: some View {
-    Map(position: $cameraPosition, selection: $mapSelection) {
+    PlaceSelectionMap(
+      cameraPosition: $cameraPosition,
+      selection: $mapSelection,
+      visibleRegion: $visibleRegion,
+      onSelectPlace: onSelectMapPlace,
+      onSelectValue: { id in
+        if let idea = ideas.first(where: { $0.id == id }) {
+          onSelect(idea)
+        }
+      }
+    ) {
       ForEach(mappableIdeas) { idea in
         if let coordinate = idea.coordinate {
           Marker(
@@ -43,16 +53,6 @@ struct PoolMapView: View {
           .tag(idea.id)
         }
       }
-    }
-    .onMapCameraChange(frequency: .onEnd) { context in
-      visibleRegion = context.region
-    }
-    .task(id: mapSelection) {
-      await handleMapSelection()
-    }
-    .mapFeatureSelectionAccessory(nil)
-    .mapFeatureSelectionDisabled { feature in
-      feature.kind != .pointOfInterest
     }
     .onChange(of: framingRegions.map(\.id), initial: true) { frameSelectedRegion() }
     .overlay {
@@ -71,23 +71,6 @@ struct PoolMapView: View {
         onSelect: onSelectMapPlace
       )
     }
-  }
-
-  private func handleMapSelection() async {
-    guard let mapSelection else { return }
-    if let id = mapSelection.value {
-      if let idea = ideas.first(where: { $0.id == id }) {
-        onSelect(idea)
-      }
-      self.mapSelection = nil
-      return
-    }
-    guard let feature = mapSelection.feature, feature.kind == .pointOfInterest else { return }
-    let place = await MapPlaceResolver.place(for: feature)
-    guard !Task.isCancelled else { return }
-    await onSelectMapPlace(place)
-    guard !Task.isCancelled else { return }
-    self.mapSelection = nil
   }
 
   /// Zoom to the union of the lens regions, or auto-frame all pins when unscoped.
