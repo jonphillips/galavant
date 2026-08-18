@@ -464,6 +464,19 @@ public enum CalendarReconciliation {
     return linked
   }
 
+  /// Finds the ingested candidate represented by a shared constraint. The
+  /// constraint stores only the stable source fingerprint, so this lookup keeps
+  /// the app-side EventKit identity out of the shared domain model.
+  public static func candidate(
+    for constraint: CalendarTripConstraint,
+    in candidates: [CalendarReconciliationCandidate]
+  ) -> CalendarReconciliationCandidate? {
+    candidates.first {
+      CalendarReconciliationFingerprint.constraintSource(for: $0.input.event)
+        == constraint.sourceIdentityHash
+    }
+  }
+
   /// Removes a local EventKit binding and records the human correction. The shared
   /// itinerary pin is cleared by the app shell in the same user action.
   public static func unlinkPlan(
