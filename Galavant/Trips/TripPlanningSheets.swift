@@ -1,3 +1,4 @@
+import CoreLocation
 import GalavantSchema
 import SwiftUI
 
@@ -151,7 +152,7 @@ struct FreeformStopSheet: View {
             coordinate: $draft.coordinate,
             title: draft.title,
             fallbackRegion: model.plan.framingCoordinates(forDay: nil).mapRegion)
-            .frame(height: 220)
+            .frame(height: draft.coordinate == nil ? 220 : 120)
             .listRowInsets(EdgeInsets())
 
           NavigationLink {
@@ -190,13 +191,22 @@ struct FreeformStopSheet: View {
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
-          Button("Cancel") { dismiss() }
+          Button("Cancel") {
+            model.destination = nil
+            dismiss()
+          }
         }
         ToolbarItem(placement: .confirmationAction) {
           Button(isEditing ? "Save" : "Add") { model.saveFreeform(draft) }.disabled(!canSave)
         }
       }
       .onAppear { titleFocused = !isEditing }
+      .onChange(of: draft.coordinate?.latitude) { _, _ in
+        model.updateFreeformDraftCoordinate(draft.coordinate)
+      }
+      .onChange(of: draft.coordinate?.longitude) { _, _ in
+        model.updateFreeformDraftCoordinate(draft.coordinate)
+      }
     }
     .presentationDetents([.medium])
   }

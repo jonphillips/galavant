@@ -21,6 +21,7 @@ struct TripCanvasMapView: View {
   /// Maps feature. The former keeps the map/timeline link; the latter opens the
   /// map-first capture flow.
   @State private var mapSelection: MapSelection<TripIdea.ID>?
+  @State private var dropFeedback = 0
 
   /// The days the map draws: just the selected day, or all when the lens is
   /// "All" (`canvasSelectedDay == nil`).
@@ -31,35 +32,44 @@ struct TripCanvasMapView: View {
     return model.plan.itinerary
   }
 
+  @MapContentBuilder
+  private var canvasMapContent: some MapContent {
+    lodgingPathContent
+    ForEach(visibleDays) { day in
+      dayContent(day)
+    }
+    baseContent
+    transientFreeformContent
+  }
+
   var body: some View {
     @Bindable var model = model
-    Map(position: $cameraPosition, selection: $mapSelection) {
-      lodgingPathContent
-      ForEach(visibleDays) { day in
-        dayContent(day)
+    MapReader { proxy in
+      Map(position: $cameraPosition, selection: $mapSelection) { canvasMapContent }
+      .coordinateSpace(name: "canvas")
+      .simultaneousGesture(canvasDropGesture(proxy: proxy))
+      .sensoryFeedback(.impact(weight: .light), trigger: dropFeedback)
+      .onMapCameraChange(frequency: .onEnd) { context in
+        visibleRegion = context.region
       }
-      baseContent
-    }
-    .onMapCameraChange(frequency: .onEnd) { context in
-      visibleRegion = context.region
-    }
-    // Keep the existing itinerary selection in sync when it originated from the
-    // timeline rather than a pin tap.
-    .onChange(of: model.canvasSelectedStopID) { _, id in
-      let selection = id.map(MapSelection.init)
-      if mapSelection != selection { mapSelection = selection }
-      revealStop(id)
-    }
-    .task(id: mapSelection) {
-      await handleMapSelection()
-    }
-    // The app presents its own confirm-and-tweak sheet after a POI selection, so
-    // don't put the system's Maps detail card in front of that flow.
-    .mapFeatureSelectionAccessory(nil)
-    // The map's labels are useful only when they represent a place we can add.
-    // Leave cities, regions, and physical geography nonselectable.
-    .mapFeatureSelectionDisabled { feature in
-      feature.kind != .pointOfInterest
+      // Keep the existing itinerary selection in sync when it originated from the
+      // timeline rather than a pin tap.
+      .onChange(of: model.canvasSelectedStopID) { _, id in
+        let selection = id.map(MapSelection.init)
+        if mapSelection != selection { mapSelection = selection }
+        revealStop(id)
+      }
+      .task(id: mapSelection) {
+        await handleMapSelection()
+      }
+      // The app presents its own confirm-and-tweak sheet after a POI selection, so
+      // don't put the system's Maps detail card in front of that flow.
+      .mapFeatureSelectionAccessory(nil)
+      // The map's labels are useful only when they represent a place we can add.
+      // Leave cities, regions, and physical geography nonselectable.
+      .mapFeatureSelectionDisabled { feature in
+        feature.kind != .pointOfInterest
+      }
     }
     .onChange(of: model.canvasSelectedDay, initial: true) { _, _ in frameSelection() }
     .onChange(of: model.trip?.mainTransportationMode) { _, _ in
@@ -148,6 +158,80 @@ struct TripCanvasMapView: View {
         }
       }
     }
+  }
+
+  /// A draft-only marker for a newly created freeform stop. It is intentionally
+  /// untagged, so it cannot enter selection, route, or numbering projections.
+  @MapContentBuilder
+  private var transientFreeformContent: some MapContent {
+    if let coordinate = transientFreeformCoordinate {
+      Annotation("New custom stop", coordinate: coordinate, anchor: .bottom) {
+        DraftFreeformPin()
+      }
+    }
+  }
+
+  private var transientFreeformCoordinate: CLLocationCoordinate2D? {
+    guard case let .freeformStop(draft) = model.destination,
+      draft.stopID == nil,
+      let coordinate = draft.coordinate
+    else { return nil }
+    return coordinate
+  }
+
+  private func handleFreeformDrop(
+    start: CLLocationCoordinate2D?,
+    dropped: CLLocationCoordinate2D?
+  ) {
+    guard let start, let dropped, !isNearExistingPin(start) else { return }
+    model.destination = .freeformStop(
+      FreeformStopDraft(coordinate: dropped, day: model.canvasSelectedDay))
+    dropFeedback += 1
+  }
+
+  private func convertCanvasPoint(_ point: CGPoint, proxy: MapProxy) -> CLLocationCoordinate2D? {
+    proxy.convert(point, from: .named("canvas"))
+  }
+
+  private func canvasDropGesture(proxy: MapProxy) -> some Gesture {
+    LongPressGesture(minimumDuration: 0.6)
+      .sequenced(before: DragGesture(
+        minimumDistance: 0,
+        coordinateSpace: .named("canvas")
+      ))
+      .onEnded { value in
+        guard case let .second(true, drag?) = value else { return }
+        let start = convertCanvasPoint(drag.startLocation, proxy: proxy)
+        let dropped = convertCanvasPoint(drag.location, proxy: proxy)
+        handleFreeformDrop(start: start, dropped: dropped)
+      }
+  }
+
+  /// MapKit's map gesture remains available everywhere, but a long press that
+  /// starts within an existing marker's hit area belongs to that marker instead.
+  /// The tolerance is expressed in the settled map region so it scales with zoom.
+  private func isNearExistingPin(_ coordinate: CLLocationCoordinate2D) -> Bool {
+    guard let visibleRegion else { return false }
+    let tolerance = max(
+      max(visibleRegion.span.latitudeDelta, visibleRegion.span.longitudeDelta) * 0.06,
+      0.0005)
+    return existingPinCoordinates.contains { pin in
+      abs(pin.latitude - coordinate.latitude) <= tolerance
+        && abs(pin.longitude - coordinate.longitude) <= tolerance
+    }
+  }
+
+  private var existingPinCoordinates: [CLLocationCoordinate2D] {
+    let activeStops = visibleDays.flatMap { model.plan.locatedStops(forDay: $0.number) }
+    let stopCoordinates = activeStops.compactMap(\.coordinate)
+    let baseCoordinates = model.plan.baseStays(forDay: model.canvasSelectedDay).compactMap(\.coordinate)
+    let alternativeCoordinates = activeStops.flatMap { stop in
+      guard let ring = model.plan.alternatives(forStop: stop.id),
+        model.alternativesAreVisible(for: ring)
+      else { return [CLLocationCoordinate2D]() }
+      return ring.members.compactMap(\.coordinate)
+    }
+    return stopCoordinates + baseCoordinates + alternativeCoordinates
   }
 
   /// The off-sequence home-base pins for the current lens (ADR-0011): a stay you
@@ -289,6 +373,18 @@ private struct AlternativePin: View {
       .frame(width: 18, height: 18)
       .overlay(Circle().strokeBorder(.white, lineWidth: 2))
       .shadow(radius: 1)
+  }
+}
+
+private struct DraftFreeformPin: View {
+  var body: some View {
+    Image(systemName: "mappin.and.ellipse")
+      .font(.title2)
+      .foregroundStyle(.tint)
+      .padding(5)
+      .background(.thinMaterial, in: Circle())
+      .overlay(Circle().strokeBorder(.white, lineWidth: 2))
+      .shadow(radius: 2)
   }
 }
 

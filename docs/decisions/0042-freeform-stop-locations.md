@@ -16,6 +16,11 @@ search path for choosing a named place. The chosen location is optional and is
 saved with the title and note. Search continues to use the existing injectable
 place-search client; the map itself remains app-layer SwiftUI.
 
+The trip canvas also provides a second creation affordance: a long press on an
+empty map area opens the same editor pre-seeded with the dropped coordinate and
+the current day lens. The unsaved coordinate is presentation-only until the
+editor is saved; the existing Add menu remains available for search-first entry.
+
 ## Consequences
 
 - Existing freeform stops remain unchanged and unlocated.

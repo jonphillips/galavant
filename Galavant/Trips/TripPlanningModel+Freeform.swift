@@ -1,8 +1,18 @@
+import CoreLocation
 import Foundation
 import GalavantSchema
 import SQLiteData
 
 extension TripPlanningModel {
+  /// Mirrors a coordinate edit from the sheet into the presentation destination
+  /// so the canvas can show the unsaved pin while the editor remains open.
+  func updateFreeformDraftCoordinate(_ coordinate: CLLocationCoordinate2D?) {
+    guard case let .freeformStop(current) = destination else { return }
+    var draft = current
+    draft.coordinate = coordinate
+    destination = .freeformStop(draft)
+  }
+
   /// Commit the custom-stop editor: create a new stop (placed on its chosen day,
   /// or left in the bucket), or update the edited one's content. A blank title
   /// is dropped (the sheet's Save is disabled, but guard anyway).
