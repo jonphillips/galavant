@@ -305,6 +305,18 @@ struct IdeaFormView: View {
           .padding(.vertical, 6)
         }
       }
+      if model.canRefetchImages {
+        Button {
+          Task { await model.refetchImages() }
+        } label: {
+          if model.refetchingImages {
+            Label { Text("Refreshing images…") } icon: { ProgressView() }
+          } else {
+            Label("Refresh images from website", systemImage: "arrow.clockwise")
+          }
+        }
+        .disabled(model.refetchingImages || model.addingImage)
+      }
     } header: {
       Text("Photos")
     } footer: {
@@ -327,19 +339,6 @@ struct IdeaFormView: View {
               }
               await model.addImage(data)
             }
-          }
-
-          if model.canRefetchImages {
-            Button {
-              Task { await model.refetchImages() }
-            } label: {
-              if model.refetchingImages {
-                Label { Text("Refreshing images…") } icon: { ProgressView() }
-              } else {
-                Label("Refetch images", systemImage: "arrow.clockwise")
-              }
-            }
-            .disabled(model.refetchingImages || model.addingImage)
           }
         }
         if model.addingImage {

@@ -13,6 +13,37 @@ import UniformTypeIdentifiers
 
 @MainActor
 @Suite struct PlaceEnricherTests {
+  @Test("Image ranking lets a larger late candidate beat a smaller early candidate")
+  nonisolated func imageRankingFavorsLargerCandidates() {
+    let ranked = ImageRanking.ordered([
+      ImageRankingCandidate(index: 0, visionScore: 0.80, width: 600, height: 600),
+      ImageRankingCandidate(index: 1, visionScore: 0.79, width: 1600, height: 1200),
+    ])
+
+    #expect(ranked.map(\.index) == [1, 0])
+  }
+
+  @Test("Image ranking excludes icon-sized candidates")
+  nonisolated func imageRankingExcludesSmallCandidates() {
+    let ranked = ImageRanking.ordered([
+      ImageRankingCandidate(index: 0, visionScore: 1, width: 399, height: 399),
+      ImageRankingCandidate(index: 1, visionScore: 0, width: 400, height: 300),
+    ])
+
+    #expect(ranked.map(\.index) == [1])
+  }
+
+  @Test("Image ranking uses parser order for ties")
+  nonisolated func imageRankingUsesParserOrderForTies() {
+    let ranked = ImageRanking.ordered([
+      ImageRankingCandidate(index: 2, visionScore: 0.5, width: 800, height: 600),
+      ImageRankingCandidate(index: 0, visionScore: 0.5, width: 800, height: 600),
+      ImageRankingCandidate(index: 1, visionScore: 0.5, width: 800, height: 600),
+    ])
+
+    #expect(ranked.map(\.index) == [0, 1, 2])
+  }
+
   nonisolated private static let websiteHTML = """
     <html><head>
     <meta property="og:title" content="Koan">
@@ -557,17 +588,18 @@ import UniformTypeIdentifiers
     }
   }
 
-  // A distinct solid-color PNG per URL so the fixture recommender can tell them apart.
+  // A distinct solid-color 800x600 PNG per URL so the fixture recommender can tell
+  // them apart while meeting the image-ranking minimum.
   nonisolated private static func png(for url: URL) -> Data {
     let hash = abs(url.absoluteString.hashValue)
     let red = Double(hash % 255) / 255
     let context = CGContext(
-      data: nil, width: 64, height: 64, bitsPerComponent: 8, bytesPerRow: 0,
+      data: nil, width: 800, height: 600, bitsPerComponent: 8, bytesPerRow: 0,
       space: CGColorSpaceCreateDeviceRGB(),
       bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
     )!
     context.setFillColor(red: red, green: 0.4, blue: 0.6, alpha: 1)
-    context.fill(CGRect(x: 0, y: 0, width: 64, height: 64))
+    context.fill(CGRect(x: 0, y: 0, width: 800, height: 600))
     let image = context.makeImage()!
     let buffer = NSMutableData()
     let destination = CGImageDestinationCreateWithData(
