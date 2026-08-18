@@ -9,6 +9,8 @@ struct StopDetailContext {
   /// "Day 2 · Wed, Jun 17" (dated) / "Day 2" (undated) / "To Be Scheduled".
   let dayLabel: String
   let schedule: Schedule
+  /// Human-authored booking details from a Calendar event linked to this stop.
+  let calendarNotes: String?
 }
 
 /// A read-only look at an idea — its location on a map, its place on the
@@ -70,7 +72,15 @@ struct IdeaDetailView: View {
       }
 
       if let stopContext {
-        Section("On the Itinerary") { placement(stopContext) }
+        Section("On the Itinerary") {
+          placement(stopContext)
+        }
+        if let calendarNotes = stopContext.calendarNotes {
+          Section("Calendar booking details") {
+            Text(calendarNotes)
+              .textSelection(.enabled)
+          }
+        }
       }
 
       if let link {

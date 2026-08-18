@@ -462,7 +462,8 @@ final class TripPlanningModel {
     else { return nil }
     let schedule = entry.schedule
     let label = schedule.dayNumber.map { dayLabel($0, trip: trip) } ?? "To Be Scheduled"
-    return StopDetailContext(dayLabel: label, schedule: schedule)
+    return StopDetailContext(
+      dayLabel: label, schedule: schedule, calendarNotes: entry.calendarNotes)
   }
 
   /// The names of an idea's tags, alphabetized — for the detail sheet.

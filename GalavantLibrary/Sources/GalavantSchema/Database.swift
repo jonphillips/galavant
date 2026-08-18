@@ -756,6 +756,9 @@ extension DependencyValues {
         """
       ).execute(db)
     }
+    migrator.registerMigration("Add Calendar booking details to tripIdeas") { db in
+      try #sql(#"ALTER TABLE "tripIdeas" ADD COLUMN "calendarNotes" TEXT"#).execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if case let .configured(startImmediately) = syncMode {

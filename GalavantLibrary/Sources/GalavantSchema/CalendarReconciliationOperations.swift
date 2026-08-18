@@ -6,11 +6,13 @@ extension TripIdea {
   /// This is the Calendar-authoritative time writer: it updates
   /// the synced display cache while the EventKit binding itself remains local in
   /// `CalendarReconciliationHistoryStore`. It intentionally preserves the user's
-  /// free-form booking details; Calendar supplied time, not those notes.
+  /// free-form booking details and notes; Calendar supplies the authoritative
+  /// commitment facts without overwriting the user's planning text.
   public static func applyCalendarCommitment(
     _ commitment: CalendarCommitment,
     stopID: TripIdea.ID,
     dayNumber: DayNumber,
+    calendarNotes: String? = nil,
     in db: Database
   ) throws {
     guard let entry = try TripIdea.find(stopID).fetchOne(db) else { return }
@@ -22,6 +24,7 @@ extension TripIdea {
       try TripIdea.find(stopID)
         .update {
           $0.pinnedDate = #bind(commitment.pinnedDate)
+          $0.calendarNotes = #bind(calendarNotes)
         }
         .execute(db)
       try TripIdea.updateSharedSlot(members: members, status: .scheduled, schedule: .day(day), in: db)
@@ -29,6 +32,7 @@ extension TripIdea {
       try TripIdea.find(stopID)
         .update {
           $0.pinnedDate = #bind(commitment.pinnedDate)
+          $0.calendarNotes = #bind(calendarNotes)
         }
         .execute(db)
       try TripIdea.updateSharedSlot(
@@ -51,7 +55,10 @@ extension TripIdea {
     let members = try TripIdea.alternativeMembers(containing: entry, in: db)
     guard TripIdea.effectiveActiveMember(in: members)?.id == stopID else { return }
     try TripIdea.find(stopID)
-      .update { $0.pinnedDate = #bind(nil as Date?) }
+      .update {
+        $0.pinnedDate = #bind(nil as Date?)
+        $0.calendarNotes = #bind(nil as String?)
+      }
       .execute(db)
     guard let day = entry.dayNumber else { return }
     try TripIdea.updateSharedSlot(

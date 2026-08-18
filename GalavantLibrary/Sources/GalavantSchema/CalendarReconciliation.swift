@@ -20,8 +20,8 @@ public struct CalendarObservedEvent: Equatable, Sendable, Identifiable {
   public var lastModifiedDate: Date?
   public var title: String
   public var location: String?
-  /// Calendar's human-authored notes. These become shared only when the event
-  /// is materialized as a Calendar-originated trip constraint.
+  /// Calendar's human-authored notes. These become shared when the event is
+  /// materialized as a Calendar-originated constraint or linked stop detail.
   public var notes: String?
   public var latitude: Double?
   public var longitude: Double?
@@ -406,6 +406,7 @@ public enum CalendarReconciliation {
           commitment: commitment,
           observedAt: observedAt,
           eventTitle: event.title,
+          eventNotes: event.notes,
           sourceExternalIdentifier: event.externalIdentifier,
           occurrenceAnchor: event.recurrence?.originalOccurrence,
           itineraryTimeZoneIdentifier: timeZone?.identifier))
@@ -417,7 +418,8 @@ public enum CalendarReconciliation {
           stopID: stop.id, commitment: commitment,
           dayNumber: day, kind: .linked,
           sourceFingerprint: CalendarReconciliationFingerprint.source(for: event),
-          eventTitle: event.title))
+          eventTitle: event.title,
+          calendarNotes: event.notes))
     }
 
     recordOutsideTripObservations(
@@ -500,16 +502,18 @@ public enum CalendarReconciliation {
     let identityChanged = linked.eventID != event.id
     let commitmentChanged = linked.commitment != commitment
       || linked.movedOutsideTripCommitment != nil
+    let notesChanged = linked.eventNotes != event.notes
     let metadataChanged = linked.sourceExternalIdentifier != event.externalIdentifier
       || linked.occurrenceAnchor != event.recurrence?.originalOccurrence
       || (linked.itineraryTimeZoneIdentifier == nil && timeZone != nil)
-    guard identityChanged || commitmentChanged || metadataChanged else { return nil }
+    guard identityChanged || commitmentChanged || notesChanged || metadataChanged else { return nil }
     state.linkedStops[index] = CalendarLinkedStop(
       stopID: linked.stopID,
       eventID: event.id,
       commitment: commitment,
       observedAt: observedAt,
       eventTitle: event.title,
+      eventNotes: event.notes,
       sourceExternalIdentifier: event.externalIdentifier,
       occurrenceAnchor: event.recurrence?.originalOccurrence,
       itineraryTimeZoneIdentifier: timeZone?.identifier
@@ -520,12 +524,13 @@ public enum CalendarReconciliation {
         previous: linked.movedOutsideTripCommitment ?? linked.commitment,
         current: commitment, observedAt: observedAt, makeID: makeHistoryID))
     }
-    guard linked.commitment != commitment else { return nil }
+    guard linked.commitment != commitment || notesChanged else { return nil }
     return CalendarReconciliationApplication(
       stopID: linked.stopID, commitment: commitment,
       dayNumber: day, kind: .updated,
       sourceFingerprint: CalendarReconciliationFingerprint.source(for: event),
-      eventTitle: event.title)
+      eventTitle: event.title,
+      calendarNotes: event.notes)
   }
 
   private static func hasMostRecentUnlink(

@@ -5,6 +5,7 @@ public struct CalendarReconciliationApplication: Equatable, Sendable {
   public var kind: CalendarReconciliationHistoryEntry.Kind
   public var sourceFingerprint: String?
   public var eventTitle: String
+  public var calendarNotes: String?
 
   public init(
     stopID: TripIdea.ID,
@@ -12,7 +13,8 @@ public struct CalendarReconciliationApplication: Equatable, Sendable {
     dayNumber: DayNumber,
     kind: CalendarReconciliationHistoryEntry.Kind,
     sourceFingerprint: String? = nil,
-    eventTitle: String = ""
+    eventTitle: String = "",
+    calendarNotes: String? = nil
   ) {
     self.stopID = stopID
     self.commitment = commitment
@@ -20,6 +22,7 @@ public struct CalendarReconciliationApplication: Equatable, Sendable {
     self.kind = kind
     self.sourceFingerprint = sourceFingerprint
     self.eventTitle = eventTitle
+    self.calendarNotes = calendarNotes
   }
 }
 

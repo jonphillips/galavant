@@ -21,6 +21,9 @@ public struct CalendarLinkedStop: Codable, Equatable, Sendable {
   /// The last Calendar title seen for this binding. It is optional so existing
   /// device-local Slice 2 payloads continue to decode after this field was added.
   public var eventTitle: String?
+  /// The last Calendar notes body seen for this binding. This remains local
+  /// integration state; the synced copy lives on `TripIdea.calendarNotes`.
+  public var eventNotes: String?
   /// A Calendar event can remain a valid binding after being moved beyond the
   /// trip's dates. Keep the observed fact for review, but never turn absence or
   /// an out-of-scope date into a deletion or an itinerary write.
@@ -40,6 +43,7 @@ public struct CalendarLinkedStop: Codable, Equatable, Sendable {
     commitment: CalendarCommitment,
     observedAt: Date,
     eventTitle: String? = nil,
+    eventNotes: String? = nil,
     movedOutsideTripCommitment: CalendarCommitment? = nil,
     sourceExternalIdentifier: String? = nil,
     occurrenceAnchor: CalendarOccurrenceAnchor? = nil,
@@ -50,6 +54,7 @@ public struct CalendarLinkedStop: Codable, Equatable, Sendable {
     self.commitment = commitment
     self.observedAt = observedAt
     self.eventTitle = eventTitle
+    self.eventNotes = eventNotes
     self.movedOutsideTripCommitment = movedOutsideTripCommitment
     self.sourceExternalIdentifier = sourceExternalIdentifier
     self.occurrenceAnchor = occurrenceAnchor
