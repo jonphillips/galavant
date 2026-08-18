@@ -19,8 +19,9 @@ import SQLiteData
 /// free.
 ///
 /// `checkInDay` is required at creation (1…N); `checkOutDay` must be `> checkInDay`
-/// (validated by the write path). `checkInTime`/`checkOutTime` are optional
-/// `"HH:mm"` strings (Schedule's convention) — absent a time, the check-in row
+/// (validated by the write path). `checkInTime`/`checkOutTime` are the property's
+/// official optional `"HH:mm"` times (Schedule's convention); the planned fields
+/// are the travel party's optional expected times. Absent a time, the check-in row
 /// sorts to evening and the check-out row to morning.
 ///
 /// *Seam for trip-time-model §4 (NOT this slice):* `pinnedDate` / confirmation # /
@@ -37,6 +38,8 @@ public struct TripStay: Identifiable, Equatable, Sendable {
   public var checkOutDay: Int = 2
   public var checkInTime: String?
   public var checkOutTime: String?
+  public var plannedCheckInTime: String?
+  public var plannedCheckOutTime: String?
 
   public init(
     id: UUID,
@@ -47,7 +50,9 @@ public struct TripStay: Identifiable, Equatable, Sendable {
     checkInDay: Int = 1,
     checkOutDay: Int = 2,
     checkInTime: String? = nil,
-    checkOutTime: String? = nil
+    checkOutTime: String? = nil,
+    plannedCheckInTime: String? = nil,
+    plannedCheckOutTime: String? = nil
   ) {
     self.id = id
     self.tripID = tripID
@@ -58,6 +63,8 @@ public struct TripStay: Identifiable, Equatable, Sendable {
     self.checkOutDay = checkOutDay
     self.checkInTime = checkInTime
     self.checkOutTime = checkOutTime
+    self.plannedCheckInTime = plannedCheckInTime
+    self.plannedCheckOutTime = plannedCheckOutTime
   }
 
   /// Make a freeform stay (no pool idea) on a trip — a name + nights with no pool
@@ -70,7 +77,9 @@ public struct TripStay: Identifiable, Equatable, Sendable {
     checkInDay: Int,
     checkOutDay: Int,
     checkInTime: String? = nil,
-    checkOutTime: String? = nil
+    checkOutTime: String? = nil,
+    plannedCheckInTime: String? = nil,
+    plannedCheckOutTime: String? = nil
   ) -> TripStay {
     TripStay(
       id: id,
@@ -81,7 +90,9 @@ public struct TripStay: Identifiable, Equatable, Sendable {
       checkInDay: checkInDay,
       checkOutDay: checkOutDay,
       checkInTime: checkInTime,
-      checkOutTime: checkOutTime
+      checkOutTime: checkOutTime,
+      plannedCheckInTime: plannedCheckInTime,
+      plannedCheckOutTime: plannedCheckOutTime
     )
   }
 }
@@ -101,18 +112,43 @@ extension TripStay {
   }
 
   /// Minutes-from-midnight key for ordering the check-in row among a day's stops.
-  /// Uses `checkInTime` when set, else a late-evening default so an untimed
+  /// Uses the planned time, then the official time, else a late-evening default so an untimed
   /// check-in trails the day's activities. (Default deliberately tunable — Jon
   /// will live with the visuals; ADR-0011.)
   public var checkInSortMinutes: Int {
-    checkInTime.flatMap(Schedule.minutes(from:)) ?? Self.defaultCheckInMinutes
+    plannedCheckInTime.flatMap(Schedule.minutes(from:))
+      ?? checkInTime.flatMap(Schedule.minutes(from:))
+      ?? Self.defaultCheckInMinutes
   }
 
   /// Minutes-from-midnight key for ordering the check-out row among a day's stops.
-  /// Uses `checkOutTime` when set, else an early-morning default so an untimed
+  /// Uses the planned time, then the official time, else an early-morning default so an untimed
   /// check-out leads the day.
   public var checkOutSortMinutes: Int {
-    checkOutTime.flatMap(Schedule.minutes(from:)) ?? Self.defaultCheckOutMinutes
+    plannedCheckOutTime.flatMap(Schedule.minutes(from:))
+      ?? checkOutTime.flatMap(Schedule.minutes(from:))
+      ?? Self.defaultCheckOutMinutes
+  }
+
+  /// The two times a check row shows. `trailing` is the prominent right-aligned
+  /// time (planned when set, else official). `officialParenthetical` is the
+  /// property time shown after the label — present only when a planned time also
+  /// exists, so it reads as a contrast, never a duplicate of `trailing`.
+  public struct CheckDisplay: Equatable, Sendable {
+    public var trailing: String?
+    public var officialParenthetical: String?
+  }
+
+  public var checkInDisplay: CheckDisplay {
+    CheckDisplay(
+      trailing: plannedCheckInTime ?? checkInTime,
+      officialParenthetical: plannedCheckInTime != nil ? checkInTime : nil)
+  }
+
+  public var checkOutDisplay: CheckDisplay {
+    CheckDisplay(
+      trailing: plannedCheckOutTime ?? checkOutTime,
+      officialParenthetical: plannedCheckOutTime != nil ? checkOutTime : nil)
   }
 
   /// Default ordering anchors when no clock time is given. Centralized so Jon can

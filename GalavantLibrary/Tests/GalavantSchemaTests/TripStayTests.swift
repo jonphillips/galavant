@@ -1,5 +1,8 @@
+import Dependencies
+import DependenciesTestSupport
 import Foundation
 import GalavantSchema
+import SQLiteData
 import Testing
 
 /// `TripStay` is the sibling accommodation record (ADR-0011); these tests exercise
@@ -16,12 +19,15 @@ import Testing
     checkIn: Int,
     checkOut: Int,
     checkInTime: String? = nil,
-    checkOutTime: String? = nil
+    checkOutTime: String? = nil,
+    plannedCheckInTime: String? = nil,
+    plannedCheckOutTime: String? = nil
   ) -> TripStay {
     TripStay(
       id: UUID(), tripID: UUID(), ideaID: idea,
       inlineTitle: title, checkInDay: checkIn, checkOutDay: checkOut,
-      checkInTime: checkInTime, checkOutTime: checkOutTime
+      checkInTime: checkInTime, checkOutTime: checkOutTime,
+      plannedCheckInTime: plannedCheckInTime, plannedCheckOutTime: plannedCheckOutTime
     )
   }
 
@@ -52,7 +58,7 @@ import Testing
 
   // MARK: - Sort minutes
 
-  @Test func sortMinutesUseTimeOrFallBackToDefaults() {
+  @Test func sortMinutesPreferPlannedThenOfficialThenDefault() {
     let untimed = stay(checkIn: 1, checkOut: 2)
     #expect(untimed.checkInSortMinutes == 18 * 60)   // evening default
     #expect(untimed.checkOutSortMinutes == 10 * 60)  // morning default
@@ -60,6 +66,45 @@ import Testing
     let timed = stay(checkIn: 1, checkOut: 2, checkInTime: "15:00", checkOutTime: "08:30")
     #expect(timed.checkInSortMinutes == 15 * 60)
     #expect(timed.checkOutSortMinutes == 8 * 60 + 30)
+
+    let planned = stay(
+      checkIn: 1, checkOut: 2,
+      checkInTime: "15:00", checkOutTime: "08:30",
+      plannedCheckInTime: "09:30", plannedCheckOutTime: "07:15")
+    #expect(planned.checkInSortMinutes == 9 * 60 + 30)
+    #expect(planned.checkOutSortMinutes == 7 * 60 + 15)
+  }
+
+  @Test func checkDisplaysShowOfficialOnlyAsAContrastToPlanned() {
+    func expect(
+      _ display: TripStay.CheckDisplay,
+      trailing: String?,
+      officialParenthetical: String?
+    ) {
+      #expect(display.trailing == trailing)
+      #expect(display.officialParenthetical == officialParenthetical)
+    }
+
+    let neither = stay(checkIn: 1, checkOut: 2)
+    expect(neither.checkInDisplay, trailing: nil, officialParenthetical: nil)
+    expect(neither.checkOutDisplay, trailing: nil, officialParenthetical: nil)
+
+    let officialOnly = stay(
+      checkIn: 1, checkOut: 2, checkInTime: "15:00", checkOutTime: "10:00")
+    expect(officialOnly.checkInDisplay, trailing: "15:00", officialParenthetical: nil)
+    expect(officialOnly.checkOutDisplay, trailing: "10:00", officialParenthetical: nil)
+
+    let plannedOnly = stay(
+      checkIn: 1, checkOut: 2, plannedCheckInTime: "09:30", plannedCheckOutTime: "09:15")
+    expect(plannedOnly.checkInDisplay, trailing: "09:30", officialParenthetical: nil)
+    expect(plannedOnly.checkOutDisplay, trailing: "09:15", officialParenthetical: nil)
+
+    let both = stay(
+      checkIn: 1, checkOut: 2,
+      checkInTime: "15:00", checkOutTime: "10:00",
+      plannedCheckInTime: "09:30", plannedCheckOutTime: "09:15")
+    expect(both.checkInDisplay, trailing: "09:30", officialParenthetical: "15:00")
+    expect(both.checkOutDisplay, trailing: "09:15", officialParenthetical: "10:00")
   }
 
   // MARK: - Overlap (pure)
@@ -155,6 +200,35 @@ import Testing
       lengthInDays: 5,
       tripStays: stays
     )
+  }
+
+  @Test func plannedBoundaryTimeMovesTheTimelineRow() {
+    let stopID = UUID()
+    let stop = scheduledStop(stopID, at: "12:00")
+    let lodging = stay(
+      title: "Hotel", checkIn: 2, checkOut: 4,
+      checkInTime: "15:00", plannedCheckInTime: "09:30")
+    let p = planWith(
+      stops: [stop],
+      stays: [lodging],
+      ideas: [idea(stopID, name: "Lunch", lat: nil, lon: nil)])
+    let items = p.itineraryItems(
+      forDay: 2,
+      travelTimes: [:],
+      effectiveModes: [:],
+      stays: p.stays(coveringDay: 2))
+
+    #expect(items.count == 2)
+    if case let .checkIn(resolved) = items[0] {
+      #expect(resolved.stay.id == lodging.id)
+    } else {
+      Issue.record("planned check-in should lead the noon stop")
+    }
+    if case let .stop(resolved) = items[1] {
+      #expect(resolved.id == stop.id)
+    } else {
+      Issue.record("noon stop should follow planned check-in")
+    }
   }
 
   @Test func untimedBoundariesBracketTheDaysStops() {
@@ -531,5 +605,56 @@ import Testing
     let assignment = TripDayRegion(id: UUID(), tripID: UUID(), dayNumber: 2, regionID: UUID())
     let p = planWith(dayRegions: [assignment], regions: [])
     #expect(p.region(forDay: 2) == nil)
+  }
+}
+
+@Suite(.dependencies { try $0.bootstrapDatabase() })
+struct TripStayOperationTests {
+  @Dependency(\.defaultDatabase) var database
+
+  @Test func plannedTimesRoundTripThroughCreateAndEdit() async throws {
+    let stayID = try await database.write { db in
+      let trip = try Trip.create(name: "Copenhagen", in: db)
+      return try TripStay.createFreeform(
+        tripID: trip.id,
+        title: "Hotel",
+        checkInDay: 1,
+        checkOutDay: 3,
+        checkInTime: "15:00",
+        checkOutTime: "10:00",
+        plannedCheckInTime: "09:30",
+        plannedCheckOutTime: "09:15",
+        in: db)
+    }
+
+    let created = try await database.read { db in
+      try TripStay.find(stayID).fetchOne(db)
+    }
+    #expect(created?.checkInTime == "15:00")
+    #expect(created?.checkOutTime == "10:00")
+    #expect(created?.plannedCheckInTime == "09:30")
+    #expect(created?.plannedCheckOutTime == "09:15")
+
+    try await database.write { db in
+      try TripStay.edit(
+        stayID: stayID,
+        ideaID: nil,
+        title: "Hotel (updated)",
+        checkInDay: 1,
+        checkOutDay: 3,
+        checkInTime: "16:00",
+        checkOutTime: "11:00",
+        plannedCheckInTime: "10:00",
+        plannedCheckOutTime: "10:30",
+        in: db)
+    }
+
+    let edited = try await database.read { db in
+      try TripStay.find(stayID).fetchOne(db)
+    }
+    #expect(edited?.checkInTime == "16:00")
+    #expect(edited?.checkOutTime == "11:00")
+    #expect(edited?.plannedCheckInTime == "10:00")
+    #expect(edited?.plannedCheckOutTime == "10:30")
   }
 }

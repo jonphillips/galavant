@@ -91,6 +91,8 @@ struct StayDraft: Identifiable {
   var checkOutDay = 2
   var checkInTime: String?
   var checkOutTime: String?
+  var plannedCheckInTime: String?
+  var plannedCheckOutTime: String?
 
   /// Backed by a pool hotel (vs. a freeform stay) — the sheet hides the title
   /// field and shows the hotel name instead.

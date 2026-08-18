@@ -291,22 +291,29 @@ struct TripItineraryView: View {
   /// its check-out day, with the hotel name and the optional clock time. Taps to
   /// edit the stay. Reads as an event in the timeline, distinct from a point stop.
   private func checkRow(_ stay: ResolvedStay, isCheckIn: Bool) -> some View {
-    let time = isCheckIn ? stay.stay.checkInTime : stay.stay.checkOutTime
+    let display = isCheckIn ? stay.stay.checkInDisplay : stay.stay.checkOutDisplay
     return HStack(spacing: 12) {
       (isCheckIn ? Icon.checkIn : Icon.checkOut).image
         .foregroundStyle(.secondary)
         .frame(width: 24)
       VStack(alignment: .leading, spacing: 2) {
-        Text(isCheckIn ? "Check in" : "Check out")
-          .font(.subheadline.weight(.medium))
+        HStack(spacing: 4) {
+          Text(isCheckIn ? "Check in" : "Check out")
+            .font(.subheadline.weight(.medium))
+          if let official = display.officialParenthetical {
+            Text("(\(official))")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
+        }
         Text(stay.content.title)
           .font(.subheadline)
           .foregroundStyle(.secondary)
           .lineLimit(1)
       }
       Spacer()
-      if let time {
-        Text(time).font(.subheadline.monospaced()).foregroundStyle(.secondary)
+      if let trailing = display.trailing {
+        Text(trailing).font(.subheadline.monospaced()).foregroundStyle(.secondary)
       }
     }
     .padding(.vertical, 2)

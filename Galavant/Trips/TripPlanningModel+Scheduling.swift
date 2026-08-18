@@ -200,7 +200,9 @@ extension TripPlanningModel {
       stayID: stay.id, ideaID: stay.ideaID,
       title: title, note: note,
       checkInDay: stay.checkInDay, checkOutDay: stay.checkOutDay,
-      checkInTime: stay.checkInTime, checkOutTime: stay.checkOutTime))
+      checkInTime: stay.checkInTime, checkOutTime: stay.checkOutTime,
+      plannedCheckInTime: stay.plannedCheckInTime,
+      plannedCheckOutTime: stay.plannedCheckOutTime))
   }
 
   /// Commit the lodging editor: create or update the stay. A freeform stay needs a
@@ -218,12 +220,16 @@ extension TripPlanningModel {
             stayID: stayID, ideaID: draft.ideaID,
             title: title.isEmpty ? nil : title, note: note,
             checkInDay: draft.checkInDay, checkOutDay: draft.checkOutDay,
-            checkInTime: draft.checkInTime, checkOutTime: draft.checkOutTime, in: db)
+            checkInTime: draft.checkInTime, checkOutTime: draft.checkOutTime,
+            plannedCheckInTime: draft.plannedCheckInTime,
+            plannedCheckOutTime: draft.plannedCheckOutTime, in: db)
         } else if let ideaID = draft.ideaID {
           try TripStay.create(
             tripID: tripID, ideaID: ideaID,
             checkInDay: draft.checkInDay, checkOutDay: draft.checkOutDay,
-            checkInTime: draft.checkInTime, checkOutTime: draft.checkOutTime, in: db)
+            checkInTime: draft.checkInTime, checkOutTime: draft.checkOutTime,
+            plannedCheckInTime: draft.plannedCheckInTime,
+            plannedCheckOutTime: draft.plannedCheckOutTime, in: db)
           // A hotel is represented by its stay, not as an extra ordinary stop
           // in the shortlist/timeline. Keep the reusable pool idea intact.
           try TripIdea
@@ -235,7 +241,9 @@ extension TripPlanningModel {
           try TripStay.createFreeform(
             tripID: tripID, title: title, note: note,
             checkInDay: draft.checkInDay, checkOutDay: draft.checkOutDay,
-            checkInTime: draft.checkInTime, checkOutTime: draft.checkOutTime, in: db)
+            checkInTime: draft.checkInTime, checkOutTime: draft.checkOutTime,
+            plannedCheckInTime: draft.plannedCheckInTime,
+            plannedCheckOutTime: draft.plannedCheckOutTime, in: db)
         }
       }
     }

@@ -1,5 +1,13 @@
 # Done Log — completed enhancements
 
+## Lodging official vs. planned times — DONE (2026-08-18)
+
+`TripStay` now stores independent planned check-in/check-out times alongside the
+property's official times. The editor, itinerary, and Today timeline show the
+planned time prominently, retain the official time parenthetically when both exist,
+and sort boundaries by planned time first; the additive migration and pure display
+helpers are tested.
+
 ## M7 calendar dogfood amendments (ADR-0041) — IMPLEMENTED, pending device verification
 
 Implemented on `feat/m7-dogfood-followups` (2026-08-17), completing the M7 calendar

@@ -309,24 +309,22 @@ switching and sync health) should migrate into a dedicated settings or "You"
 nav section, not be buried in the filter. Punted for now; tracked here. Likely
 lands when the third nav section ("You"/Account) is built (M5-ish).
 
-## Accommodations (from Jon, 2026-06-13) — DESIGNED
+## Accommodations (from Jon, 2026-06-13) — IMPLEMENTED
 
 Design settled in **ADR-0011** (2026-06-20): a sibling **`TripStay`** record (one
 FK → `Trip`, loose optional `ideaID`, freeform-capable, `checkInDay`/`checkOutDay`
-+ optional `"HH:mm"` times), *not* a `Schedule` case — the span inverts ADR-0010's
-one-record logic. Itinerary = a home-base chip on every covered day header +
++ optional official and planned `"HH:mm"` times), *not* a `Schedule` case — the
+span inverts ADR-0010's one-record logic. Itinerary = a home-base chip on every
+covered day header +
 check-in/check-out timeline rows (new `ItineraryItem.checkIn`/`.checkOut`); canvas
 = a distinct off-sequence base pin, unnumbered, off the day polyline. Stays are
 born on the trip (not pulled); overlap is allowed-but-flagged. Deferred seams:
 booking metadata/`pinnedDate` (trip-time-model §4), per-day-region *driving*
 (display-only for now), a "Stays" summary band, hotel-anchored routing.
-Implementation not yet started. See ADR-0011 for the full rationale (incl. why a
-sibling record, not a `TripIdea` extension).
-
-**Note (added at the 2026-07-11 backlog split):** house memory records "all 3
-slices shipped" for accommodations since this entry was written — re-verify
-current status against `docs/ROADMAP.md` / recent commits before treating this as
-still fully open; it may already be DONE and this entry stale.
+The stay editor and timeline surfaces now distinguish official property times from
+independent planned times; planned times drive the boundary sort key and the
+official time appears parenthetically when both are set. See ADR-0011 for the full
+rationale (including why this is a sibling record, not a `TripIdea` extension).
 
 ## Historical M6 discovery notes — superseded by the rebaseline
 

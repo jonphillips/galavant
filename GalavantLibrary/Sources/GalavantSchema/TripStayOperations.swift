@@ -32,6 +32,8 @@ extension TripStay {
     checkOutDay: Int,
     checkInTime: String? = nil,
     checkOutTime: String? = nil,
+    plannedCheckInTime: String? = nil,
+    plannedCheckOutTime: String? = nil,
     in db: Database
   ) throws -> TripStay.ID {
     let span = coercedSpan(checkInDay: checkInDay, checkOutDay: checkOutDay)
@@ -41,7 +43,8 @@ extension TripStay {
         TripStay(
           id: id, tripID: tripID, ideaID: ideaID,
           checkInDay: span.checkIn, checkOutDay: span.checkOut,
-          checkInTime: checkInTime, checkOutTime: checkOutTime
+          checkInTime: checkInTime, checkOutTime: checkOutTime,
+          plannedCheckInTime: plannedCheckInTime, plannedCheckOutTime: plannedCheckOutTime
         )
       )
     }
@@ -61,6 +64,8 @@ extension TripStay {
     checkOutDay: Int,
     checkInTime: String? = nil,
     checkOutTime: String? = nil,
+    plannedCheckInTime: String? = nil,
+    plannedCheckOutTime: String? = nil,
     in db: Database
   ) throws -> TripStay.ID {
     let span = coercedSpan(checkInDay: checkInDay, checkOutDay: checkOutDay)
@@ -71,7 +76,8 @@ extension TripStay {
           id: id, tripID: tripID, ideaID: nil,
           inlineTitle: title, inlineNote: note,
           checkInDay: span.checkIn, checkOutDay: span.checkOut,
-          checkInTime: checkInTime, checkOutTime: checkOutTime
+          checkInTime: checkInTime, checkOutTime: checkOutTime,
+          plannedCheckInTime: plannedCheckInTime, plannedCheckOutTime: plannedCheckOutTime
         )
       )
     }
@@ -93,6 +99,8 @@ extension TripStay {
     checkOutDay: Int,
     checkInTime: String? = nil,
     checkOutTime: String? = nil,
+    plannedCheckInTime: String? = nil,
+    plannedCheckOutTime: String? = nil,
     in db: Database
   ) throws {
     guard try TripStay.find(stayID).fetchOne(db) != nil else { return }
@@ -108,6 +116,8 @@ extension TripStay {
         $0.checkOutDay = #bind(span.checkOut)
         $0.checkInTime = #bind(checkInTime)
         $0.checkOutTime = #bind(checkOutTime)
+        $0.plannedCheckInTime = #bind(plannedCheckInTime)
+        $0.plannedCheckOutTime = #bind(plannedCheckOutTime)
       }
       .execute(db)
   }
