@@ -21,6 +21,7 @@ struct FreeformStopDraft: Identifiable {
   var note = ""
   var coordinate: CLLocationCoordinate2D?
   var day: Int?
+  var booking = BookingFieldsDraft()
 }
 
 struct AlternativeSourceTarget: Identifiable {
@@ -99,32 +100,25 @@ struct StayDraft: Identifiable {
   var isIdeaBacked: Bool { ideaID != nil }
 }
 
-/// The editable state of the stop-note editor — a stop's short trip-specific
-/// caption (`TripIdea.inlineNote`), the "why it's on the itinerary" nudge shown
-/// under its title. Seeded from the stop's current note; a blank field clears it.
-/// Identifiable (keyed on the stop) so it drives a `.sheet(item:)`.
-struct StopNoteDraft: Identifiable {
-  var stopID: TripIdea.ID
-  var stopTitle: String
-  var note: String
-  var id: TripIdea.ID { stopID }
-}
-
-/// The editable state of the reservation-pin sheet (docs/trip-time-model.md §4)
-/// — give a stop an absolute calendar date plus optional booking metadata, or
-/// (from the sheet's destructive action) drop its pin back to an ordinary
-/// day-relative stop. `isEditing` distinguishes an existing pin (seeded from its
-/// current fields) from a fresh one (seeded from the stop's current placement or
-/// today). `partySize` stays a free-text field, parsed to `Int?` on save, so an
-/// empty field round-trips to "not set" without a separate toggle. Identifiable
-/// (keyed on the stop) so it drives a `.sheet(item:)`.
-struct BookingDraft: Identifiable {
-  var stopID: TripIdea.ID
-  var isEditing: Bool
-  var date: Date
+/// Entry-scoped reservation fields shared by the idea-backed stop editor and the
+/// freeform stop editor. A pin is optional; blank booking metadata is stored as nil.
+struct BookingFieldsDraft {
+  var isPinned = false
+  var date = Date.now
   var confirmationNumber = ""
   var bookingURL = ""
   var partySize = ""
+}
+
+/// The entry-scoped editor for an idea-backed itinerary stop. The optional idea is
+/// only a link to the shared Idea editor; the note and booking fields belong to the
+/// TripIdea entry and are saved here.
+struct StopEditorDraft: Identifiable {
+  var stopID: TripIdea.ID
+  var stopTitle: String
+  var idea: Idea?
+  var note: String
+  var booking: BookingFieldsDraft
   var id: TripIdea.ID { stopID }
 }
 
@@ -233,8 +227,7 @@ final class TripPlanningModel {
     case alternativeSlot(AlternativeSlotTarget)
     case stay(StayDraft)
     case stopTime(StopTimeDraft)
-    case stopNote(StopNoteDraft)
-    case booking(BookingDraft)
+    case stopEditor(StopEditorDraft)
     case recommendationHandoff(RecommendationHandoffPresentation)
     case recommendationWorkspace(RecommendationWorkspacePresentation)
   }

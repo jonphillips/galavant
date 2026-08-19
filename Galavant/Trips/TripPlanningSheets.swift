@@ -114,11 +114,79 @@ struct AddIdeasSheet: View {
   }
 }
 
+/// Edit entry-scoped fields for an idea-backed stop. The shared Idea's fields stay
+/// behind the explicit link so this sheet cannot accidentally edit cross-trip data.
+struct StopEditorSheet: View {
+  let model: TripPlanningModel
+  @State private var draft: StopEditorDraft
+  @Environment(\.dismiss) private var dismiss
+
+  init(model: TripPlanningModel, draft: StopEditorDraft) {
+    self.model = model
+    _draft = State(initialValue: draft)
+  }
+
+  var body: some View {
+    NavigationStack {
+      Form {
+        Section("Stop Note") {
+          TextField("Optional details", text: $draft.note, axis: .vertical)
+            .lineLimit(1...3)
+        }
+        Section("Reservation") {
+          BookingFields(draft: $draft.booking)
+        }
+        if let idea = draft.idea {
+          Section {
+            Button {
+              model.editIdea(idea)
+            } label: {
+              Label("Edit Shared Idea", systemImage: Icon.edit.systemName)
+            }
+          } footer: {
+            Text("The stop title and pool details belong to the shared Idea.")
+          }
+        }
+      }
+      .navigationTitle(draft.stopTitle)
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          Button("Cancel") { dismiss() }
+        }
+        ToolbarItem(placement: .confirmationAction) {
+          Button("Save") { model.saveStop(draft) }
+        }
+      }
+    }
+    .presentationDetents([.medium, .large])
+  }
+}
+
+private struct BookingFields: View {
+  @Binding var draft: BookingFieldsDraft
+
+  var body: some View {
+    Toggle("Pinned reservation", isOn: $draft.isPinned)
+    if draft.isPinned {
+      DatePicker("Date", selection: $draft.date, displayedComponents: .date)
+      TextField("Confirmation number", text: $draft.confirmationNumber)
+      TextField("Booking URL", text: $draft.bookingURL)
+        .keyboardType(.URL)
+        .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+      TextField("Party size", text: $draft.partySize)
+        .keyboardType(.numberPad)
+    }
+  }
+}
+
 /// Author or edit a freeform itinerary stop — a custom stop with no pool idea
 /// ("lunch", "train to Aarhus", "check in"). One sheet for both. When creating,
-/// a day picker (default: To Be Scheduled) lands it directly; when editing, only
-/// the content changes — day placement is the `StopMenu`'s job, as for any stop
-/// (ADR-0010 Slice 3). The title is required; the note and location are optional.
+/// a day picker (default: To Be Scheduled) lands it directly; when editing, the
+/// content, note, and reservation change — day placement is the `StopMenu`'s job,
+/// as for any stop (ADR-0010 Slice 3). The title is required; the note, location,
+/// and reservation are optional.
 struct FreeformStopSheet: View {
   let model: TripPlanningModel
   @State private var draft: FreeformStopDraft
@@ -146,6 +214,9 @@ struct FreeformStopSheet: View {
         Section("Note") {
           TextField("Optional details", text: $draft.note, axis: .vertical)
             .lineLimit(2...5)
+        }
+        Section("Reservation") {
+          BookingFields(draft: $draft.booking)
         }
         Section("Location") {
           if draft.coordinate == nil {
@@ -346,44 +417,6 @@ struct StaySheet: View {
 /// pre-filled by the caller from `Schedule.suggestedTime` over the day's
 /// neighbors, so the common case is confirm-not-type. "Remove Time" drops back to
 /// a bare "Anytime" placement on the same day.
-/// Edit a stop's short trip-specific caption (`TripIdea.inlineNote`) — the
-/// "why it's on the itinerary" nudge shown under its title. One single-line field,
-/// distinct from the pool idea's long-form notes.
-struct StopNoteSheet: View {
-  let model: TripPlanningModel
-  @State private var draft: StopNoteDraft
-  @Environment(\.dismiss) private var dismiss
-
-  init(model: TripPlanningModel, draft: StopNoteDraft) {
-    self.model = model
-    _draft = State(initialValue: draft)
-  }
-
-  var body: some View {
-    NavigationStack {
-      Form {
-        Section {
-          TextField("e.g. Michael's favorite", text: $draft.note, axis: .vertical)
-            .lineLimit(1...3)
-        } footer: {
-          Text("A short nudge shown under the stop on the itinerary.")
-        }
-      }
-      .navigationTitle(draft.stopTitle)
-      .navigationBarTitleDisplayMode(.inline)
-      .toolbar {
-        ToolbarItem(placement: .cancellationAction) {
-          Button("Cancel") { dismiss() }
-        }
-        ToolbarItem(placement: .confirmationAction) {
-          Button("Save") { model.saveStopNote(draft) }
-        }
-      }
-    }
-    .presentationDetents([.medium])
-  }
-}
-
 struct StopTimeSheet: View {
   let model: TripPlanningModel
   @State private var draft: StopTimeDraft
@@ -465,67 +498,5 @@ struct StopTimeSheet: View {
     let minute = parts.count > 1 ? Int(parts[1]) ?? 0 : 0
     let clamped = Swift.min(hour * 60 + minute + 60, 24 * 60 - 1)
     return String(format: "%02d:%02d", clamped / 60, clamped % 60)
-  }
-}
-
-/// Pin a stop to an absolute reservation date, with light booking metadata
-/// (docs/trip-time-model.md §4) — a confirmed OpenTable table, hotel stay, or
-/// timed museum entry is nailed to a real calendar date and must **not** slide
-/// when the trip's start date moves, unlike an ordinary day-relative stop.
-/// Mirrors `StopTimeSheet`'s shape: one required field (here, the date) plus
-/// optional free-text fields, and a destructive action ("Remove Pin") that
-/// drops the stop back to whatever ordinary day-relative placement it's
-/// currently sitting at.
-struct BookingSheet: View {
-  let model: TripPlanningModel
-  @State private var draft: BookingDraft
-  @Environment(\.dismiss) private var dismiss
-
-  init(model: TripPlanningModel, draft: BookingDraft) {
-    self.model = model
-    _draft = State(initialValue: draft)
-  }
-
-  var body: some View {
-    NavigationStack {
-      Form {
-        Section("Reservation Date") {
-          DatePicker("Date", selection: $draft.date, displayedComponents: .date)
-        }
-        Section {
-          TextField("Confirmation number", text: $draft.confirmationNumber)
-          TextField("Booking URL", text: $draft.bookingURL)
-            .keyboardType(.URL)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-          TextField("Party size", text: $draft.partySize)
-            .keyboardType(.numberPad)
-        } header: {
-          Text("Booking Details")
-        } footer: {
-          Text("Optional — shown on the stop for your own reference.")
-        }
-        if draft.isEditing {
-          Section {
-            Button("Remove Pin", systemImage: Icon.revert.systemName, role: .destructive) {
-              model.clearBooking(draft)
-            }
-          } footer: {
-            Text("Removes the pin — the stop returns to an ordinary day-relative placement.")
-          }
-        }
-      }
-      .navigationTitle(draft.isEditing ? "Edit Booking" : "Pin Reservation")
-      .navigationBarTitleDisplayMode(.inline)
-      .toolbar {
-        ToolbarItem(placement: .cancellationAction) {
-          Button("Cancel") { dismiss() }
-        }
-        ToolbarItem(placement: .confirmationAction) {
-          Button("Save") { model.saveBooking(draft) }
-        }
-      }
-    }
-    .presentationDetents([.medium])
   }
 }

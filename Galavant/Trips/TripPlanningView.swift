@@ -303,11 +303,8 @@ private struct TripPlanningPresentationHost<Content: View>: View {
       .sheet(item: $model.destination.stopTime, id: \.id) { draft in
         StopTimeSheet(model: model, draft: draft)
       }
-      .sheet(item: $model.destination.stopNote, id: \.id) { draft in
-        StopNoteSheet(model: model, draft: draft)
-      }
-      .sheet(item: $model.destination.booking, id: \.id) { draft in
-        BookingSheet(model: model, draft: draft)
+      .sheet(item: $model.destination.stopEditor, id: \.id) { draft in
+        StopEditorSheet(model: model, draft: draft)
       }
       .sheet(item: $model.destination.recommendationHandoff, id: \.id) { presentation in
         RecommendationHandoffSheet(model: model, session: presentation.session)

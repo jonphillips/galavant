@@ -553,7 +553,7 @@ struct TripItineraryView: View {
   }
 
   /// The trailing accessory cluster for a stop row: a pinned-reservation glyph and
-  /// the `StopMenu`, plus the info/edit buttons. Extracted
+  /// the `StopMenu`, plus the pencil button. Extracted
   /// from `stopRow` to keep that view builder within the body-length gate.
   @ViewBuilder
   private func stopRowAccessory(_ resolved: ResolvedStop) -> some View {
@@ -567,13 +567,9 @@ struct TripItineraryView: View {
         }
         StopMenu(model: model, stop: resolved)
       }
-      if let idea = resolved.idea {
+      if resolved.idea != nil {
         HStack(spacing: 14) {
-          Button { model.showDetail(idea) } label: {
-            Icon.info.image.foregroundStyle(.secondary)
-          }
-          .buttonStyle(.borderless)
-          Button { model.editIdea(idea) } label: {
+          Button { model.editStop(resolved) } label: {
             Icon.edit.image.foregroundStyle(.secondary)
           }
           .buttonStyle(.borderless)

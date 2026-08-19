@@ -129,7 +129,7 @@ extension TripPlanningModel {
   }
 
   /// Re-open the editor seeded from an existing freeform stop. No-op on an
-  /// idea-backed stop (those edit through the pool idea, not here).
+  /// idea-backed stop (those use the entry-scoped stop editor).
   func editFreeform(_ stop: ResolvedStop) {
     guard case let .freeform(title, note, coordinate) = stop.content else { return }
     destination = .freeformStop(
@@ -140,27 +140,60 @@ extension TripPlanningModel {
         coordinate: coordinate.map {
           CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
         },
-        day: stop.entry.dayNumber))
+        day: stop.entry.dayNumber,
+        booking: bookingFields(for: stop)))
   }
 
-  /// Open the stop-note editor for any stop (idea-backed or freeform), seeded from
-  /// its current `inlineNote` — the short "why it's here" caption on the itinerary.
-  func editStopNote(_ stop: ResolvedStop) {
-    destination = .stopNote(
-      StopNoteDraft(
+  /// Open the entry-scoped editor for an idea-backed stop. The note and booking
+  /// fields belong to this trip's `TripIdea` row; the shared Idea is linked from
+  /// the editor rather than duplicated here.
+  func editStop(_ stop: ResolvedStop) {
+    guard let idea = stop.idea else { return }
+    destination = .stopEditor(
+      StopEditorDraft(
         stopID: stop.id,
         stopTitle: stop.content.title,
-        note: stop.entry.inlineNote ?? ""))
+        idea: idea,
+        note: stop.entry.inlineNote ?? "",
+        booking: bookingFields(for: stop)))
   }
 
-  /// Commit the stop-note editor. A blank note clears the caption.
-  func saveStopNote(_ draft: StopNoteDraft) {
+  /// Commit the entry-scoped editor. A blank note clears the caption; turning off
+  /// the reservation pin returns the stop to ordinary day-relative placement.
+  func saveStop(_ draft: StopEditorDraft) {
+    guard calendarTimeAuthority(for: draft.stopID) == .manual else { return }
+    let note = draft.note.trimmingCharacters(in: .whitespacesAndNewlines)
+    let pin = reservationPin(from: draft.booking)
     withErrorReporting {
       try database.write { db in
-        try TripIdea.setInlineNote(stopID: draft.stopID, note: draft.note, in: db)
+        try TripIdea.setInlineNote(stopID: draft.stopID, note: note, in: db)
+        try TripIdea.setBooking(pin, stopID: draft.stopID, in: db)
       }
     }
     destination = nil
+  }
+
+  func bookingFields(for stop: ResolvedStop) -> BookingFieldsDraft {
+    BookingFieldsDraft(
+      isPinned: stop.entry.pinnedDate != nil,
+      date: stop.entry.pinnedDate
+        ?? stop.entry.schedule.dayNumber.flatMap { trip?.date(forDay: $0) }
+        ?? date(),
+      confirmationNumber: stop.entry.confirmationNumber ?? "",
+      bookingURL: stop.entry.bookingURL ?? "",
+      partySize: stop.entry.partySize.map(String.init) ?? "")
+  }
+
+  func reservationPin(from booking: BookingFieldsDraft) -> ReservationPin? {
+    guard booking.isPinned else { return nil }
+    let confirmation = booking.confirmationNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+    let url = booking.bookingURL.trimmingCharacters(in: .whitespacesAndNewlines)
+    let partySize = Int(booking.partySize.trimmingCharacters(in: .whitespacesAndNewlines))
+    return ReservationPin(
+      date: booking.date,
+      confirmationNumber: confirmation.isEmpty ? nil : confirmation,
+      bookingURL: url.isEmpty ? nil : url,
+      partySize: partySize)
   }
 
   // MARK: - Stays (accommodations, ADR-0011)
@@ -406,67 +439,6 @@ extension TripPlanningModel {
   func clearStopTime(_ draft: StopTimeDraft) {
     guard calendarTimeAuthority(for: draft.stopID) == .manual else { return }
     setSchedule(.day(draft.day), for: draft.stopID)
-    destination = nil
-  }
-
-  // MARK: - Pinned reservations (docs/trip-time-model.md §4)
-
-  /// Present the reservation-pin editor for a stop. Seeds from the stop's
-  /// existing pin when it has one (editing); otherwise from its current day's
-  /// calendar date on a dated trip, falling back to today — a reasonable first
-  /// guess the human confirms or changes, never silently trusted.
-  func editBooking(_ stop: ResolvedStop) {
-    guard calendarTimeAuthority(for: stop.id) == .manual else { return }
-    let entry = stop.entry
-    let seededDate =
-      entry.pinnedDate
-      ?? entry.schedule.dayNumber.flatMap { trip?.date(forDay: $0) }
-      ?? Date()
-    destination = .booking(
-      BookingDraft(
-        stopID: stop.id,
-        isEditing: entry.pinnedDate != nil,
-        date: seededDate,
-        confirmationNumber: entry.confirmationNumber ?? "",
-        bookingURL: entry.bookingURL ?? "",
-        partySize: entry.partySize.map(String.init) ?? ""
-      ))
-  }
-
-  /// Commit the reservation-pin editor: nail the stop to `draft.date` (plus
-  /// whatever booking metadata was entered — all optional, blank fields drop to
-  /// `nil`). `TripIdea.setBooking` computes the resulting `dayNumber` when the
-  /// trip is dated; on an undated trip the pin is stored inert.
-  func saveBooking(_ draft: BookingDraft) {
-    guard calendarTimeAuthority(for: draft.stopID) == .manual else { return }
-    let confirmation = draft.confirmationNumber.trimmingCharacters(in: .whitespacesAndNewlines)
-    let url = draft.bookingURL.trimmingCharacters(in: .whitespacesAndNewlines)
-    let partySize = Int(draft.partySize.trimmingCharacters(in: .whitespacesAndNewlines))
-    let pin = ReservationPin(
-      date: draft.date,
-      confirmationNumber: confirmation.isEmpty ? nil : confirmation,
-      bookingURL: url.isEmpty ? nil : url,
-      partySize: partySize
-    )
-    let stopID = draft.stopID
-    withErrorReporting {
-      try database.write { db in
-        try TripIdea.setBooking(pin, stopID: stopID, in: db)
-      }
-    }
-    destination = nil
-  }
-
-  /// Un-pin a stop's reservation (the editor's destructive "Remove Pin"),
-  /// returning it to an ordinary day-relative stop sitting right where it was.
-  func clearBooking(_ draft: BookingDraft) {
-    guard calendarTimeAuthority(for: draft.stopID) == .manual else { return }
-    let stopID = draft.stopID
-    withErrorReporting {
-      try database.write { db in
-        try TripIdea.setBooking(nil, stopID: stopID, in: db)
-      }
-    }
     destination = nil
   }
 
