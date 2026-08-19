@@ -1,8 +1,39 @@
 # Handoff — sectioned itinerary reorder (inline boundaries + cross-day drag)
 
-**Status:** designed, not built. Spike-first (the overload is unproven on this beta).
-**Precondition base:** `feat/itinerary-drag-reorder-day-lens` (single-collection
-day-lens reorder, working on device — see below). Build on top of that branch.
+**Status:** Spike 0 **device-verified (2026-08-19, beta 5 `27A5237l`) — the sectioned
+overload WORKS.** Drag within a collection and drag *across* the static separator both
+land; the destination collection updates. The `List`-as-destination / gesture-gate wall
+did **not** appear. The inline-boundary + cross-day path is viable — proceed to Slice 1.
+**Precondition base:** Slice A is merged to `main` (PR #72). Build Slice 1+ on a new
+feature branch off `main`.
+
+**Implementation status (2026-08-19) — ABANDONED ON THIS BETA, retreated to `main`.**
+Slice 1 and Slice 2 were built on `feat/itinerary-cross-day-reorder` (unified onto one
+`ItineraryRunID` run model, `reorderContainer(for:in:)`) and **do not work on beta 5**:
+the sectioned overload's move closure never fires on device — no cross-day move, and it
+even killed the day lens's same-day reorder that works on `main`. Every structure was
+tried (per-day sections, one flattened section, per-collection sections matching the
+SwiftUI docs example) and every one no-oped. See `docs/KNOWN-ISSUES.md`, *"DEAD ON
+BETA 5 — the sectioned `reorderContainer(for:in:)` overload delivers no
+`ReorderDifference`"*, for the full matrix and the decision.
+
+**Decision (Jon, 2026-08-19): retreat.** The branch's code is reverted to `main`'s
+proven single-collection day-lens reorder (folded boundaries — the day-anchored rows
+still lift with the stop, cosmetically). Cross-day stays on the `StopMenu` Move-to-Day
+path. The spec below is retained as the design for a **future** attempt once a later beta
+makes the sectioned overload actually deliver; re-run Spike 0 inside a real
+`TripItineraryView`-shaped list (not the standalone spike) as the gate before rebuilding.
+Everything below is aspirational, not the current code.
+
+### Spike 0 open finding — empty collections can't be re-entered
+
+Once a collection is emptied by dragging its last item out, you **can't drag anything
+back into it.** This is the expected reorder-gap limitation, **not** a beta bug: an empty
+collection has no row to insert `before` and no hit area, so there's no drop target. Fix
+(owed in Slice 1/2): give an empty section a minimal **placeholder drop row**, or attach
+a container `.dropDestination` whose `reorderDestination` returns `.end` for that
+collection. **Load-bearing for cross-day:** an empty day (drag a day's only stop out,
+then try to put one back) is exactly this shape, as is any day whose runs empty out.
 
 ## Goal
 
