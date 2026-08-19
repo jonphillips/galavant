@@ -6,6 +6,22 @@ Companion to `docs/DONE_LOG.md` (what's already shipped) — this file used to b
 one long `docs/BACKLOG.md`; split 2026-07-11 to keep token cost down when an agent
 reads it for context.
 
+## In progress — declutter the StopMenu (itinerary row clock menu)
+
+Handed to Codex: `docs/handoff/stop-menu-declutter.md`. The clock-icon menu on an
+itinerary stop is a junk drawer; the work re-homes each concern by scope — *when*
+stays in the clock menu (time of day / set time / move day), *lifecycle* moves to
+swipe actions (To Be Scheduled / Skip / Move to Shortlist, with a confirmed
+destructive Remove on freeform), *stop-scoped fields* (inline note + booking/pin)
+move to a new **stop editor** distinct from the shared-idea edit form, *add
+alternative* moves to a `+` on the alternatives controls row, and the row tap
+gains an ambient detail push (info button retire; pencil stays for now).
+
+**Evaluate after landing (Jon):** once tap → detail is in, judge how
+tap → detail → **Edit-inside-detail** feels — if the detail's own Edit button
+carries its weight, the row pencil (and possibly the whole info/edit accessory
+pair) becomes redundant and can be collapsed. Deliberately deferred, not dropped.
+
 ## Designed — sectioned itinerary reorder (inline boundaries + cross-day)
 
 Day-lens single-collection reorder ships on `feat/itinerary-drag-reorder-day-lens`
