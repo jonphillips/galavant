@@ -191,23 +191,43 @@ failed:
      drag never committed — you had to hold until the menu appeared. Converting it to a
      tap-triggered `Menu` freed the long-press for the reorder. (Pairs with the "Stacked
      `dropDestination` trap" house rule.)
-- **OPEN — folding day-anchored boundary rows into reorderable stop cells is wrong
-  (2026-08-19).** `focusedDayCells` folds every non-stop timeline item — calendar
-  constraints, stay check-in/out, home-base, the now-marker — into the *next* stop cell as
-  `leading` content. Only the outgoing travel connector is genuinely stop-attached; the rest
-  are **day-anchored** and must not move with a stop. Symptom on device: lifting the first
-  stop produces a drag preview containing the hotel check-in and the calendar car-rental
-  rows (screenshot 2026-08-19), and those events would re-seat if the stop moved. Fix
-  direction is a design call (see CURRENT_HANDOFF): render day-anchored boundaries outside
-  the reorderable `ForEach`, keeping only the trailing connector folded — the hard part is
-  that boundaries interleave *between* stops by time, and a single reorderable `ForEach`
-  must stay contiguous.
-- **Cross-day drag (drag an event from one day to another in `fullItinerary`) is the
-  sectioned-overload feature and is still gated.** It needs `.reorderContainer(for:in:)`
-  (day = section), the overload nothing in either codebase exercises yet and that Galavant's
-  three beta-1 failures (all `List`-as-*destination*) most implicate. Sequence: settle the
-  boundary-row design in the day lens first, then attempt the sectioned container once
-  yes-chef ADR-0055 D3 lands the first data point on it.
+- **OPEN, STILL FOLDED — day-anchored boundary rows lift with the stop (cosmetic).**
+  `focusedDayCells` folds every non-stop timeline item — calendar constraints, stay
+  check-in/out, home-base, the now-marker — into the *next* stop cell as `leading` content.
+  Only the outgoing travel connector is genuinely stop-attached; the rest are **day-anchored**
+  and should not move with a stop. Symptom on device: lifting the first stop produces a drag
+  preview containing the hotel check-in and the calendar car-rental rows (screenshot
+  2026-08-19). It is **cosmetic** — the persisted order is correct (only stops carry
+  `dayRank`); the day-anchored rows re-seat at their time position on the next render. The
+  clean fix needs static boundary rows *between* reorderable runs, which requires the
+  sectioned reorder overload — **blocked on the beta**, see the next entry. Punted.
+- **DEAD ON BETA 5 — the sectioned `reorderContainer(for:in:)` overload delivers no
+  `ReorderDifference` in this app (2026-08-19, `27A5237l`, on device).** The whole
+  inline-boundaries + cross-day feature (branch `feat/itinerary-cross-day-reorder`) was built
+  on the sectioned overload (`reorderable(collectionID:)` + `reorderContainer(for:in:)`) and
+  **the move closure never fires** — no cross-day move, and it also killed the day lens's
+  *same-day* reorder that works on `main` via the single-collection overload. Exhaustively
+  tried, all no-ops on device:
+  - Per-day `Section`s (each day one section, multiple run collections).
+  - One flattened `Section` (all days' runs + inline day-header rows in a single section).
+  - Per-collection `Section`s — the SwiftUI-docs-exact multi-collection shape
+    (`ForEach(collections){ Section { ForEach(items).reorderable(collectionID:) } }`).
+  - `for:` element type both **mismatched** (`ResolvedStop` while the `ForEach` iterates
+    `ItineraryStopCell`) and **matched** — matching is necessary but not sufficient.
+
+  The **single-collection** overload (`reorderable()` + `reorderContainer(for:)`) is healthy
+  on beta 5 — it is what `TripsScreen`, `TripIdeasView`, and the **day lens** use and it
+  reorders + persists on device. The break is specific to the *sectioned* overload.
+  **Spike 0 (`SectionedReorderSpikeView`, a minimal two-collection view) reportedly landed a
+  cross-collection drop on this same device/beta, but that result did not reproduce in any
+  integration** — treat the spike as unproven, not a green light.
+  **Decision (Jon, 2026-08-19): retreat.** Code reverted to `main`'s single-collection day
+  lens; the branch keeps only this finding. Cross-day stays on the `StopMenu` Move-to-Day /
+  To-Be-Scheduled path. Re-attempt inline boundaries + cross-day only after a later beta
+  makes the sectioned overload actually deliver — re-run Spike 0 *inside* a real
+  `TripItineraryView`-shaped list (not standalone) as the gate before rebuilding.
+  Earlier iteration used day-number collections in `fullItinerary` and dumped connectors/
+  calendar rows below each day's stops — that lost the timeline weave and is superseded.
 
 ## Keyboard text entry flaky in the iOS 27 simulator (environment, not our code)
 
