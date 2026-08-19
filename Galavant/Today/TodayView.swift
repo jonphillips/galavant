@@ -178,7 +178,8 @@ struct TodayView: View {
           tagNames: planningModel.tagNames(for: idea),
           interests: planningModel.interests(for: idea),
           evaluations: planningModel.evaluations(for: idea),
-          stopContext: planningModel.stopContext(for: idea))
+          stopContext: planningModel.stopContext(for: idea),
+          headerImage: model.thumbnail(forIdea: idea.id))
           .navigationTitle(idea.name)
           .navigationBarTitleDisplayMode(.inline)
       }

@@ -10,6 +10,8 @@ struct TripIdeasView: View {
   /// On compact layouts this is the first list section, so it scrolls with the
   /// pool instead of taking permanent vertical space above it.
   var showsInlineAdd = false
+  /// Regular-width iPad uses the photo-forward scheduled-row treatment.
+  var usesColumn = false
 
   var body: some View {
     List {
@@ -88,11 +90,11 @@ struct TripIdeasView: View {
         }
       }
       if !model.plan.scheduled.isEmpty {
-        Section("Scheduled") {
+        Section {
           ForEach(model.plan.scheduled) { resolved in
             // A scheduled stop can't be removed here — swipe to Unschedule first
             // (idea-backed: drops back to Shortlist; freeform: removes it).
-            PlanningRow(content: resolved.content, subtitle: .category) { scheduledBadge(resolved.entry.schedule) }
+            scheduledRow(resolved)
               .contentShape(Rectangle())
               .onTapGesture { if let idea = resolved.idea { model.showDetail(idea) } }
               .swipeActions(edge: .trailing) {
@@ -111,6 +113,18 @@ struct TripIdeasView: View {
                   .tint(.orange)
                 }
               }
+          }
+        } header: {
+          HStack(spacing: 6) {
+            Text("Scheduled")
+            Button {
+              model.sheetTab = .itinerary
+            } label: {
+              Image(systemName: "calendar.badge.checkmark")
+                .foregroundStyle(.green)
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel("Show scheduled itinerary")
           }
         }
       }
@@ -186,5 +200,25 @@ struct TripIdeasView: View {
         .foregroundStyle(placed ? AnyShapeStyle(.green) : AnyShapeStyle(.yellow))
     }
     .buttonStyle(.borderless)
+  }
+
+  @ViewBuilder
+  private func scheduledRow(_ resolved: ResolvedStop) -> some View {
+    if usesColumn {
+      PlanningRow(
+        content: resolved.content,
+        subtitle: .none,
+        marker: .image(resolved.idea.flatMap { model.headerThumbnailByIdea[$0.id] })
+      ) {
+        Image(systemName: resolved.idea?.kind?.systemImage ?? "mappin.and.ellipse")
+          .foregroundStyle(.secondary)
+          .frame(width: 26)
+          .accessibilityLabel(resolved.idea?.kind?.label ?? "Place type")
+      }
+    } else {
+      PlanningRow(content: resolved.content, subtitle: .category) {
+        scheduledBadge(resolved.entry.schedule)
+      }
+    }
   }
 }

@@ -158,6 +158,10 @@ final class TripPlanningModel {
   @ObservationIgnored @FetchAll(Planner.all) var planners
   @ObservationIgnored @FetchAll(IdeaInterest.all) var interestRows
   @ObservationIgnored @FetchAll(IdeaEvaluation.all) var allEvaluations
+  @ObservationIgnored @FetchAll(
+    ImageAsset.where { $0.isHeader.eq(true) }
+      .select { HeaderThumb.Columns(ideaID: $0.ideaID, thumbnail: $0.thumbnail) }
+  ) var headerThumbs
 
   let tripID: Trip.ID
   var destination: Destination?
@@ -247,6 +251,15 @@ final class TripPlanningModel {
   // MARK: - Derived state
 
   var trip: Trip? { trips.first { $0.id == tripID } }
+
+  @Selection struct HeaderThumb {
+    let ideaID: Idea.ID
+    let thumbnail: Data
+  }
+
+  var headerThumbnailByIdea: [Idea.ID: Data] {
+    Dictionary(headerThumbs.map { ($0.ideaID, $0.thumbnail) }, uniquingKeysWith: { first, _ in first })
+  }
 
   private var entries: [TripIdea] { allTripIdeas.filter { $0.tripID == tripID } }
   private var stays: [TripStay] { allTripStays.filter { $0.tripID == tripID } }

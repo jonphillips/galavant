@@ -281,7 +281,7 @@ struct TripItineraryView: View {
         }
         Spacer()
         Text(constraint.displayTime ?? constraintTime(constraint))
-          .font(.subheadline.monospaced())
+          .font(.caption.monospaced())
           .foregroundStyle(.secondary)
         if constraint.notes != nil {
           Image(systemName: "chevron.right")

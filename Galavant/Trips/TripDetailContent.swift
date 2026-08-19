@@ -92,7 +92,7 @@ struct TripDetailContent: View {
           focusedDay: model.canvasSelectedDay
         )
       case .ideas:
-        TripIdeasView(model: model, showsInlineAdd: !usesColumn)
+        TripIdeasView(model: model, showsInlineAdd: !usesColumn, usesColumn: usesColumn)
       }
     }
     .safeAreaInset(edge: .top, spacing: 0) {

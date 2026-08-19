@@ -133,7 +133,47 @@ struct CalendarTripConstraintTests {
       tripID: tripID, event: event, projection: .day(2, timeZone: timeZone)))
 
     #expect(constraint.startTime == "00:00")
-    #expect(constraint.displayTime == "6:00P EDT–7:00P EDT")
+    #expect(constraint.displayTime == " 6:00P EDT–\n 7:00P EDT")
+  }
+
+  @Test func displayTimeAlignsClockAndZoneColumns() throws {
+    let eastern = try #require(TimeZone(identifier: "America/New_York"))
+    var easternCalendar = Calendar(identifier: .gregorian)
+    easternCalendar.timeZone = eastern
+    let start = try #require(easternCalendar.date(from: DateComponents(
+      year: 2026, month: 8, day: 12, hour: 12, minute: 9)))
+    let event = CalendarObservedEvent(
+      id: "aligned-flight",
+      eventIdentifier: "aligned-flight",
+      externalIdentifier: "aligned-flight-server",
+      title: "CLT to MUC",
+      temporal: .absolute(
+        start: start, end: start.addingTimeInterval(69 * 60), timeZone: eastern),
+      calendarTitle: "Family")
+    let constraint = try #require(CalendarTripConstraint(
+      tripID: tripID, event: event, projection: .day(2, timeZone: timeZone)))
+
+    #expect(constraint.displayTime == "12:09P EDT–\n 1:18P EDT")
+  }
+
+  @Test func displayTimeAbbreviatesGMT() throws {
+    let gmt = TimeZone(secondsFromGMT: 0)!
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = gmt
+    let start = try #require(calendar.date(from: DateComponents(
+      year: 2026, month: 8, day: 12, hour: 6)))
+    let event = CalendarObservedEvent(
+      id: "gmt-flight",
+      eventIdentifier: "gmt-flight",
+      externalIdentifier: "gmt-flight-server",
+      title: "CLT to MUC",
+      temporal: .absolute(
+        start: start, end: start.addingTimeInterval(3600), timeZone: gmt),
+      calendarTitle: "Family")
+    let constraint = try #require(CalendarTripConstraint(
+      tripID: tripID, event: event, projection: .day(2, timeZone: timeZone)))
+
+    #expect(constraint.displayTime == " 6:00A G–\n 7:00A G")
   }
 
   @Test func replacementLocalIdentifierHealsAndUpdatesConstraint() throws {

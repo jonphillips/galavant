@@ -130,30 +130,46 @@ public struct CalendarTripConstraint: Identifiable, Equatable, Sendable {
       calendar.timeZone = timeZone
       let startDescription = displayClock(start, calendar: calendar, timeZone: timeZone)
       let endDescription = displayClock(end, calendar: calendar, timeZone: timeZone)
-      return startDescription == endDescription
-        ? startDescription
-        : "\(startDescription)–\(endDescription)"
+      return displayRange(start: startDescription, end: endDescription)
     case let .floating(start, end):
-      let startDescription = start.clockDescription
-      let endDescription = end.clockDescription
-      return startDescription == endDescription
-        ? startDescription
-        : "\(startDescription)–\(endDescription)"
+      return displayRange(
+        start: (clock: start.clockDescription, zone: nil),
+        end: (clock: end.clockDescription, zone: nil))
     case .allDay:
       return nil
     }
   }
 
+  private static func displayRange(
+    start: (clock: String, zone: String?),
+    end: (clock: String, zone: String?)
+  ) -> String {
+    guard start != end else {
+      return displayLine(start)
+    }
+    return "\(displayLine(start))–\n\(displayLine(end))"
+  }
+
+  private static func displayLine(_ value: (clock: String, zone: String?)) -> String {
+    let clock = String(repeating: " ", count: Swift.max(0, 6 - value.clock.count)) + value.clock
+    return clock + (value.zone.map { " \($0)" } ?? "")
+  }
+
   private static func displayClock(
     _ date: Date, calendar: Calendar, timeZone: TimeZone
-  ) -> String {
+  ) -> (clock: String, zone: String) {
     let components = calendar.dateComponents([.hour, .minute], from: date)
     let hour = components.hour ?? 0
     let minute = components.minute ?? 0
     let suffix = hour < 12 ? "A" : "P"
     let displayHour = hour % 12 == 0 ? 12 : hour % 12
     let zone = timeZone.abbreviation(for: date) ?? timeZone.identifier
-    return String(format: "%d:%02d%@ %@", displayHour, minute, suffix, zone)
+    let displayZone = zone.hasPrefix("GMT")
+      ? "G\(zone.dropFirst(3))"
+      : zone
+    return (
+      clock: String(format: "%d:%02d%@", displayHour, minute, suffix),
+      zone: displayZone)
   }
 
   private static func encode(_ commitment: CalendarCommitment) -> String? {
