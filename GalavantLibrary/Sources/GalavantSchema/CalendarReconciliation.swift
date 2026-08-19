@@ -464,6 +464,19 @@ public enum CalendarReconciliation {
     return linked
   }
 
+  /// Finds the ingested candidate represented by a shared constraint. The
+  /// constraint stores only the stable source fingerprint, so this lookup keeps
+  /// the app-side EventKit identity out of the shared domain model.
+  public static func candidate(
+    for constraint: CalendarTripConstraint,
+    in candidates: [CalendarReconciliationCandidate]
+  ) -> CalendarReconciliationCandidate? {
+    candidates.first {
+      CalendarReconciliationFingerprint.constraintSource(for: $0.input.event)
+        == constraint.sourceIdentityHash
+    }
+  }
+
   /// Removes a local EventKit binding and records the human correction. The shared
   /// itinerary pin is cleared by the app shell in the same user action.
   public static func unlinkPlan(
@@ -485,6 +498,31 @@ public enum CalendarReconciliation {
         sourceFingerprint: CalendarReconciliationFingerprint.source(for: candidate.input.event),
         appliedAt: observedAt))
     return CalendarReconciliationUnlinkPlan(stopID: linked.stopID, localState: state)
+  }
+
+  /// Removes Calendar authority after a linked event is authoritatively deleted.
+  /// The app shell clears the Calendar-derived clock while retaining the real
+  /// idea-backed stop as an ordinary, unbooked plan.
+  public static func deletedLinkedStopsPlan(
+    localState: CalendarReconciliationLocalState,
+    deletedEventIDs: Set<String>,
+    observedAt: Date,
+    makeHistoryID: () -> UUID
+  ) -> CalendarReconciliationDeletedLinkedStopsPlan {
+    var state = localState
+    let deleted = state.linkedStops.filter { deletedEventIDs.contains($0.eventID) }
+    state.linkedStops.removeAll { deletedEventIDs.contains($0.eventID) }
+    for linked in deleted {
+      let sourceFingerprint = state.history.last(where: { $0.stopID == linked.stopID })?.sourceFingerprint
+      state.history.append(
+        CalendarReconciliationHistoryEntry(
+          id: makeHistoryID(), kind: .commitmentDeleted, stopID: linked.stopID,
+          eventID: linked.eventID, eventTitle: linked.eventTitle ?? "Calendar event",
+          current: linked.commitment, sourceFingerprint: sourceFingerprint,
+          appliedAt: observedAt))
+    }
+    return CalendarReconciliationDeletedLinkedStopsPlan(
+      stopIDs: deleted.map(\.stopID), localState: state)
   }
 
   private static func updateLinkedStop(

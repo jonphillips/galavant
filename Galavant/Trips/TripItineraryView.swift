@@ -1,3 +1,4 @@
+import GalavantPlaces
 import GalavantSchema
 import MapKit
 import SwiftUI
@@ -9,6 +10,7 @@ import SwiftUI
 /// selection) and carries the `StopMenu` to set/move its day and time.
 struct TripItineraryView: View {
   let model: TripPlanningModel
+  let reconciliationModel: CalendarReconciliationModel
   /// On compact layouts this is the first list section, so it scrolls with the
   /// timeline instead of taking permanent vertical space above it.
   var showsInlineAdd = false
@@ -27,7 +29,10 @@ struct TripItineraryView: View {
           withAnimation { proxy.scrollTo(id, anchor: .center) }
         }
         .sheet(item: $selectedCalendarConstraint) { constraint in
-          CalendarConstraintDetailSheet(constraint: constraint)
+          CalendarConstraintDetailSheet(
+            constraint: constraint,
+            model: model,
+            reconciliationModel: reconciliationModel)
         }
     }
   }
@@ -276,7 +281,7 @@ struct TripItineraryView: View {
         }
         Spacer()
         Text(constraint.displayTime ?? constraintTime(constraint))
-          .font(.subheadline.monospaced())
+          .font(.caption.monospaced())
           .foregroundStyle(.secondary)
         if constraint.notes != nil {
           Image(systemName: "chevron.right")
@@ -491,7 +496,10 @@ struct TripItineraryView: View {
 
 private struct CalendarConstraintDetailSheet: View {
   let constraint: CalendarTripConstraint
+  let model: TripPlanningModel
+  let reconciliationModel: CalendarReconciliationModel
   @Environment(\.dismiss) private var dismiss
+  @State private var showingLocationPicker = false
 
   var body: some View {
     NavigationStack {
@@ -511,6 +519,14 @@ private struct CalendarConstraintDetailSheet: View {
               .textSelection(.enabled)
           }
         }
+        Section {
+          Button("Give this a place") {
+            showingLocationPicker = true
+          }
+          .buttonStyle(.borderedProminent)
+        } footer: {
+          Text("The event's Calendar time will stay attached to the new itinerary stop.")
+        }
       }
       .navigationTitle("Calendar Event")
       .toolbar {
@@ -518,6 +534,38 @@ private struct CalendarConstraintDetailSheet: View {
           Button("Done") { dismiss() }
         }
       }
+      .sheet(isPresented: $showingLocationPicker) {
+        AssignConstraintLocationSheet(
+          constraint: constraint,
+          initialRegion: dayRegion
+        ) { place in
+          Task { await placeChosen(place) }
+        }
+      }
+    }
+  }
+
+  private var dayRegion: MKCoordinateRegion? {
+    guard let region = model.plan.region(forDay: constraint.dayNumber) else { return nil }
+    return MKCoordinateRegion(
+      center: CLLocationCoordinate2D(
+        latitude: region.centerLatitude,
+        longitude: region.centerLongitude),
+      span: MKCoordinateSpan(
+        latitudeDelta: region.latitudeDelta,
+        longitudeDelta: region.longitudeDelta))
+  }
+
+  private func placeChosen(_ place: Place) async {
+    guard let trip = model.trip else { return }
+    await reconciliationModel.promote(
+      constraint: constraint,
+      place: place,
+      trip: trip,
+      plan: model.plan)
+    guard case .failure = reconciliationModel.state else {
+      dismiss()
+      return
     }
   }
 }

@@ -64,3 +64,13 @@ public struct CalendarReconciliationUnlinkPlan: Equatable, Sendable {
     self.localState = localState
   }
 }
+
+public struct CalendarReconciliationDeletedLinkedStopsPlan: Equatable, Sendable {
+  public var stopIDs: [TripIdea.ID]
+  public var localState: CalendarReconciliationLocalState
+
+  public init(stopIDs: [TripIdea.ID], localState: CalendarReconciliationLocalState) {
+    self.stopIDs = stopIDs
+    self.localState = localState
+  }
+}

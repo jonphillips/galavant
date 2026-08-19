@@ -15,6 +15,7 @@ import SwiftUINavigation
 /// above either layout.
 struct TripDetailContent: View {
   let model: TripPlanningModel
+  let reconciliationModel: CalendarReconciliationModel
   let usesColumn: Bool
   var onShowStartDay: () -> Void = {}
   var onShowCalendarReconciliation: () -> Void = {}
@@ -86,11 +87,12 @@ struct TripDetailContent: View {
       case .itinerary:
         TripItineraryView(
           model: model,
+          reconciliationModel: reconciliationModel,
           showsInlineAdd: !usesColumn,
           focusedDay: model.canvasSelectedDay
         )
       case .ideas:
-        TripIdeasView(model: model, showsInlineAdd: !usesColumn)
+        TripIdeasView(model: model, showsInlineAdd: !usesColumn, usesColumn: usesColumn)
       }
     }
     .safeAreaInset(edge: .top, spacing: 0) {

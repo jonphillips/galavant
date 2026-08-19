@@ -191,6 +191,21 @@ columns per ADR-0006; the enum need not be a stored fifth thing if a nullable
 "linked event identity + observed-at" already discriminates it). What this ADR fixes
 is the **semantics**: exactly one authority, never a silent third truth.
 
+### Amendment — reverse handoff from constraint to linked stop (2026-08-18)
+
+The flow in [the calendar-constraint-to-linked-stop handoff](../handoff/calendar-constraint-to-linked-stop.md)
+adds the approved reverse handoff: a Calendar-originated `CalendarTripConstraint`
+may be promoted after a planner assigns an Apple Maps place identity. Promotion
+creates an idea-backed itinerary stop and routes it through the existing `.linked`
+reconciliation path, flipping provenance from Calendar-only constraint to
+Galavant-originated plan plus Calendar-linked commitment. The constraint is then
+reaped by normal reconciliation rather than a second hand-written deletion path.
+
+This preserves §6 when the event later disappears: the Calendar booking authority
+is removed, while the V1 disposition for the surviving Galavant plan is to keep it
+as an unbooked stop. The stop's Calendar-derived timing and notes are cleared, and
+the local binding records the `.unlinked` history transition.
+
 ### 10. Correctness invariants (first-class, not cleanup)
 
 The engine that the M7 slices build must honor these from the start — they are where

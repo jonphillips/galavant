@@ -62,13 +62,17 @@ extension CalendarReconciliationModel {
   /// A missing device-local EventKit identifier is necessary but insufficient
   /// deletion evidence because sync may replace that identifier. A healthy
   /// full-access read therefore corroborates absence through the event's server
-  /// identity before a Calendar-originated constraint is removed. A missing
+  /// identity before a Calendar-originated row or binding is removed. A missing
   /// recurring occurrence stays unknown while its series remains visible.
+  ///
+  /// Linked-stop bindings have no calendar ID because they predate shared
+  /// constraints. They are evaluated against this model's selected calendar
+  /// client, which is the calendar used for the current reconciliation.
   func deletedConstraintEventIDs(
     observedEvents: [CalendarObservedEvent],
     selectedCalendarID: String
   ) -> Set<String> {
-    Set(localState.linkedConstraints.compactMap { binding in
+    var deletedEventIDs = Set<String>(localState.linkedConstraints.compactMap { binding in
       guard binding.calendarID == selectedCalendarID,
         !observedEvents.contains(where: binding.matches),
         calendarClient.event(binding.eventID) == nil
@@ -80,6 +84,26 @@ extension CalendarReconciliationModel {
       else { return nil }
       return binding.eventID
     })
+    for binding in localState.linkedStops {
+      guard let sourceExternalIdentifier = binding.sourceExternalIdentifier,
+        !observedEvents.contains(where: { event in
+          event.id == binding.eventID
+            || (event.externalIdentifier == sourceExternalIdentifier
+              && event.recurrence?.originalOccurrence == binding.occurrenceAnchor)
+        }),
+        calendarClient.event(binding.eventID) == nil
+      else { continue }
+      let serverMatches = calendarClient.eventsWithExternalIdentifier(sourceExternalIdentifier)
+      guard !serverMatches.contains(where: { event in
+        event.id == binding.eventID
+          || (event.externalIdentifier == sourceExternalIdentifier
+            && event.recurrence?.originalOccurrence == binding.occurrenceAnchor)
+      }),
+        !calendarClient.hasCalendarItemsWithExternalIdentifier(sourceExternalIdentifier)
+      else { continue }
+      deletedEventIDs.insert(binding.eventID)
+    }
+    return deletedEventIDs
   }
 
   /// A Calendar-originated constraint confirmed outside the trip drops its shared

@@ -1,5 +1,6 @@
 import GalavantSchema
 import SwiftUI
+import UIKit
 
 /// The leading glyph a `PlanningRow` shows. `.kind` (the default) is the idea's
 /// category icon — what every pool/shortlist/Add-Ideas row wears. `.sequence`
@@ -8,6 +9,7 @@ import SwiftUI
 /// on `.kind`, since they have no pin).
 enum PlanningRowMarker {
   case kind
+  case image(Data?)
   case sequence(Int, Color)
 }
 
@@ -97,6 +99,22 @@ struct PlanningRow<Trailing: View>: View {
         .foregroundStyle(.secondary)
         .frame(width: 26)
         .padding(.top, 2)
+    case let .image(data):
+      if let data, let image = UIImage(data: data) {
+        Image(uiImage: image)
+          .resizable()
+          .scaledToFill()
+          .frame(width: 44, height: 44)
+          .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+          .accessibilityHidden(true)
+      } else {
+        Image(systemName: "photo")
+          .foregroundStyle(.tertiary)
+          .frame(width: 44, height: 44)
+          .background(Color(.secondarySystemFill))
+          .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+          .accessibilityHidden(true)
+      }
     case let .sequence(number, color):
       VStack(spacing: 3) {
         SequencePin(number: number, color: color)

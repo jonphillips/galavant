@@ -65,6 +65,7 @@
 		734D683130527266D1AEF8AD /* WeatherDebugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24FAAF80343489A5540F82DF /* WeatherDebugView.swift */; };
 		76E9D46A29DE8080E15D9DC8 /* TodayModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74A40B8122D91A39A5AB2309 /* TodayModel.swift */; };
 		771BA3D003504F4DE062AFFB /* StartDayPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B2DC50A26F7695EC3EC536A /* StartDayPanel.swift */; };
+		772E0AEEC6BAA440D6D9FD4E /* AssignConstraintLocationSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C33D788AD43C3F7C886F55D5 /* AssignConstraintLocationSheet.swift */; };
 		79754521E12644FF3AA51458 /* GalavantCaptureUI in Frameworks */ = {isa = PBXBuildFile; productRef = 45FB64BD9AB6BD913C67BFEA /* GalavantCaptureUI */; };
 		7B999C65BDCCA5657877F9CD /* IdeasListModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E146770B6C9957BA19FC94EC /* IdeasListModel.swift */; };
 		7C0852DE598E12CE4596E8B3 /* TodaySupportingViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC88DBCF4AB9A9D219BFDFAD /* TodaySupportingViews.swift */; };
@@ -260,6 +261,7 @@
 		C03BF0F90A008DC4A1E8E3BA /* MapPlaceSearchOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapPlaceSearchOverlay.swift; sourceTree = "<group>"; };
 		C071E50FDA62E29FC448F993 /* GalavantLibrary */ = {isa = PBXFileReference; lastKnownFileType = folder; name = GalavantLibrary; path = GalavantLibrary; sourceTree = SOURCE_ROOT; };
 		C0A1B810182571FD874E4261 /* SyncSeedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncSeedTests.swift; sourceTree = "<group>"; };
+		C33D788AD43C3F7C886F55D5 /* AssignConstraintLocationSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssignConstraintLocationSheet.swift; sourceTree = "<group>"; };
 		C5AD27A1248EEA1D9B580277 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		C8BA5355102262E8FF3F053B /* CalendarExportModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarExportModel.swift; sourceTree = "<group>"; };
 		CC16D0C39AA361A09737B45F /* Galavant.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Galavant.entitlements; sourceTree = "<group>"; };
@@ -464,6 +466,7 @@
 		370543ACE0B28DE54D365B7E /* Calendar */ = {
 			isa = PBXGroup;
 			children = (
+				C33D788AD43C3F7C886F55D5 /* AssignConstraintLocationSheet.swift */,
 				51AA50E3CB7A4D6C5DD50110 /* CalendarExportClient.swift */,
 				C8BA5355102262E8FF3F053B /* CalendarExportModel.swift */,
 				4DE96A186A7350AD7E625B04 /* CalendarReconciliationModel+Ingestion.swift */,
@@ -841,6 +844,7 @@
 				F41E8D178B9FE462E5E797F5 /* AppContainer.swift in Sources */,
 				686D8E04502200DBC618B751 /* AppRouter.swift in Sources */,
 				4FA9D5986A89B2B51B88F5C2 /* AppScreen.swift in Sources */,
+				772E0AEEC6BAA440D6D9FD4E /* AssignConstraintLocationSheet.swift in Sources */,
 				52FDF2960D787D40108B3780 /* Binding+Present.swift in Sources */,
 				1284CC7780258FD4F4425010 /* BrowserScreen.swift in Sources */,
 				1BA8684F8293D1EBB16FB70C /* BrowserScreenModel.swift in Sources */,

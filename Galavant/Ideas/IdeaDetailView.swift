@@ -1,6 +1,7 @@
 import GalavantSchema
 import MapKit
 import SwiftUI
+import UIKit
 
 /// The placement of an idea on the trip's itinerary — populated only when the
 /// detail is drilled into from the **Itinerary** (a scheduled stop), nil for a
@@ -29,6 +30,8 @@ struct IdeaDetailView: View {
   var evaluations: [IdeaEvaluation] = []
   /// Set when this is a scheduled itinerary stop (vs. a plain pool idea).
   var stopContext: StopDetailContext? = nil
+  /// The compact header image bytes supplied by the owning presentation model.
+  var headerImage: Data? = nil
 
   /// The link as a URL, if it parses — drives the tappable Link row.
   private var link: URL? {
@@ -52,6 +55,18 @@ struct IdeaDetailView: View {
 
   var body: some View {
     List {
+      if let headerImage, let image = UIImage(data: headerImage) {
+        Section {
+          Image(uiImage: image)
+            .resizable()
+            .scaledToFill()
+            .frame(maxWidth: .infinity)
+            .frame(height: 220)
+            .clipped()
+            .accessibilityLabel("Photo of \(idea.name)")
+            .listRowInsets(EdgeInsets())
+        }
+      }
       if let coordinate = idea.coordinate {
         Section {
           StopMap(coordinate: coordinate, name: idea.name)

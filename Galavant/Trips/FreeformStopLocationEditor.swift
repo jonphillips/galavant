@@ -113,8 +113,15 @@ struct FreeformStopLocationMap: View {
 
 struct FreeformStopLocationSearchView: View {
   let onSelect: (Place) -> Void
-  @State private var search = PlaceSearchModel()
+  @State private var search: PlaceSearchModel
   @Environment(\.dismiss) private var dismiss
+
+  init(initialQuery: String = "", onSelect: @escaping (Place) -> Void) {
+    self.onSelect = onSelect
+    let search = PlaceSearchModel()
+    search.query = initialQuery
+    _search = State(initialValue: search)
+  }
 
   var body: some View {
     @Bindable var search = search
