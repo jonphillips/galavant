@@ -1,14 +1,7 @@
 import GalavantPlaces
 import GalavantSchema
 import MapKit
-import CoreTransferable
 import SwiftUI
-
-extension ResolvedStop: @retroactive Transferable {
-  public static var transferRepresentation: some TransferRepresentation {
-    ProxyRepresentation(exporting: { $0.id.uuidString })
-  }
-}
 
 /// The itinerary as a timeline (day-relative, never dates — docs/trip-time-model.md).
 /// In the trip canvas's bottom sheet it shows one **focused day** (the day chip's
@@ -86,18 +79,18 @@ struct TripItineraryView: View {
         sectionHeader(dayLabel(day, trip: model.trip), day: day)
       }
     }
+    // No custom `dragContainer`: `reorderContainer` is already its own drag
+    // container and drop destination, and that built-in path resolves the drop
+    // position correctly. A custom `dragContainer` (added earlier to gate pickup
+    // to Anytime stops) turned this into a plain item-drag whose drop always
+    // resolved back to the source's original slot — every reorder was a silent
+    // no-op. Pickup gating instead lives in `reorderDayStops`, which no-ops a
+    // non-`.day` source. This matches `TripIdeasView`, which reorders the same way.
     .reorderContainer(for: ResolvedStop.self) { difference in
       var reordered = stops
       difference.apply(to: &reordered)
       guard let sourceID = difference.sources.first else { return }
       model.reorderDayStops(reordered.map(\.id), on: day, moving: sourceID)
-    }
-    .dragContainer(for: ResolvedStop.self) { (draggedID: TripIdea.ID) -> [ResolvedStop] in
-      guard
-        let stop = stops.first(where: { $0.id == draggedID }),
-        case .day = stop.entry.schedule
-      else { return [] }
-      return [stop]
     }
   }
 
@@ -539,33 +532,13 @@ struct TripItineraryView: View {
   }
 
   /// A compact interstitial row showing the travel time and mode to the next stop.
-  /// Tap (long press / context menu) to switch mode or open Apple Maps for that leg.
+  /// Tap to switch mode or open Apple Maps for that leg.
   private func connectorRow(_ connector: TravelConnector) -> some View {
-    HStack(spacing: 7) {
-      Image(systemName: connector.mode.systemImageName)
-        .imageScale(.small)
-        .foregroundStyle(.tertiary)
-      if connector.kind == .betweenLodgings || connector.kind == .toLodging {
-        Text("Travel to \(connector.to.title)")
-          .font(.caption)
-          .foregroundStyle(.secondary)
-          .lineLimit(1)
-      }
-      Group {
-        if let tt = connector.travelTime {
-          Text(tt.formatted(mode: connector.mode))
-        } else {
-          Text("…")
-        }
-      }
-      .font(.caption)
-      .foregroundStyle(connector.travelTime == nil ? .tertiary : .secondary)
-    }
-    .padding(.vertical, 2)
-    .listRowSeparator(.hidden)
-    .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 16))
-    .contentShape(Rectangle())
-    .contextMenu {
+    // A tap-triggered `Menu`, not a `.contextMenu`: when this row is folded into a
+    // reorderable stop cell (the day lens), a long-press context menu competes with
+    // the reorder lift — both are long-presses, so a quick drag never commits the
+    // reorder. A `Menu` opens on tap, leaving the long-press to the reorder alone.
+    Menu {
       // Mode picker — checkmark on the current mode via Picker-in-menu idiom.
       Picker("Transport", selection: Binding(
         get: { connector.mode },
@@ -581,7 +554,35 @@ struct TripItineraryView: View {
       } label: {
         Label("Open in Maps", systemImage: "map")
       }
+    } label: {
+      HStack(spacing: 7) {
+        Image(systemName: connector.mode.systemImageName)
+          .imageScale(.small)
+          .foregroundStyle(.tertiary)
+        if connector.kind == .betweenLodgings || connector.kind == .toLodging {
+          Text("Travel to \(connector.to.title)")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+        }
+        Group {
+          if let tt = connector.travelTime {
+            Text(tt.formatted(mode: connector.mode))
+          } else {
+            Text("…")
+          }
+        }
+        .font(.caption)
+        .foregroundStyle(connector.travelTime == nil ? .tertiary : .secondary)
+        Spacer(minLength: 0)
+      }
+      .contentShape(Rectangle())
     }
+    .menuStyle(.button)
+    .buttonStyle(.plain)
+    .padding(.vertical, 2)
+    .listRowSeparator(.hidden)
+    .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 16))
   }
 
 }

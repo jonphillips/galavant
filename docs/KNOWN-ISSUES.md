@@ -170,6 +170,44 @@ failed:
     sectioned path is unproven, and Galavant's three beta-1 failures were all `List`-as-
     *destination*, the one hypothesis that survived. Re-check after the sectioned overload
     is exercised somewhere.
+- **Slice A outcome (2026-08-19, on device, beta 5 `27A5237l`) — day-lens reorder WORKS,
+  after two non-obvious gotchas, both cross-repo lessons.** Drag-to-reorder Anytime stops
+  within one day (`TripItineraryView.focusedDayList`) now picks up and persists on device.
+  Two traps cost real time and are worth carrying forward:
+  1. **A custom `dragContainer` on a `reorderContainer` breaks the drop.** We added
+     `.dragContainer(for:)` only to gate pickup to Anytime stops. `reorderContainer` is
+     *already* its own drag container and drop destination; layering a custom `dragContainer`
+     turned the reorder into a plain item-drag whose drop **always resolved back to the
+     source's original slot** — every reorder was a silent no-op (the write fired and
+     faithfully persisted the *unchanged* order, which read as "snaps back"). Removing the
+     `dragContainer` (and the `Transferable` conformance that only fed it) fixed it. Custom
+     `dragContainer` is for dragging OUT to other views/apps — **do not add one for a
+     pure in-container reorder.** `TripIdeasView` reorders correctly precisely because it
+     has none. Gate pickup in the persistence layer instead (ours no-ops a non-`.day`
+     source).
+  2. **Never fold a long-press `.contextMenu` into a reorderable row.** The travel-connector
+     row carried a `.contextMenu` (a long-press) for its mode picker; folded into the
+     reorderable stop cell it competed with the reorder lift (also a long-press), so a quick
+     drag never committed — you had to hold until the menu appeared. Converting it to a
+     tap-triggered `Menu` freed the long-press for the reorder. (Pairs with the "Stacked
+     `dropDestination` trap" house rule.)
+- **OPEN — folding day-anchored boundary rows into reorderable stop cells is wrong
+  (2026-08-19).** `focusedDayCells` folds every non-stop timeline item — calendar
+  constraints, stay check-in/out, home-base, the now-marker — into the *next* stop cell as
+  `leading` content. Only the outgoing travel connector is genuinely stop-attached; the rest
+  are **day-anchored** and must not move with a stop. Symptom on device: lifting the first
+  stop produces a drag preview containing the hotel check-in and the calendar car-rental
+  rows (screenshot 2026-08-19), and those events would re-seat if the stop moved. Fix
+  direction is a design call (see CURRENT_HANDOFF): render day-anchored boundaries outside
+  the reorderable `ForEach`, keeping only the trailing connector folded — the hard part is
+  that boundaries interleave *between* stops by time, and a single reorderable `ForEach`
+  must stay contiguous.
+- **Cross-day drag (drag an event from one day to another in `fullItinerary`) is the
+  sectioned-overload feature and is still gated.** It needs `.reorderContainer(for:in:)`
+  (day = section), the overload nothing in either codebase exercises yet and that Galavant's
+  three beta-1 failures (all `List`-as-*destination*) most implicate. Sequence: settle the
+  boundary-row design in the day lens first, then attempt the sectioned container once
+  yes-chef ADR-0055 D3 lands the first data point on it.
 
 ## Keyboard text entry flaky in the iOS 27 simulator (environment, not our code)
 
