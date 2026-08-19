@@ -456,8 +456,7 @@ final class TripPlanningModel {
     await MapPlaceCapture().enrichIfNeeded(ideaID: ideaID)
   }
 
-  /// Drill into a pulled idea's read-only detail (Trip Ideas row tap / Itinerary
-  /// info button) — an in-panel push, not a sheet.
+  /// Drill into a pulled idea's read-only detail — an in-panel push, not a sheet.
   func showDetail(_ idea: Idea) {
     detailIdeaID = idea.id
   }
