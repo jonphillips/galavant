@@ -480,6 +480,9 @@ struct TripItineraryView: View {
         if let ring {
           AlternativeSlotControls(model: model, ring: ring)
             .padding(.leading, 38)
+        } else if resolved.entry.status == .scheduled {
+          AlternativeAddMenu(model: model, targetStopID: resolved.id, isLowEmphasis: true)
+            .padding(.leading, 38)
         }
         if let ring, model.isAlternativeDisclosureExpanded(ring.groupID) {
           AlternativeSlotDisclosure(model: model, ring: ring)
