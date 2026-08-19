@@ -147,12 +147,19 @@ struct TripItineraryView: View {
   private func focusedDayStopCell(
     _ stop: ResolvedStop, cell: FocusedDayStopCell, sequence: [TripIdea.ID: Int]
   ) -> some View {
+    // The selection tint lives on the cell here: `stopRow` is folded inside this
+    // VStack rather than being the List row, so its own `.listRowBackground` no
+    // longer reaches the row. (`stopRow` keeps that modifier for the whole-trip
+    // path, where it *is* the row.) The cell already carries the row identity via
+    // the `ForEach(stops)`, so `stopRow`'s inner `.id` is redundant here.
     VStack(alignment: .leading, spacing: 0) {
       ForEach(cell.leading) { item in itineraryRow(item, sequence: sequence) }
       stopRow(stop, sequence: sequence)
       ForEach(cell.trailing) { item in itineraryRow(item, sequence: sequence) }
     }
-    .id(stop.id)
+    .listRowBackground(
+      model.canvasSelectedStopID == stop.id ? Color.accentColor.opacity(0.12) : nil
+    )
   }
 
   /// The whole trip: the dayless bucket (only while it holds something — a stop
