@@ -517,23 +517,36 @@ extension TripPlanningModel {
   private func reorderDay(_ stop: ResolvedStop, earlier: Bool) {
     guard let ids = reorderedIDs(stop, earlier: earlier) else { return }
     guard let day = stop.entry.dayNumber else { return }
-    let byID = Dictionary(uniqueKeysWithValues: orderedStops(onDay: day).map { ($0.id, $0) })
-    let leadingAnytimeIDs = Set(ids.prefix { id in
-      guard let entry = byID[id] else { return false }
-      if case .day = entry.entry.schedule { return true }
-      return false
-    })
+    reorderDayStops(ids, on: day, moving: stop.id)
+  }
+
+  /// Persist a complete intra-day order produced by the focused day-lens drag.
+  /// Only a bare Anytime stop may be the moved source; timed/dayparted stops are
+  /// pinned by their schedule and the drag container excludes them as well.
+  func reorderDayStops(
+    _ orderedIDs: [TripIdea.ID], on day: Int, moving sourceID: TripIdea.ID
+  ) {
+    let stops = orderedStops(onDay: day)
+    guard
+      orderedIDs.count == stops.count,
+      Set(orderedIDs) == Set(stops.map(\.id)),
+      let source = stops.first(where: { $0.id == sourceID }),
+      case .day = source.entry.schedule
+    else { return }
+
+    let entries = stops.map(\.entry)
+    let leadingAnytimeIDs = TripIdea.leadingAnytimeIDs(for: orderedIDs, entries: entries)
     let beforePlan = plan
     let beforeLegs = Array(beforePlan.legIdentities.values)
     let afterLegs = withErrorReporting {
       try database.write { db -> [LegIdentity] in
-        try TripIdea.reorderDayStops(ids, leadingAnytimeIDs: leadingAnytimeIDs, in: db)
+        try TripIdea.reorderDayStops(orderedIDs, leadingAnytimeIDs: leadingAnytimeIDs, in: db)
         let entries = try TripIdea.where { $0.tripID.eq(tripID) }.fetchAll(db)
         return legIdentities(for: entries, basedOn: beforePlan)
       }
     }
     carryOutgoingMode(
-      for: stop, beforeLegs: beforeLegs, afterLegs: afterLegs ?? beforeLegs)
+      for: source, beforeLegs: beforeLegs, afterLegs: afterLegs ?? beforeLegs)
   }
 
   /// The day's stop IDs after moving `stop` one slot in `earlier`/later direction,

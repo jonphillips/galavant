@@ -1,7 +1,14 @@
 import GalavantPlaces
 import GalavantSchema
 import MapKit
+import CoreTransferable
 import SwiftUI
+
+extension ResolvedStop: @retroactive Transferable {
+  public static var transferRepresentation: some TransferRepresentation {
+    ProxyRepresentation(exporting: { $0.id.uuidString })
+  }
+}
 
 /// The itinerary as a timeline (day-relative, never dates — docs/trip-time-model.md).
 /// In the trip canvas's bottom sheet it shows one **focused day** (the day chip's
@@ -49,11 +56,13 @@ struct TripItineraryView: View {
   /// onto this day.
   private func focusedDayList(_ day: Int) -> some View {
     let plan = model.plan
+    let stops = plan.itinerary.first(where: { $0.number == day })?.stops ?? []
     let items = plan.itineraryItems(
       forDay: day, travelTimes: model.travelTimes, effectiveModes: model.effectiveModes,
       now: Date.now, tripStartDate: model.trip?.startDate,
       stays: plan.stays(coveringDay: day))
     let sequence = plan.locatedSequenceNumbers(forDay: day)
+    let cells = focusedDayCells(stops: stops, items: items)
     return List {
       inlineAddSection
       Section {
@@ -61,13 +70,89 @@ struct TripItineraryView: View {
           Text("No stops on this day yet")
             .font(.subheadline)
             .foregroundStyle(.tertiary)
-        } else {
+        } else if stops.isEmpty {
           ForEach(items) { item in itineraryRow(item, sequence: sequence) }
+        } else {
+          ForEach(stops) { stop in
+            focusedDayStopCell(
+              stop,
+              cell: cells.byStopID[stop.id] ?? FocusedDayStopCell(stop: stop),
+              sequence: sequence)
+          }
+          .reorderable()
+          ForEach(cells.tail) { item in itineraryRow(item, sequence: sequence) }
         }
       } header: {
         sectionHeader(dayLabel(day, trip: model.trip), day: day)
       }
     }
+    .reorderContainer(for: ResolvedStop.self) { difference in
+      var reordered = stops
+      difference.apply(to: &reordered)
+      guard let sourceID = difference.sources.first else { return }
+      model.reorderDayStops(reordered.map(\.id), on: day, moving: sourceID)
+    }
+    .dragContainer(for: ResolvedStop.self) { (draggedID: TripIdea.ID) -> [ResolvedStop] in
+      guard
+        let stop = stops.first(where: { $0.id == draggedID }),
+        case .day = stop.entry.schedule
+      else { return [] }
+      return [stop]
+    }
+  }
+
+  /// The heterogeneous timeline is still produced by `TripPlan.itineraryItems`.
+  /// Only outgoing stop connectors are folded into the preceding stop cell; all
+  /// other rows remain ordinary, non-reorderable content in their original gap.
+  private func focusedDayCells(
+    stops: [ResolvedStop], items: [ItineraryItem]
+  ) -> (byStopID: [TripIdea.ID: FocusedDayStopCell], tail: [ItineraryItem]) {
+    var cells = stops.map { FocusedDayStopCell(stop: $0) }
+    var pending: [ItineraryItem] = []
+    var currentStopIndex: Int?
+    var nextStopIndex = 0
+
+    for item in items {
+      switch item {
+      case .stop:
+        guard nextStopIndex < cells.count else { continue }
+        cells[nextStopIndex].leading = pending
+        pending.removeAll(keepingCapacity: true)
+        currentStopIndex = nextStopIndex
+        nextStopIndex += 1
+      case .connector(let connector)
+        where connector.kind == .betweenStops || connector.kind == .toLodging:
+        guard let currentStopIndex else {
+          pending.append(item)
+          continue
+        }
+        cells[currentStopIndex].trailing.append(item)
+      default:
+        pending.append(item)
+      }
+    }
+
+    return (
+      Dictionary(uniqueKeysWithValues: cells.map { ($0.stop.id, $0) }),
+      pending)
+  }
+
+  private struct FocusedDayStopCell {
+    let stop: ResolvedStop
+    var leading: [ItineraryItem] = []
+    var trailing: [ItineraryItem] = []
+  }
+
+  @ViewBuilder
+  private func focusedDayStopCell(
+    _ stop: ResolvedStop, cell: FocusedDayStopCell, sequence: [TripIdea.ID: Int]
+  ) -> some View {
+    VStack(alignment: .leading, spacing: 0) {
+      ForEach(cell.leading) { item in itineraryRow(item, sequence: sequence) }
+      stopRow(stop, sequence: sequence)
+      ForEach(cell.trailing) { item in itineraryRow(item, sequence: sequence) }
+    }
+    .id(stop.id)
   }
 
   /// The whole trip: the dayless bucket (only while it holds something — a stop

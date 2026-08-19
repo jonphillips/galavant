@@ -29,6 +29,20 @@ extension TripIdea {
     }
   }
 
+  /// The leading run of Anytime stops in an ordered day. These stops need the
+  /// negative-rank marker so a subsequent read keeps them ahead of the first
+  /// timed/dayparted anchor (ADR-0033).
+  public static func leadingAnytimeIDs(
+    for orderedIDs: [TripIdea.ID], entries: [TripIdea]
+  ) -> Set<TripIdea.ID> {
+    let byID = Dictionary(uniqueKeysWithValues: entries.map { ($0.id, $0) })
+    return Set(orderedIDs.prefix { id in
+      guard let entry = byID[id] else { return false }
+      if case .day = entry.schedule { return true }
+      return false
+    })
+  }
+
   /// Persist a new intra-day order. Leading Anytime rows use negative ranks to
   /// preserve the explicit “before the first timed event” placement without
   /// changing the behavior of untouched historical rows.

@@ -388,6 +388,20 @@ struct TripTests {
     #expect(order == ["C", "A", "B"])
   }
 
+  @Test func leadingAnytimeIDsStopsAtFirstTimedAnchor() {
+    let tripID = UUID()
+    let anytime = TripIdea(id: UUID(), tripID: tripID, ideaID: UUID(), dayNumber: 1)
+    let timed = TripIdea(
+      id: UUID(), tripID: tripID, ideaID: UUID(), dayNumber: 1, startTime: "10:00")
+    let trailingAnytime = TripIdea(id: UUID(), tripID: tripID, ideaID: UUID(), dayNumber: 1)
+
+    let leading = TripIdea.leadingAnytimeIDs(
+      for: [anytime.id, timed.id, trailingAnytime.id],
+      entries: [anytime, timed, trailingAnytime])
+
+    #expect(leading == [anytime.id])
+  }
+
   @Test func moveToEndOfDayAppendsTheStopAfterItsDaymates() async throws {
     let order = try await database.write { db -> [String] in
       let trip = try Trip.create(name: "Copenhagen", in: db)
