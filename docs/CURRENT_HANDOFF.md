@@ -6,6 +6,17 @@ Companion to `docs/DONE_LOG.md` (what's already shipped) — this file used to b
 one long `docs/BACKLOG.md`; split 2026-07-11 to keep token cost down when an agent
 reads it for context.
 
+## Designed — sectioned itinerary reorder (inline boundaries + cross-day)
+
+Day-lens single-collection reorder ships on `feat/itinerary-drag-reorder-day-lens`
+(working on device). The next step — rendering day-anchored rows (hotel/calendar/
+home-base/now-marker) inline at their time position instead of folded into stop
+cells, **and** dragging events between days — needs the sectioned
+`reorderContainer(for:in:)` overload, which is unproven on this beta. Full warm spec,
+including the two gotchas already paid for (no custom `dragContainer`, no long-press
+`.contextMenu` in a reorderable row) and a spike-first plan:
+`docs/handoff/sectioned-reorder-inline-boundaries.md`. Candidate Codex slice.
+
 ## Pending PR — calendar constraint promotion
 
 Branch `feat/promote-calendar-constraint-v1` ([PR #71](https://github.com/jonphillips/galavant/pull/71)) implements the complete

@@ -49,11 +49,13 @@ struct TripItineraryView: View {
   /// onto this day.
   private func focusedDayList(_ day: Int) -> some View {
     let plan = model.plan
+    let stops = plan.itinerary.first(where: { $0.number == day })?.stops ?? []
     let items = plan.itineraryItems(
       forDay: day, travelTimes: model.travelTimes, effectiveModes: model.effectiveModes,
       now: Date.now, tripStartDate: model.trip?.startDate,
       stays: plan.stays(coveringDay: day))
     let sequence = plan.locatedSequenceNumbers(forDay: day)
+    let cells = focusedDayCells(stops: stops, items: items)
     return List {
       inlineAddSection
       Section {
@@ -61,13 +63,96 @@ struct TripItineraryView: View {
           Text("No stops on this day yet")
             .font(.subheadline)
             .foregroundStyle(.tertiary)
-        } else {
+        } else if stops.isEmpty {
           ForEach(items) { item in itineraryRow(item, sequence: sequence) }
+        } else {
+          ForEach(stops) { stop in
+            focusedDayStopCell(
+              stop,
+              cell: cells.byStopID[stop.id] ?? FocusedDayStopCell(stop: stop),
+              sequence: sequence)
+          }
+          .reorderable()
+          ForEach(cells.tail) { item in itineraryRow(item, sequence: sequence) }
         }
       } header: {
         sectionHeader(dayLabel(day, trip: model.trip), day: day)
       }
     }
+    // No custom `dragContainer`: `reorderContainer` is already its own drag
+    // container and drop destination, and that built-in path resolves the drop
+    // position correctly. A custom `dragContainer` (added earlier to gate pickup
+    // to Anytime stops) turned this into a plain item-drag whose drop always
+    // resolved back to the source's original slot — every reorder was a silent
+    // no-op. Pickup gating instead lives in `reorderDayStops`, which no-ops a
+    // non-`.day` source. This matches `TripIdeasView`, which reorders the same way.
+    .reorderContainer(for: ResolvedStop.self) { difference in
+      var reordered = stops
+      difference.apply(to: &reordered)
+      guard let sourceID = difference.sources.first else { return }
+      model.reorderDayStops(reordered.map(\.id), on: day, moving: sourceID)
+    }
+  }
+
+  /// The heterogeneous timeline is still produced by `TripPlan.itineraryItems`.
+  /// Only outgoing stop connectors are folded into the preceding stop cell; all
+  /// other rows remain ordinary, non-reorderable content in their original gap.
+  private func focusedDayCells(
+    stops: [ResolvedStop], items: [ItineraryItem]
+  ) -> (byStopID: [TripIdea.ID: FocusedDayStopCell], tail: [ItineraryItem]) {
+    var cells = stops.map { FocusedDayStopCell(stop: $0) }
+    var pending: [ItineraryItem] = []
+    var currentStopIndex: Int?
+    var nextStopIndex = 0
+
+    for item in items {
+      switch item {
+      case .stop:
+        guard nextStopIndex < cells.count else { continue }
+        cells[nextStopIndex].leading = pending
+        pending.removeAll(keepingCapacity: true)
+        currentStopIndex = nextStopIndex
+        nextStopIndex += 1
+      case .connector(let connector)
+        where connector.kind == .betweenStops || connector.kind == .toLodging:
+        guard let currentStopIndex else {
+          pending.append(item)
+          continue
+        }
+        cells[currentStopIndex].trailing.append(item)
+      default:
+        pending.append(item)
+      }
+    }
+
+    return (
+      Dictionary(uniqueKeysWithValues: cells.map { ($0.stop.id, $0) }),
+      pending)
+  }
+
+  private struct FocusedDayStopCell {
+    let stop: ResolvedStop
+    var leading: [ItineraryItem] = []
+    var trailing: [ItineraryItem] = []
+  }
+
+  @ViewBuilder
+  private func focusedDayStopCell(
+    _ stop: ResolvedStop, cell: FocusedDayStopCell, sequence: [TripIdea.ID: Int]
+  ) -> some View {
+    // The selection tint lives on the cell here: `stopRow` is folded inside this
+    // VStack rather than being the List row, so its own `.listRowBackground` no
+    // longer reaches the row. (`stopRow` keeps that modifier for the whole-trip
+    // path, where it *is* the row.) The cell already carries the row identity via
+    // the `ForEach(stops)`, so `stopRow`'s inner `.id` is redundant here.
+    VStack(alignment: .leading, spacing: 0) {
+      ForEach(cell.leading) { item in itineraryRow(item, sequence: sequence) }
+      stopRow(stop, sequence: sequence)
+      ForEach(cell.trailing) { item in itineraryRow(item, sequence: sequence) }
+    }
+    .listRowBackground(
+      model.canvasSelectedStopID == stop.id ? Color.accentColor.opacity(0.12) : nil
+    )
   }
 
   /// The whole trip: the dayless bucket (only while it holds something — a stop
@@ -447,33 +532,13 @@ struct TripItineraryView: View {
   }
 
   /// A compact interstitial row showing the travel time and mode to the next stop.
-  /// Tap (long press / context menu) to switch mode or open Apple Maps for that leg.
+  /// Tap to switch mode or open Apple Maps for that leg.
   private func connectorRow(_ connector: TravelConnector) -> some View {
-    HStack(spacing: 7) {
-      Image(systemName: connector.mode.systemImageName)
-        .imageScale(.small)
-        .foregroundStyle(.tertiary)
-      if connector.kind == .betweenLodgings || connector.kind == .toLodging {
-        Text("Travel to \(connector.to.title)")
-          .font(.caption)
-          .foregroundStyle(.secondary)
-          .lineLimit(1)
-      }
-      Group {
-        if let tt = connector.travelTime {
-          Text(tt.formatted(mode: connector.mode))
-        } else {
-          Text("…")
-        }
-      }
-      .font(.caption)
-      .foregroundStyle(connector.travelTime == nil ? .tertiary : .secondary)
-    }
-    .padding(.vertical, 2)
-    .listRowSeparator(.hidden)
-    .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 16))
-    .contentShape(Rectangle())
-    .contextMenu {
+    // A tap-triggered `Menu`, not a `.contextMenu`: when this row is folded into a
+    // reorderable stop cell (the day lens), a long-press context menu competes with
+    // the reorder lift — both are long-presses, so a quick drag never commits the
+    // reorder. A `Menu` opens on tap, leaving the long-press to the reorder alone.
+    Menu {
       // Mode picker — checkmark on the current mode via Picker-in-menu idiom.
       Picker("Transport", selection: Binding(
         get: { connector.mode },
@@ -489,7 +554,35 @@ struct TripItineraryView: View {
       } label: {
         Label("Open in Maps", systemImage: "map")
       }
+    } label: {
+      HStack(spacing: 7) {
+        Image(systemName: connector.mode.systemImageName)
+          .imageScale(.small)
+          .foregroundStyle(.tertiary)
+        if connector.kind == .betweenLodgings || connector.kind == .toLodging {
+          Text("Travel to \(connector.to.title)")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+        }
+        Group {
+          if let tt = connector.travelTime {
+            Text(tt.formatted(mode: connector.mode))
+          } else {
+            Text("…")
+          }
+        }
+        .font(.caption)
+        .foregroundStyle(connector.travelTime == nil ? .tertiary : .secondary)
+        Spacer(minLength: 0)
+      }
+      .contentShape(Rectangle())
     }
+    .menuStyle(.button)
+    .buttonStyle(.plain)
+    .padding(.vertical, 2)
+    .listRowSeparator(.hidden)
+    .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 16))
   }
 
 }

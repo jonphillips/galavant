@@ -71,6 +71,15 @@ trip *quickly* sometimes loses the new order.
   surfaces where it's the only option.
 - **Code:** `Galavant/Trips/TripsScreen.swift` (`.reorderContainer(for: Trip.self)`),
   `GalavantSchema/TripOperations.swift` (`Trip.reorderSomeday`).
+- **Beta 5 cross-repo data point (2026-08-19, yes-chef):** single-collection
+  `reorderable()` + `reorderContainer(for:)` **reorders correctly on beta 5**
+  (`27A5237l`), verified on device. That covers the *mechanism*, so the fallback
+  above — "switch to classic `List` `.onMove`" — should **not** be built on the
+  assumption that `reorderable()` is broadly broken. It does **not** clear this
+  entry: the failure recorded here is specifically **persistence lost on a fast
+  `NavigationLink` push**, a race between the drop-settled closure and the push,
+  which the yes-chef surfaces never exercise (no navigation out mid-drag). Re-check
+  *that* gesture on beta 5 before deleting.
 
 ## List drag-and-drop never lands a drop (Xcode 27 beta 1)
 
@@ -85,7 +94,13 @@ failed:
    targets in a `List` (a standing limitation, independent of the beta).
 2. The iOS 27 **reorder container** (`.reorderable(collectionID:)` +
    `.reorderContainer(for:in:)`) — the sanctioned cross-section path; flaky here,
-   consistent with the **Someday reorder** issue above.
+   consistent with the **Someday reorder** issue above. **Still the open question
+   as of beta 5.** yes-chef confirmed the *single-collection* overload healthy on
+   beta 5, but **neither app has a sectioned `reorderContainer(for:in:)` in the
+   tree** — every one is `for:` with no `in:` — so this line is the only evidence
+   about the sectioned overload that exists, and it is from beta 1. yes-chef
+   ADR-0055 S2 builds the first sectioned container in either codebase and will
+   answer it; **wait for that result before re-attempting `fullItinerary`.**
 3. `.dropDestination` on the **rows** + an empty-day placeholder (the standard,
    usually-reliable surface) — also times out.
 
@@ -93,9 +108,106 @@ failed:
   gesture subsystem, not our code.
 - **Decision (Jon, 2026-06-15):** back the feature out (the `StopMenu`'s
   Move-to-Day / To-Be-Scheduled covers it); re-check on a later beta.
-- **Fallback if it persists:** render the itinerary as a `ScrollView`/`LazyVStack`
-  (no `UICollectionView` interception) instead of `List`; row `.draggable` /
-  `.dropDestination` work reliably there. Tracked in docs/CURRENT_HANDOFF.md.
+- **Fallback if it persists — STRENGTHENED, and now backed by beta-5 evidence
+  (2026-08-19, cross-repo).** The fallback is "render the itinerary as a
+  `ScrollView`/`LazyVStack` instead of `List`; row `.draggable` /
+  `.dropDestination` work reliably there." **Yes Chef verified exactly that on
+  beta 5** (`27A5237l`, iPad, on device): a drag from a `List` source lands
+  successfully on a `.dropDestination` attached to a plain **`VStack`** day
+  container (`yes-chef/YesChefApp/MenuDetailSections.swift:262`). Drag-and-drop
+  itself is **not broken on beta 5**.
+  *(An earlier note here, 2026-08-19 morning, claimed this fallback was disproven
+  because a second Yes Chef drag onto that same container failed. That was wrong —
+  the second drag failed for an unrelated local bug: two `.dropDestination`
+  modifiers stacked on one view, where the inner shadows the outer. Retracted.)*
+- **The hypothesis narrows: `List` as a drop *destination*, not `List` at all.**
+  Yes Chef's **working** case is a `List` **source** → non-`List` destination. All
+  three failures recorded below are `List` **destinations**. So a `List` source
+  drags fine; suspicion belongs on `List` as the receiving container.
+- **Yes Chef's not-allowed symptom was its own bug — root-caused and CONFIRMED on
+  beta 5, so it is no longer evidence about this entry at all.** Cause: **two
+  `.dropDestination` modifiers stacked on one view**, the inner accepting type A
+  and the outer type B; the inner wins hit-testing and the outer is **dead**, so a
+  type-B payload finds no acceptor anywhere. No error, nothing in the console.
+  **Confirmed by inversion** (2026-08-19, on device): swapping the two modifier
+  lines swapped which drag worked. Now a house rule —
+  `jon-platform/docs/ios/ui-and-platforms.md`, *"Stacked `dropDestination` trap"*.
+  **Audit our drop surfaces for this shape before carrying "it's the beta"
+  forward.** (Their undeclared-`UTType` theory was investigated and **demoted**: the
+  working payload type is equally undeclared. Still worth checking
+  `ItineraryDropItem` / `AttractionInfo` have `UTExportedTypeDeclarations` entries,
+  on correctness grounds, but it is not a drop-failure cause.)
+- **Net for this entry: the beta explanation is weaker than when it was written.**
+  One app's identically-shaped failure has been fully accounted for by local code
+  on beta 5. Re-run all three surfaces here before carrying "it's the beta"
+  forward.
+- **Re-check on beta 5 (`27A5237l`) is owed and has not been run.** Cheapest probe:
+  does `TripsScreen`'s / `TripIdeasView`'s existing `reorderable()` still reorder?
+  A yes retires the *Someday reorder* entry above and narrows this one to the
+  `.draggable`/`.dropDestination` path.
+- **Cross-repo:** `yes-chef/docs/decisions/ADR-0055-drag-and-drop-on-the-sanctioned-reorder-path.md`
+  carries the full analysis and the rebuild plan (sectioned `.reorderable(collectionID:)` +
+  `.reorderContainer(for:in:)` for a day-sectioned list — directly applicable to
+  `fullItinerary`). Also tracked in docs/CURRENT_HANDOFF.md.
+- **Beta-5 update (2026-08-19) — the *single-collection* reorder path is unblocked; the
+  itinerary is being rebuilt on it in slices.** The park above bundled two things this
+  entry can now separate:
+  - **Single-collection `.reorderable()` + `.reorderContainer(for:)`** is verified
+    healthy on beta 5 (`27A5237l`) — load-bearing in this repo already
+    (`TripsScreen.swift`, `TripIdeasView.swift`, shared `ReorderDifference+Apply.swift`)
+    and re-confirmed on device in yes-chef. **Slice A** builds drag-to-reorder for stops
+    **within one day** on the canvas day lens (`TripItineraryView.focusedDayList`) on this
+    path: pickup limited to Anytime `.day` stops (only they carry a hand-order — ADR-0033),
+    drop rewrites `dayRank` through the existing `TripIdea.reorderDayStops` primitive that
+    "Move Earlier/Later in Day" already uses (those menu items stay as the fallback). No
+    `List`-as-destination, no sectioned overload — so none of the three beta-1 failures
+    below are in its path.
+  - **Cross-day drag** (drag a stop between day sections in `fullItinerary`) stays parked.
+    It needs the **sectioned** `.reorderContainer(for:in:)` overload, which **nothing in
+    either codebase exercises yet** — every `reorderContainer` here and in yes-chef is
+    `for:` with no `in:`. yes-chef ADR-0055 D3 is slated to land the first sectioned data
+    point but is unbuilt as of this note. Do not treat beta 5 as clearing cross-day: the
+    sectioned path is unproven, and Galavant's three beta-1 failures were all `List`-as-
+    *destination*, the one hypothesis that survived. Re-check after the sectioned overload
+    is exercised somewhere.
+- **Slice A outcome (2026-08-19, on device, beta 5 `27A5237l`) — day-lens reorder WORKS,
+  after two non-obvious gotchas, both cross-repo lessons.** Drag-to-reorder Anytime stops
+  within one day (`TripItineraryView.focusedDayList`) now picks up and persists on device.
+  Two traps cost real time and are worth carrying forward:
+  1. **A custom `dragContainer` on a `reorderContainer` breaks the drop.** We added
+     `.dragContainer(for:)` only to gate pickup to Anytime stops. `reorderContainer` is
+     *already* its own drag container and drop destination; layering a custom `dragContainer`
+     turned the reorder into a plain item-drag whose drop **always resolved back to the
+     source's original slot** — every reorder was a silent no-op (the write fired and
+     faithfully persisted the *unchanged* order, which read as "snaps back"). Removing the
+     `dragContainer` (and the `Transferable` conformance that only fed it) fixed it. Custom
+     `dragContainer` is for dragging OUT to other views/apps — **do not add one for a
+     pure in-container reorder.** `TripIdeasView` reorders correctly precisely because it
+     has none. Gate pickup in the persistence layer instead (ours no-ops a non-`.day`
+     source).
+  2. **Never fold a long-press `.contextMenu` into a reorderable row.** The travel-connector
+     row carried a `.contextMenu` (a long-press) for its mode picker; folded into the
+     reorderable stop cell it competed with the reorder lift (also a long-press), so a quick
+     drag never committed — you had to hold until the menu appeared. Converting it to a
+     tap-triggered `Menu` freed the long-press for the reorder. (Pairs with the "Stacked
+     `dropDestination` trap" house rule.)
+- **OPEN — folding day-anchored boundary rows into reorderable stop cells is wrong
+  (2026-08-19).** `focusedDayCells` folds every non-stop timeline item — calendar
+  constraints, stay check-in/out, home-base, the now-marker — into the *next* stop cell as
+  `leading` content. Only the outgoing travel connector is genuinely stop-attached; the rest
+  are **day-anchored** and must not move with a stop. Symptom on device: lifting the first
+  stop produces a drag preview containing the hotel check-in and the calendar car-rental
+  rows (screenshot 2026-08-19), and those events would re-seat if the stop moved. Fix
+  direction is a design call (see CURRENT_HANDOFF): render day-anchored boundaries outside
+  the reorderable `ForEach`, keeping only the trailing connector folded — the hard part is
+  that boundaries interleave *between* stops by time, and a single reorderable `ForEach`
+  must stay contiguous.
+- **Cross-day drag (drag an event from one day to another in `fullItinerary`) is the
+  sectioned-overload feature and is still gated.** It needs `.reorderContainer(for:in:)`
+  (day = section), the overload nothing in either codebase exercises yet and that Galavant's
+  three beta-1 failures (all `List`-as-*destination*) most implicate. Sequence: settle the
+  boundary-row design in the day lens first, then attempt the sectioned container once
+  yes-chef ADR-0055 D3 lands the first data point on it.
 
 ## Keyboard text entry flaky in the iOS 27 simulator (environment, not our code)
 
