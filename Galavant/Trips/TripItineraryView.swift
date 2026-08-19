@@ -417,10 +417,12 @@ struct TripItineraryView: View {
     .onTapGesture { model.editStay(stay) }
   }
 
-  /// A stop row: the stop content, optional info/edit buttons,
-  /// a pinned-reservation indicator (docs/trip-time-model.md §4), its
-  /// `StopMenu`, and a tap. Tapping the name selects the stop on the shared
-  /// canvas; the pencil remains the explicit edit affordance.
+  /// A stop row: the stop content, its pinned-reservation indicator
+  /// (docs/trip-time-model.md §4), its `StopMenu`, and a tap. Tapping the name
+  /// selects the stop on the shared canvas; the pencil remains the explicit edit
+  /// affordance. The custom reorder actions are intentionally non-visual: the
+  /// physical-device VoiceOver check is still pending, so they preserve an
+  /// accessibility path if `.reorderable()` does not expose one itself.
   private func stopRow(
     _ resolved: ResolvedStop, sequence: [TripIdea.ID: Int] = [:]
   ) -> some View {
@@ -469,6 +471,18 @@ struct TripItineraryView: View {
     )
     .contentShape(Rectangle())
     .onTapGesture { model.selectStop(resolved.id) }
+    .accessibilityActions {
+      if case .day = resolved.entry.schedule {
+        Button("Move Earlier in Day") {
+          model.moveStopEarlier(resolved)
+        }
+        .disabled(!model.canMoveStopEarlier(resolved))
+        Button("Move Later in Day") {
+          model.moveStopLater(resolved)
+        }
+        .disabled(!model.canMoveStopLater(resolved))
+      }
+    }
     .id(resolved.id)
   }
 

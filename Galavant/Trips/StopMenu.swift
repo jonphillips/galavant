@@ -1,25 +1,17 @@
 import GalavantSchema
 import SwiftUI
 
-/// The time-and-lifecycle menu on an itinerary stop: set or move its day, set its
-/// time of day, send it back to the To-Be-Scheduled bucket, skip it, or return it
-/// to the shortlist (idea-backed) / remove it (freeform — freeform stops have no
-/// shortlist per ADR-0010). (Marking a stop "done" is deliberately absent —
-/// completion is assumed once the trip passes; see docs/BACKLOG.md.) Shared by the
-/// canvas timeline (one focused day) and the full day-by-day itinerary.
+/// The time menu on an itinerary stop: set or move its day, or set its time of day.
+/// Shared by the canvas timeline (one focused day) and the full day-by-day itinerary.
 struct StopMenu: View {
   let model: TripPlanningModel
   let stop: ResolvedStop
 
   private var schedule: Schedule { stop.entry.schedule }
-  private var stopID: TripIdea.ID { stop.id }
   private var isTimed: Bool {
     if case .timed = schedule { return true } else { return false }
   }
-  private var isFreeform: Bool {
-    if case .freeform = stop.content { return true } else { return false }
-  }
-  private var calendarLinked: Bool { model.calendarTimeAuthority(for: stopID) == .linked }
+  private var calendarLinked: Bool { model.calendarTimeAuthority(for: stop.id) == .linked }
 
   var body: some View {
     let placed = schedule.dayNumber != nil
@@ -28,7 +20,7 @@ struct StopMenu: View {
       if placed, !calendarLinked {
         Menu("Time of Day") {
           Button {
-            model.setSchedule(.day(day), for: stopID)
+            model.setSchedule(.day(day), for: stop.id)
           } label: {
             if schedule.dayPart == nil {
               Icon.checkmark.label("Anytime")
@@ -38,7 +30,7 @@ struct StopMenu: View {
           }
           ForEach(DayPart.allCases) { part in
             Button {
-              model.setSchedule(.daypart(day, part), for: stopID)
+              model.setSchedule(.daypart(day, part), for: stop.id)
             } label: {
               if schedule.dayPart == part {
                 Label(part.label, systemImage: Icon.checkmark.systemName)
@@ -50,22 +42,6 @@ struct StopMenu: View {
         }
         Button(isTimed ? "Change Time…" : "Set Time…", systemImage: Icon.setTime.systemName) {
           model.editStopTime(stop)
-        }
-        // Non-drag intra-day reorder (ADR-0033 Slice 4). Only a bare "Anytime"
-        // stop carries a hand-order — timed/dayparted stops are positioned by
-        // their clock/band time — so the reorder pair shows only for those.
-        if case .day = schedule {
-          Button("Move Earlier in Day", systemImage: Icon.moveEarlier.systemName) {
-            model.moveStopEarlier(stop)
-          }
-          .disabled(!model.canMoveStopEarlier(stop))
-          Button("Move Later in Day", systemImage: Icon.moveLater.systemName) {
-            model.moveStopLater(stop)
-          }
-          .disabled(!model.canMoveStopLater(stop))
-        }
-        Button("To Be Scheduled", systemImage: Icon.toBeScheduled.systemName) {
-          model.sendToBeScheduled(stopID)
         }
       }
       // A confirmed reservation is nailed to a real calendar date, not this day
@@ -97,34 +73,6 @@ struct StopMenu: View {
               }
             }
           }
-        }
-      }
-      if stop.entry.status == .scheduled {
-        Menu("Add Alternative", systemImage: Icon.alternatives.systemName) {
-          Button("From Shortlist…", systemImage: Icon.shortlist.systemName) {
-            model.addAlternativeButtonTapped(to: stopID)
-          }
-          Button("Custom Stop…", systemImage: Icon.addInline.systemName) {
-            model.addCustomAlternativeButtonTapped(to: stopID)
-          }
-        }
-      }
-      // The short "why it's on the itinerary" caption. Freeform stops edit their
-      // note in the freeform editor (tap the row), so this is idea-backed only.
-      if !isFreeform {
-        let hasNote = !(stop.entry.inlineNote ?? "").isEmpty
-        Button(hasNote ? "Edit Note…" : "Add Note…", systemImage: "text.quote") {
-          model.editStopNote(stop)
-        }
-      }
-      Button("Mark Skipped", systemImage: Icon.skip.systemName) { model.markSkipped(stopID) }
-      if isFreeform {
-        Button("Remove", systemImage: Icon.delete.systemName, role: .destructive) {
-          model.remove(stopID)
-        }
-      } else {
-        Button("Move to Shortlist", systemImage: Icon.revert.systemName) {
-          model.unschedule(stopID)
         }
       }
     } label: {
