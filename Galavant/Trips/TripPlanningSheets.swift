@@ -134,7 +134,11 @@ struct StopEditorSheet: View {
             .lineLimit(1...3)
         }
         Section("Reservation") {
-          BookingFields(draft: $draft.booking)
+          if draft.calendarLinked {
+            Label("Time from Shared Calendar", systemImage: "calendar.badge.checkmark")
+          } else {
+            BookingFields(draft: $draft.booking)
+          }
         }
         if let idea = draft.idea {
           Section {
@@ -204,6 +208,11 @@ struct FreeformStopSheet: View {
     !draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
   }
 
+  private var canEditBooking: Bool {
+    guard let stopID = draft.stopID else { return true }
+    return model.calendarTimeAuthority(for: stopID) == .manual
+  }
+
   var body: some View {
     NavigationStack {
       Form {
@@ -215,8 +224,10 @@ struct FreeformStopSheet: View {
           TextField("Optional details", text: $draft.note, axis: .vertical)
             .lineLimit(2...5)
         }
-        Section("Reservation") {
-          BookingFields(draft: $draft.booking)
+        if canEditBooking {
+          Section("Reservation") {
+            BookingFields(draft: $draft.booking)
+          }
         }
         Section("Location") {
           if draft.coordinate == nil {

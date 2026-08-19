@@ -155,19 +155,23 @@ extension TripPlanningModel {
         stopTitle: stop.content.title,
         idea: idea,
         note: stop.entry.inlineNote ?? "",
-        booking: bookingFields(for: stop)))
+        booking: bookingFields(for: stop),
+        calendarLinked: calendarTimeAuthority(for: stop.id) == .linked))
   }
 
   /// Commit the entry-scoped editor. A blank note clears the caption; turning off
   /// the reservation pin returns the stop to ordinary day-relative placement.
   func saveStop(_ draft: StopEditorDraft) {
-    guard calendarTimeAuthority(for: draft.stopID) == .manual else { return }
     let note = draft.note.trimmingCharacters(in: .whitespacesAndNewlines)
-    let pin = reservationPin(from: draft.booking)
     withErrorReporting {
       try database.write { db in
         try TripIdea.setInlineNote(stopID: draft.stopID, note: note, in: db)
-        try TripIdea.setBooking(pin, stopID: draft.stopID, in: db)
+        if !draft.calendarLinked,
+          calendarTimeAuthority(for: draft.stopID) == .manual
+        {
+          try TripIdea.setBooking(
+            reservationPin(from: draft.booking), stopID: draft.stopID, in: db)
+        }
       }
     }
     destination = nil

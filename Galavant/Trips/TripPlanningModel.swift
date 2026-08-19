@@ -119,6 +119,7 @@ struct StopEditorDraft: Identifiable {
   var idea: Idea?
   var note: String
   var booking: BookingFieldsDraft
+  var calendarLinked: Bool
   var id: TripIdea.ID { stopID }
 }
 
