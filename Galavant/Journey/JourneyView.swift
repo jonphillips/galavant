@@ -469,28 +469,39 @@ private struct JourneyStopRow: View {
 
 private struct JourneyWeatherBadge: View {
   let summary: WeatherSummary
+  @State private var isShowingDetail = false
 
   var body: some View {
-    Group {
-      if let daily = summary.daily {
-        Label {
-          Text("\(daily.highTemperature, format: .measurement(width: .narrow, usage: .weather, numberFormatStyle: .number.precision(.fractionLength(0)))) / \(daily.lowTemperature, format: .measurement(width: .narrow, usage: .weather, numberFormatStyle: .number.precision(.fractionLength(0))))")
-        } icon: {
-          Image(systemName: daily.symbolName)
-        }
-      } else if let current = summary.current {
-        Label {
-          Text(current.temperature, format: .measurement(width: .narrow, usage: .weather, numberFormatStyle: .number.precision(.fractionLength(0))))
-        } icon: {
-          Image(systemName: current.symbolName)
+    Button {
+      isShowingDetail = true
+    } label: {
+      Group {
+        if let daily = summary.daily {
+          Label {
+            Text("\(daily.highTemperature, format: .measurement(width: .narrow, usage: .weather, numberFormatStyle: .number.precision(.fractionLength(0)))) / \(daily.lowTemperature, format: .measurement(width: .narrow, usage: .weather, numberFormatStyle: .number.precision(.fractionLength(0))))")
+          } icon: {
+            Image(systemName: daily.symbolName)
+          }
+        } else if let current = summary.current {
+          Label {
+            Text(current.temperature, format: .measurement(width: .narrow, usage: .weather, numberFormatStyle: .number.precision(.fractionLength(0))))
+          } icon: {
+            Image(systemName: current.symbolName)
+          }
         }
       }
+      .font(.caption.weight(.medium))
+      .foregroundStyle(.secondary)
+      .padding(.horizontal, 8)
+      .padding(.vertical, 5)
+      .background(.quaternary, in: Capsule())
     }
-    .font(.caption.weight(.medium))
-    .foregroundStyle(.secondary)
-    .padding(.horizontal, 8)
-    .padding(.vertical, 5)
-    .background(.quaternary, in: Capsule())
+    .buttonStyle(.plain)
+    .accessibilityLabel("Weather forecast")
+    .accessibilityHint("Shows weather details.")
+    .popover(isPresented: $isShowingDetail) {
+      WeatherDetailView(summary: summary)
+    }
   }
 }
 

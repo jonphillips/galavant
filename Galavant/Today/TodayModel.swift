@@ -1,7 +1,9 @@
 import Dependencies
 import Foundation
 import GalavantSchema
+import ImageIO
 import SQLiteData
+import UIKit
 
 /// Owns Today’s ephemeral weather request and one minute-level clock. The
 /// projection remains a pure value supplied by the trip-planning read model.
@@ -18,6 +20,7 @@ final class TodayModel {
   @ObservationIgnored @Dependency(\.weatherClient) private var weatherClient
   @ObservationIgnored @Dependency(\.date) private var date
   @ObservationIgnored @Dependency(\.continuousClock) private var clock
+  @ObservationIgnored @Dependency(\.defaultDatabase) private var database
 
   // Today only needs compact stop imagery. The display BLOBs never ride this
   // query; lookup is performed only for the active trip's resolved stop ideas.
@@ -29,6 +32,8 @@ final class TodayModel {
   private(set) var now: Date
   private(set) var weather: WeatherSummary?
   private(set) var weatherAnchor: WeatherAnchor?
+  private(set) var displayImages: [Idea.ID: UIImage] = [:]
+  private(set) var displayImageDataByIdea: [Idea.ID: Data] = [:]
 
   /// Header thumbnail bytes per idea, for the active stop's leading image.
   var thumbnailByIdea: [Idea.ID: Data] {
@@ -39,6 +44,56 @@ final class TodayModel {
   func thumbnail(forIdea ideaID: Idea.ID?) -> Data? {
     guard let ideaID else { return nil }
     return thumbnailByIdea[ideaID]
+  }
+
+  /// The display-tier image for one of the currently visible ideas, if loaded.
+  func displayImage(forIdea ideaID: Idea.ID?) -> UIImage? {
+    guard let ideaID else { return nil }
+    return displayImages[ideaID]
+  }
+
+  /// The original display-tier bytes for detail views that accept image data.
+  func displayImageData(forIdea ideaID: Idea.ID?) -> Data? {
+    guard let ideaID else { return nil }
+    return displayImageDataByIdea[ideaID]
+  }
+
+  /// Reads and decodes display-tier images for only the current hero and detail
+  /// idea. The request replaces the cache, keeping Today bounded to those ideas.
+  func loadDisplayImages(_ ideaIDs: [Idea.ID]) async {
+    displayImages = [:]
+    displayImageDataByIdea = [:]
+    guard !ideaIDs.isEmpty else { return }
+
+    let dataByIdea: [Idea.ID: Data]
+    do {
+      dataByIdea = try await database.read { db in
+        var result: [Idea.ID: Data] = [:]
+        for ideaID in ideaIDs {
+          if let display = try ImageAsset.where({ columns in
+            columns.ideaID.eq(ideaID) && columns.isHeader.eq(true)
+          }).fetchOne(db)?.display {
+            result[ideaID] = display
+          }
+        }
+        return result
+      }
+    } catch {
+      return
+    }
+
+    guard !Task.isCancelled else { return }
+    let decoded = await Task.detached(priority: .userInitiated) {
+      dataByIdea.compactMap { ideaID, data -> (Idea.ID, CGImage)? in
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+          let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
+        else { return nil }
+        return (ideaID, image)
+      }
+    }.value
+    guard !Task.isCancelled else { return }
+    displayImageDataByIdea = dataByIdea
+    displayImages = Dictionary(uniqueKeysWithValues: decoded.map { ($0.0, UIImage(cgImage: $0.1)) })
   }
 
   init() {

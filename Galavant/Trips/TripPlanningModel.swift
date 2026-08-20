@@ -167,8 +167,7 @@ final class TripPlanningModel {
   var recommendationHandoffWarning: String?
   var calendarLocalState: CalendarReconciliationLocalState
 
-  /// The idea drilled into on the in-panel detail push (nil = the list root). A
-  /// push within the panel, not a sheet, so it never covers the map; driven by ID
+  /// The idea shown in the floating stop detail (nil = no detail). Driven by ID
   /// so it resolves live and stays out of `Hashable`.
   var detailIdeaID: Idea.ID?
 
@@ -477,7 +476,7 @@ final class TripPlanningModel {
     await MapPlaceCapture().enrichIfNeeded(ideaID: ideaID)
   }
 
-  /// Drill into a pulled idea's read-only detail — an in-panel push, not a sheet.
+  /// Present a pulled idea's read-only detail from the visible planning surface.
   func showDetail(_ idea: Idea) {
     detailIdeaID = idea.id
   }
@@ -488,8 +487,8 @@ final class TripPlanningModel {
     destination = .idea(TripIdeaEditPresentation(idea))
   }
 
-  /// Resolve the pushed detail's idea, or nil if it was deleted while open
-  /// (ADR-0007 read-time reconciliation) — the destination pops itself then.
+  /// Resolve the presented detail's idea, or nil if it was deleted while open
+  /// (ADR-0007 read-time reconciliation).
   func ideaForDetail(_ id: Idea.ID) -> Idea? { ideaByID[id] }
 
   /// This idea's place on the itinerary, *if* it's a scheduled stop on the trip —

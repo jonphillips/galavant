@@ -82,6 +82,7 @@
 		8E9C72B6E2A50CCF9129E6E1 /* RegionManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0587DE2E1AA61B9BD3D0073 /* RegionManagerView.swift */; };
 		90C301112D6C03ED59D12E2C /* IdeaFormModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99EE3153CDA64E66C39149A9 /* IdeaFormModel.swift */; };
 		9515962CEF69E6D64F9B0322 /* DemoFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CD37357C07AFC3DAE3CDAE7 /* DemoFixtures.swift */; };
+		9868461BE838584DDD0B3486 /* WeatherDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B2BFEB336259112123DDB21 /* WeatherDetailView.swift */; };
 		9946E181AD4D8380729C5D0E /* TripIdeasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA0BD75B2D9BBEA758A6A8DA /* TripIdeasView.swift */; };
 		9C1C9676A64367844856918E /* TripsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC5C21FC298AEA29CFE09DC6 /* TripsScreen.swift */; };
 		9C3779832B3D8728517D947A /* PoolMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1791F203077D8B7907351B9F /* PoolMapView.swift */; };
@@ -227,6 +228,7 @@
 		5F046B49AE38F92268A2FA12 /* GalavantShare.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = GalavantShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		62969DCE60557E7FE251E473 /* TripPlanningModel+AlternativeGroups.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripPlanningModel+AlternativeGroups.swift"; sourceTree = "<group>"; };
 		6839D17655A85296477C1D5D /* TripItineraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripItineraryView.swift; sourceTree = "<group>"; };
+		6B2BFEB336259112123DDB21 /* WeatherDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherDetailView.swift; sourceTree = "<group>"; };
 		6B9FE29B0BE3BE657414B717 /* PlaceSelectionMap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceSelectionMap.swift; sourceTree = "<group>"; };
 		72A6C6AEFAD6483C0E0AF70C /* TripPlanningModel+Scheduling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripPlanningModel+Scheduling.swift"; sourceTree = "<group>"; };
 		73160C3B106A29D6005A8859 /* LLMClientKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = LLMClientKit; path = "../../jon-platform/packages/LLMClientKit"; sourceTree = SOURCE_ROOT; };
@@ -484,6 +486,7 @@
 				A5F159E1049DE135201C5821 /* WeatherAttributionLink.swift */,
 				530B9A2871DE84E2724A58E7 /* WeatherClient.swift */,
 				24FAAF80343489A5540F82DF /* WeatherDebugView.swift */,
+				6B2BFEB336259112123DDB21 /* WeatherDetailView.swift */,
 			);
 			path = Weather;
 			sourceTree = "<group>";
@@ -937,6 +940,7 @@
 				F57648A300EA9E12818CF2AC /* WeatherAttributionLink.swift in Sources */,
 				4B11AB7DFD828A1F103EB408 /* WeatherClient.swift in Sources */,
 				734D683130527266D1AEF8AD /* WeatherDebugView.swift in Sources */,
+				9868461BE838584DDD0B3486 /* WeatherDetailView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

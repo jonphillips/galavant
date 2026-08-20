@@ -135,12 +135,6 @@ struct TripPlanningView: View {
       .onChange(of: model.canvasSelectedStopID) { _, id in
         handleCanvasSelection(id)
       }
-      .onChange(of: model.detailIdeaID) { _, id in
-        // Drilling into a stop's detail pushes within the sheet — raise it off the
-        // peek so the pushed panel has room to read (iPhone only).
-        guard id != nil, !usesColumn, sheetDetent == Self.peek else { return }
-        sheetDetent = .medium
-      }
       }
     }
   }

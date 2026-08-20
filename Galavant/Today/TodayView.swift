@@ -118,6 +118,20 @@ struct TodayView: View {
       .first
   }
 
+  private var nextIdeaID: Idea.ID? {
+    guard let next = projection?.next, case let .stop(stop) = next.item else { return nil }
+    return stop.idea?.id
+  }
+
+  private var displayImageIdeaIDs: [Idea.ID] {
+    var ideaIDs: [Idea.ID] = []
+    if let nextIdeaID { ideaIDs.append(nextIdeaID) }
+    if let detailIdea, !ideaIDs.contains(detailIdea.id) {
+      ideaIDs.append(detailIdea.id)
+    }
+    return ideaIDs
+  }
+
   var body: some View {
     NavigationStack {
       Group {
@@ -171,6 +185,9 @@ struct TodayView: View {
     .task(id: activeWeatherAnchor) {
       await model.loadWeather(for: activeWeatherAnchor)
     }
+    .task(id: displayImageIdeaIDs) {
+      await model.loadDisplayImages(displayImageIdeaIDs)
+    }
     .sheet(item: $detailIdea) { idea in
       NavigationStack {
         IdeaDetailView(
@@ -179,7 +196,8 @@ struct TodayView: View {
           interests: planningModel.interests(for: idea),
           evaluations: planningModel.evaluations(for: idea),
           stopContext: planningModel.stopContext(for: idea),
-          headerImage: model.thumbnail(forIdea: idea.id))
+          headerImage: model.displayImageData(forIdea: idea.id)
+            ?? model.thumbnail(forIdea: idea.id))
           .navigationTitle(idea.name)
           .navigationBarTitleDisplayMode(.inline)
       }
@@ -205,7 +223,8 @@ struct TodayView: View {
             planningModel: planningModel,
             onSelectIdea: { detailIdea = $0 },
             weather: model.weather,
-            thumbnailByIdea: thumbnailByIdea)
+            thumbnailByIdea: thumbnailByIdea,
+            displayImage: model.displayImage(forIdea: nextIdeaID))
         } else {
           TodayNoNextCard()
         }
@@ -246,6 +265,7 @@ private struct TodayDayHeader: View {
   let progress: TodayProjection.Progress
   let canExecute: Bool
   let weather: WeatherSummary?
+  @State private var isShowingWeatherDetail = false
 
   var body: some View {
     HStack(alignment: .top, spacing: 16) {
@@ -271,17 +291,27 @@ private struct TodayDayHeader: View {
 
       if let weather, let reading = TodayWeatherReading.ambient(in: weather) {
         VStack(alignment: .trailing, spacing: 5) {
-          HStack(spacing: 5) {
-            Image(systemName: reading.symbolName)
-              .symbolRenderingMode(.hierarchical)
-            Text(reading.temperature)
-              .font(.subheadline.weight(.semibold))
+          Button {
+            isShowingWeatherDetail = true
+          } label: {
+            HStack(spacing: 5) {
+              Image(systemName: reading.symbolName)
+                .symbolRenderingMode(.hierarchical)
+              Text(reading.temperature)
+                .font(.subheadline.weight(.semibold))
+            }
           }
+          .buttonStyle(.plain)
           .foregroundStyle(.secondary)
           .accessibilityLabel("Current weather, \(reading.condition), \(reading.temperature)")
+          .accessibilityHint("Shows weather details.")
 
           WeatherAttributionLink(attribution: weather.attribution)
             .frame(width: 88, height: 14, alignment: .trailing)
+        }
+        .sheet(isPresented: $isShowingWeatherDetail) {
+          WeatherDetailView(summary: weather)
+            .presentationDetents([.medium])
         }
       }
     }
@@ -298,6 +328,7 @@ private struct TodayNextHero: View {
   let onSelectIdea: (Idea) -> Void
   let weather: WeatherSummary?
   let thumbnailByIdea: [Idea.ID: Data]
+  let displayImage: UIImage?
 
   private var stop: ResolvedStop? {
     guard case let .stop(stop) = next.item else { return nil }
@@ -358,8 +389,7 @@ private struct TodayNextHero: View {
   private func stopSummary(_ stop: ResolvedStop) -> some View {
     VStack(alignment: .leading, spacing: 14) {
       if let ideaID = stop.idea?.id,
-        let thumbnail = thumbnailByIdea[ideaID],
-        let image = UIImage(data: thumbnail) {
+        let image = displayImage ?? thumbnailByIdea[ideaID].flatMap({ UIImage(data: $0) }) {
         Image(uiImage: image)
           .resizable()
           .scaledToFill()
@@ -443,6 +473,7 @@ private struct TodayNextHero: View {
 
 private struct TodayDestinationForecast: View {
   let weather: WeatherSummary
+  @State private var isShowingWeatherDetail = false
 
   private var reading: TodayWeatherReading? {
     TodayWeatherReading.destination(in: weather)
@@ -450,30 +481,40 @@ private struct TodayDestinationForecast: View {
 
   var body: some View {
     if let reading {
-      HStack(spacing: 12) {
-        Image(systemName: reading.symbolName)
-          .font(.title2)
-          .symbolRenderingMode(.hierarchical)
-          .foregroundStyle(.orange)
-        VStack(alignment: .leading, spacing: 2) {
-          Text("DESTINATION FORECAST")
-            .font(.caption2.weight(.bold))
-            .foregroundStyle(.secondary)
-          Text("\(reading.condition.capitalized) · \(reading.temperature)")
-            .font(.subheadline.weight(.semibold))
-        }
-        Spacer(minLength: 0)
-        if let precip = reading.precipitationChance, precip > 0 {
-          Text(precip.formatted(.percent.precision(.fractionLength(0))))
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(.secondary)
-            .accessibilityLabel("\(precip.formatted(.percent.precision(.fractionLength(0)))) chance of precipitation")
+      Button {
+        isShowingWeatherDetail = true
+      } label: {
+        HStack(spacing: 12) {
+          Image(systemName: reading.symbolName)
+            .font(.title2)
+            .symbolRenderingMode(.hierarchical)
+            .foregroundStyle(.orange)
+          VStack(alignment: .leading, spacing: 2) {
+            Text("DESTINATION FORECAST")
+              .font(.caption2.weight(.bold))
+              .foregroundStyle(.secondary)
+            Text("\(reading.condition.capitalized) · \(reading.temperature)")
+              .font(.subheadline.weight(.semibold))
+          }
+          Spacer(minLength: 0)
+          if let precip = reading.precipitationChance, precip > 0 {
+            Text(precip.formatted(.percent.precision(.fractionLength(0))))
+              .font(.caption.weight(.semibold))
+              .foregroundStyle(.secondary)
+              .accessibilityLabel("\(precip.formatted(.percent.precision(.fractionLength(0)))) chance of precipitation")
+          }
         }
       }
+      .buttonStyle(.plain)
       .padding(14)
       .background(.tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
       .accessibilityElement(children: .combine)
       .accessibilityLabel("Destination forecast, \(reading.condition), \(reading.temperature)")
+      .accessibilityHint("Shows weather details.")
+      .sheet(isPresented: $isShowingWeatherDetail) {
+        WeatherDetailView(summary: weather)
+          .presentationDetents([.medium])
+      }
     }
   }
 }
