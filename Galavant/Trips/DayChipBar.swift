@@ -4,8 +4,8 @@ import SwiftUI
 /// The day lens for the trip canvas: a horizontal strip of pills — All, then
 /// Day 1…N — overlaid on the top of the map. Selecting one sets
 /// `model.canvasSelectedDay` (nil = All), which filters the map to that day and
-/// frames its stops. Each day wears its `DayPalette` colour so the chip, its
-/// pins, and its polyline read as one.
+/// frames its stops. Selecting a day also clears the lodging lens. Each day wears
+/// its `DayPalette` colour so the chip, its pins, and its polyline read as one.
 struct DayChipBar: View {
   let model: TripPlanningModel
 
@@ -14,8 +14,12 @@ struct DayChipBar: View {
   var body: some View {
     ScrollView(.horizontal, showsIndicators: false) {
       HStack(spacing: 8) {
-        chip(label: "All", color: nil, selected: model.canvasSelectedDay == nil) {
-          model.canvasSelectedDay = nil
+        chip(
+          label: "All",
+          color: nil,
+          selected: model.canvasSelectedDay == nil && model.canvasSelectedStayID == nil
+        ) {
+          model.selectCanvasDay(nil)
         }
         ForEach(1...dayCount, id: \.self) { day in
           chip(
@@ -23,7 +27,7 @@ struct DayChipBar: View {
             color: DayPalette.color(forDay: day),
             selected: model.canvasSelectedDay == day
           ) {
-            model.canvasSelectedDay = day
+            model.selectCanvasDay(day)
           }
         }
       }

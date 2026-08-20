@@ -30,9 +30,13 @@ struct TripCanvasMapView: View {
   /// stationary long press.
   @State private var isPlacingPin = false
 
-  /// The days the map draws: just the selected day, or all when the lens is
-  /// "All" (`canvasSelectedDay == nil`).
+  /// The days the map draws: every day covered by the selected stay, just the
+  /// selected day, or all when the lens is "All".
   private var visibleDays: [ResolvedDay] {
+    if let stayID = model.canvasSelectedStayID,
+      let stay = model.plan.stays.first(where: { $0.id == stayID }) {
+      return model.plan.itinerary.filter { stay.stay.covers(day: $0.number) }
+    }
     if let day = model.canvasSelectedDay {
       return model.plan.itinerary.filter { $0.number == day }
     }
@@ -79,6 +83,7 @@ struct TripCanvasMapView: View {
       }
     }
     .onChange(of: model.canvasSelectedDay, initial: true) { _, _ in frameSelection() }
+    .onChange(of: model.canvasSelectedStayID) { _, _ in frameSelection() }
     .onChange(of: model.trip?.mainTransportationMode) { _, _ in
       Task { await model.fetchMissingETAs() }
     }
@@ -111,7 +116,7 @@ struct TripCanvasMapView: View {
   /// hotel stays into numbered itinerary stops.
   @MapContentBuilder
   private var lodgingPathContent: some MapContent {
-    if model.canvasSelectedDay == nil {
+    if model.canvasSelectedDay == nil && model.canvasSelectedStayID == nil {
       let route = model.plan.lodgingPathCoordinates.map {
         CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
       }
@@ -256,13 +261,20 @@ struct TripCanvasMapView: View {
   /// `legs` and the shared stop selection stay untouched.
   @MapContentBuilder
   private var baseContent: some MapContent {
-    ForEach(model.plan.baseStays(forDay: model.canvasSelectedDay)) { stay in
+    ForEach(visibleBaseStays) { stay in
       if let coordinate = stay.coordinate {
         Annotation(stay.content.title, coordinate: coordinate, anchor: .bottom) {
           BasePin()
         }
       }
     }
+  }
+
+  private var visibleBaseStays: [ResolvedStay] {
+    if let stayID = model.canvasSelectedStayID {
+      return model.plan.baseStays(forDay: nil).filter { $0.id == stayID }
+    }
+    return model.plan.baseStays(forDay: model.canvasSelectedDay)
   }
 
   // MARK: - Selection
@@ -290,13 +302,33 @@ struct TripCanvasMapView: View {
   // MARK: - Camera
 
   /// Frame the camera to the current lens, in precedence order (ADR-0012):
-  /// 1. the lens's **located stops** → a tight crop (home-base pins folded in so a
-  ///    stay stays in view, ADR-0011). Stops always win when present.
-  /// 2. else, on a specific day with an **assigned region** → that region's box —
+  /// 1. a selected stay's covered-day stops plus its own coordinate → one union
+  ///    frame for the whole stay lens.
+  /// 2. otherwise, the lens's **located stops** → a tight crop (home-base pins
+  ///    folded in so a stay stays in view, ADR-0011). Stops always win when present.
+  /// 3. else, on a specific day with an **assigned region** → that region's box —
   ///    the empty-day canvas ("you're in the Loire today").
-  /// 3. else the existing fallback: a lone located base pin, the trip's regions,
+  /// 4. else the existing fallback: a lone located base pin, the trip's regions,
   ///    then automatic.
   private func frameSelection() {
+    if let stayID = model.canvasSelectedStayID,
+      let stay = model.plan.stays.first(where: { $0.id == stayID }) {
+      let days = model.plan.itinerary.filter { stay.stay.covers(day: $0.number) }
+      var coordinates = days.flatMap { model.plan.framingCoordinates(forDay: $0.number) }
+      if let coordinate = stay.coordinate {
+        coordinates.append((latitude: coordinate.latitude, longitude: coordinate.longitude))
+      }
+      if let box = MapFraming.box(for: coordinates) {
+        cameraPosition = .region(box.region)
+        return
+      }
+      if let region = tripRegionFrame {
+        cameraPosition = .region(region)
+      } else {
+        cameraPosition = .automatic
+      }
+      return
+    }
     let day = model.canvasSelectedDay
     let stopCoords = model.plan.framingCoordinates(forDay: day)
     if !stopCoords.isEmpty {

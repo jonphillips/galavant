@@ -27,6 +27,7 @@
 		28CB0F1054F9EC0012E413AD /* CloudSyncKit in Frameworks */ = {isa = PBXBuildFile; productRef = BAB8971211A0C3E3E9C18A40 /* CloudSyncKit */; };
 		2BCD153BD1286735123E24B7 /* TripHeaderImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E5E2C9449BAC2E031A8745F /* TripHeaderImageView.swift */; };
 		35E279FA22C85810158AF02C /* DayPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95C568B98EA55277C2DDA065 /* DayPalette.swift */; };
+		365D517B3DC4A900CBF71816 /* LodgingCapsuleBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 850E3CBFE12A2DC66E37F4EB /* LodgingCapsuleBar.swift */; };
 		3B4EC7EE202BCED566C99202 /* LLMHandoffKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4496C6F1494049E3B555A463 /* LLMHandoffKit */; };
 		3DF889FDCBE7A7C979E41F13 /* IdeasScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E13450922E6B719B55DC57BC /* IdeasScreen.swift */; };
 		3E3D5D4D88C8064A2EBEDD04 /* WeatherKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D40170C4D56FC7F76E1992FF /* WeatherKit.framework */; };
@@ -235,6 +236,7 @@
 		803A41898CEB755AAE0E4A68 /* TripFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripFormView.swift; sourceTree = "<group>"; };
 		8238F43F540641D1FD4267BA /* TripPlanningModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripPlanningModel.swift; sourceTree = "<group>"; };
 		82AECABDADDBF8957A5816F8 /* AppScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppScreen.swift; sourceTree = "<group>"; };
+		850E3CBFE12A2DC66E37F4EB /* LodgingCapsuleBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LodgingCapsuleBar.swift; sourceTree = "<group>"; };
 		8885060D462E6E53320A2831 /* ShareSeedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSeedTests.swift; sourceTree = "<group>"; };
 		891C5DF7F4A25741DE3421FD /* StructuredHoursEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StructuredHoursEditor.swift; sourceTree = "<group>"; };
 		895F90CCD6B6EE453DBD785D /* PoolFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoolFlowUITests.swift; sourceTree = "<group>"; };
@@ -410,6 +412,7 @@
 				95C568B98EA55277C2DDA065 /* DayPalette.swift */,
 				386282278C0DEBD19BF1925E /* DirectionsClient.swift */,
 				D5448AA5F448341633752E5D /* FreeformStopLocationEditor.swift */,
+				850E3CBFE12A2DC66E37F4EB /* LodgingCapsuleBar.swift */,
 				0EFBA67DB304DCD293D72575 /* PlaceIdeaSheet.swift */,
 				97954EEA93EDDCB81E746016 /* PlanningRow.swift */,
 				9E4F11F80427DFD1A59F56B7 /* RecommendationCandidateStrip.swift */,
@@ -876,6 +879,7 @@
 				7303CDBB9E9530ECB0A89D43 /* JourneyImagePanel.swift in Sources */,
 				64FFD213B12CE5D4202414B0 /* JourneyModel.swift in Sources */,
 				164623B0ED0CE24B42E3FA51 /* JourneyView.swift in Sources */,
+				365D517B3DC4A900CBF71816 /* LodgingCapsuleBar.swift in Sources */,
 				016DF429F8301AE8171A5C94 /* MapPlaceResolver.swift in Sources */,
 				6D4B81713C707877850A54BD /* MapPlaceSearchOverlay.swift in Sources */,
 				C2FC789EE1F80B257FC7D7DA /* PlaceIdeaSheet.swift in Sources */,

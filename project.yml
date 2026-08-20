@@ -45,7 +45,10 @@ targets:
     type: application
     platform: iOS
     sources:
-      - Galavant
+      - path: Galavant
+        excludes:
+          - Trips/LodgingCapsuleBar.swift
+      - Galavant/Trips/LodgingCapsuleBar.swift
     entitlements:
       path: Galavant/Galavant.entitlements
       properties:

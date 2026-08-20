@@ -173,9 +173,11 @@ final class TripPlanningModel {
   var detailIdeaID: Idea.ID?
 
   // Canvas state (M3d): the map is the trip's home. `canvasSelectedDay` is the
-  // day lens (nil = the whole trip, all days color-coded); `canvasSelectedStopID`
-  // is the one selection the map pins and the timeline rows both project.
+  // day lens (nil = the whole trip, all days color-coded), while
+  // `canvasSelectedStayID` is the mutually-exclusive lodging lens. The selected
+  // stop is the one selection the map pins and timeline rows both project.
   var canvasSelectedDay: Int?
+  var canvasSelectedStayID: TripStay.ID?
   var canvasSelectedStopID: TripIdea.ID?
   var expandedAlternativeGroupIDs: Set<UUID> = []
   var editingAlternativeGroupID: UUID?
@@ -339,6 +341,24 @@ final class TripPlanningModel {
   func selectStop(_ id: TripIdea.ID?) {
     canvasSelectedStopID = id
     if id != nil { sheetTab = .itinerary }
+  }
+
+  /// Select a day lens, including nil for All. A day lens always clears a stay
+  /// lens so the canvas has exactly one active lens.
+  func selectCanvasDay(_ day: Int?) {
+    canvasSelectedStayID = nil
+    canvasSelectedDay = day
+  }
+
+  /// Toggle a stay lens. Selecting a stay clears the day lens; tapping it again
+  /// returns to All.
+  func toggleCanvasStay(_ id: TripStay.ID) {
+    if canvasSelectedStayID == id {
+      canvasSelectedStayID = nil
+    } else {
+      canvasSelectedStayID = id
+      canvasSelectedDay = nil
+    }
   }
 
   // MARK: - Add mode (the pool, scoped by the lens)
