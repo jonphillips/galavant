@@ -18,6 +18,7 @@ struct RegionPhotoPickerSheet: View {
   enum Source: String, CaseIterable {
     case unsplash = "Unsplash"
     case photos = "My Photos"
+    case paste = "Paste"
   }
 
   init(regionID: MapRegion.ID, regionName: String, hasPhoto: Bool) {
@@ -33,6 +34,7 @@ struct RegionPhotoPickerSheet: View {
         switch source {
         case .unsplash: unsplashGrid
         case .photos: photosPane
+        case .paste: pastePane
         }
       }
       .navigationTitle("Region Photo")
@@ -137,6 +139,36 @@ struct RegionPhotoPickerSheet: View {
         }
       }
     }
+  }
+
+  private var pastePane: some View {
+    VStack(spacing: 16) {
+      PasteButton(payloadType: Data.self) { data in
+        guard let data = data.first else { return }
+        Task {
+          if await picker.chooseFromLibrary(data) {
+            dismiss()
+          }
+        }
+      }
+      .labelStyle(.titleAndIcon)
+      .buttonStyle(.borderedProminent)
+
+      if case .saving = picker.phase { ProgressView() }
+      if case .failed(let message) = picker.phase {
+        Text(message)
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+          .multilineTextAlignment(.center)
+          .padding(.horizontal)
+      }
+      Text("Paste an image from another app to use it as this region's photo.")
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+        .multilineTextAlignment(.center)
+        .padding(.horizontal)
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
   }
 
   @ViewBuilder private var statusOverlay: some View {

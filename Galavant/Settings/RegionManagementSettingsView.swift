@@ -12,14 +12,30 @@ struct RegionManagementSettingsView: View {
   @State private var name = ""
 
   var body: some View {
-    List(selection: $model.selectedRegionID) {
+    List {
       ForEach(model.regions) { region in
         NavigationLink(value: region.id) {
-          VStack(alignment: .leading, spacing: 3) {
-            Text(region.name)
-            Text(model.tripUseDescription(for: region))
-              .font(.caption)
-              .foregroundStyle(.secondary)
+          HStack(spacing: 12) {
+            if let thumbnail = model.thumbnail(forRegion: region.id),
+              let image = UIImage(data: thumbnail) {
+              Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 48, height: 48)
+                .clipShape(.rect(cornerRadius: 10, style: .continuous))
+            } else {
+              Image(systemName: "photo")
+                .font(.title2)
+                .foregroundStyle(.secondary)
+                .frame(width: 48, height: 48)
+                .background(.quaternary, in: .rect(cornerRadius: 10, style: .continuous))
+            }
+            VStack(alignment: .leading, spacing: 3) {
+              Text(region.name)
+              Text(model.tripUseDescription(for: region))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
           }
         }
         .contextMenu {
