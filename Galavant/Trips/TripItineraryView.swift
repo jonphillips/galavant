@@ -18,6 +18,12 @@ struct TripItineraryView: View {
   /// whole trip.
   var focusedDay: Int?
   @State private var selectedCalendarConstraint: CalendarTripConstraint?
+  @State private var pendingStopRemoval: PendingStopRemoval?
+
+  private struct PendingStopRemoval {
+    let stopID: TripIdea.ID
+    let title: String
+  }
 
   var body: some View {
     ScrollViewReader { proxy in
@@ -33,6 +39,13 @@ struct TripItineraryView: View {
             constraint: constraint,
             model: model,
             reconciliationModel: reconciliationModel)
+        }
+        .confirmationDialog("Remove Custom Stop?", item: $pendingStopRemoval) { removal in
+          Button("Remove \(removal.title)", role: .destructive) {
+            model.remove(removal.stopID)
+          }
+        } message: { removal in
+          Text("\(removal.title) will be permanently removed from this trip.")
         }
     }
   }
@@ -145,10 +158,12 @@ struct TripItineraryView: View {
     // longer reaches the row. (`stopRow` keeps that modifier for the whole-trip
     // path, where it *is* the row.) The cell already carries the row identity via
     // the `ForEach(stops)`, so `stopRow`'s inner `.id` is redundant here.
-    VStack(alignment: .leading, spacing: 0) {
-      ForEach(cell.leading) { item in itineraryRow(item, sequence: sequence) }
-      stopRow(stop, sequence: sequence)
-      ForEach(cell.trailing) { item in itineraryRow(item, sequence: sequence) }
+    lifecycleSwipeActions(for: stop) {
+      VStack(alignment: .leading, spacing: 0) {
+        ForEach(cell.leading) { item in itineraryRow(item, sequence: sequence) }
+        stopRow(stop, sequence: sequence, includesLifecycleSwipeActions: false)
+        ForEach(cell.trailing) { item in itineraryRow(item, sequence: sequence) }
+      }
     }
     .listRowBackground(
       model.canvasSelectedStopID == stop.id ? Color.accentColor.opacity(0.12) : nil
@@ -424,7 +439,9 @@ struct TripItineraryView: View {
   /// physical-device VoiceOver check is still pending, so they preserve an
   /// accessibility path if `.reorderable()` does not expose one itself.
   private func stopRow(
-    _ resolved: ResolvedStop, sequence: [TripIdea.ID: Int] = [:]
+    _ resolved: ResolvedStop,
+    sequence: [TripIdea.ID: Int] = [:],
+    includesLifecycleSwipeActions: Bool = true
   ) -> some View {
     let ring = model.plan.alternatives(forStop: resolved.id)
     let looseRing = ring.map { isLooseAlternativeSlot($0.activeMember.entry.schedule) } ?? false
@@ -442,48 +459,97 @@ struct TripItineraryView: View {
     let looseTitle = looseRing
       ? "\(resolved.content.title) · \(ring?.members.count ?? 0) options"
       : nil
-    return VStack(alignment: .leading, spacing: 8) {
-      if let ring {
-        AlternativeGroupHeader(model: model, ring: ring)
-      }
-      PlanningRow(
-        content: resolved.content,
-        title: looseTitle,
-        note: resolved.entry.calendarNotes ?? resolved.entry.inlineNote,
-        subtitle: .none,
-        marker: marker
-      ) {
-        stopRowAccessory(resolved)
-      }
-      // The alternatives affordance (cycle + "N of M" + disclosure) gets its own
-      // row under the title, aligned past the pin marker — in the trailing cluster
-      // it fought the schedule label ("Lunch") for width and the badge collapsed.
-      if let ring {
-        AlternativeSlotControls(model: model, ring: ring)
-          .padding(.leading, 38)
-      }
-      if let ring, model.isAlternativeDisclosureExpanded(ring.groupID) {
-        AlternativeSlotDisclosure(model: model, ring: ring)
-      }
-    }
-    .listRowBackground(
-      model.canvasSelectedStopID == resolved.id ? Color.accentColor.opacity(0.12) : nil
-    )
-    .contentShape(Rectangle())
-    .onTapGesture { model.selectStop(resolved.id) }
-    .accessibilityActions {
-      if case .day = resolved.entry.schedule {
-        Button("Move Earlier in Day") {
-          model.moveStopEarlier(resolved)
+    return lifecycleSwipeActions(for: resolved, enabled: includesLifecycleSwipeActions) {
+      VStack(alignment: .leading, spacing: 8) {
+        if let ring {
+          AlternativeGroupHeader(model: model, ring: ring)
         }
-        .disabled(!model.canMoveStopEarlier(resolved))
-        Button("Move Later in Day") {
-          model.moveStopLater(resolved)
+        PlanningRow(
+          content: resolved.content,
+          title: looseTitle,
+          note: resolved.entry.calendarNotes ?? resolved.entry.inlineNote,
+          subtitle: .none,
+          marker: marker
+        ) {
+          stopRowAccessory(resolved)
         }
-        .disabled(!model.canMoveStopLater(resolved))
+        // The alternatives affordance (cycle + "N of M" + disclosure) gets its own
+        // row under the title, aligned past the pin marker — in the trailing cluster
+        // it fought the schedule label ("Lunch") for width and the badge collapsed.
+        if let ring {
+          AlternativeSlotControls(model: model, ring: ring)
+            .padding(.leading, 38)
+        }
+        if let ring, model.isAlternativeDisclosureExpanded(ring.groupID) {
+          AlternativeSlotDisclosure(model: model, ring: ring)
+        }
       }
+      .listRowBackground(
+        model.canvasSelectedStopID == resolved.id ? Color.accentColor.opacity(0.12) : nil
+      )
+      .contentShape(Rectangle())
+      .onTapGesture { model.selectStop(resolved.id) }
+      .accessibilityActions {
+        if case .day = resolved.entry.schedule {
+          Button("Move Earlier in Day") {
+            model.moveStopEarlier(resolved)
+          }
+          .disabled(!model.canMoveStopEarlier(resolved))
+          Button("Move Later in Day") {
+            model.moveStopLater(resolved)
+          }
+          .disabled(!model.canMoveStopLater(resolved))
+        }
+      }
+      .id(resolved.id)
     }
-    .id(resolved.id)
+  }
+
+  @ViewBuilder
+  private func lifecycleSwipeActions<Content: View>(
+    for stop: ResolvedStop,
+    enabled: Bool = true,
+    @ViewBuilder content: () -> Content
+  ) -> some View {
+    if enabled {
+      content()
+        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+          if stop.entry.dayNumber != nil,
+            model.calendarTimeAuthority(for: stop.id) != .linked
+          {
+            Button {
+              model.sendToBeScheduled(stop.id)
+            } label: {
+              Label("To Be Scheduled", systemImage: Icon.toBeScheduled.systemName)
+            }
+          }
+          if stop.idea != nil {
+            Button {
+              model.unschedule(stop.id)
+            } label: {
+              Label("Move to Shortlist", systemImage: Icon.revert.systemName)
+            }
+          }
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: stop.idea != nil) {
+          Button {
+            model.markSkipped(stop.id)
+          } label: {
+            Label("Mark Skipped", systemImage: Icon.skip.systemName)
+          }
+          .tint(.orange)
+          if stop.idea == nil {
+            Button(role: .destructive) {
+              pendingStopRemoval = PendingStopRemoval(
+                stopID: stop.id, title: stop.content.title)
+            } label: {
+              Label("Remove", systemImage: Icon.delete.systemName)
+            }
+          }
+        }
+    } else {
+      content()
+    }
   }
 
   /// The trailing accessory cluster for a stop row: a pinned-reservation glyph and
