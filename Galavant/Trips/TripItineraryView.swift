@@ -434,7 +434,8 @@ struct TripItineraryView: View {
 
   /// A stop row: the stop content, its pinned-reservation indicator
   /// (docs/trip-time-model.md §4), its `StopMenu`, and a tap. Tapping the name
-  /// selects the stop on the shared canvas; the pencil remains the explicit edit
+  /// selects the stop on the shared canvas and, for idea-backed stops, opens the
+  /// existing in-panel detail overlay; the pencil remains the explicit edit
   /// affordance. The custom reorder actions are intentionally non-visual: the
   /// physical-device VoiceOver check is still pending, so they preserve an
   /// accessibility path if `.reorderable()` does not expose one itself.
@@ -488,7 +489,12 @@ struct TripItineraryView: View {
         model.canvasSelectedStopID == resolved.id ? Color.accentColor.opacity(0.12) : nil
       )
       .contentShape(Rectangle())
-      .onTapGesture { model.selectStop(resolved.id) }
+      .onTapGesture {
+        model.selectStop(resolved.id)
+        if let idea = resolved.idea {
+          model.showDetail(idea)
+        }
+      }
       .accessibilityActions {
         if case .day = resolved.entry.schedule {
           Button("Move Earlier in Day") {
