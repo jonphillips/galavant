@@ -55,15 +55,21 @@ public final class GuideRatingSupplement {
 
     // Find the guide-detail link the idea's own page points at (the same recognizer the
     // enricher uses). No fetch of the idea page → nothing to follow.
-    guard let html = await pageFetcher(url),
-      let link = GuideLinkRecognizer.recognize(in: PageParser.parse(html: html, sourceURL: url)).first
+    guard let document = await pageFetcher(url),
+      let link = GuideLinkRecognizer.recognize(
+        in: PageParser.parse(html: document.html, sourceURL: document.effectiveURL)
+      ).first
     else { return .noGuideLink }
 
     // Plain-fetch the guide page (the rung that already ran during enrichment). If it
     // renders, record what it says; if not, hand the user the browser at this URL.
-    guard let guideHTML = await pageFetcher(link.url) else { return .needsBrowser(link.url) }
+    guard let guideDocument = await pageFetcher(link.url) else {
+      return .needsBrowser(link.url)
+    }
     let recorded = await record(
-      PageParser.parse(html: guideHTML, sourceURL: link.url), ideaID: ideaID,
+      PageParser.parse(
+        html: guideDocument.html, sourceURL: guideDocument.effectiveURL
+      ), ideaID: ideaID,
       travelPartyID: travelPartyID
     )
     return recorded == nil ? .needsBrowser(link.url) : .recorded(recorded ?? 0)

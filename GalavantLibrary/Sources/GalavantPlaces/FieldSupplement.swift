@@ -125,14 +125,16 @@ public final class FieldSupplement {
     return true
   }
 
-  /// Fetch the site with `fetch`, parse it, and resolve hours — `nil` when the fetch
-  /// failed or the page carried none. The unit a render-on-miss escalation retries with
-  /// a heavier fetcher (ADR-0024).
+  /// Fetch the site with `fetch`, parse it against the fetch's effective URL, and
+  /// resolve hours — `nil` when the fetch failed or the page carried none. The unit a
+  /// render-on-miss escalation retries with a heavier fetcher (ADR-0024).
   private func hoursFromSite(
-    _ url: URL, fetch: (URL) async -> String?
+    _ url: URL, fetch: (URL) async -> FetchedDocument?
   ) async -> String? {
-    guard let html = await fetch(url) else { return nil }
-    return await resolvedHours(from: PageParser.parse(html: html, sourceURL: url))
+    guard let document = await fetch(url) else { return nil }
+    return await resolvedHours(
+      from: PageParser.parse(html: document.html, sourceURL: document.effectiveURL)
+    )
   }
 
   /// Hours from an already-parsed page: the deterministic `openingHours` first, and

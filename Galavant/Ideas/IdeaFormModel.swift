@@ -233,11 +233,20 @@ final class IdeaFormModel {
     refetchingImages = true
     imagesStatus = nil
     defer { refetchingImages = false }
-    if await PlaceEnricher().refetchImages(ideaID: id) {
+    switch await PlaceEnricher().refetchImages(ideaID: id) {
+    case .refreshed(let storedCount):
       await reloadImages()
-      imagesStatus = "Images refreshed."
-    } else {
+      imagesStatus = storedCount == 1
+        ? "1 image refreshed."
+        : "\(storedCount) images refreshed."
+    case .pageUnavailable:
+      imagesStatus = "Couldn't load the linked page."
+    case .noCandidates:
       imagesStatus = "No images found on the linked page."
+    case .noneUsable:
+      imagesStatus = "The linked page's images couldn't be used."
+    case .storageFailed:
+      imagesStatus = "Couldn't save the refreshed images."
     }
   }
 

@@ -57,6 +57,16 @@ import UniformTypeIdentifiers
     </head><body></body></html>
     """
 
+  nonisolated private static let relativeImageHTML = """
+    <html><head>
+    <meta property="og:image" content="images/og.jpg">
+    </head><body><img src="/photos/body.jpg"></body></html>
+    """
+
+  nonisolated private static let titleWithoutImagesHTML = """
+    <html><head><title>Venue</title></head><body><p>A useful page.</p></body></html>
+    """
+
   /// A restaurant site with structured opening hours — the deterministic parser finds them.
   nonisolated private static let siteWithHoursHTML = """
     <html><head>
@@ -86,7 +96,7 @@ import UniformTypeIdentifiers
       try $0.bootstrapDatabase()
       $0.uuid = .incrementing
       $0.date = .constant(stamp)
-      $0.pageFetcher = PageFetcher { _ in Self.websiteHTML }
+      $0.pageFetcher = PageFetcher { url in fetchedDocument(Self.websiteHTML, at: url) }
       $0.imageFetcher = ImageFetcher { url in Self.png(for: url) }
       // The dining room scores above the logo (which Vision would flag as utility).
       $0.imageRecommender = ImageRecommender { data in
@@ -132,9 +142,9 @@ import UniformTypeIdentifiers
       try $0.bootstrapDatabase()
       $0.uuid = .incrementing
       $0.date = .constant(Date(timeIntervalSince1970: 1_700_000_000))
-      $0.pageFetcher = PageFetcher { _ in
+      $0.pageFetcher = PageFetcher { url in
         fetchCount.withValue { $0 += 1 }
-        return Self.websiteHTML
+        return fetchedDocument(Self.websiteHTML, at: url)
       }
       $0.imageFetcher = .testValue
       $0.imageRecommender = .testValue
@@ -161,9 +171,9 @@ import UniformTypeIdentifiers
     try await withDependencies {
       try $0.bootstrapDatabase()
       $0.uuid = .incrementing
-      $0.pageFetcher = PageFetcher { _ in
+      $0.pageFetcher = PageFetcher { url in
         fetchCount.withValue { $0 += 1 }
-        return Self.websiteHTML
+        return fetchedDocument(Self.websiteHTML, at: url)
       }
       $0.imageFetcher = ImageFetcher { url in Self.png(for: url) }
       $0.imageRecommender = .testValue
@@ -183,7 +193,7 @@ import UniformTypeIdentifiers
       }
 
       let enricher = PlaceEnricher()
-      #expect(await enricher.refetchImages(ideaID: ideaID))
+      #expect(await enricher.refetchImages(ideaID: ideaID) == .refreshed(storedCount: 2))
       let firstImages = try await database.read { db in
         try ImageAsset.images(forIdea: ideaID, in: db)
       }
@@ -194,8 +204,8 @@ import UniformTypeIdentifiers
         try ImageAsset.setHeader(manualHeaderID, ideaID: ideaID, in: db)
       }
 
-      #expect(await enricher.refetchImages(ideaID: ideaID))
-      #expect(await enricher.refetchImages(ideaID: ideaID))
+      #expect(await enricher.refetchImages(ideaID: ideaID) == .refreshed(storedCount: 2))
+      #expect(await enricher.refetchImages(ideaID: ideaID) == .refreshed(storedCount: 2))
       let (images, idea) = try await database.read { db in
         try (ImageAsset.images(forIdea: ideaID, in: db), Idea.find(ideaID).fetchOne(db))
       }
@@ -203,6 +213,225 @@ import UniformTypeIdentifiers
       #expect(images.count == 2)
       #expect(images.first(where: \.isHeader)?.id == manualHeaderID)
       #expect(idea?.enrichedAt == Date(timeIntervalSince1970: 1_700_000_000))
+    }
+  }
+
+  @Test("Raw redirects resolve relative image URLs against the effective page URL")
+  func rawRedirectUsesEffectiveImageBase() async throws {
+    let ideaID = UUID()
+    let requestedURL = URL(string: "https://redirector.example/start")!
+    let effectiveURL = URL(string: "https://venue.example/somepath/")!
+    let fetchedImageURLs = LockIsolated<[URL]>([])
+
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.pageFetcher = PageFetcher { _ in
+        fetchedDocument(Self.relativeImageHTML, at: effectiveURL)
+      }
+      $0.imageFetcher = ImageFetcher { url in
+        fetchedImageURLs.withValue { $0.append(url) }
+        return Self.png(for: url)
+      }
+      $0.imageRecommender = .testValue
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      try await database.write { db in
+        let party = try TravelParty.ensureDefault(in: db)
+        try Idea.insert {
+          Idea.Draft(
+            id: ideaID, name: "Redirected venue", url: requestedURL.absoluteString,
+            travelPartyID: party.id
+          )
+        }
+        .execute(db)
+      }
+
+      let outcome = await PlaceEnricher().refetchImages(ideaID: ideaID)
+      #expect(outcome == .refreshed(storedCount: 2))
+      #expect(
+        Set(fetchedImageURLs.value) == Set([
+          URL(string: "https://venue.example/somepath/images/og.jpg")!,
+          URL(string: "https://venue.example/photos/body.jpg")!,
+        ])
+      )
+
+      let (idea, images) = try await database.read { db in
+        try (Idea.find(ideaID).fetchOne(db), ImageAsset.images(forIdea: ideaID, in: db))
+      }
+      #expect(idea?.url == requestedURL.absoluteString)
+      #expect(
+        Set(images.map(\.sourceURL)) == Set(fetchedImageURLs.value.map(\.absoluteString))
+      )
+    }
+  }
+
+  @Test("Rendered redirects resolve relative images against the rendered effective URL")
+  func renderedRedirectUsesEffectiveImageBase() async throws {
+    let ideaID = UUID()
+    let requestedURL = URL(string: "https://redirector.example/start")!
+    let renderedURL = URL(string: "https://venue.example/final/path/")!
+    let fetchedImageURLs = LockIsolated<[URL]>([])
+
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.pageFetcher = PageFetcher { url in fetchedDocument(Self.shellHTML, at: url) }
+      $0.renderedPageFetcher = RenderedPageFetcher { _ in
+        fetchedDocument("<html><body><img src=\"hero.jpg\"></body></html>", at: renderedURL)
+      }
+      $0.imageFetcher = ImageFetcher { url in
+        fetchedImageURLs.withValue { $0.append(url) }
+        return Self.png(for: url)
+      }
+      $0.imageRecommender = .testValue
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      try await database.write { db in
+        let party = try TravelParty.ensureDefault(in: db)
+        try Idea.insert {
+          Idea.Draft(
+            id: ideaID, name: "Rendered redirect", url: requestedURL.absoluteString,
+            travelPartyID: party.id
+          )
+        }
+        .execute(db)
+      }
+
+      let outcome = await PlaceEnricher().refetchImages(ideaID: ideaID)
+      #expect(outcome == .refreshed(storedCount: 1))
+      #expect(fetchedImageURLs.value == [URL(string: "https://venue.example/final/path/hero.jpg")!])
+    }
+  }
+
+  @Test("An image-specific static miss renders even when the page has a title")
+  func imageMissRendersTitleOnlyStaticPage() async throws {
+    let ideaID = UUID()
+    let renderedFetchCount = LockIsolated(0)
+
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.pageFetcher = PageFetcher { url in
+        fetchedDocument(Self.titleWithoutImagesHTML, at: url)
+      }
+      $0.renderedPageFetcher = RenderedPageFetcher { url in
+        renderedFetchCount.withValue { $0 += 1 }
+        return fetchedDocument(Self.relativeImageHTML, at: url)
+      }
+      $0.imageFetcher = ImageFetcher { url in Self.png(for: url) }
+      $0.imageRecommender = .testValue
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      try await database.write { db in
+        let party = try TravelParty.ensureDefault(in: db)
+        try Idea.insert {
+          Idea.Draft(id: ideaID, name: "Title only", url: "https://venue.example", travelPartyID: party.id)
+        }
+        .execute(db)
+      }
+
+      let outcome = await PlaceEnricher().refetchImages(ideaID: ideaID)
+      #expect(outcome == .refreshed(storedCount: 2))
+      #expect(renderedFetchCount.value == 1)
+    }
+  }
+
+  @Test("An image hit keeps the cheap static path and skips rendering")
+  func imageHitSkipsRenderedFetch() async throws {
+    let ideaID = UUID()
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.pageFetcher = PageFetcher { url in fetchedDocument(Self.relativeImageHTML, at: url) }
+      $0.renderedPageFetcher = RenderedPageFetcher { _ in
+        Issue.record("the rendered fetch must not run when static images exist")
+        return nil
+      }
+      $0.imageFetcher = ImageFetcher { url in Self.png(for: url) }
+      $0.imageRecommender = .testValue
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      try await database.write { db in
+        let party = try TravelParty.ensureDefault(in: db)
+        try Idea.insert {
+          Idea.Draft(id: ideaID, name: "Static images", url: "https://venue.example", travelPartyID: party.id)
+        }
+        .execute(db)
+      }
+
+      #expect(
+        await PlaceEnricher().refetchImages(ideaID: ideaID) == .refreshed(storedCount: 2)
+      )
+    }
+  }
+
+  @Test("Image refresh distinguishes unavailable pages, missing candidates, and unusable images")
+  func imageRefreshReportsDiagnosableMisses() async throws {
+    let unavailableID = UUID()
+    let noCandidatesID = UUID()
+    let noneUsableID = UUID()
+
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.pageFetcher = .testValue
+      $0.renderedPageFetcher = .testValue
+      $0.imageFetcher = .testValue
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      try await database.write { db in
+        let party = try TravelParty.ensureDefault(in: db)
+        for (id, name) in [
+          (unavailableID, "Unavailable"),
+          (noCandidatesID, "No candidates"),
+          (noneUsableID, "None usable"),
+        ] {
+          try Idea.insert {
+            Idea.Draft(id: id, name: name, url: "https://venue.example", travelPartyID: party.id)
+          }
+          .execute(db)
+        }
+      }
+
+      let enricher = PlaceEnricher()
+      #expect(await enricher.refetchImages(ideaID: unavailableID) == .pageUnavailable)
+    }
+
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.pageFetcher = PageFetcher { url in fetchedDocument(Self.titleWithoutImagesHTML, at: url) }
+      $0.renderedPageFetcher = .testValue
+      $0.imageFetcher = .testValue
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      try await database.write { db in
+        let party = try TravelParty.ensureDefault(in: db)
+        try Idea.insert {
+          Idea.Draft(
+            id: noCandidatesID, name: "No candidates", url: "https://venue.example", travelPartyID: party.id
+          )
+        }
+        .execute(db)
+      }
+      #expect(await PlaceEnricher().refetchImages(ideaID: noCandidatesID) == .noCandidates)
+    }
+
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.pageFetcher = PageFetcher { url in fetchedDocument(Self.relativeImageHTML, at: url) }
+      $0.imageFetcher = .testValue
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      try await database.write { db in
+        let party = try TravelParty.ensureDefault(in: db)
+        try Idea.insert {
+          Idea.Draft(
+            id: noneUsableID, name: "None usable", url: "https://venue.example", travelPartyID: party.id
+          )
+        }
+        .execute(db)
+      }
+      #expect(await PlaceEnricher().refetchImages(ideaID: noneUsableID) == .noneUsable)
     }
   }
 
@@ -262,7 +491,7 @@ import UniformTypeIdentifiers
       try $0.bootstrapDatabase()
       $0.uuid = .incrementing
       $0.date = .constant(stamp)
-      $0.pageFetcher = PageFetcher { _ in Self.siteWithHoursHTML }
+      $0.pageFetcher = PageFetcher { url in fetchedDocument(Self.siteWithHoursHTML, at: url) }
       $0.imageFetcher = .testValue
       $0.imageRecommender = .testValue
     } operation: {
@@ -302,7 +531,7 @@ import UniformTypeIdentifiers
       try $0.bootstrapDatabase()
       $0.uuid = .incrementing
       $0.date = .constant(stamp)
-      $0.pageFetcher = PageFetcher { _ in Self.unstructuredSiteHTML }
+      $0.pageFetcher = PageFetcher { url in fetchedDocument(Self.unstructuredSiteHTML, at: url) }
       $0.imageFetcher = .testValue
       $0.imageRecommender = .testValue
       // No structured markup → the string rung fills the free-form field, the
@@ -342,7 +571,7 @@ import UniformTypeIdentifiers
       try $0.bootstrapDatabase()
       $0.uuid = .incrementing
       $0.date = .constant(Date(timeIntervalSince1970: 1_700_000_000))
-      $0.pageFetcher = PageFetcher { _ in Self.siteWithHoursHTML }
+      $0.pageFetcher = PageFetcher { url in fetchedDocument(Self.siteWithHoursHTML, at: url) }
       $0.imageFetcher = .testValue
       $0.imageRecommender = .testValue
     } operation: {
@@ -375,7 +604,7 @@ import UniformTypeIdentifiers
       try $0.bootstrapDatabase()
       $0.uuid = .incrementing
       $0.date = .constant(stamp)
-      $0.pageFetcher = PageFetcher { _ in Self.unstructuredSiteHTML }
+      $0.pageFetcher = PageFetcher { url in fetchedDocument(Self.unstructuredSiteHTML, at: url) }
       $0.imageFetcher = .testValue
       $0.imageRecommender = .testValue
       $0.hoursExtractor = HoursExtractor { _ in "Wed–Sun 5:00 PM–10:00 PM" }
@@ -406,7 +635,7 @@ import UniformTypeIdentifiers
       try $0.bootstrapDatabase()
       $0.uuid = .incrementing
       $0.date = .constant(Date(timeIntervalSince1970: 1_700_000_000))
-      $0.pageFetcher = PageFetcher { _ in Self.siteWithHoursHTML }
+      $0.pageFetcher = PageFetcher { url in fetchedDocument(Self.siteWithHoursHTML, at: url) }
       $0.imageFetcher = .testValue
       $0.imageRecommender = .testValue
     } operation: {
@@ -446,8 +675,8 @@ import UniformTypeIdentifiers
       try $0.bootstrapDatabase()
       $0.uuid = .incrementing
       $0.date = .constant(stamp)
-      $0.pageFetcher = PageFetcher { _ in Self.shellHTML }  // raw GET: empty shell
-      $0.renderedPageFetcher = RenderedPageFetcher { _ in Self.websiteHTML }  // rendered: rich
+      $0.pageFetcher = PageFetcher { url in fetchedDocument(Self.shellHTML, at: url) }  // raw GET: empty shell
+      $0.renderedPageFetcher = RenderedPageFetcher { url in fetchedDocument(Self.websiteHTML, at: url) }  // rendered: rich
       $0.imageFetcher = ImageFetcher { url in Self.png(for: url) }
       $0.imageRecommender = .testValue
     } operation: {
@@ -476,7 +705,7 @@ import UniformTypeIdentifiers
       try $0.bootstrapDatabase()
       $0.uuid = .incrementing
       $0.date = .constant(Date(timeIntervalSince1970: 1_700_000_000))
-      $0.pageFetcher = PageFetcher { _ in Self.websiteHTML }  // already usable
+      $0.pageFetcher = PageFetcher { url in fetchedDocument(Self.websiteHTML, at: url) }  // already usable
       $0.renderedPageFetcher = RenderedPageFetcher { _ in
         Issue.record("the heavy rendered fetch must not run when the GET parsed fine")
         return nil
@@ -504,6 +733,11 @@ import UniformTypeIdentifiers
     <body><p>Find us on the <a href="https://guide.michelin.com/en/madrid/restaurant/es-senz">MICHELIN Guide</a>.</p></body></html>
     """
 
+  nonisolated private static let siteWithRelativeGuideLinkHTML = """
+    <html><head><meta property="og:title" content="Es Senz"></head>
+    <body><p>Find us on the <a href="es-senz">MICHELIN Guide</a>.</p></body></html>
+    """
+
   /// The Michelin guide detail page — its award text yields ★★★.
   nonisolated private static let michelinGuideHTML = """
     <html><head><script type="application/ld+json">{
@@ -524,8 +758,11 @@ import UniformTypeIdentifiers
       $0.date = .constant(stamp)
       $0.pageFetcher = PageFetcher { url in
         fetched.withValue { $0.append(url.absoluteString) }
-        return url.host()?.contains("michelin") == true
-          ? Self.michelinGuideHTML : Self.siteLinkingToGuideHTML
+        return fetchedDocument(
+          url.host()?.contains("michelin") == true
+            ? Self.michelinGuideHTML : Self.siteLinkingToGuideHTML,
+          at: url
+        )
       }
       $0.imageFetcher = .testValue
       $0.imageRecommender = .testValue
@@ -549,6 +786,53 @@ import UniformTypeIdentifiers
     }
   }
 
+  @Test("A relative guide link uses the effective URL of the redirected place page")
+  func enrichResolvesRelativeGuideLinkAgainstEffectiveURL() async throws {
+    let ideaID = UUID()
+    let requestedURL = URL(string: "https://redirector.example/start")!
+    let effectivePlaceURL = URL(string: "https://guide.michelin.com/en/restaurant/")!
+    let expectedGuideURL = URL(string: "https://guide.michelin.com/en/restaurant/es-senz")!
+    let fetched = LockIsolated<[URL]>([])
+
+    try await withDependencies {
+      try $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.date = .constant(Date(timeIntervalSince1970: 1_700_000_000))
+      $0.pageFetcher = PageFetcher { url in
+        fetched.withValue { $0.append(url) }
+        if url == expectedGuideURL {
+          return fetchedDocument(Self.michelinGuideHTML, at: expectedGuideURL)
+        }
+        return fetchedDocument(Self.siteWithRelativeGuideLinkHTML, at: effectivePlaceURL)
+      }
+      $0.imageFetcher = .testValue
+      $0.imageRecommender = .testValue
+    } operation: {
+      @Dependency(\.defaultDatabase) var database
+      try await database.write { db in
+        let party = try TravelParty.ensureDefault(in: db)
+        try Idea.insert {
+          Idea.Draft(
+            id: ideaID, name: "Es Senz", url: requestedURL.absoluteString, travelPartyID: party.id
+          )
+        }
+        .execute(db)
+      }
+
+      await PlaceEnricher().enrichIfNeeded(ideaID: ideaID)
+
+      #expect(fetched.value == [requestedURL, expectedGuideURL])
+      let evaluation = try await database.read { db in
+        try IdeaEvaluation.all.fetchOne(db)
+      }
+      #expect(evaluation?.sourceName == "Michelin Guide")
+      #expect(
+        try await database.read { db in try Idea.find(ideaID).fetchOne(db)?.url }
+          == requestedURL.absoluteString
+      )
+    }
+  }
+
   @Test("The guide hop is idempotent: a rating the idea already carries isn't duplicated")
   func enrichGuideHopIsIdempotent() async throws {
     let ideaID = UUID()
@@ -557,7 +841,11 @@ import UniformTypeIdentifiers
       $0.uuid = .incrementing
       $0.date = .constant(Date(timeIntervalSince1970: 1_700_000_000))
       $0.pageFetcher = PageFetcher { url in
-        url.host()?.contains("michelin") == true ? Self.michelinGuideHTML : Self.siteLinkingToGuideHTML
+        fetchedDocument(
+          url.host()?.contains("michelin") == true
+            ? Self.michelinGuideHTML : Self.siteLinkingToGuideHTML,
+          at: url
+        )
       }
       $0.imageFetcher = .testValue
       $0.imageRecommender = .testValue

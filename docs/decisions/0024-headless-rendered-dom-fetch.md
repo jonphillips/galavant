@@ -1,6 +1,6 @@
 # ADR-0024: Headless rendered-DOM fetch for the automated enrichment paths
 
-*Status: accepted — 2026-06-25*
+*Status: accepted — amended 2026-08-20*
 
 ## Context
 
@@ -92,6 +92,22 @@ hop** — and would run WebKit under the extension's much tighter jetsam ceiling
 below the host app's). The decisive argument is the redundancy, independent of the exact
 memory number. Recorded here so a future reader doesn't "finish the job" by wiring the
 rendered fetch into the extension.
+
+## Amendment — effective URLs and image-specific misses (2026-08-20)
+
+The automated fetch contracts now return the fetched document together with its
+**effective final URL**. `URLSession` supplies it through `URLResponse.url`, and the
+shared headless WebKit fetcher supplies `WebPage.url` after `.finished` (falling back
+to the hygiene-upgraded request URL). Every automated parser uses that effective URL as
+`sourceURL`, so relative images and guide links resolve against the page that actually
+served the document. The canonical `Idea.url` remains the user's captured URL; writing
+the effective URL back for canonicalization is out of scope.
+
+The image refresh path has a narrower render-on-miss predicate than fact enrichment:
+it renders when the static parse's `imageURLs` is empty, even when other facts such as a
+title were found. The rendered parse is merged into the static parse, preserving useful
+static facts while adding rendered image candidates. A static image hit keeps the cheap
+path and skips rendering.
 
 ### SDK verification (past Claude's cutoff)
 

@@ -62,7 +62,10 @@ import Testing
       $0.date = .constant(stamp)
       $0.uuid = .incrementing
       $0.pageFetcher = PageFetcher { url in
-        url.host() == "guide.michelin.com" ? Self.guideHTML : Self.placeHTML
+        fetchedDocument(
+          url.host() == "guide.michelin.com" ? Self.guideHTML : Self.placeHTML,
+          at: url
+        )
       }
     } operation: {
       @Dependency(\.defaultDatabase) var database
@@ -87,7 +90,9 @@ import Testing
       $0.pageFetcher = PageFetcher { url in
         // The place page renders; the guide page is the JS-heavy one the plain fetch
         // can't read (nil).
-        url.host() == "guide.michelin.com" ? nil : Self.placeHTML
+        url.host() == "guide.michelin.com"
+          ? nil
+          : fetchedDocument(Self.placeHTML, at: url)
       }
     } operation: {
       @Dependency(\.defaultDatabase) var database
@@ -104,7 +109,8 @@ import Testing
       try $0.bootstrapDatabase()
       $0.pageFetcher = PageFetcher { url in
         url.host() == "guide.michelin.com"
-          ? "<html><body>Loading…</body></html>" : Self.placeHTML
+          ? fetchedDocument("<html><body>Loading…</body></html>", at: url)
+          : fetchedDocument(Self.placeHTML, at: url)
       }
     } operation: {
       @Dependency(\.defaultDatabase) var database
@@ -118,7 +124,11 @@ import Testing
   func noGuideLink() async throws {
     try await withDependencies {
       try $0.bootstrapDatabase()
-      $0.pageFetcher = PageFetcher { _ in "<html><body><a href=\"https://example.com\">x</a></body></html>" }
+      $0.pageFetcher = PageFetcher { url in
+        fetchedDocument(
+          "<html><body><a href=\"https://example.com\">x</a></body></html>", at: url
+        )
+      }
     } operation: {
       @Dependency(\.defaultDatabase) var database
       let ideaID = try await database.write { db in try self.seedIdea(in: db) }
