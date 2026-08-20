@@ -1,10 +1,11 @@
 import GalavantSchema
 import SwiftUI
 
-/// The trip's Ideas tab: the pulled ideas grouped Shortlist / Scheduled /
-/// Considering, with one-tap state icons (star/calendar) and swipe actions. A
-/// scheduled stop can't be removed here — it's unscheduled back to the shortlist
-/// first (ADR-0004). The Add button (in the parent shell) opens the pool sheet.
+/// The trip's Ideas tab: the pulled ideas grouped Shortlist / To Be Scheduled /
+/// Scheduled / Considering, with one-tap state icons (star/calendar) and swipe
+/// actions. A scheduled stop can't be removed here — it's unscheduled back to the
+/// shortlist first (ADR-0004). The Add button (in the parent shell) opens the pool
+/// sheet.
 struct TripIdeasView: View {
   let model: TripPlanningModel
   /// On compact layouts this is the first list section, so it scrolls with the
@@ -40,6 +41,13 @@ struct TripIdeasView: View {
           }
         } footer: {
           Text("Open the most recent recommendation set for this trip.")
+        }
+      }
+      if !toBeScheduled.isEmpty {
+        Section("To Be Scheduled") {
+          ForEach(toBeScheduled) { resolved in
+            scheduledIdeaRow(resolved)
+          }
         }
       }
       if !model.plan.shortlist.isEmpty {
@@ -89,30 +97,10 @@ struct TripIdeasView: View {
           .reorderable()
         }
       }
-      if !model.plan.scheduled.isEmpty {
+      if !placedScheduled.isEmpty {
         Section {
-          ForEach(model.plan.scheduled) { resolved in
-            // A scheduled stop can't be removed here — swipe to Unschedule first
-            // (idea-backed: drops back to Shortlist; freeform: removes it).
-            scheduledRow(resolved)
-              .contentShape(Rectangle())
-              .onTapGesture { if let idea = resolved.idea { model.showDetail(idea) } }
-              .swipeActions(edge: .trailing) {
-                if case .freeform = resolved.content {
-                  Button(role: .destructive) {
-                    model.remove(resolved.id)
-                  } label: {
-                    Icon.delete.label("Remove")
-                  }
-                } else {
-                  Button {
-                    model.unschedule(resolved.id)
-                  } label: {
-                    Icon.unschedule.label("Unschedule")
-                  }
-                  .tint(.orange)
-                }
-              }
+          ForEach(placedScheduled) { resolved in
+            scheduledIdeaRow(resolved)
           }
         } header: {
           HStack(spacing: 6) {
@@ -178,6 +166,14 @@ struct TripIdeasView: View {
     }
   }
 
+  private var toBeScheduled: [ResolvedStop] {
+    model.plan.toBeScheduled
+  }
+
+  private var placedScheduled: [ResolvedStop] {
+    model.plan.scheduled.filter { $0.entry.dayNumber != nil }
+  }
+
   /// A lit (shortlisted) or outline (considering) star that flips the row's
   /// state in one tap.
   private func starButton(filled: Bool, action: @escaping () -> Void) -> some View {
@@ -200,6 +196,30 @@ struct TripIdeasView: View {
         .foregroundStyle(placed ? AnyShapeStyle(.green) : AnyShapeStyle(.yellow))
     }
     .buttonStyle(.borderless)
+  }
+
+  /// A scheduled row can be returned to the shortlist (or removed when it is a
+  /// freeform stop) from either the To-Be-Scheduled or placed Scheduled section.
+  private func scheduledIdeaRow(_ resolved: ResolvedStop) -> some View {
+    scheduledRow(resolved)
+      .contentShape(Rectangle())
+      .onTapGesture { if let idea = resolved.idea { model.showDetail(idea) } }
+      .swipeActions(edge: .trailing) {
+        if case .freeform = resolved.content {
+          Button(role: .destructive) {
+            model.remove(resolved.id)
+          } label: {
+            Icon.delete.label("Remove")
+          }
+        } else {
+          Button {
+            model.unschedule(resolved.id)
+          } label: {
+            Icon.unschedule.label("Unschedule")
+          }
+          .tint(.orange)
+        }
+      }
   }
 
   @ViewBuilder
