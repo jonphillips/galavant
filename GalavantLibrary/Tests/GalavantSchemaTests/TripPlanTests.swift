@@ -618,18 +618,7 @@ import Testing
     }
   }
 
-  /// Resolving every leg's mode must stay ~linear in the leg count. The itinerary
-  /// lockup came from resolving legs one at a time, where each `legIdentity(for:)`
-  /// rebuilt the whole leg-graph — O(legs²·days) per render, a multi-second hang on
-  /// a real trip. `effectiveModes` now builds the map once. This guards the shared
-  /// substrate (`allLegPairs`/`itinerary`) from regressing into superlinear cost.
-  ///
-  /// Note: the model-level "build once" choice itself is not unit-testable — the app
-  /// target has no test bundle — so a fully deterministic guard needs the resolution
-  /// lifted into this core (see handoff follow-up). The `.timeLimit` is a coarse net;
-  /// the fixed path runs in low-single-digit milliseconds here.
-  @Test(.timeLimit(.minutes(1)))
-  func resolvingAllLegModesOverALargeItineraryStaysCheap() {
+  @Test func largeTravelGraphDerivesSharedInputsOnce() {
     let days = 40, stopsPerDay = 6
     var entries: [TripIdea] = []
     var ideas: [Idea] = []
@@ -645,15 +634,22 @@ import Testing
     }
     let p = plan(entries, ideas: ideas, lengthInDays: days)
 
-    // The production entry point: one pass, graph built once.
-    let start = Date()
-    let modes = p.legModes(
-      overrides: [:], mainMode: nil, travelTimes: [:], autoSwitchThreshold: 20 * 60)
-    let elapsed = Date().timeIntervalSince(start)
+    var itineraryDerivations = 0
+    var stayDerivations = 0
+    let pairs = p.allLegPairs(
+      itinerary: {
+        itineraryDerivations += 1
+        return p.itinerary
+      },
+      stays: {
+        stayDerivations += 1
+        return p.stays
+      })
 
-    #expect(modes.count == days * (stopsPerDay - 1))  // 5 legs/day × 40 days
-    #expect(modes.count == p.allLegs.count)           // one mode per leg
-    #expect(elapsed < 2.0, "resolving \(modes.count) leg modes took \(elapsed)s")
+    #expect(itineraryDerivations == 1)
+    #expect(stayDerivations == 1)
+    #expect(pairs.count == days * (stopsPerDay - 1))
+    #expect(Set(pairs.map(\.leg)) == Set(p.allLegs))
   }
 
   /// The resolution rule, now pure and testable (lifted out of `TripPlanningModel`):

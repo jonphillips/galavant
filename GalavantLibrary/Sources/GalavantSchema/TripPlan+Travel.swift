@@ -68,11 +68,23 @@ extension TripPlan {
   }
 
   private var allLegPairs: [(leg: LegKey, identity: LegIdentity)] {
-    itinerary.flatMap {
-      legPairs(forDay: $0.number)
-        + baseLegPairs(forDay: $0.number)
-        + returnLegPairs(forDay: $0.number)
-        + stayTransferLegPairs(forDay: $0.number)
+    allLegPairs(
+      itinerary: { itinerary },
+      stays: { stays })
+  }
+
+  package func allLegPairs(
+    itinerary deriveItinerary: () -> [ResolvedDay],
+    stays deriveStays: () -> [ResolvedStay]
+  ) -> [(leg: LegKey, identity: LegIdentity)] {
+    let itinerary = deriveItinerary()
+    let stays = deriveStays()
+    return itinerary.flatMap { day in
+      let dayStays = stays.filter { $0.stay.covers(day: day.number) }
+      return legPairs(in: day.stops)
+        + baseLegPairs(forDay: day.number, stops: day.stops, stays: dayStays)
+        + returnLegPairs(forDay: day.number, stops: day.stops, stays: dayStays)
+        + stayTransferLegPairs(forDay: day.number, stops: day.stops, stays: dayStays)
     }
   }
 
@@ -85,6 +97,10 @@ extension TripPlan {
 
   private func legPairs(forDay day: Int) -> [(leg: LegKey, identity: LegIdentity)] {
     let stops = itinerary.first(where: { $0.number == day })?.stops ?? []
+    return legPairs(in: stops)
+  }
+
+  private func legPairs(in stops: [ResolvedStop]) -> [(leg: LegKey, identity: LegIdentity)] {
     return zip(stops, stops.dropFirst()).compactMap { a, b in
       guard
         let fromLat = a.content.latitude, let fromLon = a.content.longitude,
@@ -106,8 +122,16 @@ extension TripPlan {
 
   private func baseLegPairs(forDay day: Int) -> [(leg: LegKey, identity: LegIdentity)] {
     let stops = itinerary.first(where: { $0.number == day })?.stops ?? []
+    return baseLegPairs(forDay: day, stops: stops, stays: stays(coveringDay: day))
+  }
+
+  private func baseLegPairs(
+    forDay day: Int,
+    stops: [ResolvedStop],
+    stays: [ResolvedStay]
+  ) -> [(leg: LegKey, identity: LegIdentity)] {
     guard let route = lodgingToStopRoute(
-      forDay: day, stops: stops, stays: stays(coveringDay: day))
+      forDay: day, stops: stops, stays: stays)
     else { return [] }
     return [(route.leg, route.identity)]
   }
@@ -121,8 +145,16 @@ extension TripPlan {
 
   private func returnLegPairs(forDay day: Int) -> [(leg: LegKey, identity: LegIdentity)] {
     let stops = itinerary.first(where: { $0.number == day })?.stops ?? []
+    return returnLegPairs(forDay: day, stops: stops, stays: stays(coveringDay: day))
+  }
+
+  private func returnLegPairs(
+    forDay day: Int,
+    stops: [ResolvedStop],
+    stays: [ResolvedStay]
+  ) -> [(leg: LegKey, identity: LegIdentity)] {
     guard let route = stopToLodgingRoute(
-      forDay: day, stops: stops, stays: stays(coveringDay: day))
+      forDay: day, stops: stops, stays: stays)
     else { return [] }
     return [(route.leg, route.identity)]
   }
@@ -135,10 +167,21 @@ extension TripPlan {
   }
 
   private func stayTransferLegPairs(forDay day: Int) -> [(leg: LegKey, identity: LegIdentity)] {
-    guard let transfer = stayTransfer(
+    stayTransferLegPairs(
       forDay: day,
       stops: itinerary.first(where: { $0.number == day })?.stops ?? [],
       stays: stays(coveringDay: day))
+  }
+
+  private func stayTransferLegPairs(
+    forDay day: Int,
+    stops: [ResolvedStop],
+    stays: [ResolvedStay]
+  ) -> [(leg: LegKey, identity: LegIdentity)] {
+    guard let transfer = stayTransfer(
+      forDay: day,
+      stops: stops,
+      stays: stays)
     else { return [] }
     return [(transfer.leg, transfer.identity)]
   }
