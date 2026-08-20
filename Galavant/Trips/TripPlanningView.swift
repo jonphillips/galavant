@@ -228,7 +228,8 @@ struct TripPlanningView: View {
       }
   }
 
-  /// The map plus its day-chip lens — the left/full-bleed surface in both layouts.
+  /// The map plus its lodging/day lens strips — the left/full-bleed surface in both
+  /// layouts.
   private var canvas: some View {
     // Day chips sit in a real VStack row ABOVE the map, not a `.safeAreaInset` or
     // `.overlay` over it. MapKit's `Map` ignores a layout inset and draws its
@@ -237,6 +238,7 @@ struct TripPlanningView: View {
     // stacked row gives the map a bounded frame it can't reach past, so the chips
     // stay tappable. (docs/KNOWN-ISSUES.md)
     VStack(spacing: 0) {
+      LodgingCapsuleBar(model: model)
       DayChipBar(model: model)
       TripCanvasMapView(model: model, bottomInsetFraction: bottomInsetFraction)
     }
