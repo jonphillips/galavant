@@ -10,9 +10,9 @@ import SwiftUINavigation
 /// Trips collection.
 ///
 /// This content is layout-agnostic: `TripPlanningView` hosts it as the persistent
-/// bottom sheet on iPhone and as the right-hand column on iPad. The modal sheets
-/// (edit form, Add-Ideas pool, Add Stop) are presented by the host so they stack
-/// above either layout.
+/// bottom sheet on iPhone and as the right-hand column on iPad. Row-triggered
+/// sheets are presented here so they stack above either layout; toolbar-triggered
+/// sheets remain on the outer presentation host.
 struct TripDetailContent: View {
   let model: TripPlanningModel
   let reconciliationModel: CalendarReconciliationModel
@@ -21,6 +21,10 @@ struct TripDetailContent: View {
   var onShowCalendarReconciliation: () -> Void = {}
 
   var body: some View {
+    editorSheets
+  }
+
+  private var mapSheets: some View {
     @Bindable var model = model
     // The read-only detail drills down *within this panel* (the iPhone bottom
     // sheet / the iPad right column) so it never covers the map. It's an opaque
@@ -28,7 +32,7 @@ struct TripDetailContent: View {
     // `NavigationStack`: nesting one inside the iPad `NavigationSplitView`'s detail
     // stack made the trip push pop straight back. This works identically on both
     // platforms and leaves the list chrome untouched.
-    ZStack {
+    return ZStack {
       listPanel
       if let id = model.detailIdeaID, let idea = model.ideaForDetail(id) {
         detailPanel(idea)
@@ -42,6 +46,32 @@ struct TripDetailContent: View {
     }
     .sheet(item: $model.destination.placeIdea, id: \.id) { target in
       PlaceIdeaSheet(model: model, target: target)
+    }
+  }
+
+  private var editorSheets: some View {
+    @Bindable var model = model
+    return mapSheets
+    .sheet(item: $model.destination.idea, id: \.id) { presentation in
+      IdeaFormView(draft: presentation.draft)
+    }
+    .sheet(item: $model.destination.freeformStop, id: \.id) { draft in
+      FreeformStopSheet(model: model, draft: draft)
+    }
+    .sheet(item: $model.destination.alternativeSource, id: \.id) { target in
+      AlternativeSourceSheet(model: model, target: target)
+    }
+    .sheet(item: $model.destination.alternativeSlot, id: \.id) { target in
+      AlternativeSlotSheet(model: model, target: target)
+    }
+    .sheet(item: $model.destination.stay, id: \.id) { draft in
+      StaySheet(model: model, draft: draft)
+    }
+    .sheet(item: $model.destination.stopTime, id: \.id) { draft in
+      StopTimeSheet(model: model, draft: draft)
+    }
+    .sheet(item: $model.destination.stopEditor, id: \.id) { draft in
+      StopEditorSheet(model: model, draft: draft)
     }
   }
 
