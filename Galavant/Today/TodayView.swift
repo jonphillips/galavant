@@ -72,9 +72,11 @@ struct TodayView: View {
   }
 
   /// The projection is rendered at the start of a previewed day, so its next
-  /// anchor is that day's forecast. WeatherKit bounds the request naturally.
+  /// anchor is that day's forecast. Do not request weather for a completed day;
+  /// WeatherKit bounds future requests naturally.
   private var activeWeatherAnchor: WeatherAnchor? {
-    projection?.next?.weatherAnchor
+    guard let liveDay, let currentDay else { return projection?.next?.weatherAnchor }
+    return currentDay >= liveDay ? projection?.next?.weatherAnchor : nil
   }
 
   private var showsDayStepper: Bool { tripStartDate != nil && dayCount >= 1 }
@@ -289,42 +291,11 @@ private struct TodayDayHeader: View {
 
       Spacer(minLength: 0)
 
-      if let weather {
+      if let weather, let reading = TodayWeatherReading.ambient(in: weather) {
         VStack(alignment: .trailing, spacing: 5) {
-          if !canExecute, weather.current == nil, let daily = weather.daily {
-            Button {
-              isShowingWeatherDetail = true
-            } label: {
-              HStack(spacing: 8) {
-                Image(systemName: daily.symbolName)
-                  .font(.title2)
-                  .symbolRenderingMode(.hierarchical)
-                Text("\(temperature(daily.highTemperature)) / \(temperature(daily.lowTemperature))")
-                  .font(.title3.weight(.bold))
-                  .monospacedDigit()
-              }
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.primary)
-            .accessibilityLabel(
-              "Daily weather forecast, \(daily.condition), high \(temperature(daily.highTemperature)), low \(temperature(daily.lowTemperature))")
-            .accessibilityHint("Shows weather details.")
-          } else if let reading = TodayWeatherReading.ambient(in: weather) {
-            Button {
-              isShowingWeatherDetail = true
-            } label: {
-              HStack(spacing: 5) {
-                Image(systemName: reading.symbolName)
-                  .symbolRenderingMode(.hierarchical)
-                Text(reading.temperature)
-                  .font(.subheadline.weight(.semibold))
-              }
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .accessibilityLabel("Current weather, \(reading.condition), \(reading.temperature)")
-            .accessibilityHint("Shows weather details.")
-          }
+          weatherButton(
+            reading: reading,
+            isDailyPreview: !canExecute && weather.current == nil && weather.daily != nil)
 
           WeatherAttributionLink(attribution: weather.attribution)
             .frame(width: 88, height: 14, alignment: .trailing)
@@ -339,12 +310,28 @@ private struct TodayDayHeader: View {
     .accessibilityLabel("Today, day \(context.dayNumber)\(context.locality.map { ", \($0)" } ?? "")")
   }
 
-  private func temperature(_ measurement: Measurement<UnitTemperature>) -> String {
-    measurement.formatted(
-      .measurement(
-        width: .narrow,
-        usage: .weather,
-        numberFormatStyle: .number.precision(.fractionLength(0))))
+  private func weatherButton(reading: TodayWeatherReading, isDailyPreview: Bool) -> some View {
+    Button {
+      isShowingWeatherDetail = true
+    } label: {
+      HStack(spacing: isDailyPreview ? 8 : 5) {
+        Image(systemName: reading.symbolName)
+          .font(isDailyPreview ? .title2 : .body)
+          .symbolRenderingMode(.hierarchical)
+        Text(reading.temperature)
+          .font(
+            isDailyPreview
+              ? .title3.weight(.bold)
+              : .subheadline.weight(.semibold))
+      }
+    }
+    .buttonStyle(.plain)
+    .foregroundStyle(isDailyPreview ? .primary : .secondary)
+    .accessibilityLabel(
+      isDailyPreview
+        ? "Daily weather forecast, \(reading.condition), \(reading.temperature)"
+        : "Current weather, \(reading.condition), \(reading.temperature)")
+    .accessibilityHint("Shows weather details.")
   }
 }
 

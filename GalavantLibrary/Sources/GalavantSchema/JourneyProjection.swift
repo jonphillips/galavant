@@ -165,6 +165,8 @@ public struct JourneyProjection: Equatable, Sendable {
       byAdding: .day,
       value: max(0, tripPlan.lengthInDays - 1),
       to: tripStartDate) ?? tripStartDate
+    // The header count intentionally includes every lodging handoff. The day
+    // summary's `isTransfer` remains the narrower pure-transfer presentation fact.
     let transferDayCount = Set(
       tripPlan.stays.compactMap { leaving -> Int? in
         let day = leaving.stay.checkOutDay
