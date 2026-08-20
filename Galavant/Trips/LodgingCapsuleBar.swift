@@ -7,17 +7,20 @@ struct LodgingCapsuleBar: View {
   let model: TripPlanningModel
 
   var body: some View {
-    ScrollView(.horizontal, showsIndicators: false) {
-      HStack(spacing: 8) {
-        ForEach(model.plan.stays) { stay in
-          capsule(for: stay)
+    let stays = model.plan.stays
+    if !stays.isEmpty {
+      ScrollView(.horizontal, showsIndicators: false) {
+        HStack(spacing: 8) {
+          ForEach(stays) { stay in
+            capsule(for: stay)
+          }
         }
+        .padding(.horizontal)
+        .padding(.vertical, 6)
       }
-      .padding(.horizontal)
-      .padding(.vertical, 6)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .background(.bar)
     }
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .background(.bar)
   }
 
   private func capsule(for stay: ResolvedStay) -> some View {

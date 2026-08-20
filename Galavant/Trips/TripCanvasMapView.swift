@@ -311,23 +311,25 @@ struct TripCanvasMapView: View {
   /// 4. else the existing fallback: a lone located base pin, the trip's regions,
   ///    then automatic.
   private func frameSelection() {
-    if let stayID = model.canvasSelectedStayID,
-      let stay = model.plan.stays.first(where: { $0.id == stayID }) {
-      let days = model.plan.itinerary.filter { stay.stay.covers(day: $0.number) }
-      var coordinates = days.flatMap { model.plan.framingCoordinates(forDay: $0.number) }
-      if let coordinate = stay.coordinate {
-        coordinates.append((latitude: coordinate.latitude, longitude: coordinate.longitude))
-      }
-      if let box = MapFraming.box(for: coordinates) {
-        cameraPosition = .region(box.region)
+    if let stayID = model.canvasSelectedStayID {
+      let plan = model.plan
+      if let stay = plan.stays.first(where: { $0.id == stayID }) {
+        let days = plan.itinerary.filter { stay.stay.covers(day: $0.number) }
+        var coordinates = days.flatMap { plan.framingCoordinates(forDay: $0.number) }
+        if let coordinate = stay.coordinate {
+          coordinates.append((latitude: coordinate.latitude, longitude: coordinate.longitude))
+        }
+        if let box = MapFraming.box(for: coordinates) {
+          cameraPosition = .region(box.region)
+          return
+        }
+        if let region = tripRegionFrame {
+          cameraPosition = .region(region)
+        } else {
+          cameraPosition = .automatic
+        }
         return
       }
-      if let region = tripRegionFrame {
-        cameraPosition = .region(region)
-      } else {
-        cameraPosition = .automatic
-      }
-      return
     }
     let day = model.canvasSelectedDay
     let stopCoords = model.plan.framingCoordinates(forDay: day)
