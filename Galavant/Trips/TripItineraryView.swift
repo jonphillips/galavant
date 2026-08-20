@@ -79,6 +79,7 @@ struct TripItineraryView: View {
         } else if stops.isEmpty {
           ForEach(items) { item in itineraryRow(item, sequence: sequence) }
         } else {
+          ForEach(cells.head) { item in itineraryRow(item, sequence: sequence) }
           ForEach(stops) { stop in
             focusedDayStopCell(
               stop,
@@ -107,13 +108,25 @@ struct TripItineraryView: View {
     }
   }
 
-  /// The heterogeneous timeline is still produced by `TripPlan.itineraryItems`.
-  /// Only outgoing stop connectors are folded into the preceding stop cell; all
-  /// other rows remain ordinary, non-reorderable content in their original gap.
+  /// The heterogeneous timeline (from `TripPlan.itineraryItems`) split into the
+  /// buckets the day lens's single reorderable stop run needs:
+  /// - `head`: every non-stop row *before* the first stop — home base, a morning
+  ///   calendar constraint, the base connector. These render as static rows ABOVE
+  ///   the reorderable `ForEach`, so they neither lift with a stop nor read as
+  ///   glued to one. This is the common "attached rows" case, now un-glued.
+  /// - each cell's `trailing`: the stop's outgoing travel connector, genuinely
+  ///   stop-attached, kept folded into the cell.
+  /// - each cell's `leading`: a boundary that falls *between* two stops (a midday
+  ///   reservation, say). It can't become a static row inside the reorderable
+  ///   `ForEach` until the sectioned overload works on a later beta (KNOWN-ISSUES),
+  ///   so it stays folded — but rendered de-tinted + divider-separated so it still
+  ///   reads as its own row, not part of the stop it rides with.
+  /// - `tail`: rows after the last stop, static below the `ForEach`.
   private func focusedDayCells(
     stops: [ResolvedStop], items: [ItineraryItem]
-  ) -> (byStopID: [TripIdea.ID: FocusedDayStopCell], tail: [ItineraryItem]) {
+  ) -> (head: [ItineraryItem], byStopID: [TripIdea.ID: FocusedDayStopCell], tail: [ItineraryItem]) {
     var cells = stops.map { FocusedDayStopCell(stop: $0) }
+    var head: [ItineraryItem] = []
     var pending: [ItineraryItem] = []
     var currentStopIndex: Int?
     var nextStopIndex = 0
@@ -122,7 +135,13 @@ struct TripItineraryView: View {
       switch item {
       case .stop:
         guard nextStopIndex < cells.count else { continue }
-        cells[nextStopIndex].leading = pending
+        // Boundaries before the FIRST stop are hoisted out of the run entirely;
+        // only those between later stops stay folded (the reorder constraint).
+        if nextStopIndex == 0 {
+          head = pending
+        } else {
+          cells[nextStopIndex].leading = pending
+        }
         pending.removeAll(keepingCapacity: true)
         currentStopIndex = nextStopIndex
         nextStopIndex += 1
@@ -139,6 +158,7 @@ struct TripItineraryView: View {
     }
 
     return (
+      head,
       Dictionary(uniqueKeysWithValues: cells.map { ($0.stop.id, $0) }),
       pending)
   }
@@ -153,21 +173,28 @@ struct TripItineraryView: View {
   private func focusedDayStopCell(
     _ stop: ResolvedStop, cell: FocusedDayStopCell, sequence: [TripIdea.ID: Int]
   ) -> some View {
-    // The selection tint lives on the cell here: `stopRow` is folded inside this
-    // VStack rather than being the List row, so its own `.listRowBackground` no
-    // longer reaches the row. (`stopRow` keeps that modifier for the whole-trip
-    // path, where it *is* the row.) The cell already carries the row identity via
-    // the `ForEach(stops)`, so `stopRow`'s inner `.id` is redundant here.
+    // The selection tint sits on `stopRow` alone (a plain `.background`): a nested
+    // `.listRowBackground` can't reach the row, and a cell-wide one would also tint
+    // the folded between-stop boundary rows we're keeping visually distinct.
+    // `stopRow` keeps its own `.listRowBackground` for the whole-trip path, where it
+    // *is* the row. The cell carries row identity via `ForEach(stops)`, so
+    // `stopRow`'s inner `.id` is redundant here.
     lifecycleSwipeActions(for: stop) {
       VStack(alignment: .leading, spacing: 0) {
-        ForEach(cell.leading) { item in itineraryRow(item, sequence: sequence) }
+        // Between-stop boundaries ride in the cell (they can't leave the reorderable
+        // ForEach yet), but the divider + stop-only tint keep them reading as their
+        // own rows rather than glued to the stop.
+        ForEach(cell.leading) { item in
+          itineraryRow(item, sequence: sequence)
+          Divider()
+        }
         stopRow(stop, sequence: sequence, includesLifecycleSwipeActions: false)
+          .background(
+            model.canvasSelectedStopID == stop.id
+              ? Color.accentColor.opacity(0.12) : Color.clear)
         ForEach(cell.trailing) { item in itineraryRow(item, sequence: sequence) }
       }
     }
-    .listRowBackground(
-      model.canvasSelectedStopID == stop.id ? Color.accentColor.opacity(0.12) : nil
-    )
   }
 
   /// The whole trip: the dayless bucket (only while it holds something — a stop
