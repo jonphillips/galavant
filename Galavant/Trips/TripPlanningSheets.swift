@@ -151,10 +151,8 @@ struct StopEditorSheet: View {
           TextField("Optional details", text: $draft.note, axis: .vertical)
             .lineLimit(1...3)
         }
-        Section("Reservation") {
-          if draft.calendarLinked {
-            Label("Time from Shared Calendar", systemImage: "calendar.badge.checkmark")
-          } else {
+        if !draft.calendarLinked {
+          Section("Reservation") {
             BookingFields(draft: $draft.booking)
           }
         }

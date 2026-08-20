@@ -166,9 +166,7 @@ extension TripPlanningModel {
     withErrorReporting {
       try database.write { db in
         try TripIdea.setInlineNote(stopID: draft.stopID, note: note, in: db)
-        if !draft.calendarLinked,
-          calendarTimeAuthority(for: draft.stopID) == .manual
-        {
+        if calendarTimeAuthority(for: draft.stopID) == .manual {
           try TripIdea.setBooking(
             reservationPin(from: draft.booking), stopID: draft.stopID, in: db)
         }
