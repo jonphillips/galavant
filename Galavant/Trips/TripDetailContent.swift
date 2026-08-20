@@ -74,7 +74,8 @@ struct TripDetailContent: View {
         tagNames: model.tagNames(for: idea),
         interests: model.interests(for: idea),
         evaluations: model.evaluations(for: idea),
-        stopContext: model.stopContext(for: idea)
+        stopContext: model.stopContext(for: idea),
+        headerImage: model.headerThumbnailByIdea[idea.id]
       )
     }
     .background(.background)

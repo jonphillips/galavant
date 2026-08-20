@@ -14,7 +14,12 @@ struct RegionManagementSettingsView: View {
   var body: some View {
     List {
       ForEach(model.regions) { region in
-        NavigationLink(value: region.id) {
+        NavigationLink {
+          RegionMapDetail(
+            region: region,
+            tripUseDescription: model.tripUseDescription(for: region),
+            model: model)
+        } label: {
           HStack(spacing: 12) {
             if let thumbnail = model.thumbnail(forRegion: region.id),
               let image = UIImage(data: thumbnail) {
@@ -48,14 +53,6 @@ struct RegionManagementSettingsView: View {
       .onDelete { model.deleteRegions(at: $0) }
     }
     .navigationTitle("Map Regions")
-    .navigationDestination(for: MapRegion.ID.self) { id in
-      if let region = model.regions.first(where: { $0.id == id }) {
-        RegionMapDetail(
-          region: region,
-          tripUseDescription: model.tripUseDescription(for: region),
-          model: model)
-      }
-    }
     .overlay {
       if model.regions.isEmpty {
         ContentUnavailableView(
