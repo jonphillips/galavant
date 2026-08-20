@@ -71,10 +71,12 @@ struct TodayView: View {
     return start
   }
 
-  /// Weather is a live-only affordance; a previewed day requests none (this also
-  /// avoids pointless WeatherKit calls for past/far-future days).
+  /// The projection is rendered at the start of a previewed day, so its next
+  /// anchor is that day's forecast. Do not request weather for a completed day;
+  /// WeatherKit bounds future requests naturally.
   private var activeWeatherAnchor: WeatherAnchor? {
-    isPreviewing ? nil : projection?.next?.weatherAnchor
+    guard let liveDay, let currentDay else { return projection?.next?.weatherAnchor }
+    return currentDay >= liveDay ? projection?.next?.weatherAnchor : nil
   }
 
   private var showsDayStepper: Bool { tripStartDate != nil && dayCount >= 1 }
@@ -291,20 +293,9 @@ private struct TodayDayHeader: View {
 
       if let weather, let reading = TodayWeatherReading.ambient(in: weather) {
         VStack(alignment: .trailing, spacing: 5) {
-          Button {
-            isShowingWeatherDetail = true
-          } label: {
-            HStack(spacing: 5) {
-              Image(systemName: reading.symbolName)
-                .symbolRenderingMode(.hierarchical)
-              Text(reading.temperature)
-                .font(.subheadline.weight(.semibold))
-            }
-          }
-          .buttonStyle(.plain)
-          .foregroundStyle(.secondary)
-          .accessibilityLabel("Current weather, \(reading.condition), \(reading.temperature)")
-          .accessibilityHint("Shows weather details.")
+          weatherButton(
+            reading: reading,
+            isDailyPreview: !canExecute && weather.current == nil && weather.daily != nil)
 
           WeatherAttributionLink(attribution: weather.attribution)
             .frame(width: 88, height: 14, alignment: .trailing)
@@ -317,6 +308,30 @@ private struct TodayDayHeader: View {
     }
     .accessibilityElement(children: .contain)
     .accessibilityLabel("Today, day \(context.dayNumber)\(context.locality.map { ", \($0)" } ?? "")")
+  }
+
+  private func weatherButton(reading: TodayWeatherReading, isDailyPreview: Bool) -> some View {
+    Button {
+      isShowingWeatherDetail = true
+    } label: {
+      HStack(spacing: isDailyPreview ? 8 : 5) {
+        Image(systemName: reading.symbolName)
+          .font(isDailyPreview ? .title2 : .body)
+          .symbolRenderingMode(.hierarchical)
+        Text(reading.temperature)
+          .font(
+            isDailyPreview
+              ? .title3.weight(.bold)
+              : .subheadline.weight(.semibold))
+      }
+    }
+    .buttonStyle(.plain)
+    .foregroundStyle(isDailyPreview ? .primary : .secondary)
+    .accessibilityLabel(
+      isDailyPreview
+        ? "Daily weather forecast, \(reading.condition), \(reading.temperature)"
+        : "Current weather, \(reading.condition), \(reading.temperature)")
+    .accessibilityHint("Shows weather details.")
   }
 }
 

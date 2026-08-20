@@ -83,6 +83,63 @@ import Testing
     #expect(emptyProjection.days[0].weatherAnchors.isEmpty)
   }
 
+  @Test func transferDayCountCountsEachContiguousHandoff() {
+    let tripID = UUID()
+    let firstStay = TripStay.freeform(
+      id: UUID(), tripID: tripID, title: "First Hotel", checkInDay: 1, checkOutDay: 2,
+      plannedCheckOutTime: "09:00")
+    let secondStay = TripStay.freeform(
+      id: UUID(), tripID: tripID, title: "Second Hotel", checkInDay: 2, checkOutDay: 4,
+      plannedCheckInTime: "17:00", plannedCheckOutTime: "09:00")
+    let thirdStay = TripStay.freeform(
+      id: UUID(), tripID: tripID, title: "Third Hotel", checkInDay: 4, checkOutDay: 5,
+      plannedCheckInTime: "17:00")
+    var stop = TripIdea.freeform(
+      id: UUID(), tripID: tripID, title: "Lunch", latitude: 1, longitude: 2)
+    stop.apply(.timed(2, start: "12:00", end: "13:00"))
+    let plan = TripPlan(
+      entries: [stop],
+      ideasByID: [:],
+      lengthInDays: 5,
+      tripStays: [firstStay, secondStay, thirdStay])
+
+    let projection = JourneyProjection.resolve(from: plan, tripStartDate: startDate)
+
+    #expect(!projection.days[1].isTransfer)
+    #expect(projection.summary.transferDayCount == 2)
+  }
+
+  @Test func transferDayCountDoesNotBridgeAStayGap() {
+    let tripID = UUID()
+    let plan = TripPlan(
+      entries: [],
+      ideasByID: [:],
+      lengthInDays: 4,
+      tripStays: [
+        .freeform(id: UUID(), tripID: tripID, title: "First Hotel", checkInDay: 1, checkOutDay: 2),
+        .freeform(id: UUID(), tripID: tripID, title: "Second Hotel", checkInDay: 3, checkOutDay: 4)
+      ])
+
+    let projection = JourneyProjection.resolve(from: plan, tripStartDate: startDate)
+
+    #expect(projection.summary.transferDayCount == 0)
+  }
+
+  @Test func singleStayHasNoTransferDays() {
+    let tripID = UUID()
+    let plan = TripPlan(
+      entries: [],
+      ideasByID: [:],
+      lengthInDays: 4,
+      tripStays: [
+        .freeform(id: UUID(), tripID: tripID, title: "One Hotel", checkInDay: 1, checkOutDay: 4)
+      ])
+
+    let projection = JourneyProjection.resolve(from: plan, tripStartDate: startDate)
+
+    #expect(projection.summary.transferDayCount == 0)
+  }
+
   private func scheduledStop(_ ideaID: Idea.ID, day: Int) -> TripIdea {
     var entry = TripIdea(id: UUID(), tripID: UUID(), ideaID: ideaID, status: .scheduled)
     entry.apply(.day(day))
