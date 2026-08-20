@@ -163,7 +163,6 @@ struct AlternativeSlotControls: View {
 
   var body: some View {
     HStack(spacing: 8) {
-      AlternativeAddMenu(model: model, targetStopID: ring.activeMember.id)
       if ring.label == nil {
         Button {
           model.beginAlternativeGroupLabelEdit(ring.groupID)
@@ -197,34 +196,6 @@ struct AlternativeSlotControls: View {
       .accessibilityLabel("\(ring.members.count) alternatives")
       .accessibilityValue(model.isAlternativeDisclosureExpanded(ring.groupID) ? "Expanded" : "Collapsed")
     }
-  }
-}
-
-struct AlternativeAddMenu: View {
-  let model: TripPlanningModel
-  let targetStopID: TripIdea.ID
-  var isLowEmphasis = false
-
-  var body: some View {
-    Menu {
-      Button("From Shortlist…", systemImage: Icon.shortlist.systemName) {
-        model.addAlternativeButtonTapped(to: targetStopID)
-      }
-      Button("Custom Stop…", systemImage: Icon.addInline.systemName) {
-        model.addCustomAlternativeButtonTapped(to: targetStopID)
-      }
-    } label: {
-      if isLowEmphasis {
-        Label("Add alternative", systemImage: Icon.add.systemName)
-          .font(.caption)
-          .foregroundStyle(.tertiary)
-      } else {
-        Icon.add.label("Add alternative")
-          .foregroundStyle(.secondary)
-      }
-    }
-    .buttonStyle(.borderless)
-    .accessibilityLabel("Add alternative")
   }
 }
 

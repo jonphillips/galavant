@@ -114,6 +114,24 @@ struct AddIdeasSheet: View {
   }
 }
 
+struct AlternativeAddMenu: View {
+  let model: TripPlanningModel
+  let targetStopID: TripIdea.ID
+
+  var body: some View {
+    Menu {
+      Button("From Shortlist…", systemImage: Icon.shortlist.systemName) {
+        model.addAlternativeButtonTapped(to: targetStopID)
+      }
+      Button("Custom Stop…", systemImage: Icon.addInline.systemName) {
+        model.addCustomAlternativeButtonTapped(to: targetStopID)
+      }
+    } label: {
+      Label("Add Alternative", systemImage: Icon.addInline.systemName)
+    }
+  }
+}
+
 /// Edit entry-scoped fields for an idea-backed stop. The shared Idea's fields stay
 /// behind the explicit link so this sheet cannot accidentally edit cross-trip data.
 struct StopEditorSheet: View {
@@ -139,6 +157,13 @@ struct StopEditorSheet: View {
           } else {
             BookingFields(draft: $draft.booking)
           }
+        }
+        Section {
+          AlternativeAddMenu(model: model, targetStopID: draft.stopID)
+        } header: {
+          Text("Alternatives")
+        } footer: {
+          Text("Add another option to this itinerary slot.")
         }
         if let idea = draft.idea {
           Section {
@@ -227,6 +252,15 @@ struct FreeformStopSheet: View {
         if canEditBooking {
           Section("Reservation") {
             BookingFields(draft: $draft.booking)
+          }
+        }
+        if isEditing && !isAlternative, let stopID = draft.stopID {
+          Section {
+            AlternativeAddMenu(model: model, targetStopID: stopID)
+          } header: {
+            Text("Alternatives")
+          } footer: {
+            Text("Add another option to this itinerary slot.")
           }
         }
         Section("Location") {
