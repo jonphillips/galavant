@@ -7,13 +7,15 @@ struct LodgingCapsuleBar: View {
   let model: TripPlanningModel
 
   var body: some View {
-    HStack(spacing: 8) {
-      ForEach(model.plan.stays) { stay in
-        capsule(for: stay)
+    ScrollView(.horizontal, showsIndicators: false) {
+      HStack(spacing: 8) {
+        ForEach(model.plan.stays) { stay in
+          capsule(for: stay)
+        }
       }
+      .padding(.horizontal)
+      .padding(.vertical, 6)
     }
-    .padding(.horizontal)
-    .padding(.vertical, 6)
     .frame(maxWidth: .infinity, alignment: .leading)
     .background(.bar)
   }
@@ -27,7 +29,7 @@ struct LodgingCapsuleBar: View {
         Icon.stay.image
         Text(stay.content.title)
           .lineLimit(1)
-          .minimumScaleFactor(0.75)
+          .fixedSize(horizontal: true, vertical: false)
       }
       .font(.subheadline.weight(selected ? .semibold : .regular))
       .padding(.horizontal, 10)
