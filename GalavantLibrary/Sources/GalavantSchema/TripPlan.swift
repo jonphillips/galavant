@@ -534,6 +534,13 @@ public struct TripPlan: Equatable, Sendable {
     let baseConnector = baseConnector(
       forDay: day, stops: stops, stays: stays,
       travelTimes: travelTimes, effectiveModes: effectiveModes)
+    // The outbound leg from a mid-day check-in to the next stop, mirroring the
+    // return leg so a changeover day reads symmetrically (arrival → stop → arrival)
+    // instead of showing only the trip home. Nil except on such a day; never the
+    // same leg as `baseConnector` (`arrivalToStopRoute` de-dupes).
+    let arrivalConnector = arrivalConnector(
+      forDay: day, stops: stops, stays: stays,
+      travelTimes: travelTimes, effectiveModes: effectiveModes)
     let stayTransferConnector = stayTransferConnector(
       forDay: day, stops: stops, stays: stays,
       travelTimes: travelTimes, effectiveModes: effectiveModes)
@@ -542,6 +549,7 @@ public struct TripPlan: Equatable, Sendable {
       travelTimes: travelTimes, effectiveModes: effectiveModes)
     var markerInserted = false
     var baseConnectorInserted = false
+    var arrivalConnectorInserted = false
     var stayTransferInserted = false
     for (streamIndex, entry) in stream.enumerated() {
       switch entry.slot {
@@ -564,6 +572,11 @@ public struct TripPlan: Equatable, Sendable {
           let baseConnector {
           items.append(.connector(baseConnector))
           baseConnectorInserted = true
+        }
+        if !arrivalConnectorInserted, arrivalConnector?.to.id == "stop-\(stop.id)",
+          let arrivalConnector {
+          items.append(.connector(arrivalConnector))
+          arrivalConnectorInserted = true
         }
         items.append(.stop(stop))
         if streamIndex == lastStopStreamIndex, let returnConnector {
