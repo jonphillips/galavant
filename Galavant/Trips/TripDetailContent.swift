@@ -21,26 +21,31 @@ struct TripDetailContent: View {
   var onShowCalendarReconciliation: () -> Void = {}
 
   var body: some View {
-    editorSheets
+    @Bindable var model = model
+    Group {
+      if usesColumn {
+        editorSheets
+          .popover(item: $model.detailIdeaID, id: \.self) { id in
+            if let idea = model.ideaForDetail(id) {
+              detailView(idea)
+            }
+          }
+      } else {
+        editorSheets
+          .sheet(item: $model.detailIdeaID, id: \.self) { id in
+            if let idea = model.ideaForDetail(id) {
+              detailView(idea)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+            }
+          }
+      }
+    }
   }
 
   private var mapSheets: some View {
     @Bindable var model = model
-    // The read-only detail drills down *within this panel* (the iPhone bottom
-    // sheet / the iPad right column) so it never covers the map. It's an opaque
-    // overlay swap keyed on `detailIdeaID`, deliberately *not* a nested
-    // `NavigationStack`: nesting one inside the iPad `NavigationSplitView`'s detail
-    // stack made the trip push pop straight back. This works identically on both
-    // platforms and leaves the list chrome untouched.
-    return ZStack {
-      listPanel
-      if let id = model.detailIdeaID, let idea = model.ideaForDetail(id) {
-        detailPanel(idea)
-          .transition(.move(edge: .trailing))
-          .zIndex(1)
-      }
-    }
-    .animation(.snappy, value: model.detailIdeaID)
+    return listPanel
     .sheet(item: $model.destination.mapPlaceIdea, id: \.id) { presentation in
       MapPlaceIdeaSheet(model: model, presentation: presentation)
     }
@@ -75,40 +80,14 @@ struct TripDetailContent: View {
     }
   }
 
-  /// The drilled-in detail with its own back header (chevron labelled with the
-  /// list it came from), opaque so it reads as a push over the list.
-  private func detailPanel(_ idea: Idea) -> some View {
-    VStack(alignment: .leading, spacing: 0) {
-      // Back header carries ONLY the "where you came from" chevron. The stop's name
-      // used to be centered over this bar as an overlay, which — unbounded — overran
-      // the back button on a long name (the "Itinerary" bleeding through the title).
-      // The name now lives in the body below, above the map, with room to truncate.
-      HStack {
-        Button { model.detailIdeaID = nil } label: {
-          Label(model.sheetTab.label, systemImage: "chevron.backward")
-        }
-        Spacer()
-      }
-      .padding(.horizontal)
-      .padding(.vertical, 10)
-      .background(.bar)
-      Text(idea.name)
-        .font(.title2.weight(.semibold))
-        .lineLimit(2)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal)
-        .padding(.top, 12)
-        .padding(.bottom, 4)
-      IdeaDetailView(
-        idea: idea,
-        tagNames: model.tagNames(for: idea),
-        interests: model.interests(for: idea),
-        evaluations: model.evaluations(for: idea),
-        stopContext: model.stopContext(for: idea),
-        headerImage: model.headerThumbnailByIdea[idea.id]
-      )
-    }
-    .background(.background)
+  private func detailView(_ idea: Idea) -> some View {
+    IdeaDetailView(
+      idea: idea,
+      tagNames: model.tagNames(for: idea),
+      interests: model.interests(for: idea),
+      evaluations: model.evaluations(for: idea),
+      stopContext: model.stopContext(for: idea),
+      headerImage: model.headerThumbnailByIdea[idea.id])
   }
 
   private var listPanel: some View {

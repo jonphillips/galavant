@@ -45,6 +45,7 @@ targets:
     type: application
     platform: iOS
     sources:
+      # Feature folders are recursive; WeatherDetailView.swift is included here.
       - path: Galavant
         excludes:
           - Trips/LodgingCapsuleBar.swift
