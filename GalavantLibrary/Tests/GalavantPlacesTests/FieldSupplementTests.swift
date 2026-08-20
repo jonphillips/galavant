@@ -54,7 +54,7 @@ import Testing
     try await withDependencies {
       try $0.bootstrapDatabase()
       $0.date = .constant(stamp)
-      $0.pageFetcher = PageFetcher { _ in Self.siteHTML }
+      $0.pageFetcher = PageFetcher { url in fetchedDocument(Self.siteHTML, at: url) }
     } operation: {
       @Dependency(\.defaultDatabase) var database
       let ideaID = try await database.write { db in try self.seedIdea(in: db) }
@@ -122,7 +122,9 @@ import Testing
     try await withDependencies {
       try $0.bootstrapDatabase()
       $0.date = .constant(Date(timeIntervalSince1970: 1_780_000_000))
-      $0.pageFetcher = PageFetcher { _ in "<html><body>No hours here.</body></html>" }
+      $0.pageFetcher = PageFetcher { url in
+        fetchedDocument("<html><body>No hours here.</body></html>", at: url)
+      }
     } operation: {
       @Dependency(\.defaultDatabase) var database
       let ideaID = try await database.write { db in try self.seedIdea(in: db) }
@@ -157,7 +159,7 @@ import Testing
     try await withDependencies {
       try $0.bootstrapDatabase()
       $0.date = .constant(stamp)
-      $0.pageFetcher = PageFetcher { _ in Self.unstructuredHTML }
+      $0.pageFetcher = PageFetcher { url in fetchedDocument(Self.unstructuredHTML, at: url) }
       $0.hoursExtractor = HoursExtractor { _ in "Wed–Sun 5:00 PM–10:00 PM" }
     } operation: {
       @Dependency(\.defaultDatabase) var database
@@ -178,7 +180,7 @@ import Testing
     try await withDependencies {
       try $0.bootstrapDatabase()
       $0.date = .constant(Date(timeIntervalSince1970: 1_780_000_000))
-      $0.pageFetcher = PageFetcher { _ in Self.siteHTML }
+      $0.pageFetcher = PageFetcher { url in fetchedDocument(Self.siteHTML, at: url) }
       $0.hoursExtractor = HoursExtractor { _ in
         Issue.record("the LLM rung must not run when structured hours exist")
         return nil
@@ -198,7 +200,7 @@ import Testing
     try await withDependencies {
       try $0.bootstrapDatabase()
       $0.date = .constant(Date(timeIntervalSince1970: 1_780_000_000))
-      $0.pageFetcher = PageFetcher { _ in Self.unstructuredHTML }
+      $0.pageFetcher = PageFetcher { url in fetchedDocument(Self.unstructuredHTML, at: url) }
       // hoursExtractor defaults to testValue → nil (no model offline).
     } operation: {
       @Dependency(\.defaultDatabase) var database
@@ -235,8 +237,8 @@ import Testing
     try await withDependencies {
       try $0.bootstrapDatabase()
       $0.date = .constant(stamp)
-      $0.pageFetcher = PageFetcher { _ in Self.shellHTML }  // raw GET: no hours
-      $0.renderedPageFetcher = RenderedPageFetcher { _ in Self.siteHTML }  // rendered: hours
+      $0.pageFetcher = PageFetcher { url in fetchedDocument(Self.shellHTML, at: url) }  // raw GET: no hours
+      $0.renderedPageFetcher = RenderedPageFetcher { url in fetchedDocument(Self.siteHTML, at: url) }  // rendered: hours
     } operation: {
       @Dependency(\.defaultDatabase) var database
       let ideaID = try await database.write { db in try self.seedIdea(in: db) }
@@ -255,7 +257,7 @@ import Testing
     try await withDependencies {
       try $0.bootstrapDatabase()
       $0.date = .constant(Date(timeIntervalSince1970: 1_780_000_000))
-      $0.pageFetcher = PageFetcher { _ in Self.siteHTML }  // hours already here
+      $0.pageFetcher = PageFetcher { url in fetchedDocument(Self.siteHTML, at: url) }  // hours already here
       $0.renderedPageFetcher = RenderedPageFetcher { _ in
         Issue.record("the heavy rendered fetch must not run when the GET found hours")
         return nil
@@ -273,8 +275,8 @@ import Testing
     try await withDependencies {
       try $0.bootstrapDatabase()
       $0.date = .constant(Date(timeIntervalSince1970: 1_780_000_000))
-      $0.pageFetcher = PageFetcher { _ in Self.shellHTML }
-      $0.renderedPageFetcher = RenderedPageFetcher { _ in Self.shellHTML }
+      $0.pageFetcher = PageFetcher { url in fetchedDocument(Self.shellHTML, at: url) }
+      $0.renderedPageFetcher = RenderedPageFetcher { url in fetchedDocument(Self.shellHTML, at: url) }
     } operation: {
       @Dependency(\.defaultDatabase) var database
       let ideaID = try await database.write { db in try self.seedIdea(in: db) }

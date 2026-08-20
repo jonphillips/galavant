@@ -6,6 +6,16 @@ import GalavantSchema
 import ImageIO
 import SQLiteData
 
+/// The result of an explicit image refresh, preserving the reason an image gallery
+/// did or did not change so the form can explain the outcome.
+public enum ImageRefreshOutcome: Equatable, Sendable {
+  case refreshed(storedCount: Int)
+  case pageUnavailable
+  case noCandidates
+  case noneUsable
+  case storageFailed
+}
+
 /// The app-side **second enrichment hop** (M4g): once an idea is in the pool, fetch
 /// its own website (the `url` the capture preserved — usually richer than the
 /// originally shared page, which is often an aggregator), re-parse it, backfill any
@@ -128,24 +138,25 @@ public final class PlaceEnricher {
   /// request. Unlike `enrichIfNeeded`, this intentionally ignores `enrichedAt`; it
   /// only refreshes images and never changes the idea's hand-edited facts.
   @discardableResult
-  public func refetchImages(ideaID: Idea.ID) async -> Bool {
+  public func refetchImages(ideaID: Idea.ID) async -> ImageRefreshOutcome {
     guard
       let idea = try? await database.read({ db in try Idea.find(ideaID).fetchOne(db) }),
       !idea.url.isEmpty,
       let url = URL(string: idea.url),
-      let page = await parsedPage(at: url)
-    else { return false }
+      let page = await parsedPage(at: url, isMiss: { $0.imageURLs.isEmpty })
+    else { return .pageUnavailable }
 
+    guard !page.imageURLs.isEmpty else { return .noCandidates }
     let images = await rankedImages(page.imageURLs)
-    guard !images.isEmpty else { return false }
+    guard !images.isEmpty else { return .noneUsable }
 
     do {
       try await database.write { db in
         try storeRankedImages(images, forIdea: ideaID, in: db)
       }
-      return true
+      return .refreshed(storedCount: images.count)
     } catch {
-      return false
+      return .storageFailed
     }
   }
 
@@ -192,20 +203,26 @@ public final class PlaceEnricher {
   }
 
   /// Fetch and parse a page, escalating to a headless WebKit **rendered-DOM** re-fetch
-  /// when the cheap `URLSession` GET parses to nothing (render-on-miss, ADR-0024) — the
-  /// JS-shell / SPA / anti-bot pages where a raw fetch returns an empty container. Returns
-  /// the richest parse obtained; `nil` only when *no* fetch returned anything (a true
-  /// failure — leave the idea unenriched so the `enrichedAt` gate lets it retry). A page
-  /// that fetches but parses empty is still returned, preserving the "fetched once → done"
-  /// gate semantics.
-  private func parsedPage(at url: URL) async -> ParsedPage? {
-    let staticPage = await pageFetcher(url).map { PageParser.parse(html: $0, sourceURL: url) }
-    if let staticPage, !staticPage.isEmpty { return staticPage }
-    if let rendered = await renderedPageFetcher(url) {
-      let renderedPage = PageParser.parse(html: rendered, sourceURL: url)
-      if !renderedPage.isEmpty { return renderedPage }
+  /// when the cheap `URLSession` GET matches the caller's miss predicate (render-on-miss,
+  /// ADR-0024). Every parse uses that fetch's effective URL as the relative-value base.
+  /// A rendered hit is merged into the static page so useful static facts survive. Returns
+  /// `nil` only when no fetch returned anything (a true failure — leave the idea
+  /// unenriched so the `enrichedAt` gate lets it retry).
+  private func parsedPage(
+    at url: URL,
+    isMiss: (ParsedPage) -> Bool = { $0.isEmpty }
+  ) async -> ParsedPage? {
+    let staticPage = await pageFetcher(url).map {
+      PageParser.parse(html: $0.html, sourceURL: $0.effectiveURL)
     }
-    return staticPage  // nil iff the static fetch also failed → retry later
+    guard let staticPage else {
+      guard let rendered = await renderedPageFetcher(url) else { return nil }
+      return PageParser.parse(html: rendered.html, sourceURL: rendered.effectiveURL)
+    }
+    guard isMiss(staticPage) else { return staticPage }
+    guard let rendered = await renderedPageFetcher(url) else { return staticPage }
+    let renderedPage = PageParser.parse(html: rendered.html, sourceURL: rendered.effectiveURL)
+    return staticPage.fillingBlanks(from: renderedPage)
   }
 
   /// Opening hours from an already-parsed page when the idea has none yet:
