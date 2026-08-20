@@ -21,9 +21,12 @@ extension TripPlanningModel {
     guard !title.isEmpty, let tripID = trip?.id else { return }
     let trimmedNote = draft.note.trimmingCharacters(in: .whitespacesAndNewlines)
     let note = trimmedNote.isEmpty ? nil : trimmedNote
+    let pin = reservationPin(from: draft.booking)
+    var savedStopID: TripIdea.ID?
     withErrorReporting {
       try database.write { db in
         if let stopID = draft.stopID {
+          savedStopID = stopID
           try TripIdea.editFreeform(
             stopID: stopID,
             title: title,
@@ -32,7 +35,7 @@ extension TripPlanningModel {
             longitude: draft.coordinate?.longitude,
             in: db)
         } else if let targetStopID = draft.alternativeToStopID {
-          try TripIdea.addFreeformAlternative(
+          savedStopID = try TripIdea.addFreeformAlternative(
             title: title,
             note: note,
             latitude: draft.coordinate?.latitude,
@@ -47,9 +50,15 @@ extension TripPlanningModel {
             latitude: draft.coordinate?.latitude,
             longitude: draft.coordinate?.longitude,
             in: db)
+          savedStopID = id
           if let day = draft.day {
             try TripIdea.schedule(.day(day), stopID: id, in: db)
           }
+        }
+        if let savedStopID, draft.booking.isPinned {
+          try TripIdea.setBooking(pin, stopID: savedStopID, in: db)
+        } else if let savedStopID = draft.stopID {
+          try TripIdea.setBooking(nil, stopID: savedStopID, in: db)
         }
       }
     }

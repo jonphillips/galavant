@@ -44,19 +44,8 @@ struct StopMenu: View {
           model.editStopTime(stop)
         }
       }
-      // A confirmed reservation is nailed to a real calendar date, not this day
-      // number (docs/trip-time-model.md §4) — available whether the stop is
-      // placed or still in the To-Be-Scheduled bucket, since pinning a dated
-      // trip's stop places it immediately.
       if calendarLinked {
         Label("Time from Shared Calendar", systemImage: "calendar.badge.checkmark")
-      } else {
-        Button(
-          stop.entry.pinnedDate != nil ? "Edit Booking Details…" : "Pin Reservation…",
-          systemImage: Icon.pinnedReservation.systemName
-        ) {
-          model.editBooking(stop)
-        }
       }
       Divider()
       if !calendarLinked, let length = model.trip?.lengthInDays {
