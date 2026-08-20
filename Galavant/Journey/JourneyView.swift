@@ -474,13 +474,13 @@ private struct JourneyWeatherBadge: View {
     Group {
       if let daily = summary.daily {
         Label {
-          Text("\(daily.highTemperature, format: .measurement(width: .narrow)) / \(daily.lowTemperature, format: .measurement(width: .narrow))")
+          Text("\(daily.highTemperature, format: .measurement(width: .narrow, usage: .weather, numberFormatStyle: .number.precision(.fractionLength(0)))) / \(daily.lowTemperature, format: .measurement(width: .narrow, usage: .weather, numberFormatStyle: .number.precision(.fractionLength(0))))")
         } icon: {
           Image(systemName: daily.symbolName)
         }
       } else if let current = summary.current {
         Label {
-          Text(current.temperature, format: .measurement(width: .narrow))
+          Text(current.temperature, format: .measurement(width: .narrow, usage: .weather, numberFormatStyle: .number.precision(.fractionLength(0))))
         } icon: {
           Image(systemName: current.symbolName)
         }

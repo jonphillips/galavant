@@ -119,7 +119,7 @@ struct JourneyImagePanel: View {
               thumbnail: model.thumbnail(forIdea: stop.ideaID),
               displayImage: model.displayImage(forIdea: stop.ideaID),
               title: stop.title,
-              subtitle: stop.kind == .food ? "Dinner" : stop.kind?.label,
+              subtitle: stop.kind == .food ? "Dining" : stop.kind?.label,
               systemFallback: stop.kind?.systemImage ?? "mappin.and.ellipse")
             .frame(width: 200, height: Self.cardHeight)
           }
