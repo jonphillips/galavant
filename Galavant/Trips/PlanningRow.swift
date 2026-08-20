@@ -257,10 +257,6 @@ struct AlternativeSlotDisclosure: View {
       ForEach(ring.members) { member in
         alternativeRow(member)
       }
-      Button("Add Alternative", systemImage: Icon.addInline.systemName) {
-        model.addAlternativeButtonTapped(to: ring.activeMember.id)
-      }
-      .buttonStyle(.borderless)
     }
     .padding(.leading, 38)
     .padding(.vertical, 4)
