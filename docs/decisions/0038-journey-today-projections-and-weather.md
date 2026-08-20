@@ -114,6 +114,12 @@ top and leaves an outdoor hike with none). **Journey** consumes it coarsely (one
 per day); a transfer day whose endpoints differ materially shows the split
 (origin AM → destination PM), not one compressed icon.
 
+Amendment (Jon, 2026-08-20): Today also requests the previewed day's anchor, rendered at
+the start of that day, so iPhone can surface advance daily forecasts while stepping through
+the trip. This relaxes the original live-only Today rule: preview weather remains read-only,
+appears only when WeatherKit has it within its horizon, and falls back cleanly to the normal
+no-weather state beyond that horizon.
+
 ### 5. Leave-by is an honesty ladder tied to `Schedule`
 
 Leave-by is a small new pure derivation, precise only when the schedule is:
@@ -135,7 +141,7 @@ card is a first-class design, not an afterthought — a trip planned months ahea
 finished with zero weather.
 
 - >10 days out: no weather.
-- Inside 10 days: daily forecasts progressively appear.
+- Inside 10 days: daily forecasts progressively appear, including on Today preview days.
 - During the trip: full coverage where available.
 
 Forecasts are external, ephemeral, and independently recoverable, so they are **never**

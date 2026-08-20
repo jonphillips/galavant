@@ -71,10 +71,10 @@ struct TodayView: View {
     return start
   }
 
-  /// Weather is a live-only affordance; a previewed day requests none (this also
-  /// avoids pointless WeatherKit calls for past/far-future days).
+  /// The projection is rendered at the start of a previewed day, so its next
+  /// anchor is that day's forecast. WeatherKit bounds the request naturally.
   private var activeWeatherAnchor: WeatherAnchor? {
-    isPreviewing ? nil : projection?.next?.weatherAnchor
+    projection?.next?.weatherAnchor
   }
 
   private var showsDayStepper: Bool { tripStartDate != nil && dayCount >= 1 }
@@ -289,22 +289,42 @@ private struct TodayDayHeader: View {
 
       Spacer(minLength: 0)
 
-      if let weather, let reading = TodayWeatherReading.ambient(in: weather) {
+      if let weather {
         VStack(alignment: .trailing, spacing: 5) {
-          Button {
-            isShowingWeatherDetail = true
-          } label: {
-            HStack(spacing: 5) {
-              Image(systemName: reading.symbolName)
-                .symbolRenderingMode(.hierarchical)
-              Text(reading.temperature)
-                .font(.subheadline.weight(.semibold))
+          if !canExecute, weather.current == nil, let daily = weather.daily {
+            Button {
+              isShowingWeatherDetail = true
+            } label: {
+              HStack(spacing: 8) {
+                Image(systemName: daily.symbolName)
+                  .font(.title2)
+                  .symbolRenderingMode(.hierarchical)
+                Text("\(temperature(daily.highTemperature)) / \(temperature(daily.lowTemperature))")
+                  .font(.title3.weight(.bold))
+                  .monospacedDigit()
+              }
             }
+            .buttonStyle(.plain)
+            .foregroundStyle(.primary)
+            .accessibilityLabel(
+              "Daily weather forecast, \(daily.condition), high \(temperature(daily.highTemperature)), low \(temperature(daily.lowTemperature))")
+            .accessibilityHint("Shows weather details.")
+          } else if let reading = TodayWeatherReading.ambient(in: weather) {
+            Button {
+              isShowingWeatherDetail = true
+            } label: {
+              HStack(spacing: 5) {
+                Image(systemName: reading.symbolName)
+                  .symbolRenderingMode(.hierarchical)
+                Text(reading.temperature)
+                  .font(.subheadline.weight(.semibold))
+              }
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .accessibilityLabel("Current weather, \(reading.condition), \(reading.temperature)")
+            .accessibilityHint("Shows weather details.")
           }
-          .buttonStyle(.plain)
-          .foregroundStyle(.secondary)
-          .accessibilityLabel("Current weather, \(reading.condition), \(reading.temperature)")
-          .accessibilityHint("Shows weather details.")
 
           WeatherAttributionLink(attribution: weather.attribution)
             .frame(width: 88, height: 14, alignment: .trailing)
@@ -317,6 +337,14 @@ private struct TodayDayHeader: View {
     }
     .accessibilityElement(children: .contain)
     .accessibilityLabel("Today, day \(context.dayNumber)\(context.locality.map { ", \($0)" } ?? "")")
+  }
+
+  private func temperature(_ measurement: Measurement<UnitTemperature>) -> String {
+    measurement.formatted(
+      .measurement(
+        width: .narrow,
+        usage: .weather,
+        numberFormatStyle: .number.precision(.fractionLength(0))))
   }
 }
 

@@ -165,6 +165,15 @@ public struct JourneyProjection: Equatable, Sendable {
       byAdding: .day,
       value: max(0, tripPlan.lengthInDays - 1),
       to: tripStartDate) ?? tripStartDate
+    let transferDayCount = Set(
+      tripPlan.stays.compactMap { leaving -> Int? in
+        let day = leaving.stay.checkOutDay
+        let anotherArrives = tripPlan.stays.contains {
+          $0.id != leaving.id && $0.stay.checkInDay == day
+        }
+        return anotherArrives ? day : nil
+      }
+    ).count
     return Self(
       days: days,
       stayBands: stayBands,
@@ -174,7 +183,7 @@ public struct JourneyProjection: Equatable, Sendable {
         dayCount: days.count,
         regionNames: regionNames,
         stayCount: stayBands.count,
-        transferDayCount: days.filter(\.isTransfer).count))
+        transferDayCount: transferDayCount))
   }
 
   private static func locality(
