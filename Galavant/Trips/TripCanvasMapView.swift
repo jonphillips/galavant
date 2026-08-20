@@ -264,7 +264,7 @@ struct TripCanvasMapView: View {
     ForEach(visibleBaseStays) { stay in
       if let coordinate = stay.coordinate {
         Annotation(stay.content.title, coordinate: coordinate, anchor: .bottom) {
-          BasePin()
+          BasePin(selected: model.canvasSelectedStayID == stay.id)
         }
       }
     }
@@ -402,14 +402,24 @@ struct TripCanvasMapView: View {
 /// return to," not a step on the day's route. (Final styling is Jon's to tune
 /// against the live map.)
 private struct BasePin: View {
+  let selected: Bool
+
+  private static let unselectedDiameter: CGFloat = 28
+  // The selected SequencePin is 26pt × 1.35 ≈ 35pt; this leaves the selected
+  // lodging marker visibly larger when the two annotations overlap.
+  private static let selectedDiameter: CGFloat = 44
+
   var body: some View {
     Image(systemName: Icon.stay.systemName)
-      .font(.caption.bold())
+      .font((selected ? Font.body : .caption).bold())
       .foregroundStyle(.white)
-      .frame(width: 28, height: 28)
-      .background(Circle().fill(.gray))
+      .frame(
+        width: selected ? Self.selectedDiameter : Self.unselectedDiameter,
+        height: selected ? Self.selectedDiameter : Self.unselectedDiameter
+      )
+      .background(Circle().fill(selected ? .blue : .gray))
       .overlay(Circle().strokeBorder(.white, lineWidth: 2))
-      .shadow(radius: 1)
+      .shadow(radius: selected ? 6 : 1)
   }
 }
 

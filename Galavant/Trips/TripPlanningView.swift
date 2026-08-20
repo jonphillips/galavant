@@ -279,9 +279,6 @@ private struct TripPlanningPresentationHost<Content: View>: View {
   var body: some View {
     @Bindable var model = model
     content
-      .sheet(item: $model.destination.idea, id: \.id) { draft in
-        IdeaFormView(draft: draft.draft)
-      }
       .sheet(
         isPresented: Binding(
           get: { model.destination?.is(\.addIdeas) ?? false },
@@ -289,24 +286,6 @@ private struct TripPlanningPresentationHost<Content: View>: View {
         )
       ) {
         AddIdeasSheet(model: model)
-      }
-      .sheet(item: $model.destination.freeformStop, id: \.id) { draft in
-        FreeformStopSheet(model: model, draft: draft)
-      }
-      .sheet(item: $model.destination.alternativeSource, id: \.id) { target in
-        AlternativeSourceSheet(model: model, target: target)
-      }
-      .sheet(item: $model.destination.alternativeSlot, id: \.id) { target in
-        AlternativeSlotSheet(model: model, target: target)
-      }
-      .sheet(item: $model.destination.stay, id: \.id) { draft in
-        StaySheet(model: model, draft: draft)
-      }
-      .sheet(item: $model.destination.stopTime, id: \.id) { draft in
-        StopTimeSheet(model: model, draft: draft)
-      }
-      .sheet(item: $model.destination.stopEditor, id: \.id) { draft in
-        StopEditorSheet(model: model, draft: draft)
       }
       .sheet(item: $model.destination.recommendationHandoff, id: \.id) { presentation in
         RecommendationHandoffSheet(model: model, session: presentation.session)
@@ -330,7 +309,7 @@ private struct TripPlanningPresentationHost<Content: View>: View {
   }
 }
 
-private struct AlternativeSourceSheet: View {
+struct AlternativeSourceSheet: View {
   let model: TripPlanningModel
   let target: AlternativeSourceTarget
   @Environment(\.dismiss) private var dismiss
@@ -377,7 +356,7 @@ private struct AlternativeSourceSheet: View {
   }
 }
 
-private struct AlternativeSlotSheet: View {
+struct AlternativeSlotSheet: View {
   let model: TripPlanningModel
   let target: AlternativeSlotTarget
   @Environment(\.dismiss) private var dismiss

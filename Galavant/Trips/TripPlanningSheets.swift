@@ -137,6 +137,7 @@ struct AlternativeAddMenu: View {
 struct StopEditorSheet: View {
   let model: TripPlanningModel
   @State private var draft: StopEditorDraft
+  @State private var editingIdea: Idea?
   @Environment(\.dismiss) private var dismiss
 
   init(model: TripPlanningModel, draft: StopEditorDraft) {
@@ -166,7 +167,7 @@ struct StopEditorSheet: View {
         if let idea = draft.idea {
           Section {
             Button {
-              model.editIdea(idea)
+              editingIdea = idea
             } label: {
               Label("Edit Shared Idea", systemImage: Icon.edit.systemName)
             }
@@ -187,6 +188,9 @@ struct StopEditorSheet: View {
       }
     }
     .presentationDetents([.medium, .large])
+    .sheet(item: $editingIdea) { idea in
+      IdeaFormView(draft: Idea.Draft(idea))
+    }
   }
 }
 
