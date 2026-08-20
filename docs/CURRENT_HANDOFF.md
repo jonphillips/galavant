@@ -65,7 +65,8 @@ call it once instead of per leg/per day, and the ETA loop hoists its lookups. Ad
 pure tests (`legModes*`, `legIdentitiesCoverEveryLegExactlyOnce`). **Still owed:**
 run the schema suite (FM-disabled path) and confirm the large trip's itinerary is
 responsive on device. Open follow-up: memoize `TripPlanningModel.plan` so it isn't
-rebuilt on every view-tree access.
+rebuilt on every view-tree access. Measurement and the two invalidation designs are in
+[`docs/handoff/plan-memoization.md`](handoff/plan-memoization.md), awaiting Jon's sign-off.
 
 ## Pending PR — M7 calendar dogfood amendments (ADR-0041), completes M7
 
