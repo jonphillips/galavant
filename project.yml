@@ -52,10 +52,8 @@ targets:
           # Keep the Ideas map action explicit so XcodeGen tracks this native-card
           # companion separately from the recursive feature-folder source.
           - Ideas/MapPlaceCreateIdeaButton.swift
-          - Ideas/MapFeatureImageSpikeView.swift
       - Galavant/Trips/LodgingCapsuleBar.swift
       - Galavant/Ideas/MapPlaceCreateIdeaButton.swift
-      - Galavant/Ideas/MapFeatureImageSpikeView.swift
     entitlements:
       path: Galavant/Galavant.entitlements
       properties:
