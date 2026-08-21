@@ -6,6 +6,20 @@ Companion to `docs/DONE_LOG.md` (what's already shipped) — this file used to b
 one long `docs/BACKLOG.md`; split 2026-07-11 to keep token cost down when an agent
 reads it for context.
 
+## Latest handoff — Ideas map native POI exploration
+
+The Ideas map now uses ADR-0044's explore-then-capture split. POI taps retain the
+resolved `MKMapItem` and present Apple's native detail (sheet on iPhone, popover
+on iPad); the adjacent Galavant **Create Idea** action converts that same item to
+`Place` and enters the existing prefilled capture flow. Calendar's
+`PlaceSelectionMap` caller remains immediate tap-to-assign.
+
+Verification for this slice is compile-only. Jon should check on an iPhone and
+iPad that the Create Idea action stays visible/reachable alongside the native
+sheet/popover, that dismissal cleanly opens the prepopulated form, and that a
+detail-only exploration writes nothing. The PR should retain this device-check
+note.
+
 ## In progress — declutter the StopMenu (itinerary row clock menu)
 
 Handed to Codex: `docs/handoff/stop-menu-declutter.md`. The clock-icon menu on an

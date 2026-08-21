@@ -193,6 +193,9 @@ struct IdeasScreen: View {
       ideas: model.filteredIdeas,
       framingRegions: model.framingRegions,
       pulledIDs: model.activeTripIdeaIDs,
+      placeSelectionPolicy: horizontalSizeClass == .regular
+        ? .exploreFirst(.popover)
+        : .exploreFirst(.sheet),
       onSelect: model.ideaTapped,
       onSelectMapPlace: model.mapPlaceTapped,
       visibleRegion: $visibleRegion

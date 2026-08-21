@@ -13,12 +13,14 @@ struct PoolMapView: View {
   /// Ideas already on the active trip — drawn in a distinct tint from candidates
   /// (ADR-0013). Empty for the eternal "All" pool, so nothing reads as "pulled."
   var pulledIDs: Set<Idea.ID> = []
+  var placeSelectionPolicy: PlaceSelectionPresentationPolicy = .immediate
   let onSelect: (Idea) -> Void
   let onSelectMapPlace: (Place) async -> Void
   @Binding var visibleRegion: MKCoordinateRegion?
 
   @State private var cameraPosition: MapCameraPosition = .automatic
   @State private var mapSelection: MapSelection<Idea.ID>?
+  @State private var selectedMapItem: MKMapItem?
 
   private var mappableIdeas: [Idea] {
     ideas.filter { $0.coordinate != nil }
@@ -35,6 +37,8 @@ struct PoolMapView: View {
       cameraPosition: $cameraPosition,
       selection: $mapSelection,
       visibleRegion: $visibleRegion,
+      selectedMapItem: $selectedMapItem,
+      presentationPolicy: placeSelectionPolicy,
       onSelectPlace: onSelectMapPlace,
       onSelectValue: { id in
         if let idea = ideas.first(where: { $0.id == id }) {
@@ -71,6 +75,22 @@ struct PoolMapView: View {
         onSelect: onSelectMapPlace
       )
     }
+    .overlay(alignment: .topTrailing) {
+      if case .exploreFirst = placeSelectionPolicy, let selectedMapItem {
+        MapPlaceCreateIdeaButton(
+          mapItem: selectedMapItem,
+          onCreate: { @MainActor mapItem in await createIdea(for: mapItem) }
+        )
+      }
+    }
+  }
+
+  private func createIdea(for mapItem: MKMapItem) async {
+    // Let the native detail presentation unwind before the app presents its own
+    // capture sheet. The retained item remains the source for the capture draft.
+    selectedMapItem = nil
+    await Task.yield()
+    await onSelectMapPlace(Place(mapItem: mapItem))
   }
 
   /// Zoom to the union of the lens regions, or auto-frame all pins when unscoped.
