@@ -1,6 +1,7 @@
 import Dependencies
 import Foundation
 import GalavantAI
+import GalavantImaging
 import GalavantPlaces
 import GalavantSchema
 import SQLiteData
@@ -15,6 +16,7 @@ private struct DismissedRecommendationCandidate {
 @Observable
 final class RecommendationWorkspaceModel {
   @ObservationIgnored @Dependency(\.defaultDatabase) private var database
+  @ObservationIgnored @Dependency(\.uuid) private var uuid
   @ObservationIgnored @Dependency(\.handoffSessionStore) private var handoffSessionStore
   @ObservationIgnored @Dependency(\.placeMatcher) private var placeMatcher
   @ObservationIgnored @FetchAll(TripIdea.all) var allTripIdeas
@@ -32,6 +34,7 @@ final class RecommendationWorkspaceModel {
   var pendingReconcile: ResolveReconcile.Collision?
   var handoffCandidates: [TripCandidate] = []
   var candidateLinks: [HandoffCandidateLink] = []
+  var imageDropStatus: (candidateID: TripIdea.ID, text: String)?
   private(set) var hasLoadedCandidateSet = false
 
   init(tripID: Trip.ID, sessionID: HandoffSession.ID) {
@@ -187,6 +190,41 @@ final class RecommendationWorkspaceModel {
   func useThisPlaceButtonTapped() async {
     guard let activeCandidate else { return }
     resolveResults = await placeMatcher.matches(for: activeCandidate.candidate, in: tripRegions)
+  }
+
+  /// Store an image dragged from the regular-width research browser on the focused
+  /// candidate's resolved idea. Unresolved candidates deliberately have nowhere to
+  /// attach an image: ImageAsset's single FK rides the shared graph through Idea.
+  func attachDroppedImage(_ data: Data, sourceURL: String?) async {
+    guard let ideaID = activeCandidate?.idea?.id else { return }
+    let candidateID = activeCandidate?.id
+    imageDropStatus = nil
+
+    // Image decoding/resizing is pure CPU work. Keep it off the main actor while the
+    // model remains the owner of the subsequent database write and UI status.
+    let processed = await Task.detached(priority: .userInitiated) {
+      ImageProcessing.process(data)
+    }.value
+    guard let processed else {
+      return
+    }
+
+    let imageID = uuid()
+    await withErrorReporting {
+      try await database.write { [ideaID, imageID, processed, sourceURL] db in
+        try ImageAsset.store(
+          ideaID: ideaID,
+          display: processed.display,
+          thumbnail: processed.thumbnail,
+          sourceURL: sourceURL,
+          id: imageID,
+          in: db
+        )
+      }
+      if let candidateID {
+        imageDropStatus = (candidateID, "Photo added")
+      }
+    }
   }
 
   func resolveResultTapped(_ place: Place) {
