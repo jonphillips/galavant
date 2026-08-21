@@ -13,8 +13,6 @@ struct MapPlaceCreateIdeaButton: View {
       Label("Create Idea", systemImage: "plus")
     }
     .buttonStyle(.borderedProminent)
-    .padding(.top, 72)
-    .padding(.trailing, 16)
     .accessibilityHint("Opens the prefilled Create Idea form for this place.")
   }
 }

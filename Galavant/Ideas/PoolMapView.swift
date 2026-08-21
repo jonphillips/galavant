@@ -33,53 +33,62 @@ struct PoolMapView: View {
   }
 
   var body: some View {
-    PlaceSelectionMap(
-      cameraPosition: $cameraPosition,
-      selection: $mapSelection,
-      visibleRegion: $visibleRegion,
-      selectedMapItem: $selectedMapItem,
-      presentationPolicy: placeSelectionPolicy,
-      onSelectPlace: onSelectMapPlace,
-      onSelectValue: { id in
-        if let idea = ideas.first(where: { $0.id == id }) {
-          onSelect(idea)
-        }
-      }
-    ) {
-      ForEach(mappableIdeas) { idea in
-        if let coordinate = idea.coordinate {
-          Marker(
-            idea.name,
-            systemImage: idea.kind?.systemImage ?? "mappin",
-            coordinate: coordinate
-          )
-          .tint(tint(for: idea))
-          .tag(idea.id)
-        }
-      }
-    }
-    .onChange(of: framingRegions.map(\.id), initial: true) { frameSelectedRegion() }
-    .overlay {
-      if mappableIdeas.isEmpty {
-        ContentUnavailableView(
-          "No pinned ideas",
-          systemImage: Icon.map.systemName,
-          description: Text("Tap an Apple Maps place to add your first idea.")
-        )
-        .allowsHitTesting(false)
-      }
-    }
-    .overlay(alignment: .top) {
-      MapPlaceSearchOverlay(
-        visibleRegion: visibleRegion,
-        onSelect: onSelectMapPlace
-      )
-    }
-    .overlay(alignment: .topTrailing) {
+    VStack(spacing: 0) {
+      // This must be a real sibling above Map, not an overlay: Xcode 27 beta's
+      // Map gesture surface steals taps from overlaid SwiftUI Buttons.
       if case .exploreFirst = placeSelectionPolicy, let selectedMapItem {
-        MapPlaceCreateIdeaButton(
-          mapItem: selectedMapItem,
-          onCreate: { @MainActor mapItem in await createIdea(for: mapItem) }
+        HStack {
+          Spacer()
+          MapPlaceCreateIdeaButton(
+            mapItem: selectedMapItem,
+            onCreate: { @MainActor mapItem in await createIdea(for: mapItem) }
+          )
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(.bar)
+      }
+
+      PlaceSelectionMap(
+        cameraPosition: $cameraPosition,
+        selection: $mapSelection,
+        visibleRegion: $visibleRegion,
+        selectedMapItem: $selectedMapItem,
+        presentationPolicy: placeSelectionPolicy,
+        onSelectPlace: onSelectMapPlace,
+        onSelectValue: { id in
+          if let idea = ideas.first(where: { $0.id == id }) {
+            onSelect(idea)
+          }
+        }
+      ) {
+        ForEach(mappableIdeas) { idea in
+          if let coordinate = idea.coordinate {
+            Marker(
+              idea.name,
+              systemImage: idea.kind?.systemImage ?? "mappin",
+              coordinate: coordinate
+            )
+            .tint(tint(for: idea))
+            .tag(idea.id)
+          }
+        }
+      }
+      .onChange(of: framingRegions.map(\.id), initial: true) { frameSelectedRegion() }
+      .overlay {
+        if mappableIdeas.isEmpty {
+          ContentUnavailableView(
+            "No pinned ideas",
+            systemImage: Icon.map.systemName,
+            description: Text("Tap an Apple Maps place to add your first idea.")
+          )
+          .allowsHitTesting(false)
+        }
+      }
+      .overlay(alignment: .top) {
+        MapPlaceSearchOverlay(
+          visibleRegion: visibleRegion,
+          onSelect: onSelectMapPlace
         )
       }
     }
