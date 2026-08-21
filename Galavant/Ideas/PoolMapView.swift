@@ -49,8 +49,8 @@ struct PoolMapView: View {
         .padding(.vertical, 8)
         .background(.bar)
       }
-      if case .exploreFirst = placeSelectionPolicy, let selectedFeatureImage {
-        MapFeatureImageSpikeView(image: selectedFeatureImage)
+      if case .exploreFirst = placeSelectionPolicy, let selectedMapItem {
+        LookAroundSnapshotSpikeView(item: selectedMapItem)
       }
 
       PlaceSelectionMap(
