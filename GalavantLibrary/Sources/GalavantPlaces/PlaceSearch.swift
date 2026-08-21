@@ -144,7 +144,12 @@ extension PlaceSearchClient: DependencyKey {
         )
       }
     case .viewport(let viewport):
-      searchRegions = [(viewport.region, true)]
+      // A "search this map" field biases toward the visible area but must not be
+      // fenced to it: `.required` here means MKLocalSearch returns *nothing* outside
+      // the current camera box, so a place you name that sits just off-screen — or in
+      // another city than the one you're framed on — silently yields no results. (Only
+      // the trip-regions scope below is a hard geographic contract worth `.required`.)
+      searchRegions = [(viewport.region, false)]
     }
     var found: [Place] = []
     var seen = Set<String>()
@@ -300,6 +305,18 @@ public final class PlaceSearchModel {
 
   public func visibleRegionChanged(_ viewport: PlaceSearchViewport?) {
     let newScope = viewport.map(PlaceSearchScope.viewport) ?? .unavailable
+    guard scope != newScope else { return }
+    scope = newScope
+    scheduleSearch()
+  }
+
+  /// Re-scope to explicit regions (the trip's geographic contract, or a box around the
+  /// focused candidate's locality) instead of the camera viewport, then re-run the
+  /// current query. Empty regions are ignored so a caller can keep viewport scope by
+  /// passing none.
+  public func regionsChanged(_ regions: [MapRegion]) {
+    guard !regions.isEmpty else { return }
+    let newScope = PlaceSearchScope.regions(regions)
     guard scope != newScope else { return }
     scope = newScope
     scheduleSearch()

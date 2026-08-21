@@ -252,6 +252,9 @@ private struct RecommendationWorkspaceMap: View {
     .overlay(alignment: .top) {
       MapPlaceSearchOverlay(
         visibleRegion: visibleRegion,
+        // Fence the search to where the candidate/trip actually is, not the camera box —
+        // otherwise a resolve zoom pinholes it and the next candidate finds nothing.
+        searchRegions: model.candidateSearchRegions,
         // Don't prefill for an already-mapped candidate — the auto-search just
         // litters the map with matches over a place that's already pinned.
         seedQuery: model.activeCandidate.flatMap { $0.isResolved ? nil : $0.title }
@@ -464,15 +467,17 @@ private struct RecommendationWorkspaceBrowser: View {
   @State private var browserModel = BrowserScreenModel()
 
   var body: some View {
-    Group {
-      if let request = model.browserLoadRequest {
-        BrowserScreen(context: .recommendation(request))
-      } else {
-        // No derived target (e.g. a nameless candidate) — don't dead-end. Fall back to
-        // the ordinary browsable surface so you can still search for a related site.
-        BrowserScreen(context: .library)
-      }
-    }
+    // One structural `BrowserScreen` — never an `if/else` between two. Both branches
+    // shared the single long-lived `WebPage` (`browserModel.page`), so flipping the
+    // condition (e.g. selecting a candidate) mounted a second `WebView` over that page
+    // while the first was still transitioning out. WebKit allows only one `WebView` per
+    // `WebPage`, so the second `makeViewProvider` traps (EXC_BREAKPOINT in
+    // _WebKit_SwiftUI). Computing the context keeps one WebView bound to the page and
+    // updates it in place. A nameless candidate falls back to `.library` rather than
+    // dead-ending, so you can still search for a related site.
+    BrowserScreen(
+      context: model.browserLoadRequest.map(BrowserScreenContext.recommendation) ?? .library
+    )
     .environment(browserModel)
   }
 }

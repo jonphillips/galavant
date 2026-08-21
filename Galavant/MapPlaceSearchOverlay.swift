@@ -1,9 +1,14 @@
 import GalavantPlaces
+import GalavantSchema
 import MapKit
 import SwiftUI
 
 struct MapPlaceSearchOverlay: View {
   let viewport: PlaceSearchViewport?
+  /// When non-empty, the search is fenced to these regions (the focused candidate's
+  /// locality box, or the trip's regions) rather than biased to the camera viewport —
+  /// so it finds a named place wherever the trip actually is, not just what's on screen.
+  let searchRegions: [MapRegion]
   let seedQuery: String?
   let onSelect: (Place) async -> Void
 
@@ -12,14 +17,20 @@ struct MapPlaceSearchOverlay: View {
 
   init(
     visibleRegion: MKCoordinateRegion?,
+    searchRegions: [MapRegion] = [],
     seedQuery: String? = nil,
     onSelect: @escaping (Place) async -> Void
   ) {
     let viewport = visibleRegion.map(PlaceSearchViewport.init(region:))
     self.viewport = viewport
+    self.searchRegions = searchRegions
     self.seedQuery = seedQuery
     self.onSelect = onSelect
-    _search = State(initialValue: PlaceSearchModel(viewport: viewport))
+    _search = State(
+      initialValue: searchRegions.isEmpty
+        ? PlaceSearchModel(viewport: viewport)
+        : PlaceSearchModel(regions: searchRegions)
+    )
   }
 
   var body: some View {
@@ -77,8 +88,18 @@ struct MapPlaceSearchOverlay: View {
     .frame(maxWidth: 460)
     .padding(.horizontal, 12)
     .padding(.top, 8)
+    // Camera moves only re-scope the viewport-biased fields (pool, canvas). When the
+    // caller fences the search to regions, panning must not drag the scope back to the
+    // pinhole box — the whole point is to search where the trip is, not what's on screen.
     .onChange(of: viewport, initial: true) { _, viewport in
+      guard searchRegions.isEmpty else { return }
       search.visibleRegionChanged(viewport)
+    }
+    // Re-fence when the focused candidate changes (its locality box moves). Keyed on the
+    // region values, not their ids: the synthesized locality box keeps a constant id and
+    // only its coordinates change.
+    .onChange(of: searchRegions, initial: true) { _, regions in
+      search.regionsChanged(regions)
     }
     // Prefill the field with the caller's current subject (e.g. the focused
     // candidate's name) so finding it on the map is one tap, not re-typing — the
