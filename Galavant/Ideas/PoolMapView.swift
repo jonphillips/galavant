@@ -21,6 +21,7 @@ struct PoolMapView: View {
   @State private var cameraPosition: MapCameraPosition = .automatic
   @State private var mapSelection: MapSelection<Idea.ID>?
   @State private var selectedMapItem: MKMapItem?
+  @State private var selectedFeatureImage: Image?
 
   private var mappableIdeas: [Idea] {
     ideas.filter { $0.coordinate != nil }
@@ -48,12 +49,16 @@ struct PoolMapView: View {
         .padding(.vertical, 8)
         .background(.bar)
       }
+      if case .exploreFirst = placeSelectionPolicy, let selectedFeatureImage {
+        MapFeatureImageSpikeView(image: selectedFeatureImage)
+      }
 
       PlaceSelectionMap(
         cameraPosition: $cameraPosition,
         selection: $mapSelection,
         visibleRegion: $visibleRegion,
         selectedMapItem: $selectedMapItem,
+        selectedFeatureImage: $selectedFeatureImage,
         presentationPolicy: placeSelectionPolicy,
         onSelectPlace: onSelectMapPlace,
         onSelectValue: { id in

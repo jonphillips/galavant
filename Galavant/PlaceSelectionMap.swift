@@ -20,6 +20,7 @@ struct PlaceSelectionMap<Content: MapContent>: View {
   @Binding var mapSelection: MapSelection<UUID>?
   @Binding var visibleRegion: MKCoordinateRegion?
   @Binding var selectedMapItem: MKMapItem?
+  @Binding var selectedFeatureImage: Image?
 
   let initialRegion: MKCoordinateRegion?
   let existingPlace: Place?
@@ -35,6 +36,7 @@ struct PlaceSelectionMap<Content: MapContent>: View {
     initialRegion: MKCoordinateRegion? = nil,
     existingPlace: Place? = nil,
     selectedMapItem: Binding<MKMapItem?> = .constant(nil),
+    selectedFeatureImage: Binding<Image?> = .constant(nil),
     presentationPolicy: PlaceSelectionPresentationPolicy = .immediate,
     onSelectPlace: @escaping (Place) async -> Void,
     onSelectValue: ((UUID) -> Void)? = nil,
@@ -44,6 +46,7 @@ struct PlaceSelectionMap<Content: MapContent>: View {
     self._mapSelection = selection
     self._visibleRegion = visibleRegion
     self._selectedMapItem = selectedMapItem
+    self._selectedFeatureImage = selectedFeatureImage
     self.initialRegion = initialRegion
     self.existingPlace = existingPlace
     self.presentationPolicy = presentationPolicy
@@ -91,6 +94,7 @@ struct PlaceSelectionMap<Content: MapContent>: View {
     guard let mapSelection else { return }
 
     if let id = mapSelection.value {
+      selectedFeatureImage = nil
       onSelectValue?(id)
       self.mapSelection = nil
       return
@@ -103,11 +107,13 @@ struct PlaceSelectionMap<Content: MapContent>: View {
       guard !Task.isCancelled else { return }
       await onSelectPlace(place)
     case .exploreFirst:
+      selectedFeatureImage = nil
       guard let mapItem = await MapPlaceResolver.mapItem(for: feature) else {
         self.mapSelection = nil
         return
       }
       guard !Task.isCancelled else { return }
+      selectedFeatureImage = feature.image
       selectedMapItem = mapItem
     }
     guard !Task.isCancelled else { return }
