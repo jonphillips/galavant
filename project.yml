@@ -49,7 +49,11 @@ targets:
       - path: Galavant
         excludes:
           - Trips/LodgingCapsuleBar.swift
+          # Keep the Ideas map action explicit so XcodeGen tracks this native-card
+          # companion separately from the recursive feature-folder source.
+          - Ideas/MapPlaceCreateIdeaButton.swift
       - Galavant/Trips/LodgingCapsuleBar.swift
+      - Galavant/Ideas/MapPlaceCreateIdeaButton.swift
     entitlements:
       path: Galavant/Galavant.entitlements
       properties:
