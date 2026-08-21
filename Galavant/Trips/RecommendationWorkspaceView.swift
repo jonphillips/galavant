@@ -58,7 +58,47 @@ struct RecommendationWorkspaceView: View {
         Text("This place is already \(collision.existingStatus.label.lowercased()) in this trip. Merge the two rationales, or keep both rows?")
       }
     }
+    .overlay(alignment: .top) {
+      if let status = model.imageDropStatus {
+        RecommendationWorkspaceFlash(status: status)
+          .padding()
+          .transition(.move(edge: .top).combined(with: .opacity))
+          .task(id: status.message) {
+            try? await Task.sleep(for: .seconds(4))
+            guard model.imageDropStatus == status else { return }
+            withAnimation(.snappy) {
+              model.imageDropStatus = nil
+            }
+          }
+      }
+    }
     .task { model.task() }
+  }
+}
+
+private struct RecommendationWorkspaceFlash: View {
+  let status: RecommendationWorkspaceImageDropStatus
+
+  private var tint: Color {
+    status.kind == .success ? .green : .red
+  }
+
+  private var systemImage: String {
+    status.kind == .success ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
+  }
+
+  var body: some View {
+    Label(status.message, systemImage: systemImage)
+      .font(.subheadline.weight(.semibold))
+      .foregroundStyle(.primary)
+      .padding(.horizontal, 14)
+      .padding(.vertical, 10)
+      .background(.regularMaterial, in: Capsule())
+      .overlay {
+        Capsule().strokeBorder(tint.opacity(0.65), lineWidth: 1.5)
+      }
+      .shadow(radius: 8)
+      .accessibilityAddTraits(.isStaticText)
   }
 }
 
@@ -438,11 +478,6 @@ private struct RecommendationWorkspaceImageDropWell: View {
         systemImage: canAcceptDrop ? "photo.badge.plus" : "photo.slash"
       )
         .font(.caption)
-      if let status = model.imageDropStatus, status.candidateID == model.activeCandidate?.id {
-        Label(status.text, systemImage: "checkmark.circle.fill")
-          .font(.caption2.weight(.semibold))
-          .foregroundStyle(.green)
-      }
     }
     .foregroundStyle(canAcceptDrop ? .primary : .secondary)
     .padding(.horizontal, 12)
@@ -470,7 +505,10 @@ private struct RecommendationWorkspaceImageDropWell: View {
       guard canAcceptDrop else { return false }
       Task {
         for provider in providers {
-          guard let droppedImage = await droppedImage(from: provider) else { continue }
+          guard let droppedImage = await droppedImage(from: provider) else {
+            model.imageDropProviderFailed()
+            continue
+          }
           await model.attachDroppedImage(droppedImage.data, sourceURL: droppedImage.url?.absoluteString)
         }
       }

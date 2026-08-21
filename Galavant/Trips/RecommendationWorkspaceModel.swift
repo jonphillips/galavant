@@ -12,6 +12,17 @@ private struct DismissedRecommendationCandidate {
   let activeAlternativeID: TripIdea.ID?
 }
 
+struct RecommendationWorkspaceImageDropStatus: Equatable {
+  enum Kind: Equatable {
+    case success
+    case failure
+  }
+
+  let candidateID: TripIdea.ID
+  let message: String
+  let kind: Kind
+}
+
 @MainActor
 @Observable
 final class RecommendationWorkspaceModel {
@@ -34,7 +45,7 @@ final class RecommendationWorkspaceModel {
   var pendingReconcile: ResolveReconcile.Collision?
   var handoffCandidates: [TripCandidate] = []
   var candidateLinks: [HandoffCandidateLink] = []
-  var imageDropStatus: (candidateID: TripIdea.ID, text: String)?
+  var imageDropStatus: RecommendationWorkspaceImageDropStatus?
   private(set) var hasLoadedCandidateSet = false
 
   init(tripID: Trip.ID, sessionID: HandoffSession.ID) {
@@ -197,7 +208,8 @@ final class RecommendationWorkspaceModel {
   /// attach an image: ImageAsset's single FK rides the shared graph through Idea.
   func attachDroppedImage(_ data: Data, sourceURL: String?) async {
     guard let ideaID = activeCandidate?.idea?.id else { return }
-    let candidateID = activeCandidate?.id
+    let candidateID = activeCandidate?.id ?? ideaID
+    let candidateTitle = activeCandidate?.title ?? "candidate"
     imageDropStatus = nil
 
     // Image decoding/resizing is pure CPU work. Keep it off the main actor while the
@@ -206,10 +218,20 @@ final class RecommendationWorkspaceModel {
       ImageProcessing.process(data)
     }.value
     guard let processed else {
+      imageDropStatus = RecommendationWorkspaceImageDropStatus(
+        candidateID: candidateID,
+        message: "That drop was not a readable image.",
+        kind: .failure
+      )
       return
     }
 
     let imageID = uuid()
+    imageDropStatus = RecommendationWorkspaceImageDropStatus(
+      candidateID: candidateID,
+      message: "Couldn't save the photo to \(candidateTitle).",
+      kind: .failure
+    )
     await withErrorReporting {
       try await database.write { [ideaID, imageID, processed, sourceURL] db in
         try ImageAsset.store(
@@ -221,10 +243,21 @@ final class RecommendationWorkspaceModel {
           in: db
         )
       }
-      if let candidateID {
-        imageDropStatus = (candidateID, "Photo added")
-      }
+      imageDropStatus = RecommendationWorkspaceImageDropStatus(
+        candidateID: candidateID,
+        message: "Photo added to \(candidateTitle).",
+        kind: .success
+      )
     }
+  }
+
+  func imageDropProviderFailed() {
+    guard let candidate = activeCandidate, candidate.idea != nil else { return }
+    imageDropStatus = RecommendationWorkspaceImageDropStatus(
+      candidateID: candidate.id,
+      message: "Couldn't read that drop as an image.",
+      kind: .failure
+    )
   }
 
   func resolveResultTapped(_ place: Place) {
