@@ -269,12 +269,16 @@ extension Place {
 /// supplies the selected `Place`; this core performs the existing capture merge and
 /// then links the already-committed candidate stop, in the caller's transaction.
 public enum RecommendationResolution {
+  /// Resolve the active candidate onto `place`, returning the linked idea and whether
+  /// this resolution *minted* it (`isNew`) versus reusing a pool idea via capture
+  /// dedup. The `isNew` flag lets a later disconnect delete only the throwaway record
+  /// a wrong tap created, never a reused pool idea.
   @discardableResult
   public static func confirm(
     candidateStopID: TripIdea.ID,
     place: Place,
     in db: Database
-  ) throws -> Idea.ID? {
+  ) throws -> IdeaCaptureResolution? {
     guard try TripIdea.find(candidateStopID).fetchOne(db) != nil else { return nil }
     let party = try TravelParty.ensureDefault(in: db)
     let resolution = try Idea.resolveCapture(
@@ -285,7 +289,7 @@ public enum RecommendationResolution {
     guard try TripIdea.attachResolvedIdea(resolution.ideaID, to: candidateStopID, in: db) != nil else {
       return nil
     }
-    return resolution.ideaID
+    return resolution
   }
 }
 

@@ -170,6 +170,7 @@ private struct RecommendationCandidateRail: View {
               toggleChoice: { model.choiceButtonTapped(candidate) },
               save: { model.saveButtonTapped(candidate) },
               addToItinerary: { model.addToItineraryButtonTapped(candidate) },
+              disconnect: { model.disconnectButtonTapped(candidate) },
               dismiss: { model.dismissButtonTapped(candidate, undoManager: undoManager) }
             )
           }
@@ -190,6 +191,7 @@ private struct RecommendationCandidateCard: View {
   let toggleChoice: () -> Void
   let save: () -> Void
   let addToItinerary: () -> Void
+  let disconnect: () -> Void
   let dismiss: () -> Void
 
   var body: some View {
@@ -233,7 +235,11 @@ private struct RecommendationCandidateCard: View {
           Button("Dismiss", role: .destructive) { dismiss() }
         }
         .buttonStyle(.bordered)
-        if !candidate.isResolved {
+        if candidate.isResolved {
+          Button("Disconnect place", systemImage: "mappin.slash") { disconnect() }
+            .font(.caption)
+            .buttonStyle(.borderless)
+        } else {
           Text("Resolve first for a mapped place, or add this freeform stop now.")
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -466,38 +472,40 @@ struct RecommendationWorkspaceImageDropWell: View {
   }
 
   var body: some View {
-    VStack(spacing: 4) {
-      Label(candidateTitle, systemImage: "mappin.circle")
-        .font(.caption.weight(.semibold))
+    // One compact row: the card above already names the candidate, so the well is
+    // just the drop hint + Paste, keeping the strip card short.
+    HStack(spacing: 8) {
+      Label(
+        canAcceptDrop ? "Drop a photo" : "Resolve first to add photos",
+        systemImage: canAcceptDrop ? "photo.badge.plus" : "photo.slash"
+      )
+        .font(.caption)
         .lineLimit(1)
-      HStack(spacing: 10) {
-        Label(
-          canAcceptDrop ? "Drop a photo here" : "Resolve this candidate first to add photos",
-          systemImage: canAcceptDrop ? "photo.badge.plus" : "photo.slash"
-        )
-          .font(.caption)
-        PasteButton(supportedContentTypes: [.image]) { providers in
-          Task {
-            for provider in providers {
-              guard let pastedImage = await droppedImage(from: provider) else {
-                model.imageDropProviderFailed()
-                continue
-              }
-              await model.attachDroppedImage(
-                pastedImage.data,
-                sourceURL: pastedImage.url?.absoluteString
-              )
+        .minimumScaleFactor(0.85)
+      Spacer(minLength: 4)
+      PasteButton(supportedContentTypes: [.image]) { providers in
+        Task {
+          for provider in providers {
+            guard let pastedImage = await droppedImage(from: provider) else {
+              model.imageDropProviderFailed()
+              continue
             }
+            await model.attachDroppedImage(
+              pastedImage.data,
+              sourceURL: pastedImage.url?.absoluteString
+            )
           }
         }
-        .labelStyle(.titleAndIcon)
-        .disabled(!canAcceptDrop)
-        .accessibilityLabel("Paste photo to \(candidateTitle)")
       }
+      .labelStyle(.iconOnly)
+      .buttonBorderShape(.capsule)
+      .controlSize(.small)
+      .disabled(!canAcceptDrop)
+      .accessibilityLabel("Paste photo to \(candidateTitle)")
     }
     .foregroundStyle(canAcceptDrop ? .primary : .secondary)
-    .padding(.horizontal, 12)
-    .padding(.vertical, 8)
+    .padding(.horizontal, 10)
+    .padding(.vertical, 6)
     .frame(maxWidth: .infinity)
     .background(
       RoundedRectangle(cornerRadius: 10, style: .continuous)

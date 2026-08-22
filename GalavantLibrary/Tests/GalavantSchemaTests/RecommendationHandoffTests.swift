@@ -162,7 +162,7 @@ struct RecommendationHandoffTests {
       }
       .execute(db)
 
-      let resolvedID = try RecommendationResolution.confirm(
+      let resolution = try RecommendationResolution.confirm(
         candidateStopID: candidate.id,
         place: Place(
           id: UUID(),
@@ -177,7 +177,9 @@ struct RecommendationHandoffTests {
         ),
         in: db
       )
-      #expect(resolvedID == existingID)
+      // Reused an existing pool idea via dedup, so it is not freshly minted.
+      #expect(resolution?.ideaID == existingID)
+      #expect(resolution?.isNew == false)
       return (
         try #require(try TripIdea.find(candidate.id).fetchOne(db)),
         try Idea.all.fetchAll(db)
@@ -193,6 +195,85 @@ struct RecommendationHandoffTests {
     #expect(result.1.only?.latitude == 46.4983)
     #expect(result.1.only?.address == "Piazza Walther 1, Bolzano")
     #expect(result.1.only?.url == "https://lumiere.example")
+  }
+
+  @Test func detachingAMintedCandidateUnlinksItAndDeletesTheOrphanIdea() async throws {
+    let result = try await database.write { db -> (TripIdea, [Idea]) in
+      let trip = try Trip.create(name: "Bavaria", in: db)
+      let candidate = try TripIdea.commit(
+        candidate: TripCandidate(name: "Leutasch Gorge"),
+        into: trip.id,
+        in: db
+      )
+      let resolution = try #require(try RecommendationResolution.confirm(
+        candidateStopID: candidate.id,
+        place: Place(
+          id: UUID(),
+          name: "Leutasch Gorge",
+          latitude: 47.37,
+          longitude: 11.23,
+          kind: .sight,
+          mapItemIdentifier: "maps:leutasch-gorge"
+        ),
+        in: db
+      ))
+      // A fresh place with no pool match — this resolution minted the idea.
+      #expect(resolution.isNew)
+
+      let detached = try TripIdea.detachResolvedIdea(
+        from: candidate.id,
+        deletingOrphanedIdea: true,
+        in: db
+      )
+      return (try #require(detached), try Idea.all.fetchAll(db))
+    }
+
+    // Candidate is unresolved again and the throwaway idea it minted is gone.
+    #expect(result.0.ideaID == nil)
+    #expect(result.1.isEmpty)
+  }
+
+  @Test func detachingKeepsAMintedIdeaThatSomethingElseStillReferences() async throws {
+    let result = try await database.write { db -> (TripIdea, [Idea]) in
+      let trip = try Trip.create(name: "Bavaria", in: db)
+      let candidate = try TripIdea.commit(
+        candidate: TripCandidate(name: "Leutasch Gorge"),
+        into: trip.id,
+        in: db
+      )
+      let resolution = try #require(try RecommendationResolution.confirm(
+        candidateStopID: candidate.id,
+        place: Place(
+          id: UUID(),
+          name: "Leutasch Gorge",
+          latitude: 47.37,
+          longitude: 11.23,
+          kind: .sight,
+          mapItemIdentifier: "maps:leutasch-gorge"
+        ),
+        in: db
+      ))
+      // A photo attached to the resolved idea makes it referenced beyond this stop.
+      try ImageAsset.store(
+        ideaID: resolution.ideaID,
+        display: Data([0x1]),
+        thumbnail: Data([0x2]),
+        id: UUID(),
+        in: db
+      )
+
+      let detached = try TripIdea.detachResolvedIdea(
+        from: candidate.id,
+        deletingOrphanedIdea: true,
+        in: db
+      )
+      return (try #require(detached), try Idea.all.fetchAll(db))
+    }
+
+    // Unlinked from the candidate, but the idea survives because the photo needs it.
+    #expect(result.0.ideaID == nil)
+    #expect(result.1.count == 1)
+    #expect(result.1.only?.name == "Leutasch Gorge")
   }
 
   @Test func aConfirmedWebsiteWriteBackUpdatesOnlyTheResolvedIdea() async throws {
