@@ -17,6 +17,7 @@ backfilled **on touch**; the table below is the current index.
 | [plan-memoization.md](plan-memoization.md) | Memoize the planning read model and remove repeated travel-graph derivation | Designed — awaiting approach sign-off |
 | [today-day-preview.md](today-day-preview.md) | ADR-0038 — preview any trip day in Today (start-of-day) | Done(shipped) |
 | [today-execution.md](today-execution.md) | ADR-0039 — Today execution: complete/skip/defer + tap-to-detail | Dispatched |
+| [evaluate-geographic-model.md](evaluate-geographic-model.md) | ADR-0045 — Evaluate geography: biased search, candidate anchors, shared map | WS1 shipped (#93); WS2–3 open |
 
 **Authoring a brief:** add its entry here in the same change (index at creation), give it a
 `Status:` + one-line `Summary:` header, and link the ADR it implements. See `docs/README.md`

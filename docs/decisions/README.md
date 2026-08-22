@@ -52,4 +52,6 @@ at creation). See `docs/README.md` (the atlas) and `jon-platform/docs/agent-work
 | [0040](0040-journey-region-imagery-and-image-panel.md) | Journey gains an image band — region "romance" photos (dual-source) and a selection-driven panel |
 | [0041](0041-calendar-dogfood-amendments.md) | Calendar dogfood amendments — human dismissal, manual match repair, time-zone display/assignment split + per-day zones |
 | [0042](0042-freeform-stop-locations.md) | Freeform stops may carry inline coordinates |
+| [0043](0043-travel-mode-overrides-keyed-by-stable-slot-identity.md) | Travel-mode overrides keyed by stable slot identity; local-only table |
 | [0044](0044-ideas-map-explore-then-capture.md) | Ideas map POIs explore in Apple's native detail before capture |
+| [0045](0045-evaluate-workspace-geographic-model.md) | Evaluate workspace geographic model — human searches bias not fence, candidate display anchors, shared `PlaceSelectionMap` |
