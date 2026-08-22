@@ -12,7 +12,7 @@ private struct DismissedRecommendationCandidate {
   let activeAlternativeID: TripIdea.ID?
 }
 
-struct RecommendationWorkspaceImageDropStatus: Equatable {
+struct RecommendationWorkspaceStatus: Equatable {
   enum Kind: Equatable {
     case success
     case failure
@@ -45,7 +45,7 @@ final class RecommendationWorkspaceModel {
   var pendingReconcile: ResolveReconcile.Collision?
   var handoffCandidates: [TripCandidate] = []
   var candidateLinks: [HandoffCandidateLink] = []
-  var imageDropStatus: RecommendationWorkspaceImageDropStatus?
+  var workspaceStatus: RecommendationWorkspaceStatus?
   private(set) var hasLoadedCandidateSet = false
 
   init(tripID: Trip.ID, sessionID: HandoffSession.ID) {
@@ -92,14 +92,36 @@ final class RecommendationWorkspaceModel {
 
   func saveButtonTapped(_ candidate: RecommendationWorkspaceCandidate) {
     let nextCandidateID = nextCandidateAfterProcessing(candidate.id)
-    withErrorReporting {
-      try database.write { db in
+    let didSave = withErrorReporting {
+      try database.write { db -> Bool in
+        guard let stored = try TripIdea.find(candidate.id).fetchOne(db) else { return false }
         try TripIdea.setStatus(.shortlisted, stopID: candidate.id, in: db)
+        if let ideaID = stored.ideaID {
+          guard try Idea.find(ideaID).fetchOne(db) != nil else {
+            return false
+          }
+        }
+        return true
       }
-      choiceCandidateIDs.remove(candidate.id)
-      activeCandidateID = nextCandidateID
-      resolveResults = []
     }
+    guard didSave == true else {
+      workspaceStatus = RecommendationWorkspaceStatus(
+        candidateID: candidate.id,
+        message: "\(candidate.title) was shortlisted, but its Idea record could not be verified.",
+        kind: .failure
+      )
+      return
+    }
+    workspaceStatus = RecommendationWorkspaceStatus(
+      candidateID: candidate.id,
+      message: candidate.isResolved
+        ? "\(candidate.title) is now on the shortlist and in Ideas."
+        : "\(candidate.title) is now on the trip shortlist.",
+      kind: .success
+    )
+    choiceCandidateIDs.remove(candidate.id)
+    activeCandidateID = nextCandidateID
+    resolveResults = []
   }
 
   /// An unresolved candidate is already the freeform stop that ADR-0010 calls
@@ -210,7 +232,7 @@ final class RecommendationWorkspaceModel {
     guard let ideaID = activeCandidate?.idea?.id else { return }
     let candidateID = activeCandidate?.id ?? ideaID
     let candidateTitle = activeCandidate?.title ?? "candidate"
-    imageDropStatus = nil
+    workspaceStatus = nil
 
     // Image decoding/resizing is pure CPU work. Keep it off the main actor while the
     // model remains the owner of the subsequent database write and UI status.
@@ -218,7 +240,7 @@ final class RecommendationWorkspaceModel {
       ImageProcessing.process(data)
     }.value
     guard let processed else {
-      imageDropStatus = RecommendationWorkspaceImageDropStatus(
+      workspaceStatus = RecommendationWorkspaceStatus(
         candidateID: candidateID,
         message: "That drop was not a readable image.",
         kind: .failure
@@ -227,7 +249,7 @@ final class RecommendationWorkspaceModel {
     }
 
     let imageID = uuid()
-    imageDropStatus = RecommendationWorkspaceImageDropStatus(
+    workspaceStatus = RecommendationWorkspaceStatus(
       candidateID: candidateID,
       message: "Couldn't save the photo to \(candidateTitle).",
       kind: .failure
@@ -243,7 +265,7 @@ final class RecommendationWorkspaceModel {
           in: db
         )
       }
-      imageDropStatus = RecommendationWorkspaceImageDropStatus(
+      workspaceStatus = RecommendationWorkspaceStatus(
         candidateID: candidateID,
         message: "Photo added to \(candidateTitle).",
         kind: .success
@@ -253,7 +275,7 @@ final class RecommendationWorkspaceModel {
 
   func imageDropProviderFailed() {
     guard let candidate = activeCandidate, candidate.idea != nil else { return }
-    imageDropStatus = RecommendationWorkspaceImageDropStatus(
+    workspaceStatus = RecommendationWorkspaceStatus(
       candidateID: candidate.id,
       message: "Couldn't read that drop as an image.",
       kind: .failure

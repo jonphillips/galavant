@@ -59,15 +59,15 @@ struct RecommendationWorkspaceView: View {
       }
     }
     .overlay(alignment: .top) {
-      if let status = model.imageDropStatus {
+      if let status = model.workspaceStatus {
         RecommendationWorkspaceFlash(status: status)
           .padding()
           .transition(.move(edge: .top).combined(with: .opacity))
           .task(id: status.message) {
             try? await Task.sleep(for: .seconds(4))
-            guard model.imageDropStatus == status else { return }
+            guard model.workspaceStatus == status else { return }
             withAnimation(.snappy) {
-              model.imageDropStatus = nil
+              model.workspaceStatus = nil
             }
           }
       }
@@ -77,7 +77,7 @@ struct RecommendationWorkspaceView: View {
 }
 
 private struct RecommendationWorkspaceFlash: View {
-  let status: RecommendationWorkspaceImageDropStatus
+  let status: RecommendationWorkspaceStatus
 
   private var tint: Color {
     status.kind == .success ? .green : .red
