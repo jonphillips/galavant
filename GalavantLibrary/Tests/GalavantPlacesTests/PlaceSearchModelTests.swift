@@ -2,6 +2,7 @@ import CustomDump
 import Dependencies
 import Foundation
 import GalavantSchema
+import MapKit
 import Testing
 
 @testable import GalavantPlaces
@@ -66,6 +67,70 @@ import Testing
       let model = PlaceSearchModel(regions: [dolomites])
       model.query = "es:senz"
       await model.searchTask?.value
+    }
+  }
+
+  @Test func queryCanBiasTowardTripRegions() async {
+    let dolomites = MapRegion(
+      id: UUID(), name: "Dolomites",
+      centerLatitude: 46.5, centerLongitude: 11.8,
+      latitudeDelta: 1, longitudeDelta: 1
+    )
+    await withDependencies {
+      $0.placeSearch.search = { query, scope in
+        expectNoDifference(query, "mittenwald")
+        expectNoDifference(scope, .biasedRegions([dolomites]))
+        return []
+      }
+    } operation: {
+      let model = PlaceSearchModel(regions: [dolomites], biased: true)
+      model.query = "mittenwald"
+      await model.searchTask?.value
+    }
+  }
+
+  @Test func regionScopesKeepRequiredSemanticsSeparateFromBiasedRegions() {
+    let region = MapRegion(
+      id: UUID(), name: "Dolomites",
+      centerLatitude: 46.5, centerLongitude: 11.8,
+      latitudeDelta: 1, longitudeDelta: 1
+    )
+
+    let required = PlaceSearchClient.searchRegions(for: .regions([region]))
+    let biased = PlaceSearchClient.searchRegions(for: .biasedRegions([region]))
+
+    #expect(required.count == 1)
+    #expect(required[0].required)
+    #expect(biased.count == 1)
+    #expect(!biased[0].required)
+  }
+
+  @Test func changingRegionsPreservesBiasedScope() async {
+    let first = MapRegion(
+      id: UUID(), name: "Dolomites",
+      centerLatitude: 46.5, centerLongitude: 11.8,
+      latitudeDelta: 1, longitudeDelta: 1
+    )
+    let second = MapRegion(
+      id: UUID(), name: "Bavaria",
+      centerLatitude: 47.5, centerLongitude: 11.3,
+      latitudeDelta: 1, longitudeDelta: 1
+    )
+    let scopes = LockIsolated<[PlaceSearchScope]>([])
+    await withDependencies {
+      $0.placeSearch.search = { _, scope in
+        scopes.withValue { $0.append(scope) }
+        return []
+      }
+    } operation: {
+      let model = PlaceSearchModel(regions: [first], biased: true)
+      model.query = "mittenwald"
+      await model.searchTask?.value
+
+      model.regionsChanged([second])
+      await model.searchTask?.value
+
+      expectNoDifference(scopes.value, [.biasedRegions([first]), .biasedRegions([second])])
     }
   }
 

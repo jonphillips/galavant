@@ -275,7 +275,7 @@ extension PlaceMatcher: DependencyKey {
       (try? await PlaceSearchClient.liveValue.search(query, .worldwide)) ?? []
     },
     recommendationSearch: { query, regions in
-      let scope: PlaceSearchScope = regions.isEmpty ? .worldwide : .regions(regions)
+      let scope: PlaceSearchScope = regions.isEmpty ? .worldwide : .biasedRegions(regions)
       return (try? await PlaceSearchClient.liveValue.search(query, scope)) ?? []
     },
     lookupNear: { query, coordinate in
