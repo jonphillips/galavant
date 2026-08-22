@@ -1,8 +1,10 @@
+import Foundation
 import GalavantAI
 import GalavantPlaces
 import GalavantSchema
 import MapKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct RecommendationWorkspaceHost: View {
   @State private var model: RecommendationWorkspaceModel
@@ -56,7 +58,47 @@ struct RecommendationWorkspaceView: View {
         Text("This place is already \(collision.existingStatus.label.lowercased()) in this trip. Merge the two rationales, or keep both rows?")
       }
     }
+    .overlay(alignment: .top) {
+      if let status = model.workspaceStatus {
+        RecommendationWorkspaceFlash(status: status)
+          .padding()
+          .transition(.move(edge: .top).combined(with: .opacity))
+          .task(id: status.message) {
+            try? await Task.sleep(for: .seconds(4))
+            guard model.workspaceStatus == status else { return }
+            withAnimation(.snappy) {
+              model.workspaceStatus = nil
+            }
+          }
+      }
+    }
     .task { model.task() }
+  }
+}
+
+private struct RecommendationWorkspaceFlash: View {
+  let status: RecommendationWorkspaceStatus
+
+  private var tint: Color {
+    status.kind == .success ? .green : .red
+  }
+
+  private var systemImage: String {
+    status.kind == .success ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
+  }
+
+  var body: some View {
+    Label(status.message, systemImage: systemImage)
+      .font(.subheadline.weight(.semibold))
+      .foregroundStyle(.primary)
+      .padding(.horizontal, 14)
+      .padding(.vertical, 10)
+      .background(.regularMaterial, in: Capsule())
+      .overlay {
+        Capsule().strokeBorder(tint.opacity(0.65), lineWidth: 1.5)
+      }
+      .shadow(radius: 8)
+      .accessibilityAddTraits(.isStaticText)
   }
 }
 
@@ -186,7 +228,7 @@ private struct RecommendationCandidateCard: View {
       } else {
         HStack {
           Button(isInChoice ? "Chosen" : "Choose") { toggleChoice() }
-          Button("Save to Ideas") { save() }
+          Button("Shortlist") { save() }
           Button("Add to Itinerary") { addToItinerary() }
           Button("Dismiss", role: .destructive) { dismiss() }
         }
@@ -405,6 +447,119 @@ private struct ActiveCandidateResolveControls: View {
             }
           }
         }
+      }
+    }
+  }
+}
+
+struct RecommendationWorkspaceImageDropWell: View {
+  let model: RecommendationWorkspaceModel
+  @State private var isTargeted = false
+
+  private var candidateTitle: String {
+    model.activeCandidate?.title ?? "candidate"
+  }
+
+  private var canAcceptDrop: Bool {
+    model.activeCandidate?.idea != nil
+  }
+
+  var body: some View {
+    VStack(spacing: 4) {
+      Label(candidateTitle, systemImage: "mappin.circle")
+        .font(.caption.weight(.semibold))
+        .lineLimit(1)
+      Label(
+        canAcceptDrop ? "Drop a photo here" : "Resolve this candidate first to add photos",
+        systemImage: canAcceptDrop ? "photo.badge.plus" : "photo.slash"
+      )
+        .font(.caption)
+    }
+    .foregroundStyle(canAcceptDrop ? .primary : .secondary)
+    .padding(.horizontal, 12)
+    .padding(.vertical, 8)
+    .frame(maxWidth: .infinity)
+    .background(
+      RoundedRectangle(cornerRadius: 10, style: .continuous)
+        .fill(
+          isTargeted && canAcceptDrop
+            ? Color.accentColor.opacity(0.22)
+            : canAcceptDrop
+              ? Color.black.opacity(0.08)
+              : Color.secondary.opacity(0.12)
+        )
+    )
+    .overlay {
+      RoundedRectangle(cornerRadius: 10, style: .continuous)
+        .stroke(
+          isTargeted && canAcceptDrop ? Color.accentColor : Color.clear,
+          lineWidth: 2
+        )
+    }
+    .contentShape(Rectangle())
+    .onDrop(of: [.image, .url], isTargeted: $isTargeted) { providers in
+      guard canAcceptDrop else { return false }
+      Task {
+        for provider in providers {
+          guard let droppedImage = await droppedImage(from: provider) else {
+            model.imageDropProviderFailed()
+            continue
+          }
+          await model.attachDroppedImage(droppedImage.data, sourceURL: droppedImage.url?.absoluteString)
+        }
+      }
+      return true
+    }
+    .disabled(!canAcceptDrop)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel("Add photo to \(candidateTitle)")
+    .accessibilityHint(
+      canAcceptDrop
+        ? "Drop an image from the research browser."
+        : "Resolve this candidate first to add photos."
+    )
+  }
+
+  private struct DroppedImage {
+    let data: Data
+    let url: URL?
+  }
+
+  private func droppedImage(from provider: NSItemProvider) async -> DroppedImage? {
+    if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
+      guard let data = await loadImageData(from: provider) else { return nil }
+      return DroppedImage(data: data, url: await loadURL(from: provider))
+    }
+
+    guard
+      provider.hasItemConformingToTypeIdentifier(UTType.url.identifier),
+      let url = await loadURL(from: provider),
+      let (data, _) = try? await URLSession.shared.data(from: url)
+    else {
+      return nil
+    }
+    return DroppedImage(data: data, url: url)
+  }
+
+  private func loadImageData(from provider: NSItemProvider) async -> Data? {
+    await loadData(from: provider, typeIdentifier: UTType.image.identifier)
+  }
+
+  private func loadURL(from provider: NSItemProvider) async -> URL? {
+    guard let data = await loadData(from: provider, typeIdentifier: UTType.url.identifier) else {
+      return nil
+    }
+    if let url = URL(dataRepresentation: data, relativeTo: nil) {
+      return url
+    }
+    guard let string = String(data: data, encoding: .utf8) else { return nil }
+    return URL(string: string.trimmingCharacters(in: .whitespacesAndNewlines))
+  }
+
+  private func loadData(from provider: NSItemProvider, typeIdentifier: String) async -> Data? {
+    await withCheckedContinuation { continuation in
+      provider.loadDataRepresentation(forTypeIdentifier: typeIdentifier) { data, _ in
+        continuation.resume(returning: data)
       }
     }
   }

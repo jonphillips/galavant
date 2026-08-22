@@ -1,6 +1,7 @@
 import Dependencies
 import Foundation
 import GalavantAI
+import GalavantImaging
 import GalavantPlaces
 import GalavantSchema
 import SQLiteData
@@ -11,10 +12,22 @@ private struct DismissedRecommendationCandidate {
   let activeAlternativeID: TripIdea.ID?
 }
 
+struct RecommendationWorkspaceStatus: Equatable {
+  enum Kind: Equatable {
+    case success
+    case failure
+  }
+
+  let candidateID: TripIdea.ID
+  let message: String
+  let kind: Kind
+}
+
 @MainActor
 @Observable
 final class RecommendationWorkspaceModel {
   @ObservationIgnored @Dependency(\.defaultDatabase) private var database
+  @ObservationIgnored @Dependency(\.uuid) private var uuid
   @ObservationIgnored @Dependency(\.handoffSessionStore) private var handoffSessionStore
   @ObservationIgnored @Dependency(\.placeMatcher) private var placeMatcher
   @ObservationIgnored @FetchAll(TripIdea.all) var allTripIdeas
@@ -32,6 +45,7 @@ final class RecommendationWorkspaceModel {
   var pendingReconcile: ResolveReconcile.Collision?
   var handoffCandidates: [TripCandidate] = []
   var candidateLinks: [HandoffCandidateLink] = []
+  var workspaceStatus: RecommendationWorkspaceStatus?
   private(set) var hasLoadedCandidateSet = false
 
   init(tripID: Trip.ID, sessionID: HandoffSession.ID) {
@@ -78,14 +92,36 @@ final class RecommendationWorkspaceModel {
 
   func saveButtonTapped(_ candidate: RecommendationWorkspaceCandidate) {
     let nextCandidateID = nextCandidateAfterProcessing(candidate.id)
-    withErrorReporting {
-      try database.write { db in
+    let didSave = withErrorReporting {
+      try database.write { db -> Bool in
+        guard let stored = try TripIdea.find(candidate.id).fetchOne(db) else { return false }
         try TripIdea.setStatus(.shortlisted, stopID: candidate.id, in: db)
+        if let ideaID = stored.ideaID {
+          guard try Idea.find(ideaID).fetchOne(db) != nil else {
+            return false
+          }
+        }
+        return true
       }
-      choiceCandidateIDs.remove(candidate.id)
-      activeCandidateID = nextCandidateID
-      resolveResults = []
     }
+    guard didSave == true else {
+      workspaceStatus = RecommendationWorkspaceStatus(
+        candidateID: candidate.id,
+        message: "\(candidate.title) was shortlisted, but its Idea record could not be verified.",
+        kind: .failure
+      )
+      return
+    }
+    workspaceStatus = RecommendationWorkspaceStatus(
+      candidateID: candidate.id,
+      message: candidate.isResolved
+        ? "\(candidate.title) is now on the shortlist and in Ideas."
+        : "\(candidate.title) is now on the trip shortlist.",
+      kind: .success
+    )
+    choiceCandidateIDs.remove(candidate.id)
+    activeCandidateID = nextCandidateID
+    resolveResults = []
   }
 
   /// An unresolved candidate is already the freeform stop that ADR-0010 calls
@@ -187,6 +223,63 @@ final class RecommendationWorkspaceModel {
   func useThisPlaceButtonTapped() async {
     guard let activeCandidate else { return }
     resolveResults = await placeMatcher.matches(for: activeCandidate.candidate, in: tripRegions)
+  }
+
+  /// Store an image dragged from the regular-width research browser on the focused
+  /// candidate's resolved idea. Unresolved candidates deliberately have nowhere to
+  /// attach an image: ImageAsset's single FK rides the shared graph through Idea.
+  func attachDroppedImage(_ data: Data, sourceURL: String?) async {
+    guard let ideaID = activeCandidate?.idea?.id else { return }
+    let candidateID = activeCandidate?.id ?? ideaID
+    let candidateTitle = activeCandidate?.title ?? "candidate"
+    workspaceStatus = nil
+
+    // Image decoding/resizing is pure CPU work. Keep it off the main actor while the
+    // model remains the owner of the subsequent database write and UI status.
+    let processed = await Task.detached(priority: .userInitiated) {
+      ImageProcessing.process(data)
+    }.value
+    guard let processed else {
+      workspaceStatus = RecommendationWorkspaceStatus(
+        candidateID: candidateID,
+        message: "That drop was not a readable image.",
+        kind: .failure
+      )
+      return
+    }
+
+    let imageID = uuid()
+    workspaceStatus = RecommendationWorkspaceStatus(
+      candidateID: candidateID,
+      message: "Couldn't save the photo to \(candidateTitle).",
+      kind: .failure
+    )
+    await withErrorReporting {
+      try await database.write { [ideaID, imageID, processed, sourceURL] db in
+        try ImageAsset.store(
+          ideaID: ideaID,
+          display: processed.display,
+          thumbnail: processed.thumbnail,
+          sourceURL: sourceURL,
+          id: imageID,
+          in: db
+        )
+      }
+      workspaceStatus = RecommendationWorkspaceStatus(
+        candidateID: candidateID,
+        message: "Photo added to \(candidateTitle).",
+        kind: .success
+      )
+    }
+  }
+
+  func imageDropProviderFailed() {
+    guard let candidate = activeCandidate, candidate.idea != nil else { return }
+    workspaceStatus = RecommendationWorkspaceStatus(
+      candidateID: candidate.id,
+      message: "Couldn't read that drop as an image.",
+      kind: .failure
+    )
   }
 
   func resolveResultTapped(_ place: Place) {

@@ -103,6 +103,9 @@ struct IdeasScreen: View {
       Text("Save the current map area as a region you can filter by.")
     }
     .task { await model.task() }
+    .onAppear {
+      Task { await model.reloadAfterExternalWrite() }
+    }
     .task {
       // Take the deferred second enrichment hop for freshly captured ideas (M4g).
       await model.enrichPendingIdeas()
