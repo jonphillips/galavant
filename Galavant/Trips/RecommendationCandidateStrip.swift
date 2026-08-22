@@ -66,6 +66,7 @@ struct RecommendationCandidateStrip: View {
               toggleChoice: { model.choiceButtonTapped(candidate) },
               save: { model.saveButtonTapped(candidate) },
               addToDay: { day in model.addToDay(candidate, day: day) },
+              disconnect: { model.disconnectButtonTapped(candidate) },
               dismiss: { model.dismissButtonTapped(candidate, undoManager: undoManager) }
             )
           }
@@ -99,6 +100,7 @@ struct RecommendationCandidateStripCard: View {
   let toggleChoice: () -> Void
   let save: () -> Void
   let addToDay: (Int?) -> Void
+  let disconnect: () -> Void
   let dismiss: () -> Void
 
   var body: some View {
@@ -222,6 +224,9 @@ struct RecommendationCandidateStripCard: View {
         }
         if !days.isEmpty { Divider() }
         Button("To be scheduled") { addToDay(nil) }
+      }
+      if candidate.isResolved {
+        Button("Disconnect Place", systemImage: "mappin.slash") { disconnect() }
       }
       Divider()
       Button("Dismiss", systemImage: "xmark", role: .destructive) { dismiss() }

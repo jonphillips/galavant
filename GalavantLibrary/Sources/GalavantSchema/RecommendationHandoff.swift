@@ -296,6 +296,50 @@ extension TripIdea {
       .execute(db)
     return try TripIdea.find(candidateStopID).fetchOne(db)
   }
+
+  /// Reverse of `attachResolvedIdea`: unlink the resolved place so a mis-tapped
+  /// candidate returns to the unresolved state and can be re-resolved on the map.
+  /// When `deletingOrphanedIdea` is set (the caller knows this resolution *minted*
+  /// the idea), the just-detached idea is also removed if nothing else still points
+  /// at it — cleaning up the throwaway record a wrong tap created without touching a
+  /// pool idea the resolution merely reused.
+  @discardableResult
+  public static func detachResolvedIdea(
+    from candidateStopID: TripIdea.ID,
+    deletingOrphanedIdea: Bool = false,
+    in db: Database
+  ) throws -> TripIdea? {
+    guard let existing = try TripIdea.find(candidateStopID).fetchOne(db) else { return nil }
+    let detachedIdeaID = existing.ideaID
+    try TripIdea.find(candidateStopID)
+      .update { $0.ideaID = #bind(nil) }
+      .execute(db)
+    if
+      deletingOrphanedIdea,
+      let detachedIdeaID,
+      try !Idea.isReferenced(detachedIdeaID, in: db)
+    {
+      try Idea.find(detachedIdeaID).delete().execute(db)
+    }
+    return try TripIdea.find(candidateStopID).fetchOne(db)
+  }
+}
+
+extension Idea {
+  /// True if any persisted row still points at this idea through the loose `ideaID`
+  /// links (ADR-0007's single-FK sharing rule). Guards the mis-tap cleanup in
+  /// `TripIdea.detachResolvedIdea` so a freshly-minted idea is deleted only when
+  /// nothing — another stop, a stay, a photo, a tag, an interest, an evaluation —
+  /// still depends on it.
+  public static func isReferenced(_ ideaID: Idea.ID, in db: Database) throws -> Bool {
+    if try TripIdea.where({ $0.ideaID.eq(ideaID) }).fetchCount(db) > 0 { return true }
+    if try TripStay.where({ $0.ideaID.eq(ideaID) }).fetchCount(db) > 0 { return true }
+    if try ImageAsset.where({ $0.ideaID.eq(ideaID) }).fetchCount(db) > 0 { return true }
+    if try IdeaTag.where({ $0.ideaID.eq(ideaID) }).fetchCount(db) > 0 { return true }
+    if try IdeaInterest.where({ $0.ideaID.eq(ideaID) }).fetchCount(db) > 0 { return true }
+    if try IdeaEvaluation.where({ $0.ideaID.eq(ideaID) }).fetchCount(db) > 0 { return true }
+    return false
+  }
 }
 
 extension HandoffSession {

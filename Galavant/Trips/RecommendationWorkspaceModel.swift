@@ -45,6 +45,12 @@ final class RecommendationWorkspaceModel {
   var pendingReconcile: ResolveReconcile.Collision?
   var handoffCandidates: [TripCandidate] = []
   var candidateLinks: [HandoffCandidateLink] = []
+  private(set) var candidateAnchors: [TripIdea.ID: RecommendationWorkspaceProjection.Coordinate] = [:]
+  /// Ideas this session minted while resolving (as opposed to reusing a pool idea via
+  /// dedup). Disconnect deletes only these, and only if nothing else references them,
+  /// so a wrong tap leaves no throwaway idea behind. Session-only by design — after a
+  /// relaunch we conservatively keep the idea rather than guess it was disposable.
+  private var mintedIdeaIDs: Set<Idea.ID> = []
   var workspaceStatus: RecommendationWorkspaceStatus?
   private(set) var hasLoadedCandidateSet = false
 
@@ -53,9 +59,10 @@ final class RecommendationWorkspaceModel {
     self.sessionID = sessionID
   }
 
-  func task() {
+  func task() async {
     loadCandidateSet()
     activeCandidateID = effectiveActiveCandidateID
+    await loadCandidateAnchors()
   }
 
   func candidateTapped(_ candidate: RecommendationWorkspaceCandidate) {
@@ -192,6 +199,35 @@ final class RecommendationWorkspaceModel {
     }
   }
 
+  /// Undo a wrong pin: unlink the resolved place so the candidate is unresolved
+  /// again and re-resolvable on the map. Best-effort re-geocodes a display anchor so
+  /// the candidate keeps a rough pin instead of vanishing. The detached Idea stays
+  /// in the pool (never a write-back to the Idea, mirroring the anchor's rules).
+  func disconnectButtonTapped(_ candidate: RecommendationWorkspaceCandidate) {
+    guard candidate.isResolved else { return }
+    let detachedIdeaID = candidate.idea?.id
+    let mintedHere = detachedIdeaID.map(mintedIdeaIDs.contains) ?? false
+    withErrorReporting {
+      try database.write { db in
+        try TripIdea.detachResolvedIdea(
+          from: candidate.id,
+          deletingOrphanedIdea: mintedHere,
+          in: db
+        )
+      }
+      if let detachedIdeaID { mintedIdeaIDs.remove(detachedIdeaID) }
+      activeCandidateID = candidate.id
+      resolveResults = []
+      candidateAnchors[candidate.id] = nil
+      workspaceStatus = RecommendationWorkspaceStatus(
+        candidateID: candidate.id,
+        message: "\(candidate.title) is unresolved again — pick its place on the map.",
+        kind: .success
+      )
+    }
+    Task { await loadCandidateAnchors() }
+  }
+
   func choiceButtonTapped(_ candidate: RecommendationWorkspaceCandidate) {
     if choiceCandidateIDs.contains(candidate.id) {
       choiceCandidateIDs.remove(candidate.id)
@@ -286,15 +322,16 @@ final class RecommendationWorkspaceModel {
     guard let activeCandidate else { return }
     withErrorReporting {
       pendingReconcile = try database.write { db in
-        guard let resolvedIdeaID = try RecommendationResolution.confirm(
+        guard let resolution = try RecommendationResolution.confirm(
           candidateStopID: activeCandidate.id,
           place: place,
           in: db
         ) else { return nil }
+        if resolution.isNew { mintedIdeaIDs.insert(resolution.ideaID) }
         let tripIdeas = try TripIdea.where { $0.tripID.eq(tripID) }.fetchAll(db)
         return ResolveReconcile(
           tripIdeas: tripIdeas,
-          resolvedIdeaID: resolvedIdeaID,
+          resolvedIdeaID: resolution.ideaID,
           candidateID: activeCandidate.id
         ).collision
       }
@@ -331,6 +368,25 @@ final class RecommendationWorkspaceModel {
     }
     handoffCandidates = (try? session.recommendationCandidates()) ?? []
     candidateLinks = session.candidateLinks
+  }
+
+  /// Geocode unresolved candidates for display only. These coordinates are session
+  /// state: they never become an Idea coordinate and never resolve a candidate.
+  func loadCandidateAnchors() async {
+    for candidate in candidates where !candidate.isResolved && candidateAnchors[candidate.id] == nil {
+      guard !Task.isCancelled else { return }
+      let matches = await placeMatcher.matches(for: candidate.candidate, in: tripRegions)
+      guard !Task.isCancelled else { return }
+      guard
+        candidates.first(where: { $0.id == candidate.id })?.isResolved == false,
+        candidateAnchors[candidate.id] == nil,
+        let firstMatch = matches.first
+      else { continue }
+      candidateAnchors[candidate.id] = RecommendationWorkspaceProjection.Coordinate(
+        latitude: firstMatch.latitude,
+        longitude: firstMatch.longitude
+      )
+    }
   }
 
   private func restoreDismissedCandidate(_ dismissal: DismissedRecommendationCandidate) {

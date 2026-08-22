@@ -19,7 +19,8 @@ import Testing
     mapRegions: [MapRegion] = [],
     trips: [Trip] = [],
     preferredActiveCandidateID: TripIdea.ID? = nil,
-    resolveResultCoordinates: [RecommendationWorkspaceProjection.Coordinate] = []
+    resolveResultCoordinates: [RecommendationWorkspaceProjection.Coordinate] = [],
+    candidateAnchors: [TripIdea.ID: RecommendationWorkspaceProjection.Coordinate] = [:]
   ) -> RecommendationWorkspaceProjection {
     RecommendationWorkspaceProjection(
       tripID: tripID,
@@ -34,7 +35,8 @@ import Testing
       mapRegions: mapRegions,
       trips: trips,
       preferredActiveCandidateID: preferredActiveCandidateID,
-      resolveResultCoordinates: resolveResultCoordinates
+      resolveResultCoordinates: resolveResultCoordinates,
+      candidateAnchors: candidateAnchors
     )
   }
 
@@ -170,54 +172,57 @@ import Testing
     #expect(markerIDs == [scheduledStopID, stayID])
   }
 
-  @Test func candidateMarkersUseResolvedCoordinateElseFuzzyLocalityAndNeedAnActiveID() {
+  @Test func candidateMarkersPreferResolvedCoordinateThenAnchorAndOmitAnchorlessCandidates() {
     let resolvedStop = UUID()
-    let fuzzyStop = UUID()
-    let regionID = UUID()
-
-    let region = MapRegion(
-      id: regionID, name: "Florence",
-      centerLatitude: 43.77, centerLongitude: 11.25,
-      latitudeDelta: 0.2, longitudeDelta: 0.2)
+    let anchoredStop = UUID()
+    let anchorlessStop = UUID()
 
     let projection = projection(
       candidates: [
         candidate(
           stopID: resolvedStop, rank: 1, ideaID: UUID(),
           name: "Uffizi", latitude: 43.76, longitude: 11.25),
-        candidate(stopID: fuzzyStop, rank: 2, name: "Trattoria", locality: "Florence"),
+        candidate(stopID: anchoredStop, rank: 2, name: "Trattoria"),
+        candidate(stopID: anchorlessStop, rank: 3, name: "Unlocated"),
       ],
-      tripRegionLinks: [TripRegion(id: UUID(), tripID: tripID, regionID: regionID)],
-      mapRegions: [region],
-      preferredActiveCandidateID: resolvedStop
+      preferredActiveCandidateID: anchoredStop,
+      candidateAnchors: [
+        resolvedStop: .init(latitude: 40, longitude: 10),
+        anchoredStop: .init(latitude: 43.78, longitude: 11.26),
+      ]
     )
 
     let markers = Dictionary(uniqueKeysWithValues: projection.candidateMarkers.map { ($0.id, $0) })
     #expect(markers[resolvedStop]?.latitude == 43.76)
-    #expect(markers[resolvedStop]?.state == .resolved(isActive: true))
-    // The unresolved candidate borrows its trip region's center as a fuzzy pin.
-    #expect(markers[fuzzyStop]?.latitude == 43.77)
-    #expect(markers[fuzzyStop]?.state == .fuzzy(isActive: false))
+    #expect(markers[resolvedStop]?.state == .resolved(isActive: false))
+    #expect(markers[anchoredStop]?.latitude == 43.78)
+    #expect(markers[anchoredStop]?.state == .fuzzy(isActive: true))
+    #expect(markers[anchorlessStop] == nil)
+    #expect(projection.activeCandidateLocation?.latitude == 43.78)
+    #expect(projection.activeCandidateLocation?.longitude == 11.26)
   }
 
   @Test func mapViewportFramesEveryPlottedCoordinate() {
     let stopID = UUID()
     let ideaID = UUID()
+    let anchoredCandidateStopID = UUID()
     let stop = TripIdea(id: stopID, tripID: tripID, ideaID: ideaID, status: .scheduled)
     let idea = Idea(id: ideaID, name: "North", latitude: 47.0, longitude: 11.0)
 
     let projection = projection(
-      candidates: [],
+      candidates: [candidate(stopID: anchoredCandidateStopID, name: "South")],
       extraTripIdeas: [stop],
       extraIdeas: [idea],
-      resolveResultCoordinates: [.init(latitude: 45.0, longitude: 13.0)]
+      preferredActiveCandidateID: anchoredCandidateStopID,
+      resolveResultCoordinates: [.init(latitude: 45.0, longitude: 13.0)],
+      candidateAnchors: [anchoredCandidateStopID: .init(latitude: 48.0, longitude: 11.5)]
     )
 
     let viewport = projection.mapViewport
-    #expect(viewport?.centerLatitude == 46.0)
+    #expect(viewport?.centerLatitude == 46.5)
     #expect(viewport?.centerLongitude == 12.0)
-    // Span is the coordinate spread padded by 1.35, floored at 0.08.
-    #expect(viewport?.latitudeDelta == max(2.0 * 1.35, 0.08))
+    // Span includes the in-memory candidate anchor and is padded by 1.35.
+    #expect(viewport?.latitudeDelta == max(3.0 * 1.35, 0.08))
     #expect(viewport?.longitudeDelta == max(2.0 * 1.35, 0.08))
   }
 

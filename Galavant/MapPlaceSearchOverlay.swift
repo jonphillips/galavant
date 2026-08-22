@@ -5,8 +5,8 @@ import SwiftUI
 
 struct MapPlaceSearchOverlay: View {
   let viewport: PlaceSearchViewport?
-  /// When non-empty, the search is scoped to these regions (the focused candidate's
-  /// locality box, or the trip's regions) rather than the camera viewport.
+  /// When non-empty, the search is scoped to these regions rather than the camera
+  /// viewport.
   let searchRegions: [MapRegion]
   let biased: Bool
   let seedQuery: String?
@@ -73,8 +73,12 @@ struct MapPlaceSearchOverlay: View {
                 Task { await resultTapped(place) }
               } label: {
                 MapPlaceSearchResultRow(
+                  // Rural MapKit hits often carry no city or address, so several
+                  // same-named results (a lake, a hotel, an alm all called
+                  // "Lautersee") would render identically. Fall back to the kind
+                  // label so the icon isn't the only thing telling them apart.
                   name: place.name,
-                  subtitle: place.subtitle,
+                  subtitle: place.subtitle.isEmpty ? (place.kind?.label ?? "") : place.subtitle,
                   systemImage: place.kind?.systemImage ?? "mappin"
                 )
               }
@@ -96,9 +100,8 @@ struct MapPlaceSearchOverlay: View {
       guard searchRegions.isEmpty else { return }
       search.visibleRegionChanged(viewport)
     }
-    // Re-scope when the focused candidate changes (its locality box moves). Keyed on the
-    // region values, not their ids: the synthesized locality box keeps a constant id and
-    // only its coordinates change. The model preserves whether this scope is biased.
+    // Re-scope when the caller's region bias changes. The model preserves whether this
+    // scope is biased.
     .onChange(of: searchRegions, initial: true) { _, regions in
       search.regionsChanged(regions)
     }
