@@ -470,11 +470,30 @@ struct RecommendationWorkspaceImageDropWell: View {
       Label(candidateTitle, systemImage: "mappin.circle")
         .font(.caption.weight(.semibold))
         .lineLimit(1)
-      Label(
-        canAcceptDrop ? "Drop a photo here" : "Resolve this candidate first to add photos",
-        systemImage: canAcceptDrop ? "photo.badge.plus" : "photo.slash"
-      )
-        .font(.caption)
+      HStack(spacing: 10) {
+        Label(
+          canAcceptDrop ? "Drop a photo here" : "Resolve this candidate first to add photos",
+          systemImage: canAcceptDrop ? "photo.badge.plus" : "photo.slash"
+        )
+          .font(.caption)
+        PasteButton(supportedContentTypes: [.image]) { providers in
+          Task {
+            for provider in providers {
+              guard let pastedImage = await droppedImage(from: provider) else {
+                model.imageDropProviderFailed()
+                continue
+              }
+              await model.attachDroppedImage(
+                pastedImage.data,
+                sourceURL: pastedImage.url?.absoluteString
+              )
+            }
+          }
+        }
+        .labelStyle(.titleAndIcon)
+        .disabled(!canAcceptDrop)
+        .accessibilityLabel("Paste photo to \(candidateTitle)")
+      }
     }
     .foregroundStyle(canAcceptDrop ? .primary : .secondary)
     .padding(.horizontal, 12)
@@ -512,11 +531,11 @@ struct RecommendationWorkspaceImageDropWell: View {
       return true
     }
     .disabled(!canAcceptDrop)
-    .accessibilityElement(children: .ignore)
+    .accessibilityElement(children: .contain)
     .accessibilityLabel("Add photo to \(candidateTitle)")
     .accessibilityHint(
       canAcceptDrop
-        ? "Drop an image from the research browser."
+        ? "Drop or paste an image from the research browser."
         : "Resolve this candidate first to add photos."
     )
   }
