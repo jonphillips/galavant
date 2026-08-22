@@ -117,6 +117,7 @@ public struct RecommendationWorkspaceProjection {
   public let trips: [Trip]
   public let preferredActiveCandidateID: TripIdea.ID?
   public let resolveResultCoordinates: [Coordinate]
+  public let candidateAnchors: [TripIdea.ID: Coordinate]
 
   public init(
     tripID: Trip.ID,
@@ -129,7 +130,8 @@ public struct RecommendationWorkspaceProjection {
     mapRegions: [MapRegion],
     trips: [Trip],
     preferredActiveCandidateID: TripIdea.ID?,
-    resolveResultCoordinates: [Coordinate] = []
+    resolveResultCoordinates: [Coordinate] = [],
+    candidateAnchors: [TripIdea.ID: Coordinate] = [:]
   ) {
     self.tripID = tripID
     self.handoffCandidates = handoffCandidates
@@ -142,6 +144,7 @@ public struct RecommendationWorkspaceProjection {
     self.trips = trips
     self.preferredActiveCandidateID = preferredActiveCandidateID
     self.resolveResultCoordinates = resolveResultCoordinates
+    self.candidateAnchors = candidateAnchors
   }
 
   public var candidates: [RecommendationWorkspaceCandidate] {
@@ -210,8 +213,8 @@ public struct RecommendationWorkspaceProjection {
     )
   }
 
-  /// The focused candidate's map coordinate (resolved place, else its fuzzy locality),
-  /// so the map can pan to keep the active pin in view when you switch candidates.
+  /// The focused candidate's map coordinate, so the map can pan to keep the active
+  /// pin in view when you switch candidates.
   public var activeCandidateLocation: (latitude: Double, longitude: Double)? {
     guard let id = effectiveActiveCandidateID else { return nil }
     return candidateMarkers.first { $0.id == id }.map { ($0.latitude, $0.longitude) }
@@ -274,16 +277,16 @@ public struct RecommendationWorkspaceProjection {
   public var candidateMarkers: [RecommendationWorkspaceMapMarker] {
     guard let effectiveActiveCandidateID else { return [] }
     return candidates.compactMap { candidate in
-      let coordinate = candidate.idea.flatMap { idea -> (Double, Double)? in
+      let coordinate = candidate.idea.flatMap { idea -> Coordinate? in
         guard let latitude = idea.latitude, let longitude = idea.longitude else { return nil }
-        return (latitude, longitude)
-      } ?? fuzzyCoordinate(for: candidate.candidate)
+        return Coordinate(latitude: latitude, longitude: longitude)
+      } ?? candidateAnchors[candidate.id]
       guard let coordinate else { return nil }
       return RecommendationWorkspaceMapMarker(
         id: candidate.id,
         title: candidate.title,
-        latitude: coordinate.0,
-        longitude: coordinate.1,
+        latitude: coordinate.latitude,
+        longitude: coordinate.longitude,
         state: CandidateMapMarkerState.state(for: candidate.tripIdea, activeID: effectiveActiveCandidateID)
       )
     }
@@ -307,14 +310,4 @@ public struct RecommendationWorkspaceProjection {
     )
   }
 
-  private func fuzzyCoordinate(for candidate: TripCandidate) -> (Double, Double)? {
-    guard let locality = candidate.locality?.lowercased() else { return nil }
-    guard let region = tripRegions.first(where: {
-      let name = $0.name.lowercased()
-      return name.contains(locality) || locality.contains(name)
-    }) else {
-      return nil
-    }
-    return (region.centerLatitude, region.centerLongitude)
-  }
 }

@@ -19,7 +19,8 @@ extension RecommendationWorkspaceModel {
       preferredActiveCandidateID: activeCandidateID,
       resolveResultCoordinates: resolveResults.map {
         RecommendationWorkspaceProjection.Coordinate(latitude: $0.latitude, longitude: $0.longitude)
-      }
+      },
+      candidateAnchors: candidateAnchors
     )
   }
 
@@ -37,16 +38,10 @@ extension RecommendationWorkspaceModel {
 
   var tripRegions: [MapRegion] { projection.tripRegions }
 
-  /// Where the map's "search this map" field should look for the focused candidate:
-  /// a box around its locality when the LLM gave one, else the trip's regions. Keeps
-  /// the type-a-name search as geographically honest as the Connect button, using
-  /// geography we already hold (no extra model call).
+  /// Where the map's "search this map" field should look: the trip's regions, used as
+  /// a bias rather than a hard fence by the workspace search.
   var candidateSearchRegions: [MapRegion] {
-    RecommendationCandidateSearch.searchRegions(
-      localityLatitude: activeCandidateLocation?.latitude,
-      localityLongitude: activeCandidateLocation?.longitude,
-      tripRegions: tripRegions
-    )
+    tripRegions
   }
 
   var tripDays: [RecommendationWorkspaceDay] { projection.tripDays }

@@ -45,6 +45,7 @@ final class RecommendationWorkspaceModel {
   var pendingReconcile: ResolveReconcile.Collision?
   var handoffCandidates: [TripCandidate] = []
   var candidateLinks: [HandoffCandidateLink] = []
+  private(set) var candidateAnchors: [TripIdea.ID: RecommendationWorkspaceProjection.Coordinate] = [:]
   var workspaceStatus: RecommendationWorkspaceStatus?
   private(set) var hasLoadedCandidateSet = false
 
@@ -53,9 +54,10 @@ final class RecommendationWorkspaceModel {
     self.sessionID = sessionID
   }
 
-  func task() {
+  func task() async {
     loadCandidateSet()
     activeCandidateID = effectiveActiveCandidateID
+    await loadCandidateAnchors()
   }
 
   func candidateTapped(_ candidate: RecommendationWorkspaceCandidate) {
@@ -331,6 +333,25 @@ final class RecommendationWorkspaceModel {
     }
     handoffCandidates = (try? session.recommendationCandidates()) ?? []
     candidateLinks = session.candidateLinks
+  }
+
+  /// Geocode unresolved candidates for display only. These coordinates are session
+  /// state: they never become an Idea coordinate and never resolve a candidate.
+  func loadCandidateAnchors() async {
+    for candidate in candidates where !candidate.isResolved && candidateAnchors[candidate.id] == nil {
+      guard !Task.isCancelled else { return }
+      let matches = await placeMatcher.matches(for: candidate.candidate, in: tripRegions)
+      guard !Task.isCancelled else { return }
+      guard
+        candidates.first(where: { $0.id == candidate.id })?.isResolved == false,
+        candidateAnchors[candidate.id] == nil,
+        let firstMatch = matches.first
+      else { continue }
+      candidateAnchors[candidate.id] = RecommendationWorkspaceProjection.Coordinate(
+        latitude: firstMatch.latitude,
+        longitude: firstMatch.longitude
+      )
+    }
   }
 
   private func restoreDismissedCandidate(_ dismissal: DismissedRecommendationCandidate) {

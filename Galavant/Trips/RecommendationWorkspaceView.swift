@@ -72,7 +72,7 @@ struct RecommendationWorkspaceView: View {
           }
       }
     }
-    .task { model.task() }
+    .task { await model.task() }
   }
 }
 
