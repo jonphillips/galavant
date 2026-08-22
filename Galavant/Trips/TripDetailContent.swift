@@ -28,6 +28,8 @@ struct TripDetailContent: View {
           .popover(item: $model.detailIdeaID, id: \.self) { id in
             if let idea = model.ideaForDetail(id) {
               detailView(idea)
+                .frame(idealWidth: 360, idealHeight: 520)
+                .presentationCompactAdaptation(.popover)
             }
           }
       } else {
