@@ -294,9 +294,10 @@ private struct RecommendationWorkspaceMap: View {
     .overlay(alignment: .top) {
       MapPlaceSearchOverlay(
         visibleRegion: visibleRegion,
-        // Fence the search to where the candidate/trip actually is, not the camera box —
-        // otherwise a resolve zoom pinholes it and the next candidate finds nothing.
+        // Bias the search toward where the candidate/trip actually is, not the camera
+        // box — otherwise a resolve zoom pinholes it and the next candidate finds nothing.
         searchRegions: model.candidateSearchRegions,
+        biased: true,
         // Don't prefill for an already-mapped candidate — the auto-search just
         // litters the map with matches over a place that's already pinned.
         seedQuery: model.activeCandidate.flatMap { $0.isResolved ? nil : $0.title }

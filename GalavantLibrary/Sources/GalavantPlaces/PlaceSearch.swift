@@ -101,6 +101,7 @@ enum PlaceSearchScope: Equatable, Sendable {
   case unavailable
   case worldwide
   case regions([MapRegion])
+  case biasedRegions([MapRegion])
   case viewport(PlaceSearchViewport)
 }
 
@@ -113,44 +114,16 @@ enum PlaceSearchScope: Equatable, Sendable {
 /// famous-but-distant POI like Copenhagen's Noma never surfaces from California)
 /// and handles combined "<name> <city>" fragments poorly. Natural-language search
 /// is what Maps uses and is forgiving of "Noma Copenhagen". A caller may instead
-/// supply one or more saved regions; those searches are required to stay inside
-/// each region, not merely ranked toward it.
+/// supply one or more saved regions; strict region scopes stay inside each region,
+/// while biased region scopes rank toward them without fencing the result.
 struct PlaceSearchClient: Sendable {
   var search: @Sendable (_ query: String, _ scope: PlaceSearchScope) async throws -> [Place]
 }
 
 extension PlaceSearchClient: DependencyKey {
   static let liveValue = PlaceSearchClient { query, scope in
-    let searchRegions: [(region: MKCoordinateRegion, required: Bool)]
-    switch scope {
-    case .unavailable:
-      return []
-    case .worldwide:
-      searchRegions = [(MKCoordinateRegion(MKMapRect.world), false)]
-    case .regions(let regions):
-      searchRegions = regions.map {
-        (
-          MKCoordinateRegion(
-            center: CLLocationCoordinate2D(
-              latitude: $0.centerLatitude,
-              longitude: $0.centerLongitude
-            ),
-            span: MKCoordinateSpan(
-              latitudeDelta: $0.latitudeDelta,
-              longitudeDelta: $0.longitudeDelta
-            )
-          ),
-          true
-        )
-      }
-    case .viewport(let viewport):
-      // A "search this map" field biases toward the visible area but must not be
-      // fenced to it: `.required` here means MKLocalSearch returns *nothing* outside
-      // the current camera box, so a place you name that sits just off-screen — or in
-      // another city than the one you're framed on — silently yields no results. (Only
-      // the trip-regions scope below is a hard geographic contract worth `.required`.)
-      searchRegions = [(viewport.region, false)]
-    }
+    guard scope != .unavailable else { return [] }
+    let searchRegions = Self.searchRegions(for: scope)
     var found: [Place] = []
     var seen = Set<String>()
     for searchRegion in searchRegions {
@@ -172,11 +145,35 @@ extension PlaceSearchClient: DependencyKey {
     return found
   }
 
+  /// Derives each MapKit request's geographic preference from the caller's scope.
+  /// Trip-region searches stay fenced; human-facing biased searches only rank the
+  /// trip regions so a clearly named place outside them can still be returned.
+  static func searchRegions(
+    for scope: PlaceSearchScope
+  ) -> [(region: MKCoordinateRegion, required: Bool)] {
+    switch scope {
+    case .unavailable:
+      return []
+    case .worldwide:
+      return [(MKCoordinateRegion(MKMapRect.world), false)]
+    case .regions(let regions):
+      return regions.map { (region: $0.mkCoordinateRegion, required: true) }
+    case .biasedRegions(let regions):
+      return regions.map { (region: $0.mkCoordinateRegion, required: false) }
+    case .viewport(let viewport):
+      // A "search this map" field biases toward the visible area but must not be
+      // fenced to it: `.required` here means MKLocalSearch returns *nothing* outside
+      // the current camera box, so a place you name that sits just off-screen — or in
+      // another city than the one you're framed on — silently yields no results.
+      return [(viewport.region, false)]
+    }
+  }
+
   /// No network in tests/previews — override per case to supply fixtures.
   static let testValue = PlaceSearchClient { _, _ in [] }
 
-  /// A non-empty region scope is deliberately strict: a trip's regions are its
-  /// geographic contract, so a global same-name result must never leak in.
+  /// Required region scopes are deliberately strict: a trip's regions are their
+  /// geographic contract, while biased scopes pass the default MapKit priority.
   private static func request(
     query: String,
     region: MKCoordinateRegion,
@@ -190,6 +187,21 @@ extension PlaceSearchClient: DependencyKey {
       request.regionPriority = .required
     }
     return request
+  }
+}
+
+private extension MapRegion {
+  var mkCoordinateRegion: MKCoordinateRegion {
+    MKCoordinateRegion(
+      center: CLLocationCoordinate2D(
+        latitude: centerLatitude,
+        longitude: centerLongitude
+      ),
+      span: MKCoordinateSpan(
+        latitudeDelta: latitudeDelta,
+        longitudeDelta: longitudeDelta
+      )
+    )
   }
 }
 
@@ -292,11 +304,13 @@ public final class PlaceSearchModel {
     didSet { scheduleSearch() }
   }
 
-  /// Empty preserves the pool's worldwide lookup. The Ideas shopping surface
-  /// supplies its selected trip/day regions so a new place is searched where that
-  /// trip actually is.
-  public init(regions: [MapRegion] = []) {
-    scope = regions.isEmpty ? .worldwide : .regions(regions)
+  /// Empty preserves the pool's worldwide lookup. The Ideas shopping surface uses
+  /// strict regions; human-facing recommendation searches can opt into a regional
+  /// bias without fencing results.
+  public init(regions: [MapRegion] = [], biased: Bool = false) {
+    scope = regions.isEmpty
+      ? .worldwide
+      : biased ? .biasedRegions(regions) : .regions(regions)
   }
 
   public init(viewport: PlaceSearchViewport?) {
@@ -316,7 +330,13 @@ public final class PlaceSearchModel {
   /// passing none.
   public func regionsChanged(_ regions: [MapRegion]) {
     guard !regions.isEmpty else { return }
-    let newScope = PlaceSearchScope.regions(regions)
+    let newScope: PlaceSearchScope
+    switch scope {
+    case .biasedRegions:
+      newScope = .biasedRegions(regions)
+    default:
+      newScope = .regions(regions)
+    }
     guard scope != newScope else { return }
     scope = newScope
     scheduleSearch()
