@@ -73,8 +73,12 @@ struct MapPlaceSearchOverlay: View {
                 Task { await resultTapped(place) }
               } label: {
                 MapPlaceSearchResultRow(
+                  // Rural MapKit hits often carry no city or address, so several
+                  // same-named results (a lake, a hotel, an alm all called
+                  // "Lautersee") would render identically. Fall back to the kind
+                  // label so the icon isn't the only thing telling them apart.
                   name: place.name,
-                  subtitle: place.subtitle,
+                  subtitle: place.subtitle.isEmpty ? (place.kind?.label ?? "") : place.subtitle,
                   systemImage: place.kind?.systemImage ?? "mappin"
                 )
               }
