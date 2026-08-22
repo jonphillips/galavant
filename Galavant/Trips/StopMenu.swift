@@ -47,6 +47,21 @@ struct StopMenu: View {
       if calendarLinked {
         Label("Time from Shared Calendar", systemImage: "calendar.badge.checkmark")
       }
+      // Non-drag intra-day reorder (ADR-0033 Slice 4). Only a bare `.day` Anytime
+      // stop carries a hand-order (`dayRank`); timed/dayparted stops are pinned by
+      // their schedule, so the affordance appears only for those. Drag-to-reorder
+      // in the day lens proved unreliable, so this is the durable way to reorder.
+      if case .day = schedule {
+        Divider()
+        Button("Move Earlier in Day", systemImage: Icon.moveEarlier.systemName) {
+          model.moveStopEarlier(stop)
+        }
+        .disabled(!model.canMoveStopEarlier(stop))
+        Button("Move Later in Day", systemImage: Icon.moveLater.systemName) {
+          model.moveStopLater(stop)
+        }
+        .disabled(!model.canMoveStopLater(stop))
+      }
       Divider()
       if !calendarLinked, let length = model.trip?.lengthInDays {
         Menu(placed ? "Move to Day" : "Set Day") {
