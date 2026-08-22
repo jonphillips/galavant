@@ -51,6 +51,7 @@ struct RecommendationCandidateStrip: View {
         HStack(spacing: 12) {
           ForEach(model.candidates) { candidate in
             RecommendationCandidateStripCard(
+              model: model,
               candidate: candidate,
               isActive: candidate.id == model.effectiveActiveCandidateID,
               isInChoice: model.choiceCandidateIDs.contains(candidate.id),
@@ -87,6 +88,7 @@ struct RecommendationCandidateStrip: View {
 }
 
 struct RecommendationCandidateStripCard: View {
+  let model: RecommendationWorkspaceModel
   let candidate: RecommendationWorkspaceCandidate
   let isActive: Bool
   let isInChoice: Bool
@@ -100,11 +102,18 @@ struct RecommendationCandidateStripCard: View {
   let dismiss: () -> Void
 
   var body: some View {
-    Group {
-      if isExpanded {
-        expandedBody
-      } else {
-        collapsedBody
+    VStack(alignment: .leading, spacing: 8) {
+      Group {
+        if isExpanded {
+          expandedBody
+        } else {
+          collapsedBody
+        }
+      }
+      if isActive {
+        RecommendationWorkspaceImageDropWell(model: model)
+          .padding(.horizontal, 12)
+          .padding(.bottom, 12)
       }
     }
     .frame(maxHeight: .infinity, alignment: .top)
@@ -198,7 +207,7 @@ struct RecommendationCandidateStripCard: View {
       Button(isInChoice ? "Unmark for Choose One" : "Mark for Choose One", systemImage: "smallcircle.filled.circle") {
         toggleChoice()
       }
-      Button("Save to Ideas", systemImage: "lightbulb") { save() }
+      Button("Shortlist", systemImage: "star") { save() }
       Menu("Add to Day", systemImage: "calendar.badge.plus") {
         ForEach(days) { day in
           Button {

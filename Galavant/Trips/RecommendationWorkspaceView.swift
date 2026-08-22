@@ -119,7 +119,7 @@ private struct RecommendationWorkspaceCockpit: View {
           Divider()
           RecommendationWorkspaceMap(model: model)
             .overlay(alignment: .bottom) {
-              ActiveCandidateResolveControls(model: model, showsImageDropWell: true)
+              ActiveCandidateResolveControls(model: model)
                 .padding()
             }
         }
@@ -228,7 +228,7 @@ private struct RecommendationCandidateCard: View {
       } else {
         HStack {
           Button(isInChoice ? "Chosen" : "Choose") { toggleChoice() }
-          Button("Save to Ideas") { save() }
+          Button("Shortlist") { save() }
           Button("Add to Itinerary") { addToItinerary() }
           Button("Dismiss", role: .destructive) { dismiss() }
         }
@@ -425,13 +425,9 @@ private struct RecommendationWorkspaceMap: View {
 
 private struct ActiveCandidateResolveControls: View {
   let model: RecommendationWorkspaceModel
-  var showsImageDropWell = false
 
   var body: some View {
     VStack(spacing: 8) {
-      if showsImageDropWell {
-        RecommendationWorkspaceImageDropWell(model: model)
-      }
       if model.activeCandidate != nil {
         Button {
           Task { await model.useThisPlaceButtonTapped() }
@@ -456,7 +452,7 @@ private struct ActiveCandidateResolveControls: View {
   }
 }
 
-private struct RecommendationWorkspaceImageDropWell: View {
+struct RecommendationWorkspaceImageDropWell: View {
   let model: RecommendationWorkspaceModel
   @State private var isTargeted = false
 
