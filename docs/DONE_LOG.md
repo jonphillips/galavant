@@ -1,5 +1,16 @@
 # Done Log — completed enhancements
 
+## Active — paste on the Evaluate candidate strip — SHIPPED (2026-08-23)
+
+The candidate strip has an image **drop** zone (#92) but no paste, while the Idea
+editor already offers Photos + paste + drop (#56). Add a `PasteButton(supportedContentTypes:
+[.image])` beside the drop well in `RecommendationWorkspaceImageDropWell`
+(`Galavant/Trips/RecommendationWorkspaceView.swift`), reusing the existing
+`droppedImage(from:)` loader and the `model.attachDroppedImage` sink, gated the same as
+`canAcceptDrop`. Covers iPhone / one-handed / no-split-view, where drag fails. Prompt
+written; Jon to release to Codex.
+
+
 ## Evaluate workspace geographic model (ADR-0045) — SHIPPED (2026-08-23)
 
 All three stacked workstreams from `docs/handoff/evaluate-geographic-model.md` landed,

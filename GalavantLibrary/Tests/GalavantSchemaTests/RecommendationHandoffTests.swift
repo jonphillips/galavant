@@ -11,6 +11,44 @@ import Testing
 struct RecommendationHandoffTests {
   @Dependency(\.defaultDatabase) var database
 
+  private func session() -> HandoffSession {
+    HandoffSession(
+      sourceType: "trip",
+      sourceID: UUID(),
+      taskType: RecommendationHandoffTask.candidatePlaces,
+      exportedPrompt: "")
+  }
+
+  private func plan(
+    entries: [TripIdea] = [],
+    ideas: [Idea] = [],
+    stays: [TripStay] = [],
+    lengthInDays: Int = 2
+  ) -> TripPlan {
+    TripPlan(
+      entries: entries,
+      ideasByID: Dictionary(ideas.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }),
+      lengthInDays: lengthInDays,
+      tripStays: stays)
+  }
+
+  private func ideaStop(
+    tripID: Trip.ID,
+    ideaID: Idea.ID,
+    day: Int?,
+    shortlistRank: Int = 0,
+    dayRank: Double = 0
+  ) -> TripIdea {
+    TripIdea(
+      id: UUID(),
+      tripID: tripID,
+      ideaID: ideaID,
+      status: .scheduled,
+      shortlistRank: shortlistRank,
+      dayRank: dayRank,
+      dayNumber: day)
+  }
+
   @Test func scopeKeysRoundTripThroughTheirOpaqueEncoding() throws {
     let stayID = UUID(uuidString: "10000000-0000-0000-0000-000000000001")!
     let transferID = UUID(uuidString: "10000000-0000-0000-0000-000000000002")!
@@ -19,6 +57,102 @@ struct RecommendationHandoffTests {
     for scope in scopes {
       #expect(try RecommendationHandoffScope(sourceType: scope.sourceType, scopeKey: scope.scopeKey) == scope)
     }
+  }
+
+  @Test func stopSummaryGroupsCurrentStopsByDayAndKeepsItineraryOrder() {
+    let tripID = UUID()
+    let museumID = UUID()
+    let trailID = UUID()
+    let cafeID = UUID()
+    let hotelID = UUID()
+    let dinnerID = UUID()
+    let entries = [
+      ideaStop(tripID: tripID, ideaID: trailID, day: 1, dayRank: 1),
+      ideaStop(tripID: tripID, ideaID: museumID, day: 1, dayRank: 0),
+      ideaStop(tripID: tripID, ideaID: cafeID, day: 2),
+      ideaStop(tripID: tripID, ideaID: dinnerID, day: nil, shortlistRank: 4)
+    ]
+    let hotel = TripStay(id: UUID(), tripID: tripID, ideaID: hotelID, checkInDay: 1, checkOutDay: 2)
+    let actual = RecommendationHandoffContract.stopSummary(plan: plan(
+      entries: entries,
+      ideas: [
+        Idea(id: museumID, name: "Old Town Museum", regionName: "Bavaria"),
+        Idea(id: trailID, name: "Mountain Trail", regionName: "Dolomites"),
+        Idea(id: cafeID, name: "Lakeside Cafe", regionName: "Bavaria"),
+        Idea(id: hotelID, name: "Alpine Lodge", regionName: "Cortina"),
+        Idea(id: dinnerID, name: "Mountain Dinner", regionName: "Cortina")
+      ],
+      stays: [hotel]))
+
+    #expect(actual == [
+      "Day 1:",
+      "- Old Town Museum (Bavaria)",
+      "- Mountain Trail (Dolomites)",
+      "Day 2:",
+      "- Lakeside Cafe (Bavaria)",
+      "To be scheduled:",
+      "- Mountain Dinner (Cortina)",
+      "Staying: Alpine Lodge (Cortina)"
+    ])
+  }
+
+  @Test func stopSummaryOmitsLocalityForUnlocatedRegionAndFreeformStops() {
+    let tripID = UUID()
+    let unnamedRegionID = UUID()
+    var freeform = TripIdea.freeform(id: UUID(), tripID: tripID, title: "Train to Cortina")
+    freeform.apply(.day(1))
+
+    let actual = RecommendationHandoffContract.stopSummary(plan: plan(
+      entries: [
+        ideaStop(tripID: tripID, ideaID: unnamedRegionID, day: 1),
+        freeform
+      ],
+      ideas: [Idea(id: unnamedRegionID, name: "Mountain Pass")]))
+
+    #expect(actual == [
+      "Day 1:",
+      "- Mountain Pass",
+      "- Train to Cortina"
+    ])
+  }
+
+  @Test func emptyPlanKeepsTheMinimalBriefWithoutAStopsHeader() {
+    let handoff = session()
+    let actual = RecommendationHandoffContract.brief(
+      session: handoff,
+      tripName: "Bavaria/Dolomites",
+      tripNotes: "",
+      plan: plan(lengthInDays: 1))
+
+    #expect(actual == [
+      handoff.header,
+      "Trip: Bavaria/Dolomites",
+      "Ask: Recommend candidate places that fit this trip. Give options with a useful locality, search hint, and concise rationale."
+    ].joined(separator: "\n"))
+  }
+
+  @Test func tripNotesPrecedeTheStopsSectionAndAsk() {
+    let tripID = UUID()
+    let ideaID = UUID()
+    let handoff = session()
+    let actual = RecommendationHandoffContract.brief(
+      session: handoff,
+      tripName: "Bavaria/Dolomites",
+      tripNotes: "Keep the days relaxed.",
+      plan: plan(
+        entries: [ideaStop(tripID: tripID, ideaID: ideaID, day: 1)],
+        ideas: [Idea(id: ideaID, name: "Alpine Museum", regionName: "Bavaria")],
+        lengthInDays: 1))
+
+    #expect(actual.split(separator: "\n", omittingEmptySubsequences: false) == [
+      Substring(handoff.header),
+      "Trip: Bavaria/Dolomites",
+      "Trip notes: Keep the days relaxed.",
+      "Stops so far:",
+      "Day 1:",
+      "- Alpine Museum (Bavaria)",
+      "Ask: Recommend candidate places that fit this trip. Give options with a useful locality, search hint, and concise rationale."
+    ])
   }
 
   @Test func decodesCandidateFixtureWithoutLosingAdvisoryFields() throws {
