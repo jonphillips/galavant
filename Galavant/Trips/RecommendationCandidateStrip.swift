@@ -167,6 +167,10 @@ struct RecommendationCandidateStripCard: View {
           .padding(.bottom, 12)
       }
     }
+    // Fix the shell width as well as the compact content width. Without this,
+    // the active image well can give a card a different ideal width inside the
+    // unconstrained horizontal ScrollView.
+    .frame(width: 280, alignment: .top)
     .frame(maxHeight: .infinity, alignment: .top)
     .background(backgroundColor)
     .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -212,28 +216,37 @@ private struct RecommendationCandidateStripFlyout: View {
       .accessibilityHint("Returns to the candidate row without changing the focused candidate.")
 
       GeometryReader { proxy in
-        VStack(alignment: .leading, spacing: 8) {
-          RecommendationCandidateCardPresentation(
-            candidate: candidate,
-            layout: .dossier,
-            isInChoice: isInChoice,
-            days: days,
-            select: select,
-            collapse: dismiss,
-            toggleChoice: toggleChoice,
-            save: save,
-            addToDay: addToDay,
-            disconnect: disconnect,
-            dismiss: dismissCandidate
-          )
-          if isActive {
-            RecommendationWorkspaceImageDropWell(model: model)
-              .padding(.horizontal, 12)
-              .padding(.bottom, 12)
+        ZStack(alignment: .topLeading) {
+          // The tint is intentionally translucent, but the bar material beneath
+          // it must be opaque so sibling cards cannot show through the dossier.
+          RoundedRectangle(cornerRadius: 12)
+            .fill(.bar)
+          RoundedRectangle(cornerRadius: 12)
+            .fill(backgroundColor)
+
+          VStack(alignment: .leading, spacing: 8) {
+            RecommendationCandidateCardPresentation(
+              candidate: candidate,
+              layout: .dossier,
+              isInChoice: isInChoice,
+              days: days,
+              select: select,
+              collapse: dismiss,
+              toggleChoice: toggleChoice,
+              save: save,
+              addToDay: addToDay,
+              disconnect: disconnect,
+              dismiss: dismissCandidate
+            )
+            if isActive {
+              RecommendationWorkspaceImageDropWell(model: model)
+                .padding(.horizontal, 12)
+                .padding(.bottom, 12)
+            }
           }
+          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .frame(width: proxy.size.width * 0.88, height: proxy.size.height - 12, alignment: .topLeading)
-        .background(backgroundColor)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay {
           if isActive {
@@ -241,6 +254,7 @@ private struct RecommendationCandidateStripFlyout: View {
               .strokeBorder(Color.orange, lineWidth: 2)
           }
         }
+        .shadow(color: .black.opacity(0.2), radius: 10, y: -4)
       }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
