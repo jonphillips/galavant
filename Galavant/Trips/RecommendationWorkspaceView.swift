@@ -142,133 +142,6 @@ private struct RecommendationWorkspaceCockpit: View {
   }
 }
 
-private struct RecommendationCandidateRail: View {
-  let model: RecommendationWorkspaceModel
-  var research: (() -> Void)? = nil
-  @Environment(\.undoManager) private var undoManager
-
-  private var activeChoiceIsSelected: Bool {
-    model.effectiveActiveCandidateID.map { model.choiceCandidateIDs.contains($0) } ?? false
-  }
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 0) {
-      HStack {
-        Text("Candidates")
-          .font(.headline)
-        Spacer()
-        if let research {
-          Button("Research", action: research)
-        }
-        Button("Choose One (\(model.choiceCandidateIDs.count))") {
-          model.chooseOneButtonTapped()
-        }
-        .disabled(
-          model.choiceCandidateIDs.count < 2
-            || !activeChoiceIsSelected
-        )
-      }
-      .padding()
-
-      ScrollView {
-        LazyVStack(spacing: 10) {
-          ForEach(model.candidates) { candidate in
-            RecommendationCandidateCard(
-              candidate: candidate,
-              isActive: candidate.id == model.effectiveActiveCandidateID,
-              isInChoice: model.choiceCandidateIDs.contains(candidate.id),
-              select: { model.candidateTapped(candidate) },
-              toggleChoice: { model.choiceButtonTapped(candidate) },
-              save: { model.saveButtonTapped(candidate) },
-              addToItinerary: { model.addToItineraryButtonTapped(candidate) },
-              disconnect: { model.disconnectButtonTapped(candidate) },
-              dismiss: { model.dismissButtonTapped(candidate, undoManager: undoManager) }
-            )
-          }
-        }
-        .padding(.horizontal)
-        .padding(.bottom)
-      }
-    }
-    .background(.bar)
-  }
-}
-
-private struct RecommendationCandidateCard: View {
-  let candidate: RecommendationWorkspaceCandidate
-  let isActive: Bool
-  let isInChoice: Bool
-  let select: () -> Void
-  let toggleChoice: () -> Void
-  let save: () -> Void
-  let addToItinerary: () -> Void
-  let disconnect: () -> Void
-  let dismiss: () -> Void
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      Button(action: select) {
-        VStack(alignment: .leading, spacing: 8) {
-          HStack(alignment: .firstTextBaseline) {
-            Text(candidate.title)
-              .font(.headline)
-            Spacer()
-            Text(candidate.isResolved ? "Resolved" : "Unresolved")
-              .font(.caption)
-              .foregroundStyle(candidate.isResolved ? .green : .secondary)
-          }
-          if let why = candidate.candidate.why {
-            LabeledContent("Why", value: why)
-              .font(.subheadline)
-          }
-          if let fit = candidate.candidate.fit {
-            LabeledContent("Fit", value: fit)
-              .font(.subheadline)
-          }
-          if let visit = candidate.candidate.visit {
-            LabeledContent("Time", value: visit)
-              .font(.subheadline)
-          }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-      }
-      .buttonStyle(.plain)
-      .accessibilityAddTraits(isActive ? .isSelected : [])
-      if candidate.isAwaitingResolutionOnItinerary {
-        Label("On itinerary — resolve to upgrade this freeform stop.", systemImage: "calendar.badge.clock")
-          .font(.caption)
-          .foregroundStyle(.secondary)
-      } else {
-        HStack {
-          Button(isInChoice ? "Chosen" : "Choose") { toggleChoice() }
-          Button("Shortlist") { save() }
-          Button("Add to Itinerary") { addToItinerary() }
-          Button("Dismiss", role: .destructive) { dismiss() }
-        }
-        .buttonStyle(.bordered)
-        if candidate.isResolved {
-          Button("Disconnect place", systemImage: "mappin.slash") { disconnect() }
-            .font(.caption)
-            .buttonStyle(.borderless)
-        } else {
-          Text("Resolve first for a mapped place, or add this freeform stop now.")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-        }
-        if let placementAfter = candidate.candidate.placementAfter {
-          Text("Suggested after \(placementAfter) — choose its placement yourself.")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-        }
-      }
-    }
-    .padding()
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .background(isActive ? Color.orange.opacity(0.14) : Color.secondary.opacity(0.08))
-    .clipShape(RoundedRectangle(cornerRadius: 12))
-  }
-}
-
 private struct RecommendationWorkspaceMap: View {
   let model: RecommendationWorkspaceModel
   @State private var cameraPosition: MapCameraPosition = .automatic
@@ -618,15 +491,15 @@ private struct RecommendationWorkspaceCompactLayout: View {
   var body: some View {
     RecommendationWorkspaceMap(model: model)
       .ignoresSafeArea(.container, edges: .bottom)
+      .overlay(alignment: .bottom) {
+        ActiveCandidateResolveControls(model: model)
+          .padding()
+      }
       .sheet(isPresented: $candidateRailIsPresented) {
-        VStack(spacing: 0) {
-          ActiveCandidateResolveControls(model: model)
-            .padding()
-          Divider()
-          RecommendationCandidateRail(model: model) {
-            researchIsPresented = true
-          }
-        }
+        RecommendationWorkspaceCompactCandidateSheet(
+          model: model,
+          research: { researchIsPresented = true }
+        )
         .safeAreaInset(edge: .top, alignment: .trailing) {
           Button("Done", action: dismissWorkspace)
             .buttonStyle(.bordered)
@@ -640,6 +513,109 @@ private struct RecommendationWorkspaceCompactLayout: View {
         .presentationBackground(.regularMaterial)
         .interactiveDismissDisabled(true)
       }
+  }
+}
+
+private struct RecommendationWorkspaceCompactCandidateSheet: View {
+  let model: RecommendationWorkspaceModel
+  let research: () -> Void
+  @Environment(\.undoManager) private var undoManager
+
+  private var activeChoiceIsSelected: Bool {
+    model.effectiveActiveCandidateID.map { model.choiceCandidateIDs.contains($0) } ?? false
+  }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 0) {
+      HStack {
+        Text("Candidates")
+          .font(.headline)
+        Spacer()
+        Button("Research", action: research)
+          .disabled(model.activeCandidate == nil)
+        Button("Choose One (\(model.choiceCandidateIDs.count))") {
+          model.chooseOneButtonTapped()
+        }
+        .disabled(
+          model.choiceCandidateIDs.count < 2
+            || !activeChoiceIsSelected
+        )
+      }
+      .padding()
+
+      ScrollView {
+        LazyVStack(spacing: 12) {
+          ForEach(model.candidates) { candidate in
+            RecommendationWorkspaceCompactCandidate(
+              model: model,
+              candidate: candidate,
+              isActive: candidate.id == model.effectiveActiveCandidateID,
+              isInChoice: model.choiceCandidateIDs.contains(candidate.id),
+              select: { model.candidateTapped(candidate) },
+              toggleChoice: { model.choiceButtonTapped(candidate) },
+              save: { model.saveButtonTapped(candidate) },
+              addToDay: { day in model.addToDay(candidate, day: day) },
+              disconnect: { model.disconnectButtonTapped(candidate) },
+              dismiss: { model.dismissButtonTapped(candidate, undoManager: undoManager) }
+            )
+          }
+        }
+        .padding(.horizontal)
+        .padding(.bottom)
+      }
+    }
+    .background(.bar)
+  }
+}
+
+private struct RecommendationWorkspaceCompactCandidate: View {
+  let model: RecommendationWorkspaceModel
+  let candidate: RecommendationWorkspaceCandidate
+  let isActive: Bool
+  let isInChoice: Bool
+  let select: () -> Void
+  let toggleChoice: () -> Void
+  let save: () -> Void
+  let addToDay: (Int?) -> Void
+  let disconnect: () -> Void
+  let dismiss: () -> Void
+
+  var body: some View {
+    RecommendationCandidateCardPresentation(
+      candidate: candidate,
+      layout: .sheet,
+      isInChoice: isInChoice,
+      days: model.tripDays,
+      select: select,
+      collapse: {},
+      toggleChoice: toggleChoice,
+      save: save,
+      addToDay: addToDay,
+      disconnect: disconnect,
+      dismiss: dismiss,
+      dossierBottom: {
+        if isActive {
+          RecommendationWorkspaceImageDropWell(model: model)
+            .padding(.top, 4)
+        }
+      }
+    )
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .background(backgroundColor)
+    .clipShape(RoundedRectangle(cornerRadius: 12))
+    .overlay {
+      if isActive {
+        RoundedRectangle(cornerRadius: 12)
+          .strokeBorder(Color.orange, lineWidth: 2)
+      }
+    }
+    .accessibilityAddTraits(isActive ? .isSelected : [])
+  }
+
+  private var backgroundColor: Color {
+    if candidate.isResolved { return Color.green.opacity(0.14) }
+    if isActive { return Color.orange.opacity(0.12) }
+    return Color.secondary.opacity(0.08)
   }
 }
 

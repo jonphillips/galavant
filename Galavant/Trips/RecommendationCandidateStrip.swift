@@ -282,13 +282,14 @@ private struct RecommendationCandidateStripFlyout: View {
   }
 }
 
-/// Shared candidate content for the compact rail and the dossier presentation.
-/// The iPhone surface can use the same state and actions with the dossier layout
-/// without taking on any of the regular-width strip's overlay mechanics.
+/// Shared candidate content for the strip, dossier, and compact-sheet presentations.
+/// The iPhone surface can use the same state and actions without taking on any of
+/// the regular-width strip's overlay mechanics.
 struct RecommendationCandidateCardPresentation<BottomContent: View>: View {
   enum Layout {
     case compact
     case dossier
+    case sheet
   }
 
   let candidate: RecommendationWorkspaceCandidate
@@ -338,6 +339,8 @@ struct RecommendationCandidateCardPresentation<BottomContent: View>: View {
       compactBody
     case .dossier:
       dossierBody
+    case .sheet:
+      sheetBody
     }
   }
 
@@ -416,6 +419,38 @@ struct RecommendationCandidateCardPresentation<BottomContent: View>: View {
       actionsMenu
     }
     .frame(maxHeight: .infinity, alignment: .top)
+    .padding(12)
+  }
+
+  private var sheetBody: some View {
+    VStack(alignment: .leading, spacing: 10) {
+      HStack(alignment: .top, spacing: 8) {
+        Button(action: select) {
+          Text(candidate.title)
+            .font(.headline)
+            .lineLimit(3)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        actionsMenu
+      }
+
+      statusLabel
+
+      VStack(alignment: .leading, spacing: 10) {
+        if let why = candidate.candidate.why { dossierField("Why", why) }
+        if let fit = candidate.candidate.fit { dossierField("Fit", fit) }
+        if let visit = candidate.candidate.visit { dossierField("Time", visit) }
+        if let placementAfter = candidate.candidate.placementAfter {
+          dossierField("Placement", "Suggested after \(placementAfter) — choose its placement yourself.")
+        }
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+
+      hint
+      dossierBottom()
+    }
     .padding(12)
   }
 
