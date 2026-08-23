@@ -8,6 +8,7 @@ import SwiftUI
 struct RecommendationCandidateStrip: View {
   let model: RecommendationWorkspaceModel
   @Environment(\.undoManager) private var undoManager
+  @Namespace private var candidateFlyoutNamespace
   @State private var expandedID: TripIdea.ID?
   @State private var addingCandidate = false
   @State private var newCandidateName = ""
@@ -50,33 +51,43 @@ struct RecommendationCandidateStrip: View {
       ScrollView(.horizontal, showsIndicators: false) {
         HStack(spacing: 12) {
           ForEach(model.candidates) { candidate in
-            RecommendationCandidateStripCard(
-              model: model,
-              candidate: candidate,
-              isActive: candidate.id == model.effectiveActiveCandidateID,
-              isInChoice: model.choiceCandidateIDs.contains(candidate.id),
-              days: model.tripDays,
-              open: {
-                model.candidateTapped(candidate)
-                withAnimation(.snappy(duration: 0.22)) {
-                  expandedID = candidate.id
+            if expandedID == candidate.id {
+              // Keep the queue's geometry stable while the dossier occupies the
+              // focused card's reclaimed space above it.
+              Color.clear
+                .frame(width: 280)
+                .frame(maxHeight: .infinity)
+                .allowsHitTesting(false)
+            } else {
+              RecommendationCandidateStripCard(
+                model: model,
+                candidate: candidate,
+                isActive: candidate.id == model.effectiveActiveCandidateID,
+                isInChoice: model.choiceCandidateIDs.contains(candidate.id),
+                days: model.tripDays,
+                namespace: candidateFlyoutNamespace,
+                open: {
+                  model.candidateTapped(candidate)
+                  withAnimation(.snappy(duration: 0.22)) {
+                    expandedID = candidate.id
+                  }
+                },
+                toggleChoice: { model.choiceButtonTapped(candidate) },
+                save: {
+                  model.saveButtonTapped(candidate)
+                  expandedID = nil
+                },
+                addToDay: { day in
+                  model.addToDay(candidate, day: day)
+                  expandedID = nil
+                },
+                disconnect: { model.disconnectButtonTapped(candidate) },
+                dismiss: {
+                  model.dismissButtonTapped(candidate, undoManager: undoManager)
+                  expandedID = nil
                 }
-              },
-              toggleChoice: { model.choiceButtonTapped(candidate) },
-              save: {
-                model.saveButtonTapped(candidate)
-                expandedID = nil
-              },
-              addToDay: { day in
-                model.addToDay(candidate, day: day)
-                expandedID = nil
-              },
-              disconnect: { model.disconnectButtonTapped(candidate) },
-              dismiss: {
-                model.dismissButtonTapped(candidate, undoManager: undoManager)
-                expandedID = nil
-              }
-            )
+              )
+            }
           }
         }
         .padding(.horizontal)
@@ -92,6 +103,7 @@ struct RecommendationCandidateStrip: View {
             isActive: candidate.id == model.effectiveActiveCandidateID,
             isInChoice: model.choiceCandidateIDs.contains(candidate.id),
             days: model.tripDays,
+            namespace: candidateFlyoutNamespace,
             dismiss: {
               withAnimation(.snappy(duration: 0.22)) {
                 self.expandedID = nil
@@ -115,7 +127,7 @@ struct RecommendationCandidateStrip: View {
           )
           .padding(.leading, 12)
           .padding(.bottom, 12)
-          .transition(.scale(scale: 0.98, anchor: .bottomLeading).combined(with: .opacity))
+          .transition(.opacity)
           .zIndex(1)
         }
       }
@@ -139,6 +151,7 @@ struct RecommendationCandidateStripCard: View {
   let isActive: Bool
   let isInChoice: Bool
   let days: [RecommendationWorkspaceDay]
+  let namespace: Namespace.ID
   let open: () -> Void
   let toggleChoice: () -> Void
   let save: () -> Void
@@ -175,6 +188,7 @@ struct RecommendationCandidateStripCard: View {
     .frame(maxHeight: .infinity, alignment: .top)
     .background(backgroundColor)
     .clipShape(RoundedRectangle(cornerRadius: 12))
+    .matchedGeometryEffect(id: candidate.id, in: namespace)
     .overlay {
       if isActive {
         RoundedRectangle(cornerRadius: 12)
@@ -198,6 +212,7 @@ private struct RecommendationCandidateStripFlyout: View {
   let isActive: Bool
   let isInChoice: Bool
   let days: [RecommendationWorkspaceDay]
+  let namespace: Namespace.ID
   let dismiss: () -> Void
   let select: () -> Void
   let toggleChoice: () -> Void
@@ -247,6 +262,7 @@ private struct RecommendationCandidateStripFlyout: View {
         }
         .frame(width: proxy.size.width * 0.88, height: proxy.size.height - 12, alignment: .topLeading)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .matchedGeometryEffect(id: candidate.id, in: namespace)
         .overlay {
           if isActive {
             RoundedRectangle(cornerRadius: 12)
