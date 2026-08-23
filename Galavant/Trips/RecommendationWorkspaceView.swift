@@ -261,11 +261,18 @@ private struct RecommendationCandidateCard: View {
 private struct RecommendationWorkspaceMap: View {
   let model: RecommendationWorkspaceModel
   @State private var cameraPosition: MapCameraPosition = .automatic
+  @State private var mapSelection: MapSelection<UUID>?
   @State private var visibleRegion: MKCoordinateRegion?
   @State private var didInitialFrame = false
 
   var body: some View {
-    Map(position: $cameraPosition) {
+    PlaceSelectionMap(
+      cameraPosition: $cameraPosition,
+      selection: $mapSelection,
+      visibleRegion: $visibleRegion,
+      presentationPolicy: .immediate,
+      onSelectPlace: { place in model.resolveResultTapped(place) }
+    ) {
       ForEach(model.itineraryMarkers) { marker in
         Marker(marker.title, systemImage: "mappin", coordinate: coordinate(marker.latitude, marker.longitude))
           .tint(.blue)
@@ -316,9 +323,6 @@ private struct RecommendationWorkspaceMap: View {
         )
         model.resolveResultTapped(place)
       }
-    }
-    .onMapCameraChange { context in
-      visibleRegion = context.region
     }
     // Frame the set once, on load. After that the camera stays put through resolves
     // and searches, so a freshly mapped pin doesn't get yanked out from under you.
