@@ -90,6 +90,7 @@
 		9515962CEF69E6D64F9B0322 /* DemoFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CD37357C07AFC3DAE3CDAE7 /* DemoFixtures.swift */; };
 		9868461BE838584DDD0B3486 /* WeatherDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B2BFEB336259112123DDB21 /* WeatherDetailView.swift */; };
 		9946E181AD4D8380729C5D0E /* TripIdeasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA0BD75B2D9BBEA758A6A8DA /* TripIdeasView.swift */; };
+		9AD630E37AEA708C2B7FF909 /* JourneyViewComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2C9B6BC1F6CC0DC6E898291 /* JourneyViewComponents.swift */; };
 		9C1C9676A64367844856918E /* TripsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC5C21FC298AEA29CFE09DC6 /* TripsScreen.swift */; };
 		9C3779832B3D8728517D947A /* PoolMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1791F203077D8B7907351B9F /* PoolMapView.swift */; };
 		A2C1176CC512E1165C7FA3AE /* TravelProfileEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 549199D3FB7222F5D893194E /* TravelProfileEditView.swift */; };
@@ -123,6 +124,7 @@
 		CC3F96678DFB64539736A6A7 /* Sharing in Frameworks */ = {isa = PBXBuildFile; productRef = 5A93A34322120B8F1DC99E7B /* Sharing */; };
 		CD68499071CAD83FB2F5BEF1 /* MapPlaceCreateIdeaButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = B58F3C28841A950ECB1ED2A5 /* MapPlaceCreateIdeaButton.swift */; };
 		CFF79112580C0EBC8D933DE2 /* IdeaDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F02C470667EF6E9AC8AC761 /* IdeaDetailView.swift */; };
+		D130D49BEC3637DF49FED112 /* JourneyMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = F027C5C3D4F5668E9E487005 /* JourneyMap.swift */; };
 		D1D88C6469FB21204DA80CA3 /* ReorderDifference+Apply.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91589ABCCE6CEFC2EC1F72F4 /* ReorderDifference+Apply.swift */; };
 		D5EFD53E633A9C43FADEAC53 /* TripPlanningModel+Freeform.swift in Sources */ = {isa = PBXBuildFile; fileRef = E754846D1941C6A46BF20DFB /* TripPlanningModel+Freeform.swift */; };
 		D852704AE73F605F6205258E /* SyncStatusSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DC1E6463D9CC2DF49548F37 /* SyncStatusSection.swift */; };
@@ -292,6 +294,7 @@
 		CC88DBCF4AB9A9D219BFDFAD /* TodaySupportingViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodaySupportingViews.swift; sourceTree = "<group>"; };
 		CF9FB1AF2135067DA76F7C0C /* CalendarReconciliationModel+Ingest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CalendarReconciliationModel+Ingest.swift"; sourceTree = "<group>"; };
 		D180C34C8C9F3983F7CF9CFB /* ExtensionPreProcessing.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = ExtensionPreProcessing.js; sourceTree = "<group>"; };
+		D2C9B6BC1F6CC0DC6E898291 /* JourneyViewComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyViewComponents.swift; sourceTree = "<group>"; };
 		D3BFE6AAFB0EDC36E3BB7755 /* GalavantShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GalavantShare.entitlements; sourceTree = "<group>"; };
 		D40170C4D56FC7F76E1992FF /* WeatherKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WeatherKit.framework; path = System/Library/Frameworks/WeatherKit.framework; sourceTree = SDKROOT; };
 		D48C8AE52183B8D3DE346D07 /* EvaluateScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EvaluateScreen.swift; sourceTree = "<group>"; };
@@ -320,6 +323,7 @@
 		EF388F1C56D173F7C5F3079C /* Icon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Icon.swift; sourceTree = "<group>"; };
 		EF473C91775923ADF6F5FDEF /* AppRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRouter.swift; sourceTree = "<group>"; };
 		F3FC31E17E805B3C73F727B8 /* TripPlanningDrafts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripPlanningDrafts.swift; sourceTree = "<group>"; };
+		F027C5C3D4F5668E9E487005 /* JourneyMap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyMap.swift; sourceTree = "<group>"; };
 		F800835C302F4215E837F4FF /* RecommendationCandidateCardPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationCandidateCardPresentation.swift; sourceTree = "<group>"; };
 		F84C0FF0F99E3606279BB42C /* RegionManagementSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegionManagementSettingsView.swift; sourceTree = "<group>"; };
 		F8D1F8D207FE25FE14CCFED7 /* IdeasListModel+Taxonomy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "IdeasListModel+Taxonomy.swift"; sourceTree = "<group>"; };
@@ -551,8 +555,10 @@
 			isa = PBXGroup;
 			children = (
 				92BBE67122AFC3C8773380D0 /* JourneyImagePanel.swift */,
+				F027C5C3D4F5668E9E487005 /* JourneyMap.swift */,
 				AA06BA808AA093D53CD34D93 /* JourneyModel.swift */,
 				58883EC5A8F26B4F3E007652 /* JourneyView.swift */,
+				D2C9B6BC1F6CC0DC6E898291 /* JourneyViewComponents.swift */,
 				1FDEEFB9B00C30C4D7DE3CBE /* RegionPhotoPickerSheet.swift */,
 			);
 			path = Journey;
@@ -923,8 +929,10 @@
 				474250E4E109ADF7680100C1 /* IdentityView.swift in Sources */,
 				4344BF96EA3F3DB017E4CCDF /* InterestView.swift in Sources */,
 				7303CDBB9E9530ECB0A89D43 /* JourneyImagePanel.swift in Sources */,
+				D130D49BEC3637DF49FED112 /* JourneyMap.swift in Sources */,
 				64FFD213B12CE5D4202414B0 /* JourneyModel.swift in Sources */,
 				164623B0ED0CE24B42E3FA51 /* JourneyView.swift in Sources */,
+				9AD630E37AEA708C2B7FF909 /* JourneyViewComponents.swift in Sources */,
 				365D517B3DC4A900CBF71816 /* LodgingCapsuleBar.swift in Sources */,
 				CD68499071CAD83FB2F5BEF1 /* MapPlaceCreateIdeaButton.swift in Sources */,
 				016DF429F8301AE8171A5C94 /* MapPlaceResolver.swift in Sources */,
