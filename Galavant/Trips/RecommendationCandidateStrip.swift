@@ -55,19 +55,27 @@ struct RecommendationCandidateStrip: View {
               candidate: candidate,
               isActive: candidate.id == model.effectiveActiveCandidateID,
               isInChoice: model.choiceCandidateIDs.contains(candidate.id),
-              isExpanded: expandedID == candidate.id,
               days: model.tripDays,
-              select: { model.candidateTapped(candidate) },
-              setExpanded: { expand in
+              open: {
+                model.candidateTapped(candidate)
                 withAnimation(.snappy(duration: 0.22)) {
-                  expandedID = expand ? candidate.id : nil
+                  expandedID = candidate.id
                 }
               },
               toggleChoice: { model.choiceButtonTapped(candidate) },
-              save: { model.saveButtonTapped(candidate) },
-              addToDay: { day in model.addToDay(candidate, day: day) },
+              save: {
+                model.saveButtonTapped(candidate)
+                expandedID = nil
+              },
+              addToDay: { day in
+                model.addToDay(candidate, day: day)
+                expandedID = nil
+              },
               disconnect: { model.disconnectButtonTapped(candidate) },
-              dismiss: { model.dismissButtonTapped(candidate, undoManager: undoManager) }
+              dismiss: {
+                model.dismissButtonTapped(candidate, undoManager: undoManager)
+                expandedID = nil
+              }
             )
           }
         }
@@ -75,6 +83,43 @@ struct RecommendationCandidateStrip: View {
         .padding(.bottom, 12)
         .frame(maxHeight: .infinity)
       }
+      .overlay(alignment: .bottomLeading) {
+        if let expandedID,
+           let candidate = model.candidates.first(where: { $0.id == expandedID }) {
+          RecommendationCandidateStripFlyout(
+            model: model,
+            candidate: candidate,
+            isActive: candidate.id == model.effectiveActiveCandidateID,
+            isInChoice: model.choiceCandidateIDs.contains(candidate.id),
+            days: model.tripDays,
+            dismiss: {
+              withAnimation(.snappy(duration: 0.22)) {
+                self.expandedID = nil
+              }
+            },
+            select: { model.candidateTapped(candidate) },
+            toggleChoice: { model.choiceButtonTapped(candidate) },
+            save: {
+              model.saveButtonTapped(candidate)
+              self.expandedID = nil
+            },
+            addToDay: { day in
+              model.addToDay(candidate, day: day)
+              self.expandedID = nil
+            },
+            disconnect: { model.disconnectButtonTapped(candidate) },
+            dismissCandidate: {
+              model.dismissButtonTapped(candidate, undoManager: undoManager)
+              self.expandedID = nil
+            }
+          )
+          .padding(.leading, 12)
+          .padding(.bottom, 12)
+          .transition(.scale(scale: 0.98, anchor: .bottomLeading).combined(with: .opacity))
+          .zIndex(1)
+        }
+      }
+      .animation(.snappy(duration: 0.22), value: expandedID)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .background(.bar)
@@ -93,10 +138,8 @@ struct RecommendationCandidateStripCard: View {
   let candidate: RecommendationWorkspaceCandidate
   let isActive: Bool
   let isInChoice: Bool
-  let isExpanded: Bool
   let days: [RecommendationWorkspaceDay]
-  let select: () -> Void
-  let setExpanded: (Bool) -> Void
+  let open: () -> Void
   let toggleChoice: () -> Void
   let save: () -> Void
   let addToDay: (Int?) -> Void
@@ -105,13 +148,19 @@ struct RecommendationCandidateStripCard: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
-      Group {
-        if isExpanded {
-          expandedBody
-        } else {
-          collapsedBody
-        }
-      }
+      RecommendationCandidateCardPresentation(
+        candidate: candidate,
+        layout: .compact,
+        isInChoice: isInChoice,
+        days: days,
+        select: open,
+        collapse: {},
+        toggleChoice: toggleChoice,
+        save: save,
+        addToDay: addToDay,
+        disconnect: disconnect,
+        dismiss: dismiss
+      )
       if isActive {
         RecommendationWorkspaceImageDropWell(model: model)
           .padding(.horizontal, 12)
@@ -129,63 +178,169 @@ struct RecommendationCandidateStripCard: View {
     }
   }
 
-  /// Tapping a collapsed card focuses it (drives the map + browser) and opens it;
-  /// tapping the expanded card's chevron just collapses it again without touching
-  /// any other card. Only one card is expanded at a time.
-  private var collapsedBody: some View {
-    VStack(alignment: .leading, spacing: 6) {
-      HStack(alignment: .firstTextBaseline) {
-        Text(candidate.title)
-          .font(.headline)
-          .lineLimit(2)
-        Spacer(minLength: 6)
-        actionsMenu
+  // Resolved candidates read as "done/mapped" (green) regardless of focus; the
+  // focused-but-unresolved card gets a warm tint, everything else stays neutral.
+  private var backgroundColor: Color {
+    if candidate.isResolved { return Color.green.opacity(0.14) }
+    if isActive { return Color.orange.opacity(0.12) }
+    return Color.secondary.opacity(0.08)
+  }
+}
+
+private struct RecommendationCandidateStripFlyout: View {
+  let model: RecommendationWorkspaceModel
+  let candidate: RecommendationWorkspaceCandidate
+  let isActive: Bool
+  let isInChoice: Bool
+  let days: [RecommendationWorkspaceDay]
+  let dismiss: () -> Void
+  let select: () -> Void
+  let toggleChoice: () -> Void
+  let save: () -> Void
+  let addToDay: (Int?) -> Void
+  let disconnect: () -> Void
+  let dismissCandidate: () -> Void
+
+  var body: some View {
+    ZStack(alignment: .bottomLeading) {
+      Button(action: dismiss) {
+        Color.clear
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
       }
-      statusLabel
-      if let why = candidate.candidate.why {
-        Text(why)
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-          .lineLimit(3)
+      .buttonStyle(.plain)
+      .accessibilityLabel("Dismiss dossier")
+      .accessibilityHint("Returns to the candidate row without changing the focused candidate.")
+
+      GeometryReader { proxy in
+        VStack(alignment: .leading, spacing: 8) {
+          RecommendationCandidateCardPresentation(
+            candidate: candidate,
+            layout: .dossier,
+            isInChoice: isInChoice,
+            days: days,
+            select: select,
+            collapse: dismiss,
+            toggleChoice: toggleChoice,
+            save: save,
+            addToDay: addToDay,
+            disconnect: disconnect,
+            dismiss: dismissCandidate
+          )
+          if isActive {
+            RecommendationWorkspaceImageDropWell(model: model)
+              .padding(.horizontal, 12)
+              .padding(.bottom, 12)
+          }
+        }
+        .frame(width: proxy.size.width * 0.88, height: proxy.size.height - 12, alignment: .topLeading)
+        .background(backgroundColor)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay {
+          if isActive {
+            RoundedRectangle(cornerRadius: 12)
+              .strokeBorder(Color.orange, lineWidth: 2)
+          }
+        }
       }
-      Spacer(minLength: 0)
-      hint
     }
-    .padding(12)
-    .frame(width: 280)
-    .contentShape(Rectangle())
-    .onTapGesture {
-      select()
-      setExpanded(true)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+  }
+
+  private var backgroundColor: Color {
+    if candidate.isResolved { return Color.green.opacity(0.14) }
+    if isActive { return Color.orange.opacity(0.12) }
+    return Color.secondary.opacity(0.08)
+  }
+}
+
+/// Shared candidate content for the compact rail and the dossier presentation.
+/// The iPhone surface can use the same state and actions with the dossier layout
+/// without taking on any of the regular-width strip's overlay mechanics.
+struct RecommendationCandidateCardPresentation: View {
+  enum Layout {
+    case compact
+    case dossier
+  }
+
+  let candidate: RecommendationWorkspaceCandidate
+  let layout: Layout
+  let isInChoice: Bool
+  let days: [RecommendationWorkspaceDay]
+  let select: () -> Void
+  let collapse: () -> Void
+  let toggleChoice: () -> Void
+  let save: () -> Void
+  let addToDay: (Int?) -> Void
+  let disconnect: () -> Void
+  let dismiss: () -> Void
+
+  var body: some View {
+    switch layout {
+    case .compact:
+      compactBody
+    case .dossier:
+      dossierBody
     }
   }
 
-  private var expandedBody: some View {
-    HStack(alignment: .top, spacing: 12) {
-      VStack(alignment: .leading, spacing: 6) {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-          Button { setExpanded(false) } label: {
-            Image(systemName: "chevron.left")
-              .font(.headline)
-          }
-          .buttonStyle(.plain)
-          .accessibilityLabel("Collapse")
+  private var compactBody: some View {
+    HStack(alignment: .top, spacing: 6) {
+      Button(action: select) {
+        VStack(alignment: .leading, spacing: 6) {
           Text(candidate.title)
             .font(.headline)
-            .lineLimit(3)
+            .lineLimit(2)
+          statusLabel
+          if let why = candidate.candidate.why {
+            Text(why)
+              .font(.subheadline)
+              .foregroundStyle(.secondary)
+              .lineLimit(3)
+          }
+          Spacer(minLength: 0)
+          hint
         }
-        statusLabel
-        Spacer(minLength: 0)
-        hint
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+      }
+      .buttonStyle(.plain)
+      actionsMenu
+    }
+    .padding(12)
+    .frame(width: 280, alignment: .topLeading)
+    .frame(maxHeight: .infinity, alignment: .topLeading)
+  }
+
+  private var dossierBody: some View {
+    HStack(alignment: .top, spacing: 12) {
+      HStack(alignment: .top, spacing: 6) {
+        Button(action: collapse) {
+          Image(systemName: "chevron.left")
+            .font(.headline)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Collapse")
+
+        Button(action: select) {
+          VStack(alignment: .leading, spacing: 6) {
+            Text(candidate.title)
+              .font(.headline)
+              .lineLimit(3)
+            statusLabel
+            Spacer(minLength: 0)
+            hint
+          }
+          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+          .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
       }
       .frame(width: 190, alignment: .leading)
-      .contentShape(Rectangle())
-      .onTapGesture { select() }
 
       Divider()
 
-      // The dossier that was truncated in the collapsed card, now fully visible —
-      // scrolls if it's long, so the strip never has to grow taller.
+      // The dossier that is truncated in the compact card stays scrollable so the
+      // strip never has to grow taller.
       ScrollView {
         VStack(alignment: .leading, spacing: 10) {
           if let why = candidate.candidate.why { dossierField("Why", why) }
@@ -197,7 +352,7 @@ struct RecommendationCandidateStripCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
       }
-      .frame(width: 300)
+      .frame(maxWidth: .infinity)
 
       actionsMenu
     }
@@ -286,11 +441,4 @@ struct RecommendationCandidateStripCard: View {
     }
   }
 
-  // Resolved candidates read as "done/mapped" (green) regardless of focus; the
-  // focused-but-unresolved card gets a warm tint, everything else stays neutral.
-  private var backgroundColor: Color {
-    if candidate.isResolved { return Color.green.opacity(0.14) }
-    if isActive { return Color.orange.opacity(0.12) }
-    return Color.secondary.opacity(0.08)
-  }
 }
