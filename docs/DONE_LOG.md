@@ -1,5 +1,35 @@
 # Done Log — completed enhancements
 
+## Evaluate workspace geographic model (ADR-0045) — SHIPPED (2026-08-23)
+
+All three stacked workstreams from `docs/handoff/evaluate-geographic-model.md` landed,
+fixing the coupled Evaluate-cockpit geography defects in
+[ADR-0045](decisions/0045-evaluate-workspace-geographic-model.md):
+
+- **WS1 — search biases, not fences (#93).** Undid PR #90's hard
+  `regionPriority = .required` fence for "Search this map" / "Connect" so a named place
+  plainly on screen resolves. iPad detail-popover sizing rode alongside (#94).
+- **WS2 — real candidate display anchors (#97).** Replaced the phantom
+  `fuzzyCoordinate` (region-name centroid) with session-only `candidateAnchors`,
+  populated best-effort from the biased recommendation search after candidate-set load
+  and threaded through the pure workspace projection (resolved Idea coordinate wins,
+  then anchor, else no marker). Removed `fuzzyCoordinate` and the locality-box
+  `RecommendationCandidateSearch` selector; workspace loading became async/cancellable
+  via `.task`. Anchors are display-only — they never resolve or write an Idea.
+- **WS3 — Evaluate map reuses `PlaceSelectionMap` (#98).** Replaced
+  `RecommendationWorkspaceMap`'s bespoke `Map(position:)` with the shared
+  `PlaceSelectionMap` (`.immediate` policy, extracted #70). Itinerary, candidate, active
+  ringed-candidate, and purple resolve-result markers moved into the shared content
+  builder; native Apple Maps POI selection now routes through `resolveResultTapped`
+  while biased search, Connect, initial framing, and active-pin camera inclusion are
+  preserved.
+
+Verification: pure `GalavantSchema` projection/matcher/search suites passed; Xcode 27
+build-only on iPhone 17 Pro / iOS 27. Device check (ADR-0044) still owed: unresolved
+candidates draw grey pins at real rough locations, switching candidates frames the
+active pin, and tapping a visible POI resolves the active candidate without breaking
+search / Connect / candidate pins — on both iPad and iPhone.
+
 ## Calendar constraint promotion — IMPLEMENTED, pending review (2026-08-18)
 
 The calendar constraint detail now offers a place-identity-only promotion path:

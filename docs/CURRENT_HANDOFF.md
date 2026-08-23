@@ -9,28 +9,14 @@ done, delete it — don't let it rot (this file is the single source for what's
 Rough order: active first, blocked/designed next, verification gates and provenance
 last. Not a strict priority queue — each entry stands alone enough to act on cold.
 
-_Last swept 2026-08-22: removed everything shipped through PR #94 (StopMenu declutter
-#74–78, calendar-constraint promotion #71, stable travel modes #69, M7 dogfood #57,
+_Last swept 2026-08-23: ADR-0045 fully shipped — WS2 candidate display anchors (#97)
+and WS3 Evaluate map reuse of `PlaceSelectionMap` (#98) landed on top of WS1 (#93),
+so the whole Evaluate-geographic-model section retired to `DONE_LOG.md`. Prior sweep
+(2026-08-22) removed everything shipped through PR #94 (StopMenu declutter #74–78,
+calendar-constraint promotion #71, stable travel modes #69, M7 dogfood #57,
 Accommodations #68/#81, travel-graph one-pass #83, Ideas-map POI exploration #91,
-richer stop detail #63/#64, and the alignment-review items marked done). Historical
-M6/chat/portfolio framing collapsed to pointers._
-
-## Active — Evaluate workspace geographic model (ADR-0045), WS2–3 remaining
-
-[ADR-0045](decisions/0045-evaluate-workspace-geographic-model.md) fixes three coupled
-Evaluate-cockpit defects; `docs/handoff/evaluate-geographic-model.md` sequences it as
-three stacked slices.
-
-- **WS1 — human-facing search biases instead of fences.** **Shipped (#93).** Undoes
-  PR #90's hard `regionPriority = .required` fence for "Search this map" / "Connect"
-  so a named place plainly on screen resolves. (The iPad detail-popover sizing that
-  rode alongside also shipped, #94.)
-- **WS2 — real candidate display anchors.** **Open.** Candidates still carry only a
-  phantom `fuzzyCoordinate` (region-name centroid); `RecommendationCandidateSearch`
-  and `fuzzyCoordinate` are still in the tree. Replace with in-memory display anchors
-  (model + pure projection) and retire the phantom.
-- **WS3 — Evaluate map reuses `PlaceSelectionMap` for tap-a-POI → resolve.** **Open.**
-  The reusable map was extracted in #70; wire the Evaluate map onto it. Lands after WS2.
+richer stop detail #63/#64, alignment-review items). Historical M6/chat/portfolio
+framing collapsed to pointers._
 
 ## Active — paste on the Evaluate candidate strip (queued for Codex)
 
