@@ -159,7 +159,8 @@ struct RecommendationCandidateStripCard: View {
         save: save,
         addToDay: addToDay,
         disconnect: disconnect,
-        dismiss: dismiss
+        dismiss: dismiss,
+        dossierBottom: { EmptyView() }
       )
       if isActive {
         RecommendationWorkspaceImageDropWell(model: model)
@@ -224,26 +225,24 @@ private struct RecommendationCandidateStripFlyout: View {
           RoundedRectangle(cornerRadius: 12)
             .fill(backgroundColor)
 
-          VStack(alignment: .leading, spacing: 8) {
-            RecommendationCandidateCardPresentation(
-              candidate: candidate,
-              layout: .dossier,
-              isInChoice: isInChoice,
-              days: days,
-              select: select,
-              collapse: dismiss,
-              toggleChoice: toggleChoice,
-              save: save,
-              addToDay: addToDay,
-              disconnect: disconnect,
-              dismiss: dismissCandidate
-            )
-            if isActive {
-              RecommendationWorkspaceImageDropWell(model: model)
-                .padding(.horizontal, 12)
-                .padding(.bottom, 12)
+          RecommendationCandidateCardPresentation(
+            candidate: candidate,
+            layout: .dossier,
+            isInChoice: isInChoice,
+            days: days,
+            select: select,
+            collapse: dismiss,
+            toggleChoice: toggleChoice,
+            save: save,
+            addToDay: addToDay,
+            disconnect: disconnect,
+            dismiss: dismissCandidate,
+            dossierBottom: {
+              if isActive {
+                RecommendationWorkspaceImageDropWell(model: model)
+              }
             }
-          }
+          )
           .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .frame(width: proxy.size.width * 0.88, height: proxy.size.height - 12, alignment: .topLeading)
@@ -270,7 +269,7 @@ private struct RecommendationCandidateStripFlyout: View {
 /// Shared candidate content for the compact rail and the dossier presentation.
 /// The iPhone surface can use the same state and actions with the dossier layout
 /// without taking on any of the regular-width strip's overlay mechanics.
-struct RecommendationCandidateCardPresentation: View {
+struct RecommendationCandidateCardPresentation<BottomContent: View>: View {
   enum Layout {
     case compact
     case dossier
@@ -287,6 +286,35 @@ struct RecommendationCandidateCardPresentation: View {
   let addToDay: (Int?) -> Void
   let disconnect: () -> Void
   let dismiss: () -> Void
+  let dossierBottom: () -> BottomContent
+
+  init(
+    candidate: RecommendationWorkspaceCandidate,
+    layout: Layout,
+    isInChoice: Bool,
+    days: [RecommendationWorkspaceDay],
+    select: @escaping () -> Void,
+    collapse: @escaping () -> Void,
+    toggleChoice: @escaping () -> Void,
+    save: @escaping () -> Void,
+    addToDay: @escaping (Int?) -> Void,
+    disconnect: @escaping () -> Void,
+    dismiss: @escaping () -> Void,
+    @ViewBuilder dossierBottom: @escaping () -> BottomContent
+  ) {
+    self.candidate = candidate
+    self.layout = layout
+    self.isInChoice = isInChoice
+    self.days = days
+    self.select = select
+    self.collapse = collapse
+    self.toggleChoice = toggleChoice
+    self.save = save
+    self.addToDay = addToDay
+    self.disconnect = disconnect
+    self.dismiss = dismiss
+    self.dossierBottom = dossierBottom
+  }
 
   var body: some View {
     switch layout {
@@ -327,29 +355,30 @@ struct RecommendationCandidateCardPresentation: View {
 
   private var dossierBody: some View {
     HStack(alignment: .top, spacing: 12) {
-      HStack(alignment: .top, spacing: 6) {
-        Button(action: collapse) {
-          Image(systemName: "chevron.left")
-            .font(.headline)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Collapse")
+      VStack(alignment: .leading, spacing: 6) {
+        HStack(alignment: .top, spacing: 6) {
+          Button(action: collapse) {
+            Image(systemName: "chevron.left")
+              .font(.headline)
+          }
+          .buttonStyle(.plain)
+          .accessibilityLabel("Collapse")
 
-        Button(action: select) {
-          VStack(alignment: .leading, spacing: 6) {
+          Button(action: select) {
             Text(candidate.title)
               .font(.headline)
               .lineLimit(3)
-            statusLabel
-            Spacer(minLength: 0)
-            hint
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .contentShape(Rectangle())
           }
-          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-          .contentShape(Rectangle())
+          .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
+        statusLabel
+        Spacer(minLength: 0)
+        hint
+        dossierBottom()
       }
-      .frame(width: 190, alignment: .leading)
+      .frame(width: 230, alignment: .leading)
 
       Divider()
 
@@ -370,6 +399,7 @@ struct RecommendationCandidateCardPresentation: View {
 
       actionsMenu
     }
+    .frame(maxHeight: .infinity, alignment: .top)
     .padding(12)
   }
 
