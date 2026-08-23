@@ -71,7 +71,8 @@ public enum RecommendationHandoffContract {
   public static func brief(
     session: HandoffSession,
     tripName: String,
-    tripNotes: String
+    tripNotes: String,
+    plan: TripPlan
   ) -> String {
     let trimmedNotes = tripNotes.trimmingCharacters(in: .whitespacesAndNewlines)
     var lines = [
@@ -79,8 +80,45 @@ public enum RecommendationHandoffContract {
       "Trip: \(tripName)",
     ]
     if !trimmedNotes.isEmpty { lines.append("Trip notes: \(trimmedNotes)") }
+    let stops = stopSummary(plan: plan)
+    if !stops.isEmpty {
+      lines.append("Stops so far:")
+      lines.append(contentsOf: stops)
+    }
     lines.append("Ask: Recommend candidate places that fit this trip. Give options with a useful locality, search hint, and concise rationale.")
     return lines.joined(separator: "\n")
+  }
+
+  /// Compact context for an external recommendation model: only committed stops
+  /// and stays, in the same order the itinerary presents them. Shortlist and
+  /// considering entries are deliberately absent because they are not yet part
+  /// of the trip's current plan.
+  public static func stopSummary(plan: TripPlan) -> [String] {
+    var lines: [String] = []
+
+    for day in plan.itinerary where !day.stops.isEmpty {
+      lines.append("Day \(day.number):")
+      lines.append(contentsOf: day.stops.map { "- \(description(for: $0.content))" })
+    }
+
+    if !plan.toBeScheduled.isEmpty {
+      lines.append("To be scheduled:")
+      lines.append(contentsOf: plan.toBeScheduled.map { "- \(description(for: $0.content))" })
+    }
+
+    lines.append(contentsOf: plan.stays.map { "Staying: \(description(for: $0.content))" })
+    return lines
+  }
+
+  private static func description(for content: StopContent) -> String {
+    guard let locality = locality(for: content) else { return content.title }
+    return "\(content.title) (\(locality))"
+  }
+
+  private static func locality(for content: StopContent) -> String? {
+    guard case let .idea(idea) = content else { return nil }
+    let locality = idea.regionName?.trimmingCharacters(in: .whitespacesAndNewlines)
+    return locality?.isEmpty == false ? locality : nil
   }
 }
 

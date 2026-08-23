@@ -83,7 +83,8 @@ extension TripPlanningModel {
       exportedPrompt: RecommendationHandoffContract.brief(
         session: promptSession,
         tripName: trip.name,
-        tripNotes: trip.notes
+        tripNotes: trip.notes,
+        plan: plan
       )
     )
     do {
