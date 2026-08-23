@@ -115,14 +115,25 @@ private struct RecommendationWorkspaceCockpit: View {
       GeometryReader { geo in
         HStack(spacing: 0) {
           RecommendationWorkspaceBrowser(model: model)
-            .frame(width: geo.size.width * 2 / 3)
+            .frame(width: geo.size.width * 2 / 3, alignment: .top)
+            // Keep the browser's field/action bars clear of the candidate divider.
+            // WebBrowserView owns its bottom chrome, so give that chrome a small
+            // breathing room inside the cockpit rather than shrinking the queue.
+            .padding(.bottom, 12)
+            .frame(maxHeight: .infinity, alignment: .top)
+            .clipped()
           Divider()
           RecommendationWorkspaceMap(model: model)
             .overlay(alignment: .bottom) {
               ActiveCandidateResolveControls(model: model)
                 .padding()
             }
+            .padding(.bottom, 12)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .clipped()
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .clipped()
       }
       Divider()
       RecommendationCandidateStrip(model: model)
