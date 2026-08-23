@@ -1,5 +1,17 @@
 # Done Log — completed enhancements
 
+## Plan-memoization — Phase 1 shipped, Phase 2 declined (2026-08-23)
+
+The itinerary-recompute hazard is resolved. **Phase 1** — the one-pass travel graph
+(`TripPlan.allLegPairs` deriving `itinerary`/stays once and threading them through the leg
+helpers, `legModes`, #83) — shipped and captured nearly all the measured win. **Phase 2**
+(an observation-backed `TripPlanRequest`/`@Fetch` snapshot cache) was **evaluated and
+declined**: dogfooding a large trip on device was not sluggish, so the cache isn't needed,
+and it would cost a second GRDB observation, duplicate reads, extra post-write
+invalidations, and an accepted one-frame consistency window. The design stays on the shelf
+in [`docs/handoff/plan-memoization.md`](handoff/plan-memoization.md) if a real trip ever
+drags on device — pull it off then, not speculatively.
+
 ## Evaluation cockpit polish — dossier flyover + iPhone parity (ADR-0037) — SHIPPED (2026-08-23)
 
 Two of the four post-ship cockpit follow-ups landed, dogfooded on iPad:
