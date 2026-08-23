@@ -9,37 +9,28 @@ done, delete it — don't let it rot (this file is the single source for what's
 Rough order: active first, blocked/designed next, verification gates and provenance
 last. Not a strict priority queue — each entry stands alone enough to act on cold.
 
-_Last swept 2026-08-23: ADR-0045 fully shipped — WS2 candidate display anchors (#97)
-and WS3 Evaluate map reuse of `PlaceSelectionMap` (#98) landed on top of WS1 (#93),
-so the whole Evaluate-geographic-model section retired to `DONE_LOG.md`. Prior sweep
+_Last swept 2026-08-23 (pm): cockpit Slices 3 (dossier flyover #100) + 4 (iPhone parity
+#101) shipped and left this section — only Choose One day-anchoring + yes-chef adoption
+remain there. Plan-memoization Phase 2 deferred (large trip not laggy on device) and moved
+to engineering follow-ups. Trip header "romance" (ADR-0032) shipped end-to-end, removed
+from designed/deferred. Earlier 2026-08-23 sweep: ADR-0045 fully shipped — WS2 candidate
+display anchors (#97) and WS3 Evaluate map reuse of `PlaceSelectionMap` (#98) landed on top
+of WS1 (#93), retiring the whole Evaluate-geographic-model section to `DONE_LOG.md`. Prior sweep
 (2026-08-22) removed everything shipped through PR #94 (StopMenu declutter #74–78,
 calendar-constraint promotion #71, stable travel modes #69, M7 dogfood #57,
 Accommodations #68/#81, travel-graph one-pass #83, Ideas-map POI exploration #91,
 richer stop detail #63/#64, alignment-review items). Historical M6/chat/portfolio
 framing collapsed to pointers._
 
-## Active — plan-memoization follow-up (awaiting approach sign-off)
-
-The itinerary lockup was fixed by lifting mode resolution into one pass
-(`TripPlan.legModes`, shipped #83). The remaining hazard: `TripPlanningModel.plan` /
-`itinerary` / `legIdentities` still rebuild on every view-tree access. Memoize the
-planning read model so it isn't recomputed per access. Measurement + two invalidation
-designs are in [`docs/handoff/plan-memoization.md`](handoff/plan-memoization.md),
-awaiting Jon's sign-off on the approach before build.
-
 ## Active — M9 cockpit polish + yes-chef adoption (post-ship follow-ups)
 
 M9 (recommendation handoff + evaluation cockpit) and the LLMHandoffKit lift shipped and
-are dogfooded (`docs/DONE_LOG.md`). Remaining, non-blocking:
+are dogfooded (`docs/DONE_LOG.md`). Slices 3 (dossier flyover, #100) and 4 (iPhone parity,
+#101) shipped 2026-08-23. Remaining, non-blocking:
 
 - **Choose One day-anchoring.** Marking 2+ candidates + Choose One builds an
   alternatives ring (ADR-0035), but the ring is dayless/`.considering`, so it never
   appears on the itinerary. Commit the ring **to a day** at creation (born scheduled).
-- **Dossier flyover (cockpit Slice 3).** The focused candidate card should expand *over*
-  its siblings to reclaim their width; it currently expands inline and pushes them right.
-- **iPhone cockpit layout (cockpit Slice 4).** The compact layout still uses the
-  pre-cockpit candidate rail/sheet; give it the same candidate state in a map-first sheet
-  + pushed browser.
 - **yes-chef adoption of LLMHandoffKit** (ADR-0036 consumer #1). yes-chef has an
   equivalent handoff spine; converging it onto the shared jon-platform package is its own
   repo/PR (like the WebExtractorKit lift's still-open yes-chef rewire).
@@ -65,12 +56,6 @@ broken: render the itinerary as `ScrollView`/`LazyVStack` instead of `List`. See
 
 ## Designed / deferred (product)
 
-- **Trip header image — "romance" (ADR-0032).** The schema landed (`headerImageURL` +
-  color + photographer columns on `Trip`, hotlinked Unsplash reference, no BLOB/FK, no
-  sync registration). **Open:** confirm the picker + placement actually shipped end-to-end
-  (ADR still marked *proposed*; injectable `UnsplashClient`, `registerDownload` +
-  attribution per ToS). Placement call: hero band atop the detail panel (the map-first
-  canvas has no title area). Distinct from region "romance" photos (#54, ADR-0040).
 - **Multi-select tag picker (Jon, 2026-06-13).** The model supports many tags per idea
   (`IdeaTag`), but the form adds them one at a time. Want a multi-select picker (a
   dedicated push-from-form screen is fine): a scrollable list of all tags with
@@ -91,6 +76,14 @@ broken: render the itinerary as `ScrollView`/`LazyVStack` instead of `List`. See
 
 ## Engineering discipline / small follow-ups
 
+- **Plan-memoization Phase 2 — designed, deferred pending device evidence.** Phase 1 (the
+  one-pass travel graph, `TripPlan.allLegPairs` / `legModes`, #83) shipped and captured
+  nearly all the measured win. Phase 2 (an observation-backed `TripPlanRequest`/`@Fetch`
+  snapshot cache) is gated on a real trip actually stalling on device — dogfooding a large
+  trip on 2026-08-23 was **not** laggy, so it stays parked. Its cost (a second GRDB
+  observation, duplicate reads, extra post-write invalidations, an accepted one-frame
+  consistency window) isn't worth paying speculatively. Design ready to pull off the shelf:
+  [`docs/handoff/plan-memoization.md`](handoff/plan-memoization.md).
 - **UUID dependency-control for new schema ops.** Existing ops call `UUID()` directly
   (`TripOperations`, `PoolOperations`, `Tag`, `TripRegion`, `IdeaTag`). Don't churn
   working code, but *new* vertical slices should accept IDs as args (model supplies a

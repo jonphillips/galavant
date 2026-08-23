@@ -1,5 +1,25 @@
 # Done Log — completed enhancements
 
+## Evaluation cockpit polish — dossier flyover + iPhone parity (ADR-0037) — SHIPPED (2026-08-23)
+
+Two of the four post-ship cockpit follow-ups landed, dogfooded on iPad:
+
+- **Slice 3 — dossier flyover (#100).** The focused candidate card in
+  `RecommendationCandidateStrip` now expands as a flyover layered *over* its siblings
+  instead of growing inline and shoving the queue sideways; the horizontal strip keeps a
+  stable width and the reclaimed sibling space shows the full Why/Fit/Time/Placement
+  dossier. Tapping focuses + raises; chevron/backdrop dismisses back to the compact row.
+  The card/dossier presentation was extracted into a reusable component.
+- **Slice 4 — iPhone parity (#101).** `RecommendationWorkspaceCompactLayout` dropped the
+  stale pre-cockpit rail/cards and now presents the identical candidate state (dossier,
+  resolved + Site status, Choose One, Add-to-Day menu via `model.addToDay`, image drop
+  well) in the map-first bottom sheet, with the browser pushed and returning to the same
+  active candidate (ADR-0037 D7). The old `RecommendationCandidateRail` /
+  `RecommendationCandidateCard` were retired.
+
+Verification: Xcode 27 build-only. Remaining cockpit follow-up: **Choose One
+day-anchoring** (ring is still dayless/`.considering` — see `CURRENT_HANDOFF.md`).
+
 ## Active — paste on the Evaluate candidate strip — SHIPPED (2026-08-23)
 
 The candidate strip has an image **drop** zone (#92) but no paste, while the Idea

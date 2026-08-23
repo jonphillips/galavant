@@ -1,6 +1,7 @@
 # ADR-0032: Trip header image — Unsplash "romance" via a hotlinked reference on Trip
 
-*Status: proposed — 2026-07-04. Realizes the BACKLOG "Trip header image — romance"
+*Status: accepted — shipped end-to-end (picker + hero-band placement + `UnsplashClient`)
+as of 2026-08-23. Realizes the BACKLOG "Trip header image — romance"
 item (Jon, 2026-06-14) and the ROADMAP M5 "Unsplash header images" line. Governed by
 ADR-0007 (single-FK sharing rule) and ADR-0009 (image storage); follows the injectable
 I/O-boundary pattern of ADR-0018's `PlaceDiscoveryClient` ([[inject-io-boundaries-early]]).*
