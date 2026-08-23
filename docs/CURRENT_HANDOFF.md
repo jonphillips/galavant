@@ -18,16 +18,6 @@ Accommodations #68/#81, travel-graph one-pass #83, Ideas-map POI exploration #91
 richer stop detail #63/#64, alignment-review items). Historical M6/chat/portfolio
 framing collapsed to pointers._
 
-## Active — paste on the Evaluate candidate strip (queued for Codex)
-
-The candidate strip has an image **drop** zone (#92) but no paste, while the Idea
-editor already offers Photos + paste + drop (#56). Add a `PasteButton(supportedContentTypes:
-[.image])` beside the drop well in `RecommendationWorkspaceImageDropWell`
-(`Galavant/Trips/RecommendationWorkspaceView.swift`), reusing the existing
-`droppedImage(from:)` loader and the `model.attachDroppedImage` sink, gated the same as
-`canAcceptDrop`. Covers iPhone / one-handed / no-split-view, where drag fails. Prompt
-written; Jon to release to Codex.
-
 ## Active — plan-memoization follow-up (awaiting approach sign-off)
 
 The itinerary lockup was fixed by lifting mode resolution into one pass
