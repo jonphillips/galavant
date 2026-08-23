@@ -11,9 +11,12 @@ last. Not a strict priority queue — each entry stands alone enough to act on c
 
 _Last swept 2026-08-23 (pm): cockpit Slices 3 (dossier flyover #100) + 4 (iPhone parity
 #101) shipped and left this section — only Choose One day-anchoring + yes-chef adoption
-remain there. Plan-memoization Phase 2 deferred (large trip not laggy on device) and moved
-to engineering follow-ups. Trip header "romance" (ADR-0032) shipped end-to-end, removed
-from designed/deferred. Earlier 2026-08-23 sweep: ADR-0045 fully shipped — WS2 candidate
+remain there. Plan-memoization Phase 2 dropped — Phase 1 (#83) shipped and the device is
+not sluggish on a large trip, so the cache isn't needed (design shelved in
+`docs/handoff/plan-memoization.md`; see `DONE_LOG.md`). The jon-platform shared-doc
+refinements were applied upstream (jon-platform PR #43) and that item retired. Trip header
+"romance" (ADR-0032) shipped end-to-end, removed from designed/deferred. Earlier 2026-08-23
+sweep: ADR-0045 fully shipped — WS2 candidate
 display anchors (#97) and WS3 Evaluate map reuse of `PlaceSelectionMap` (#98) landed on top
 of WS1 (#93), retiring the whole Evaluate-geographic-model section to `DONE_LOG.md`. Prior sweep
 (2026-08-22) removed everything shipped through PR #94 (StopMenu declutter #74–78,
@@ -76,14 +79,6 @@ broken: render the itinerary as `ScrollView`/`LazyVStack` instead of `List`. See
 
 ## Engineering discipline / small follow-ups
 
-- **Plan-memoization Phase 2 — designed, deferred pending device evidence.** Phase 1 (the
-  one-pass travel graph, `TripPlan.allLegPairs` / `legModes`, #83) shipped and captured
-  nearly all the measured win. Phase 2 (an observation-backed `TripPlanRequest`/`@Fetch`
-  snapshot cache) is gated on a real trip actually stalling on device — dogfooding a large
-  trip on 2026-08-23 was **not** laggy, so it stays parked. Its cost (a second GRDB
-  observation, duplicate reads, extra post-write invalidations, an accepted one-frame
-  consistency window) isn't worth paying speculatively. Design ready to pull off the shelf:
-  [`docs/handoff/plan-memoization.md`](handoff/plan-memoization.md).
 - **UUID dependency-control for new schema ops.** Existing ops call `UUID()` directly
   (`TripOperations`, `PoolOperations`, `Tag`, `TripRegion`, `IdeaTag`). Don't churn
   working code, but *new* vertical slices should accept IDs as args (model supplies a
@@ -94,10 +89,6 @@ broken: render the itinerary as `ScrollView`/`LazyVStack` instead of `List`. See
   planner-level dedup — merging two *populated* parties repoints blindly and can leave
   duplicate planners/tags (extreme edge; merge-with-dup beats data loss). Adjacent to
   planner-identity above.
-- **jon-platform shared-doc refinements.** Five cross-app rules from the 2026-06-16
-  alignment review (displayed-collection delete/reorder; split-view nested-NavigationStack;
-  UUID-generation nuance; one-shot-read cancellation; `-skipMacroValidation` CLI note)
-  belong in `~/code/jon-platform`, not here — apply there.
 
 ## Verification gates (decision gates, not a build queue)
 
