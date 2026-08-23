@@ -24,66 +24,121 @@ extension CalendarReconciliation {
   ) -> CalendarConstraintAutomaticPlan {
     var state = localState
     var upserts: [CalendarTripConstraint] = []
-    var deletions: [CalendarTripConstraint.ID] = []
+    var deletions = ignoredConstraintDeletions(
+      tripID: tripID,
+      existingConstraints: existingConstraints,
+      ignoredSourceIdentityHashes: ignoredSourceIdentityHashes)
 
+    for candidate in candidates {
+      reconcileCandidate(
+        candidate,
+        tripID: tripID,
+        calendarID: calendarID,
+        ignoredSourceIdentityHashes: ignoredSourceIdentityHashes,
+        regionTimeZone: regionTimeZone,
+        state: &state,
+        upserts: &upserts,
+        deletions: &deletions)
+    }
+
+    removeDeletedBindings(
+      from: &state,
+      deletions: &deletions,
+      calendarID: calendarID,
+      deletedEventIDs: deletedEventIDs)
+    removeMovedOutsideConstraints(
+      in: state,
+      deletions: &deletions,
+      calendarID: calendarID,
+      movedOutsideEventIDs: movedOutsideEventIDs,
+      upsertedIDs: Set(upserts.map(\.id)))
+
+    return CalendarConstraintAutomaticPlan(
+      upserts: upserts,
+      deletions: unique(deletions),
+      localState: state)
+  }
+
+  private static func ignoredConstraintDeletions(
+    tripID: Trip.ID,
+    existingConstraints: [CalendarTripConstraint],
+    ignoredSourceIdentityHashes: Set<String>
+  ) -> [CalendarTripConstraint.ID] {
     let ignoredConstraintIDs = Set(
       ignoredSourceIdentityHashes.map {
         CalendarReconciliationFingerprint.constraintID(
           tripID: tripID, sourceIdentityHash: $0)
       })
-    for constraint in existingConstraints
-    where constraint.tripID == tripID && ignoredConstraintIDs.contains(constraint.id) {
-      deletions.append(constraint.id)
+    return existingConstraints.compactMap { constraint in
+      constraint.tripID == tripID && ignoredConstraintIDs.contains(constraint.id)
+        ? constraint.id
+        : nil
     }
+  }
 
-    for candidate in candidates {
-      let event = candidate.input.event
-      if let source = CalendarReconciliationFingerprint.constraintSource(for: event),
-        ignoredSourceIdentityHashes.contains(source)
-      {
-        continue
-      }
-      guard event.isEligibleForSharedReconciliation,
-        event.hasStableLocalIdentity,
-        let sourceExternalIdentifier = event.externalIdentifier
-      else { continue }
+  private static func reconcileCandidate(
+    _ candidate: CalendarReconciliationCandidate,
+    tripID: Trip.ID,
+    calendarID: String,
+    ignoredSourceIdentityHashes: Set<String>,
+    regionTimeZone: TimeZone?,
+    state: inout CalendarReconciliationLocalState,
+    upserts: inout [CalendarTripConstraint],
+    deletions: inout [CalendarTripConstraint.ID]
+  ) {
+    let event = candidate.input.event
+    if let source = CalendarReconciliationFingerprint.constraintSource(for: event),
+      ignoredSourceIdentityHashes.contains(source)
+    {
+      return
+    }
+    guard event.isEligibleForSharedReconciliation,
+      event.hasStableLocalIdentity,
+      let sourceExternalIdentifier = event.externalIdentifier
+    else { return }
 
-      let bindingIndex = state.linkedConstraints.firstIndex { $0.matches(event) }
-      if state.linkedStops.contains(where: { matches(event, linkedStop: $0) }) {
-        if let bindingIndex {
-          deletions.append(state.linkedConstraints.remove(at: bindingIndex).constraintID)
-        }
-        continue
-      }
-
-      if bindingIndex == nil {
-        guard case .unmatched = candidate.result else { continue }
-      }
-      guard let constraint = CalendarTripConstraint(
-          tripID: tripID,
-          event: event,
-          projection: candidate.projection)
-      else { continue }
-
-      let binding = CalendarLinkedConstraint(
-        constraintID: constraint.id,
-        eventID: event.id,
-        calendarID: calendarID,
-        sourceExternalIdentifier: sourceExternalIdentifier,
-        occurrenceAnchor: event.recurrence?.originalOccurrence)
+    let bindingIndex = state.linkedConstraints.firstIndex { $0.matches(event) }
+    if state.linkedStops.contains(where: { matches(event, linkedStop: $0) }) {
       if let bindingIndex {
-        state.linkedConstraints[bindingIndex] = binding
-      } else {
-        state.linkedConstraints.append(binding)
+        deletions.append(state.linkedConstraints.remove(at: bindingIndex).constraintID)
       }
-      upserts.append(constraint)
-
-      reapRekeyedConstraints(
-        in: &state, deletions: &deletions, keeping: constraint.id,
-        sourceExternalIdentifier: sourceExternalIdentifier, calendarID: calendarID,
-        candidate: candidate, regionTimeZone: regionTimeZone)
+      return
     }
 
+    if bindingIndex == nil {
+      guard case .unmatched = candidate.result else { return }
+    }
+    guard let constraint = CalendarTripConstraint(
+        tripID: tripID,
+        event: event,
+        projection: candidate.projection)
+    else { return }
+
+    let binding = CalendarLinkedConstraint(
+      constraintID: constraint.id,
+      eventID: event.id,
+      calendarID: calendarID,
+      sourceExternalIdentifier: sourceExternalIdentifier,
+      occurrenceAnchor: event.recurrence?.originalOccurrence)
+    if let bindingIndex {
+      state.linkedConstraints[bindingIndex] = binding
+    } else {
+      state.linkedConstraints.append(binding)
+    }
+    upserts.append(constraint)
+
+    reapRekeyedConstraints(
+      in: &state, deletions: &deletions, keeping: constraint.id,
+      sourceExternalIdentifier: sourceExternalIdentifier, calendarID: calendarID,
+      candidate: candidate, regionTimeZone: regionTimeZone)
+  }
+
+  private static func removeDeletedBindings(
+    from state: inout CalendarReconciliationLocalState,
+    deletions: inout [CalendarTripConstraint.ID],
+    calendarID: String,
+    deletedEventIDs: Set<String>
+  ) {
     state.linkedConstraints.removeAll { binding in
       guard binding.calendarID == calendarID,
         deletedEventIDs.contains(binding.eventID)
@@ -91,23 +146,25 @@ extension CalendarReconciliation {
       deletions.append(binding.constraintID)
       return true
     }
+  }
 
-    // A binding whose event is confirmed present but outside the trip window is no
-    // longer a current trip constraint: drop its shared row while keeping the
-    // binding, so a move back in re-creates the same deterministic constraint. An
-    // event freshly upserted above is in-window by definition, so it is never both.
-    let upsertedIDs = Set(upserts.map(\.id))
+  /// A binding whose event is confirmed present but outside the trip window is no
+  /// longer a current trip constraint: drop its shared row while keeping the
+  /// binding, so a move back in re-creates the same deterministic constraint. An
+  /// event freshly upserted above is in-window by definition, so it is never both.
+  private static func removeMovedOutsideConstraints(
+    in state: CalendarReconciliationLocalState,
+    deletions: inout [CalendarTripConstraint.ID],
+    calendarID: String,
+    movedOutsideEventIDs: Set<String>,
+    upsertedIDs: Set<CalendarTripConstraint.ID>
+  ) {
     for binding in state.linkedConstraints
     where binding.calendarID == calendarID
       && movedOutsideEventIDs.contains(binding.eventID)
       && !upsertedIDs.contains(binding.constraintID) {
       deletions.append(binding.constraintID)
     }
-
-    return CalendarConstraintAutomaticPlan(
-      upserts: upserts,
-      deletions: unique(deletions),
-      localState: state)
   }
 
   private static func unique(_ ids: [CalendarTripConstraint.ID]) -> [CalendarTripConstraint.ID] {
