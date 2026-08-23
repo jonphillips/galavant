@@ -19,6 +19,7 @@
 		163235D89FEB136F5C5F73ED /* PoolIdentityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00154E6FD53486C6ECD8CBD9 /* PoolIdentityUITests.swift */; };
 		164623B0ED0CE24B42E3FA51 /* JourneyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58883EC5A8F26B4F3E007652 /* JourneyView.swift */; };
 		17B078D23DE21D8057EEAD7B /* TagManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D62672E298B917B0707B6F4 /* TagManagerView.swift */; };
+		1885938610B337356CBBB04F /* CalendarReconciliationSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8222730CCB5C86C21DC2B8F8 /* CalendarReconciliationSheet.swift */; };
 		1AF90BB39A9A3751AA9A22E2 /* Icon.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF388F1C56D173F7C5F3079C /* Icon.swift */; };
 		1BA8684F8293D1EBB16FB70C /* BrowserScreenModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC86C99C4DC8F10257E93B99 /* BrowserScreenModel.swift */; };
 		1C3D2E2D9EEF8BC709447AE6 /* PoolMapUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17EBCBAEA0AF8C840A0DA921 /* PoolMapUITests.swift */; };
@@ -126,18 +127,21 @@
 		E291A3A716DDBC83661706CB /* SyncHealthModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E00FB978F8AEB5F20B8B8C5D /* SyncHealthModel.swift */; };
 		E38A40C5C21F4D1087CDE391 /* GalavantShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5F046B49AE38F92268A2FA12 /* GalavantShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		E4012E1E8A6634279CD3ECFA /* CasePaths in Frameworks */ = {isa = PBXBuildFile; productRef = 26D83C2182F9FE47C3A1CA25 /* CasePaths */; };
+		E67ECFE7471114FEF8603B67 /* CalendarReconciliationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3C3B8F62248626E20BD1B05 /* CalendarReconciliationModel.swift */; };
 		E7664E213A70698E975C00E2 /* TripPlanningModel+AlternativeGroups.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62969DCE60557E7FE251E473 /* TripPlanningModel+AlternativeGroups.swift */; };
 		E77D186E6B692AD25BC8C9F3 /* SQLiteData in Frameworks */ = {isa = PBXBuildFile; productRef = A641D3ABA375BA009278F435 /* SQLiteData */; };
 		EEACD2B427DF5C20CDD17950 /* FreeformStopLocationEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5448AA5F448341633752E5D /* FreeformStopLocationEditor.swift */; };
 		EFF6015EBFCC08925785A2EB /* EvaluateScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = D48C8AE52183B8D3DE346D07 /* EvaluateScreen.swift */; };
 		F009B3192D02321202419379 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5AD27A1248EEA1D9B580277 /* ShareViewController.swift */; };
 		F03422C3671BFFD56B78737A /* TripCanvasMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED4DA130D3A7069430825C31 /* TripCanvasMapView.swift */; };
+		F0F29128CE9FDADC85D903E4 /* CalendarReconciliationModel+Ingest.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF9FB1AF2135067DA76F7C0C /* CalendarReconciliationModel+Ingest.swift */; };
 		F236D648886F9BA4EF2CCCCB /* GalavantPlaces in Frameworks */ = {isa = PBXBuildFile; productRef = C94234B5AEF12EA0F921B5B0 /* GalavantPlaces */; };
 		F41E8D178B9FE462E5E797F5 /* AppContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA2BBF3B289FD7D02957833B /* AppContainer.swift */; };
 		F569C91AF0E8633E066AA600 /* WebExtractorKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4D543244A7EA1E4F10D196DF /* WebExtractorKit */; };
 		F57648A300EA9E12818CF2AC /* WeatherAttributionLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5F159E1049DE135201C5821 /* WeatherAttributionLink.swift */; };
 		F82D8FFDDCDBA5EEC7FED0AB /* TripCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CBA766947DA059C035C1937 /* TripCard.swift */; };
 		FC020B16F76EF347447EA884 /* PlaceSelectionMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B9FE29B0BE3BE657414B717 /* PlaceSelectionMap.swift */; };
+		FC93F141F3BAB4EC6E09A89F /* CalendarReconciliationModel+Promotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = E16C0BEC67299FCDA71789C9 /* CalendarReconciliationModel+Promotion.swift */; };
 		FF6492EB056141CC9F75093F /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = C6C18315C28F69E95AB54F85 /* Dependencies */; };
 /* End PBXBuildFile section */
 
@@ -238,6 +242,7 @@
 		74F16970DCFE2E14E475DB66 /* TripPlanningSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripPlanningSheets.swift; sourceTree = "<group>"; };
 		7ADB3989E3E45A67BB33FB7F /* TravelProfileEditModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelProfileEditModel.swift; sourceTree = "<group>"; };
 		803A41898CEB755AAE0E4A68 /* TripFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripFormView.swift; sourceTree = "<group>"; };
+		8222730CCB5C86C21DC2B8F8 /* CalendarReconciliationSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarReconciliationSheet.swift; sourceTree = "<group>"; };
 		8238F43F540641D1FD4267BA /* TripPlanningModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripPlanningModel.swift; sourceTree = "<group>"; };
 		82AECABDADDBF8957A5816F8 /* AppScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppScreen.swift; sourceTree = "<group>"; };
 		850E3CBFE12A2DC66E37F4EB /* LodgingCapsuleBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LodgingCapsuleBar.swift; sourceTree = "<group>"; };
@@ -269,10 +274,12 @@
 		C071E50FDA62E29FC448F993 /* GalavantLibrary */ = {isa = PBXFileReference; lastKnownFileType = folder; name = GalavantLibrary; path = GalavantLibrary; sourceTree = SOURCE_ROOT; };
 		C0A1B810182571FD874E4261 /* SyncSeedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncSeedTests.swift; sourceTree = "<group>"; };
 		C33D788AD43C3F7C886F55D5 /* AssignConstraintLocationSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssignConstraintLocationSheet.swift; sourceTree = "<group>"; };
+		C3C3B8F62248626E20BD1B05 /* CalendarReconciliationModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarReconciliationModel.swift; sourceTree = "<group>"; };
 		C5AD27A1248EEA1D9B580277 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		C8BA5355102262E8FF3F053B /* CalendarExportModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarExportModel.swift; sourceTree = "<group>"; };
 		CC16D0C39AA361A09737B45F /* Galavant.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Galavant.entitlements; sourceTree = "<group>"; };
 		CC88DBCF4AB9A9D219BFDFAD /* TodaySupportingViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodaySupportingViews.swift; sourceTree = "<group>"; };
+		CF9FB1AF2135067DA76F7C0C /* CalendarReconciliationModel+Ingest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CalendarReconciliationModel+Ingest.swift"; sourceTree = "<group>"; };
 		D180C34C8C9F3983F7CF9CFB /* ExtensionPreProcessing.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = ExtensionPreProcessing.js; sourceTree = "<group>"; };
 		D3BFE6AAFB0EDC36E3BB7755 /* GalavantShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GalavantShare.entitlements; sourceTree = "<group>"; };
 		D40170C4D56FC7F76E1992FF /* WeatherKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WeatherKit.framework; path = System/Library/Frameworks/WeatherKit.framework; sourceTree = SDKROOT; };
@@ -288,6 +295,7 @@
 		E0587DE2E1AA61B9BD3D0073 /* RegionManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegionManagerView.swift; sourceTree = "<group>"; };
 		E13450922E6B719B55DC57BC /* IdeasScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeasScreen.swift; sourceTree = "<group>"; };
 		E146770B6C9957BA19FC94EC /* IdeasListModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeasListModel.swift; sourceTree = "<group>"; };
+		E16C0BEC67299FCDA71789C9 /* CalendarReconciliationModel+Promotion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CalendarReconciliationModel+Promotion.swift"; sourceTree = "<group>"; };
 		E35BE6CD061373B731E38031 /* SequencePin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencePin.swift; sourceTree = "<group>"; };
 		E754846D1941C6A46BF20DFB /* TripPlanningModel+Freeform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripPlanningModel+Freeform.swift"; sourceTree = "<group>"; };
 		E818B469EB6F7EB6FB4F33D6 /* CloudSyncKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = CloudSyncKit; path = "../../jon-platform/packages/CloudSyncKit"; sourceTree = SOURCE_ROOT; };
@@ -479,8 +487,12 @@
 				C33D788AD43C3F7C886F55D5 /* AssignConstraintLocationSheet.swift */,
 				51AA50E3CB7A4D6C5DD50110 /* CalendarExportClient.swift */,
 				C8BA5355102262E8FF3F053B /* CalendarExportModel.swift */,
+				C3C3B8F62248626E20BD1B05 /* CalendarReconciliationModel.swift */,
+				CF9FB1AF2135067DA76F7C0C /* CalendarReconciliationModel+Ingest.swift */,
 				4DE96A186A7350AD7E625B04 /* CalendarReconciliationModel+Ingestion.swift */,
+				E16C0BEC67299FCDA71789C9 /* CalendarReconciliationModel+Promotion.swift */,
 				4AD2C1DE54AEA038F84042CC /* CalendarReconciliationRows.swift */,
+				8222730CCB5C86C21DC2B8F8 /* CalendarReconciliationSheet.swift */,
 			);
 			path = Calendar;
 			sourceTree = "<group>";
@@ -862,8 +874,12 @@
 				1BA8684F8293D1EBB16FB70C /* BrowserScreenModel.swift in Sources */,
 				076EC78EEEA664F8BF4FC53F /* CalendarExportClient.swift in Sources */,
 				BC168628E33830089E560CB9 /* CalendarExportModel.swift in Sources */,
+				F0F29128CE9FDADC85D903E4 /* CalendarReconciliationModel+Ingest.swift in Sources */,
 				1478F87385340E3D96C6112D /* CalendarReconciliationModel+Ingestion.swift in Sources */,
+				FC93F141F3BAB4EC6E09A89F /* CalendarReconciliationModel+Promotion.swift in Sources */,
+				E67ECFE7471114FEF8603B67 /* CalendarReconciliationModel.swift in Sources */,
 				CB26B0D5725B3BB39E4E1839 /* CalendarReconciliationRows.swift in Sources */,
+				1885938610B337356CBBB04F /* CalendarReconciliationSheet.swift in Sources */,
 				4171E2BF905DAB98B77389EB /* CertaintyStyle.swift in Sources */,
 				C7FC1AA264B96268F69FC474 /* ChatPanelView.swift in Sources */,
 				BA6DC33C006D131C9DDA042C /* DayChipBar.swift in Sources */,
