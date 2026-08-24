@@ -12,11 +12,44 @@ import SwiftUI
 struct EvaluateScreen: View {
   @Environment(\.scenePhase) private var scenePhase
   @Environment(AppRouter.self) private var router
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @State private var model = EvaluateQueueModel()
 
   var body: some View {
     @Bindable var router = router
     return Group {
+      if horizontalSizeClass == .regular {
+        if let entry = router.openEvaluateEntry {
+          RecommendationWorkspaceHost(tripID: entry.tripID, sessionID: entry.sessionID)
+            .toolbar {
+              ToolbarItem(placement: .topBarLeading) {
+                Button { router.openEvaluateEntry = nil } label: {
+                  Label("Evaluate", systemImage: "chevron.backward")
+                }
+              }
+            }
+        } else {
+          queue
+        }
+      } else {
+        queue
+          .navigationDestination(item: $router.openEvaluateEntry) { entry in
+            RecommendationWorkspaceHost(tripID: entry.tripID, sessionID: entry.sessionID)
+          }
+      }
+    }
+    .navigationTitle("Evaluate")
+    // The store lives in UserDefaults, not an observed query — reload when the section
+    // appears and whenever the app returns to the foreground (a paste in another scene
+    // or the share extension may have added a set).
+    .task { model.reload() }
+    .onChange(of: scenePhase) { _, phase in
+      if phase == .active { model.reload() }
+    }
+  }
+
+  private var queue: some View {
+    Group {
       if model.entries.isEmpty {
         ContentUnavailableView {
           Label("Nothing to evaluate", systemImage: Icon.recommend.systemName)
@@ -33,17 +66,6 @@ struct EvaluateScreen: View {
           .buttonStyle(.plain)
         }
       }
-    }
-    .navigationTitle("Evaluate")
-    // The store lives in UserDefaults, not an observed query — reload when the section
-    // appears and whenever the app returns to the foreground (a paste in another scene
-    // or the share extension may have added a set).
-    .task { model.reload() }
-    .onChange(of: scenePhase) { _, phase in
-      if phase == .active { model.reload() }
-    }
-    .navigationDestination(item: $router.openEvaluateEntry) { entry in
-      RecommendationWorkspaceHost(tripID: entry.tripID, sessionID: entry.sessionID)
     }
   }
 }

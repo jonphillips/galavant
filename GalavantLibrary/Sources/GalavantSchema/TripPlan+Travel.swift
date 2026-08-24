@@ -221,6 +221,30 @@ extension TripPlan {
       effectiveModes: effectiveModes)
   }
 
+  /// The lodging handoff on a changeover day, regardless of whether a daytime
+  /// stop sits between checkout and check-in. Journey surfaces this fact because
+  /// travelers need to anticipate the hotel change; the itinerary uses the
+  /// stricter `transferConnector` so it does not draw a misleading direct leg
+  /// across an intermediate stop.
+  public func lodgingChangeoverConnector(
+    forDay day: Int,
+    travelTimes: [LegKey: [TransportMode: TravelTime]] = [:],
+    effectiveModes: [LegKey: TransportMode] = [:]
+  ) -> TravelConnector? {
+    guard let changeover = lodgingChangeover(
+      forDay: day,
+      stays: stays(coveringDay: day))
+    else { return nil }
+    let mode = effectiveModes[changeover.leg] ?? .walking
+    return TravelConnector(
+      from: changeover.from,
+      to: changeover.to,
+      leg: changeover.leg,
+      mode: mode,
+      travelTime: travelTimes[changeover.leg]?[mode],
+      kind: .betweenLodgings)
+  }
+
   func baseConnector(
     forDay day: Int,
     stops: [ResolvedStop],
@@ -391,6 +415,23 @@ extension TripPlan {
   private func stayTransfer(
     forDay day: Int, stops: [ResolvedStop], stays: [ResolvedStay]
   ) -> (from: TravelEndpoint, to: TravelEndpoint, leg: LegKey, identity: LegIdentity)? {
+    guard let transfer = lodgingChangeover(forDay: day, stays: stays) else { return nil }
+    let leaving = stays.filter { $0.stay.checkOutDay == day }
+    let arriving = stays.filter { $0.stay.checkInDay == day }
+    guard leaving.count == 1, arriving.count == 1 else { return nil }
+    let sortKeys = TripIdea.effectiveIntraDaySort(stops.map(\.entry))
+    let hasIntermediateStop = stops.contains { stop in
+      let key = sortKeys[stop.id] ?? .max
+      return key >= leaving[0].stay.checkOutSortMinutes
+        && key <= arriving[0].stay.checkInSortMinutes
+    }
+    guard !hasIntermediateStop else { return nil }
+    return transfer
+  }
+
+  private func lodgingChangeover(
+    forDay day: Int, stays: [ResolvedStay]
+  ) -> (from: TravelEndpoint, to: TravelEndpoint, leg: LegKey, identity: LegIdentity)? {
     let leaving = stays.filter { $0.stay.checkOutDay == day }
     let arriving = stays.filter { $0.stay.checkInDay == day }
     guard
@@ -401,12 +442,6 @@ extension TripPlan {
       let from = endpoint(for: leaving[0]),
       let to = endpoint(for: arriving[0])
     else { return nil }
-    let sortKeys = TripIdea.effectiveIntraDaySort(stops.map(\.entry))
-    let hasIntermediateStop = stops.contains { stop in
-      let key = sortKeys[stop.id] ?? .max
-      return key >= leaving[0].stay.checkOutSortMinutes && key <= arriving[0].stay.checkInSortMinutes
-    }
-    guard !hasIntermediateStop else { return nil }
     return (
       from: from,
       to: to,

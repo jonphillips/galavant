@@ -214,12 +214,12 @@ struct JourneyDayCard: View {
         }
       }
 
-      if day.isTransfer, let from = day.transferFrom, let to = day.transferTo {
+      if let transfer = day.lodgingChangeover {
         HStack(spacing: 6) {
-          Image(systemName: day.transferMode?.systemImageName ?? TransportMode.driving.systemImageName)
-          Text("\(from.title) → \(to.title)")
-          if let time = day.transferTime, let mode = day.transferMode {
-            Text("· \(time.formatted(mode: mode))")
+          Image(systemName: transfer.mode.systemImageName)
+          Text("\(transfer.from.title) → \(transfer.to.title)")
+          if let time = transfer.travelTime {
+            Text("· \(time.formatted(mode: transfer.mode))")
           }
         }
         .font(.subheadline.weight(.medium))
@@ -274,7 +274,7 @@ struct JourneyDayCard: View {
     var pieces = ["Day \(day.dayNumber)"]
     if let locality = day.locality { pieces.append(locality) }
     if day.stopCount > 0 { pieces.append("\(day.stopCount) stops") }
-    if day.isTransfer { pieces.append("transfer day") }
+    if day.hasLodgingChangeover { pieces.append("transfer day") }
     return pieces.joined(separator: ", ")
   }
 }
