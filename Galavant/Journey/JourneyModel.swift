@@ -136,6 +136,9 @@ final class JourneyModel {
             anchor.timeWindow,
             anchor.weatherGranularity)
           guard !Task.isCancelled else { return }
+          // A day beyond WeatherKit's actual coverage resolves to an empty summary;
+          // skip it so the card stays weather-free instead of showing a blank badge.
+          guard summary.hasForecast else { continue }
           weather[WeatherKey(dayNumber: day.dayNumber, anchorIndex: index)] = summary
         } catch is CancellationError {
           return

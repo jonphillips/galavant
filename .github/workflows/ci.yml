@@ -1,10 +1,11 @@
 name: CI
 
-# Thin caller — the pipeline lives once in jon-platform's reusable workflow so every
-# app shares one source of truth (jon-platform docs/ios/drift-control.md § CI).
-# Depends on two one-time account settings documented there: cross-repo Actions
-# access on jon-platform, and this repo's JON_PLATFORM_PAT secret (passed via
-# `secrets: inherit`).
+# Thin caller — the pipeline lives once in the public ci-workflows repo so every app
+# shares one source of truth. It's a PUBLIC repo because galavant is public and GitHub
+# won't let a public repo call a reusable workflow in the private jon-platform repo.
+# Depends only on this repo's JON_PLATFORM_PAT secret, passed through via
+# `secrets: inherit` (used by the reusable workflow to clone private jon-platform for
+# the local-path SPM deps).
 
 on:
   pull_request:
@@ -18,7 +19,7 @@ concurrency:
 
 jobs:
   ci:
-    uses: jonphillips/jon-platform/.github/workflows/ios-ci.yml@main
+    uses: jonphillips/ci-workflows/.github/workflows/ios-ci.yml@main
     with:
       package-path: GalavantLibrary
       test-runner: macos-26   # package floor is the macOS 26 SDK; the hosted image builds it today
