@@ -89,10 +89,23 @@ public extension WeatherAnchor.TimeWindow {
     }
   }
 
-  func nearestDailyForecastIndex(in dates: [Date]) -> Int? {
-    dates.indices.min {
-      abs(dates[$0].timeIntervalSince(forecastReferenceDate))
-        < abs(dates[$1].timeIntervalSince(forecastReferenceDate))
+  /// The index of the daily forecast covering `forecastReferenceDate`, or `nil` when
+  /// the date lies outside the forecast's horizon.
+  ///
+  /// WeatherKit returns only a bounded window of daily forecasts (~10 days out).
+  /// Without the horizon guard, a planned day past that window has no forecast of its
+  /// own, so the nearest-by-distance pick collapses onto the *last* available day and
+  /// repeats it across every too-far-out day. Returning `nil` there is correct: no
+  /// forecast is the primary, expected state for days beyond the horizon (ADR-0038).
+  func nearestDailyForecastIndex(in dates: [Date], calendar: Calendar = .current) -> Int? {
+    guard let earliest = dates.min(), let latest = dates.max() else { return nil }
+    let reference = forecastReferenceDate
+    let horizonEnd = calendar.date(byAdding: .day, value: 1, to: latest) ?? latest
+    guard reference >= calendar.startOfDay(for: earliest), reference < horizonEnd else {
+      return nil
+    }
+    return dates.indices.min {
+      abs(dates[$0].timeIntervalSince(reference)) < abs(dates[$1].timeIntervalSince(reference))
     }
   }
 }

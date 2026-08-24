@@ -50,10 +50,41 @@ import Testing
 
   @Test func dailySelectionAndExpirationUseTheEarliestRelevantDate() {
     let dates = [date(14), date(15), date(16)]
-    let index = WeatherAnchor.TimeWindow.daily(date(15)).nearestDailyForecastIndex(in: dates)
+    let index = WeatherAnchor.TimeWindow.daily(date(15))
+      .nearestDailyForecastIndex(in: dates, calendar: newYorkCalendar)
 
     expectNoDifference(index, 1)
     expectNoDifference(WeatherExpiration.earliest(in: dates), date(14))
+  }
+
+  @Test func dailySelectionReturnsNilBeyondTheForecastHorizon() {
+    // WeatherKit only forecasts ~10 days out; a planned day past the returned window
+    // must resolve to no forecast, not silently borrow the last available day.
+    let dates = [date(14), date(15), date(16)]
+
+    expectNoDifference(
+      WeatherAnchor.TimeWindow.daily(date(25))
+        .nearestDailyForecastIndex(in: dates, calendar: newYorkCalendar),
+      nil)
+    expectNoDifference(
+      WeatherAnchor.TimeWindow.daily(date(2))
+        .nearestDailyForecastIndex(in: dates, calendar: newYorkCalendar),
+      nil)
+  }
+
+  @Test func dailySelectionCoversTheLastForecastDay() {
+    // The final forecast day covers itself; a request on that day still resolves,
+    // one day past it does not.
+    let dates = [date(14), date(15), date(16)]
+
+    expectNoDifference(
+      WeatherAnchor.TimeWindow.daily(date(16))
+        .nearestDailyForecastIndex(in: dates, calendar: newYorkCalendar),
+      2)
+    expectNoDifference(
+      WeatherAnchor.TimeWindow.daily(date(17))
+        .nearestDailyForecastIndex(in: dates, calendar: newYorkCalendar),
+      nil)
   }
 
   private func anchor(

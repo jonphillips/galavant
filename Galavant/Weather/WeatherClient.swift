@@ -64,6 +64,14 @@ struct WeatherSummary: Equatable, Sendable {
   var expiration: Date
   var attribution: Attribution
 
+  /// Whether the response carries any weather worth surfacing. A day past the
+  /// forecast horizon resolves to an all-empty summary (no daily/current/hourly/
+  /// alert); callers drop those so a too-far-out day shows no weather rather than a
+  /// blank badge or a borrowed forecast.
+  var hasForecast: Bool {
+    current != nil || daily != nil || !hourlyInterval.isEmpty || alert != nil
+  }
+
   /// Deterministic offline value for previews and dependency tests.
   static let canned = WeatherSummary(
     current: Current(
