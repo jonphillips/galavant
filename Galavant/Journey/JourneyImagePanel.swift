@@ -25,7 +25,7 @@ struct JourneyImagePanel: View {
 
   /// A taller hero band makes the image treatment feel intentional beside the
   /// trip summary while leaving the shared Journey section gap visible below.
-  private static let cardHeight: CGFloat = 168
+  static let cardHeight: CGFloat = 168
   private static let cardSpacing: CGFloat = 12
   /// Three cards need three readable surfaces plus two existing gaps. Below this
   /// width, the panel stays at two cards rather than making each hero too narrow.

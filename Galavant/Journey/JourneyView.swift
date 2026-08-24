@@ -93,15 +93,21 @@ struct JourneyView: View {
   /// scrolling never drags it away to geography the trip never touches.
   private func journey(_ projection: JourneyProjection, plan: TripPlan) -> some View {
     VStack(alignment: .leading, spacing: Self.sectionSpacing) {
-      HStack(alignment: .top, spacing: 16) {
-        JourneySummaryHeader(trip: planningModel.trip, summary: projection.summary)
-        Spacer(minLength: 16)
-        // The header row's right side — empty until now — carries the image band;
-        // the map keeps its own full-height column below, untouched.
-        JourneyImagePanel(
-          projection: projection, plan: plan, model: model, selection: selection)
-          .frame(maxWidth: 520, alignment: .trailing)
+      GeometryReader { geometry in
+        let gap = Self.sectionSpacing
+        let availableWidth = max(0, geometry.size.width - gap)
+        let summaryWidth = availableWidth / 3
+        HStack(alignment: .top, spacing: gap) {
+          JourneySummaryHeader(trip: planningModel.trip, summary: projection.summary)
+            .frame(width: summaryWidth, alignment: .leading)
+          // The header row's right side — empty until now — carries the image band;
+          // the map keeps its own full-height column below, untouched.
+          JourneyImagePanel(
+            projection: projection, plan: plan, model: model, selection: selection)
+            .frame(width: availableWidth - summaryWidth, alignment: .trailing)
+        }
       }
+      .frame(height: JourneyImagePanel.cardHeight)
       .padding(.horizontal)
       .padding(.top, 8)
       JourneyStayRail(projection: projection, selection: $selection)

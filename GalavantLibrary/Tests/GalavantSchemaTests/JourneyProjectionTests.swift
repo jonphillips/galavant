@@ -83,29 +83,61 @@ import Testing
     #expect(emptyProjection.days[0].weatherAnchors.isEmpty)
   }
 
+  @Test func dayWeatherUsesNearestKnownDayForAnUnlocatedGapDay() {
+    let regionID = UUID()
+    let unlocatedID = UUID()
+    let region = MapRegion(
+      id: regionID,
+      name: "Region",
+      centerLatitude: 30,
+      centerLongitude: 40,
+      latitudeDelta: 1,
+      longitudeDelta: 1)
+    let unlocatedStop = scheduledStop(unlocatedID, day: 2)
+    let plan = TripPlan(
+      entries: [unlocatedStop],
+      ideasByID: [unlocatedID: Idea(id: unlocatedID, name: "Unlocated stop")],
+      lengthInDays: 2,
+      dayRegions: [TripDayRegion(id: UUID(), tripID: UUID(), dayNumber: 1, regionID: regionID)],
+      regionsByID: [regionID: region])
+
+    let projection = JourneyProjection.resolve(from: plan, tripStartDate: startDate)
+
+    #expect(projection.days[1].weatherAnchors.first?.coordinate == .init(latitude: 30, longitude: 40))
+  }
+
   @Test func transferDayCountCountsEachContiguousHandoff() {
     let tripID = UUID()
-    let firstStay = TripStay.freeform(
-      id: UUID(), tripID: tripID, title: "First Hotel", checkInDay: 1, checkOutDay: 2,
+    let firstHotelID = UUID()
+    let secondHotelID = UUID()
+    let thirdHotelID = UUID()
+    let firstStay = TripStay(
+      id: UUID(), tripID: tripID, ideaID: firstHotelID, checkInDay: 1, checkOutDay: 2,
       plannedCheckOutTime: "09:00")
-    let secondStay = TripStay.freeform(
-      id: UUID(), tripID: tripID, title: "Second Hotel", checkInDay: 2, checkOutDay: 4,
+    let secondStay = TripStay(
+      id: UUID(), tripID: tripID, ideaID: secondHotelID, checkInDay: 2, checkOutDay: 4,
       plannedCheckInTime: "17:00", plannedCheckOutTime: "09:00")
-    let thirdStay = TripStay.freeform(
-      id: UUID(), tripID: tripID, title: "Third Hotel", checkInDay: 4, checkOutDay: 5,
+    let thirdStay = TripStay(
+      id: UUID(), tripID: tripID, ideaID: thirdHotelID, checkInDay: 4, checkOutDay: 5,
       plannedCheckInTime: "17:00")
     var stop = TripIdea.freeform(
       id: UUID(), tripID: tripID, title: "Lunch", latitude: 1, longitude: 2)
     stop.apply(.timed(2, start: "12:00", end: "13:00"))
     let plan = TripPlan(
       entries: [stop],
-      ideasByID: [:],
+      ideasByID: [
+        firstHotelID: Idea(id: firstHotelID, name: "First Hotel", latitude: 1, longitude: 2),
+        secondHotelID: Idea(id: secondHotelID, name: "Second Hotel", latitude: 3, longitude: 4),
+        thirdHotelID: Idea(id: thirdHotelID, name: "Third Hotel", latitude: 5, longitude: 6)
+      ],
       lengthInDays: 5,
       tripStays: [firstStay, secondStay, thirdStay])
 
     let projection = JourneyProjection.resolve(from: plan, tripStartDate: startDate)
 
     #expect(!projection.days[1].isTransfer)
+    #expect(projection.days[1].lodgingChangeover?.from.title == "First Hotel")
+    #expect(projection.days[1].lodgingChangeover?.to.title == "Second Hotel")
     #expect(projection.summary.transferDayCount == 2)
   }
 

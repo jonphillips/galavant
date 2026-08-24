@@ -75,7 +75,11 @@ struct PlanningRow<Trailing: View>: View {
       VStack(alignment: .leading, spacing: 2) {
         Text(title ?? content.title)
         if let note, !note.isEmpty {
-          Text(note).font(.footnote).italic().foregroundStyle(.secondary)
+          Text(note)
+            .font(.footnote)
+            .italic()
+            .foregroundStyle(.secondary)
+            .lineLimit(3)
         }
         if let subtitleText {
           Text(subtitleText).font(.subheadline).foregroundStyle(.secondary)

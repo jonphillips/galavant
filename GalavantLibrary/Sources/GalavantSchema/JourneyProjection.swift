@@ -31,11 +31,15 @@ public struct JourneyProjection: Equatable, Sendable {
     public var transferTo: TravelEndpoint?
     public var transferMode: TransportMode?
     public var transferTime: TravelTime?
+    /// The lodging handoff Journey should surface, even when an intermediate
+    /// stop suppresses the itinerary's direct connector row.
+    public var lodgingChangeover: TravelConnector?
 
     public var id: Int { dayNumber }
     public var stopTitles: [String] { stops.map(\.title) }
     public var stopCount: Int { stops.count }
     public var isTransfer: Bool { transferFrom != nil && transferTo != nil }
+    public var hasLodgingChangeover: Bool { lodgingChangeover != nil }
 
     public init(
       dayNumber: Int,
@@ -47,7 +51,8 @@ public struct JourneyProjection: Equatable, Sendable {
       transferFrom: TravelEndpoint? = nil,
       transferTo: TravelEndpoint? = nil,
       transferMode: TransportMode? = nil,
-      transferTime: TravelTime? = nil
+      transferTime: TravelTime? = nil,
+      lodgingChangeover: TravelConnector? = nil
     ) {
       self.dayNumber = dayNumber
       self.date = date
@@ -59,6 +64,7 @@ public struct JourneyProjection: Equatable, Sendable {
       self.transferTo = transferTo
       self.transferMode = transferMode
       self.transferTime = transferTime
+      self.lodgingChangeover = lodgingChangeover
     }
   }
 
@@ -135,6 +141,8 @@ public struct JourneyProjection: Equatable, Sendable {
       }
       let definingStop = digests.first(where: { isWeatherSensitive($0.kind) }) ?? digests.first
       let transfer = tripPlan.transferConnector(forDay: dayNumber, travelTimes: travelTimes)
+      let lodgingChangeover = tripPlan.lodgingChangeoverConnector(
+        forDay: dayNumber, travelTimes: travelTimes)
 
       return DaySummary(
         dayNumber: dayNumber,
@@ -150,7 +158,8 @@ public struct JourneyProjection: Equatable, Sendable {
         transferFrom: transfer?.from,
         transferTo: transfer?.to,
         transferMode: transfer?.mode,
-        transferTime: transfer?.travelTime)
+        transferTime: transfer?.travelTime,
+        lodgingChangeover: lodgingChangeover)
     }
 
     let stayBands = tripPlan.stays.compactMap { stay -> StayBand? in
@@ -167,15 +176,7 @@ public struct JourneyProjection: Equatable, Sendable {
       to: tripStartDate) ?? tripStartDate
     // The header count intentionally includes every lodging handoff. The day
     // summary's `isTransfer` remains the narrower pure-transfer presentation fact.
-    let transferDayCount = Set(
-      tripPlan.stays.compactMap { leaving -> Int? in
-        let day = leaving.stay.checkOutDay
-        let anotherArrives = tripPlan.stays.contains {
-          $0.id != leaving.id && $0.stay.checkInDay == day
-        }
-        return anotherArrives ? day : nil
-      }
-    ).count
+    let transferDayCount = lodgingTransferDayCount(in: tripPlan)
     return Self(
       days: days,
       stayBands: stayBands,
@@ -207,5 +208,17 @@ public struct JourneyProjection: Equatable, Sendable {
     default:
       false
     }
+  }
+
+  private static func lodgingTransferDayCount(in tripPlan: TripPlan) -> Int {
+    Set(
+      tripPlan.stays.compactMap { leaving -> Int? in
+        let day = leaving.stay.checkOutDay
+        let anotherArrives = tripPlan.stays.contains {
+          $0.id != leaving.id && $0.stay.checkInDay == day
+        }
+        return anotherArrives ? day : nil
+      }
+    ).count
   }
 }

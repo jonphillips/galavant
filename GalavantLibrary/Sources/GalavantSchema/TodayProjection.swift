@@ -565,7 +565,11 @@ public struct WeatherAnchor: Equatable, Sendable {
     let regionCoordinate: Coordinate? = coordinate(for: tripPlan.region(forDay: dayNumber))
     let stayCoordinate: Coordinate? = stays.compactMap { coordinate(for: $0) }.first
     let dayStopCoordinate: Coordinate? = stops.compactMap { coordinate(for: $0) }.first
-    guard let coordinate = regionCoordinate ?? stayCoordinate ?? dayStopCoordinate else {
+    let coordinate = regionCoordinate
+      ?? stayCoordinate
+      ?? dayStopCoordinate
+      ?? nearestKnownCoordinate(forDay: dayNumber, in: tripPlan)
+    guard let coordinate else {
       return []
     }
     return [Self(coordinate: coordinate, timeWindow: .daily(dayStart), isWeatherSensitive: false)]
@@ -593,6 +597,28 @@ public struct WeatherAnchor: Equatable, Sendable {
   private static func coordinate(for region: MapRegion?) -> Coordinate? {
     guard let region else { return nil }
     return Coordinate(latitude: region.centerLatitude, longitude: region.centerLongitude)
+  }
+
+  /// A gap day can still be part of a known itinerary even when it has no region
+  /// assignment, covering stay, or located stop of its own. A neighboring known
+  /// day is a better coarse daily forecast than omitting weather entirely; prefer
+  /// the previous day when the nearest known days are equally distant.
+  private static func nearestKnownCoordinate(forDay dayNumber: Int, in tripPlan: TripPlan) -> Coordinate? {
+    guard tripPlan.lengthInDays > 1 else { return nil }
+    for distance in 1...tripPlan.lengthInDays {
+      for candidateDay in [dayNumber - distance, dayNumber + distance]
+      where candidateDay >= 1 && candidateDay <= tripPlan.lengthInDays {
+        let regionCoordinate: Coordinate? = coordinate(for: tripPlan.region(forDay: candidateDay))
+        let stayCoordinate: Coordinate? = tripPlan.stays(coveringDay: candidateDay)
+          .compactMap { coordinate(for: $0) }.first
+        let stopCoordinate: Coordinate? = (tripPlan.itinerary.first { $0.number == candidateDay }?.stops ?? [])
+          .compactMap { coordinate(for: $0) }.first
+        if let coordinate = regionCoordinate ?? stayCoordinate ?? stopCoordinate {
+          return coordinate
+        }
+      }
+    }
+    return nil
   }
 
   private static func timeWindow(for schedule: Schedule, tripStartDate: Date) -> TimeWindow? {
