@@ -23,4 +23,6 @@ jobs:
     with:
       package-path: GalavantLibrary
       test-runner: macos-26   # package floor is the macOS 26 SDK; the hosted image builds it today
+      min-swift: "6.4"        # Swift 6.3 (current macos-26 runner) HANGS for hours compiling
+                              # GalavantSchema; 6.4 builds it in ~42s. Skip green until runners ship 6.4.
     secrets: inherit
