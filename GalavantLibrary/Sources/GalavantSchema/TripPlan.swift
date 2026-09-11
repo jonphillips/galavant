@@ -453,8 +453,11 @@ public struct TripPlan: Equatable, Sendable {
   /// time. A check row sorts by `checkInSortMinutes` / `checkOutSortMinutes`
   /// (default evening / morning); a check-out at equal time sorts *before* a stop,
   /// a check-in *after*, so an untimed day reads check-out → stops → check-in. The
-  /// now-marker continues to key off point stops only (ADR-0011); a stay's middle
-  /// days carry no row here — they show only the home-base chip in the header.
+  /// now-marker is placed against the *whole* woven stream (`ItineraryTiming`), not
+  /// the stop list: a check-in and a calendar constraint are events you can be
+  /// before or after, so the marker sits between the last past row and the first
+  /// future one whatever kind they are. A stay's middle days carry no boundary row
+  /// — they show a home-base row instead.
   // The timeline's one-pass weave intentionally owns stop, boundary, now-marker,
   // and lodging-direction ordering so both itinerary projections agree.
   // swiftlint:disable:next function_body_length
@@ -499,16 +502,13 @@ public struct TripPlan: Equatable, Sendable {
     let constraints = calendarConstraints.filter { $0.dayNumber == day }
     boundaries += constraints.map { constraint in
       Boundary(
-        key: constraint.startTime.map { Schedule.minutes(from: $0) ?? constraint.schedule.intraDaySort } ?? 0,
-        rank: constraint.startTime == nil ? .allDayContext : .calendarConstraint,
+        key: constraint.intraDaySortMinutes,
+        rank: constraint.isAllDay ? .allDayContext : .calendarConstraint,
         item: .calendarConstraint(constraint))
     }
 
     // A day with no stops, constraints, stay boundaries, or home base has no timeline.
     guard !stops.isEmpty || !boundaries.isEmpty || !homeBaseRows.isEmpty else { return [] }
-
-    let markerAt = nowMarkerIndex(
-      in: stops, day: day, now: now, tripStartDate: tripStartDate)
 
     // One ordered stream of stops + boundaries. Stops carry their *effective*
     // intra-day key at rank 1 (ADR-0033: an Anytime stop uses its anchor, not
@@ -547,7 +547,6 @@ public struct TripPlan: Equatable, Sendable {
     let returnConnector = returnConnector(
       forDay: day, stops: stops, stays: stays,
       travelTimes: travelTimes, effectiveModes: effectiveModes)
-    var markerInserted = false
     var baseConnectorInserted = false
     var arrivalConnectorInserted = false
     var stayTransferInserted = false
@@ -563,10 +562,6 @@ public struct TripPlan: Equatable, Sendable {
           stayTransferInserted = true
         }
       case let .stop(i):
-        if let at = markerAt, i == at, !markerInserted {
-          items.append(.nowMarker)
-          markerInserted = true
-        }
         let stop = stops[i]
         if !baseConnectorInserted, baseConnector?.to.id == "stop-\(stop.id)",
           let baseConnector {
@@ -597,30 +592,28 @@ public struct TripPlan: Equatable, Sendable {
           leg: key, mode: mode, travelTime: tt)))
       }
     }
-    // Marker after the last stop when every stop is past.
-    if let at = markerAt, at == stops.count, !markerInserted {
-      items.append(.nowMarker)
+    if let at = nowMarkerIndex(
+      in: items, day: day, now: now, tripStartDate: tripStartDate) {
+      items.insert(.nowMarker, at: at)
     }
     return items
   }
 
-  /// Index in `stops` before which the "now" marker belongs, or `stops.count` to
-  /// place it after all stops (every stop is past). Nil = no marker (not today, or
-  /// no clock supplied). Factored out of `itineraryItems` to keep that body lean.
-  private func nowMarkerIndex(
-    in stops: [ResolvedStop], day: Int, now: Date?, tripStartDate: Date?
+  /// Index in the woven `items` before which the "now" marker belongs, or nil for
+  /// no marker (not today, no clock supplied, or nothing dated to sit it against).
+  /// The decision reads the whole stream through `ItineraryTiming`, so a stay
+  /// boundary or a calendar constraint places the marker exactly as a stop does.
+  func nowMarkerIndex(
+    in items: [ItineraryItem], day: Int, now: Date?, tripStartDate: Date?
   ) -> Int? {
-    guard let now, let tripStartDate, !stops.isEmpty else { return nil }
-    let cal = Calendar.current
+    guard let now, let tripStartDate, !items.isEmpty else { return nil }
+    let calendar = Calendar.current
     guard
-      let dayStart = cal.date(byAdding: .day, value: day - 1, to: tripStartDate),
-      cal.isDate(now, inSameDayAs: dayStart)
+      let dayStart = calendar.date(byAdding: .day, value: day - 1, to: tripStartDate),
+      calendar.isDate(now, inSameDayAs: dayStart)
     else { return nil }
-    return stops.firstIndex(where: { stop in
-      guard let d = nominalDate(entry: stop.entry, dayStart: dayStart, calendar: cal)
-      else { return false }
-      return d > now
-    }) ?? stops.count
+    return ItineraryTiming(dayNumber: day, tripStartDate: tripStartDate, items: items)
+      .nowMarkerIndex(in: items, now: now)
   }
 
   /// Resolve the idea for an itinerary stop by its `TripIdea` ID — used by the
@@ -636,22 +629,4 @@ public struct TripPlan: Equatable, Sendable {
 
   // MARK: - Temporal helpers
 
-  /// The nominal start time of a scheduled stop on a given day — the moment
-  /// it's considered "upcoming." Returns nil for unscheduled stops.
-  /// - `.timed` → parsed start hour:minute
-  /// - `.daypart` → `sortHour` (the representative hour for ordering)
-  /// - `.day` → end of day (23:59), so a bare-day stop is only "past" after midnight
-  private func nominalDate(entry: TripIdea, dayStart: Date, calendar: Calendar) -> Date? {
-    switch entry.schedule {
-    case .unscheduled:
-      return nil
-    case .day:
-      return calendar.date(bySettingHour: 23, minute: 59, second: 59, of: dayStart)
-    case .daypart(_, let part):
-      return calendar.date(bySettingHour: part.sortHour, minute: 0, second: 0, of: dayStart)
-    case .timed(_, let start, _):
-      guard let mins = Schedule.minutes(from: start) else { return nil }
-      return calendar.date(byAdding: .minute, value: mins, to: calendar.startOfDay(for: dayStart))
-    }
-  }
 }

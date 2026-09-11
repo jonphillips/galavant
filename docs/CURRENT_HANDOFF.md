@@ -45,12 +45,14 @@ choice, and a self-contained prompt per slice:
 [`docs/handoff/dogfood-now-and-sketch.md`](handoff/dogfood-now-and-sketch.md).
 
 - **Slice A — a sense of *now* on the planning surface — SHIPPED** (see `DONE_LOG.md`).
-- Still open, in the brief's suggested order: **F** (Today: stay boundaries and calendar
-  constraints become first-class events — actively biting on a live trip), **0** (day
-  header shows the region chip, demotes the time zone), **D** (a note on any lodging
-  stay), **B1** (device location + blue dot, needs a new ADR) then **B2** (daily map on
-  Today), **C** (generalize travel connectors to any adjacent located waypoints), and
-  **E** (sketch a trip: days × regions), which follows 0 and A.
+- **Slice F — Today: stay boundaries and constraints are real events — SHIPPED**
+  (ADR-0038 §10; see `DONE_LOG.md`).
+- Still open, in the brief's suggested order: **0** (day header shows the region chip,
+  demotes the time zone), **D** (a note on any lodging stay), **B1** (device location +
+  blue dot, needs a new ADR) then **B2** (daily map on Today), **C** (generalize travel
+  connectors to any adjacent located waypoints — its scope question is now answered: F
+  fixed the *timing* of the lodging leg, not its absence between heterogeneous
+  waypoints), and **E** (sketch a trip: days × regions), which follows 0 and A.
 
 ## Blocked (Xcode 27 beta) — cross-day itinerary drag + sectioned inline reorder
 

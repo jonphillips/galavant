@@ -1,7 +1,8 @@
 # Handoff: Dogfood round — a sense of *now*, lodging notes, heterogeneous directions, trip sketching
 
-Status: **In progress** — 2026-09-11. Seven slices, one new ADR. **Slice A shipped**
-(a sense of *now* on the planning surface, PR #115); the other six are open. All Claude-executed
+Status: **In progress** — 2026-09-11. Seven slices, one new ADR. **Slices A and F
+shipped** (a sense of *now* on the planning surface, PR #115; Today's non-stop events,
+ADR-0038 §10) and are retired from this brief; the other five are open. All Claude-executed
 (Codex is on the separate "cockpit" app — unrelated to this repo's iPhone cockpit,
 which is **Today**).
 Summary: Jon's 2026-09-11 dogfooding pass. Six complaints that resolve into one
@@ -45,7 +46,13 @@ item-5 complaint, caught in the act.
 
 All three share one root cause: **Today treats stops as the only real events.**
 Stay boundaries and calendar constraints are woven into the timeline but are
-invisible to every decision Today makes about time. See Slice F.
+invisible to every decision Today makes about time.
+
+> **Fixed 2026-09-11 (Slice F, shipped — ADR-0038 §10).** The diagnosis below is kept
+> because it is the *why* behind Slice C's remaining scope; rows 5b, 7a and 7b of the
+> table no longer describe live code. `ItineraryTiming` is now the single clock for a
+> day's rows: a connector takes the time of the event it *arrives at*, `next` admits
+> any event kind, and the marker is placed against the woven stream.
 
 Critically, this screenshot changes the diagnosis for item 5 on *this* surface. The
 missing leg here is most likely **not** a connector-derivation gap — it is
@@ -57,10 +64,10 @@ day's itinerary may render it fine. Note the internal inconsistency: a *pending 
 bypasses that time filter entirely (`case .pending: remaining.append`), but the
 connector attached to it does not.
 
-**First diagnostic step for Slice C:** open the same trip's itinerary, day 12, and
-look between St Maddalena and Check in. Leg present there but missing in Today ⇒ it's
-the Today filter (Slice F). Missing in both ⇒ it's also a derivation gap (Slice C).
-Jon's "a number of places" suggests both are real.
+**Answered for Slice C:** the leg on that day *existed* and was being mis-timed, which
+Slice F fixed. What remains for C is the genuine derivation gap — heterogeneous adjacent
+located rows that produce no connector at all, which the four bespoke `count == 1` cases
+below still can't express. Jon's "a number of places" suggests both were real.
 
 ---
 
@@ -100,11 +107,8 @@ there's an in-tree pattern to clone, guarded by tests and the drift gate.
 | **C** | Generalize travel connectors to any adjacent located waypoints | **Opus 5** | — | `fix/heterogeneous-connectors` |
 | **D** | A note on any lodging stay, idea-backed or freeform | **Sonnet 5** | — | `feat/stay-notes` |
 | **E** | Sketch a trip: days × regions as a first-class planning pass | **Opus 5** | Slice 0, Slice A | `feat/trip-sketch` |
-| **F** | Today: stay boundaries and constraints become first-class events | **Opus 5** | — | `fix/today-non-stop-events` |
 
-**Why these models.** F is the one the screenshot proves is biting *right now*, on a
-live trip — it is small in code and large in product semantics ("what counts as an
-event?"), which is why it's Opus. C is the highest-risk item on the list — it rewrites the pure
+**Why these models.** C is the highest-risk item on the list — it rewrites the pure
 core that four surfaces (itinerary rows, canvas polylines, Today, Journey) all read,
 under an existing test suite that encodes the current special cases; getting the
 dedup and `.kind` classification wrong produces phantom or doubled legs that look
@@ -119,11 +123,10 @@ patterns that already exist in-tree (the freeform-stay note path; `PlaceSelectio
 Haiku isn't right for any of these — every slice touches either the pure core under
 test or a product decision.
 
-**Sequencing.** 0, D, B1, F are independent — run them concurrently, and **start with
-F**: it's the one actively degrading a trip Jon is on. C is independent of those but
-should follow F, since F's diagnostic answers whether C's scope includes this day at
-all, and both touch the connector stream. A follows 0 (both touch the day-section
-header area). B2 follows B1. E follows A and 0 (all three touch
+**Sequencing.** 0, D, B1 are independent — run them concurrently. C is independent of
+those too; F (shipped) already answered its scope question — the lodging leg on that day
+existed and was being *mis-timed*, so C's remaining work is genuinely the heterogeneous
+pairs that draw no connector at all. B2 follows B1. E follows A and 0 (all three touch
 `TripItineraryView`/`SectionHeader`; E is the one that reshapes them).
 
 **Verification for every slice:** `scripts/check-drift.sh` (SwiftLint --strict,
@@ -575,93 +578,6 @@ Read first: AGENTS.md, docs/STYLE.md, the ADRs named in the prompt.
 >
 > **Verify:** `scripts/check-drift.sh`. Branch `feat/trip-sketch`, land via PR.
 > Update `docs/CURRENT_HANDOFF.md` and index any new doc per the house rule.
-
----
-
-## Prompt F — Today: stay boundaries and constraints are real events (Opus 5)
-
-> In `~/code/galavant/galavant`, fix three coupled defects on the **Today** surface.
-> They were all visible in a single dogfood screenshot from a live trip, and they
-> share one root cause.
->
-> **Read first:** `AGENTS.md`, `docs/STYLE.md`,
-> `docs/decisions/0038-journey-today-projections-and-weather.md`,
-> `docs/decisions/0039-today-execution-completion-skip-defer.md`,
-> `docs/decisions/0011-accommodations-as-stays.md`,
-> `docs/decisions/0033-floating-untimed-stops.md`, and all of
-> `GalavantLibrary/Sources/GalavantSchema/TodayProjection.swift`.
->
-> **The evidence.** Day 12 of 16, 13:45, one hotel checking in at 15:00:
->
-> ```
-> Nothing else is scheduled / Your day is clear from here.
-> REMAINING
->   ○  St Maddalena / Lunch        (pending)
->   •  Check in / Forestis  15:00
->   •  Now
-> ```
->
-> Three things are wrong at once: Today says the day is clear while a pending stop and
-> a 75-minutes-away check-in sit right below it; the **Now** marker renders *below* a
-> future 15:00 row; and the directions row between St Maddalena and the check-in is
-> absent.
->
-> **The root cause.** Today treats stops as the only real events. Stay boundaries and
-> calendar constraints are woven into `itineraryItems` as rows, but every *decision*
-> about time ignores them:
->
-> 1. `TodayProjection.next` matches `case .stop` only, so a check-in can never be
->    "next". Compounding it, `isUpcoming` returns **false** when a stop has no nominal
->    date — which is every floating Anytime stop (ADR-0033), not just past ones. So
->    `next` goes nil and `TodayNoNextCard` claims the day is clear.
-> 2. `TripPlan.nowMarkerIndex(in: stops, …)` scans **stops only**. With every stop
->    past it returns `stops.count`, and `itineraryItems` appends the marker at the very
->    end of `items` — after the 15:00 check-in row.
-> 3. `TodayProjection.rowNominalDate` gives a `.connector` the time of its
->    **preceding** row (`[preceding, following]….first`). A `.toLodging` leg between a
->    past lunch and a future check-in inherits the *lunch's* time and fails
->    `nominalDate >= now`, so `remainingTimeline` drops it. Note the inconsistency it
->    sits next to: a **pending stop bypasses that time filter entirely**
->    (`case .pending: remaining.append`), while the connector attached to it does not.
->
-> **Build.**
-> 1. **Make `next` event-kind-agnostic.** A check-in, a check-out, and a located
->    calendar constraint are all things that can be next. Decide what `LeaveBy` and
->    `WeatherAnchor` mean for a non-stop event — "leave by" to reach a 15:00 check-in
->    is exactly as meaningful as to reach a museum — and say so in the PR body. Keep
->    `TodayProjection.Next.item` as an `ItineraryItem`; it already admits every case.
-> 2. **Handle the undated stop.** `isUpcoming` treating "no clock" as "not upcoming"
->    is wrong for a floating stop: an Anytime stop that hasn't been done is still
->    ahead of you. Resolve it against the stop's *effective* intra-day position
->    (`TripIdea.effectiveIntraDaySort`, the same anchor the timeline weaves on) rather
->    than inventing a clock time.
-> 3. **Place the Now marker against the whole stream.** Move the decision so it keys
->    off the woven, time-sorted items, not the bare stop list. The marker must land
->    between the last row whose time is past and the first row whose time is future,
->    whatever kind those rows are.
-> 4. **Fix the connector's time.** A connector belongs to the event it *arrives at* —
->    prefer the **following** neighbor's time, falling back to the preceding one. Fix
->    the doc comment, which currently asserts the opposite rule. Then reconcile the
->    filter inconsistency in 3 above: either pending rows and their connectors both
->    bypass the time filter, or neither does. Pick one and make it explicit — a
->    timeline that shows a stop but hides the directions to it is the worst of both.
->
-> **Constraints.** Today stays a read-only projection over `TripPlan` (ADR-0038) — no
-> new model, no persistence, no second itinerary. The changes belong in the pure core
-> (`TodayProjection`, `TripPlan.nowMarkerIndex`) with tests, not in `TodayView`. Be
-> careful with `nowMarkerIndex`: the **itinerary** also renders the now-marker from the
-> same function, so a change there is visible on both surfaces — that's desirable, but
-> verify the whole-trip itinerary still reads correctly.
->
-> **Test each defect as a named test** in `GalavantLibrary/Tests`, using the
-> screenshot's shape as the fixture: a day whose only remaining events are a pending
-> untimed stop and a later check-in, evaluated at a `now` between them. Assert `next`
-> is the check-in, the marker sits before it, and the connector survives.
->
-> **Out of scope:** the day map (Slice B2), stop completion semantics, weather.
->
-> **Verify:** `scripts/check-drift.sh`. Branch `fix/today-non-stop-events`, land via
-> PR. Update `docs/CURRENT_HANDOFF.md`.
 
 ---
 

@@ -11,7 +11,11 @@ device-direct), ADR-0003 (CloudKit-shared domain state — forecasts are **not**
 state and never enter SQLite/CloudKit). Builds on ADR-0011 (stays as spans — Journey is
 where the deferred span visualization finally lands), ADR-0012 (per-day region as the
 locality heading), and the M3f now-marker + `DirectionsClient`/ETA cache. Seeds M10.
-Sequencing decision (Jon, 2026-08-15): **build Today first**, dogfood it, then Journey.*
+Sequencing decision (Jon, 2026-08-15): **build Today first**, dogfood it, then Journey.
+**Amended 2026-09-11** (dogfood Slice F, §10): an *event* on Today is no longer only a
+stop — a stay's check-in/check-out and a timed calendar constraint can be what happens
+next, the now-marker is placed against the whole woven stream rather than the stop list,
+and a connector belongs to the event it arrives at.*
 
 ## Context
 
@@ -185,6 +189,38 @@ Explicitly **out of V1** (deferred, may never be needed):
 WeatherKit requires the Apple Weather trademark + a link to its attribution/legal info. A
 quiet, compliant attribution affordance ships with the first weather-bearing surface, even
 though the concept renderings omit it.
+
+### 10. An event is anything that happens to you, not just a stop (amendment, 2026-09-11)
+
+Shipped Today asked every *timing* question of stops alone, which a live trip exposed in
+one screenshot: an hour before a 15:00 hotel check-in, Today said "your day is clear from
+here", drew the **Now** marker *below* the 15:00 row, and hid the directions leading to it.
+
+The amendment is one idea applied three times — **a stay boundary and a timed calendar
+constraint are events in the same sense a stop is**:
+
+- **`next` is event-kind-agnostic.** Anything you can be late for can be next. `LeaveBy`
+  answers for a boundary the same way it answers for a stop, from the row's own
+  `eventSchedule`: a real clock when the stay has one (planned time first, then the
+  property's official time), otherwise the honest approximate ETA rather than an invented
+  departure. A stay-boundary weather anchor is the stay's own coordinate (that is where
+  you will be), falling back to the day's coarse geography; an all-day constraint is day
+  *context* — never something you leave for — so it is never "next", but it stays listed.
+- **The now-marker is placed against the woven stream** (`ItineraryTiming`), not the bare
+  stop list, so it lands between the last past row and the first future one whatever kind
+  they are. It is the same function the whole-trip itinerary renders, so both surfaces
+  gained the fix together.
+- **"Is it still ahead of me?" is asked at the row's woven position.** An Anytime stop
+  (ADR-0033) has no clock, and treating "no clock" as "already behind you" was wrong: it
+  is judged by its *effective* intra-day anchor — the same key the timeline sorts it by —
+  so an anchored one falls behind as its anchor passes and an unanchored one floats at the
+  end of the day, still ahead of you.
+- **A connector belongs to the event it arrives at**, and survives exactly when that event
+  does. Pending stops keep ignoring the clock (ADR-0039 — you can still do them), and now
+  so do the directions to them: a timeline that shows a stop but hides the way there was
+  the worst of both.
+
+Still a read-only projection: no new model, no persistence, no second itinerary.
 
 ## Consequences
 

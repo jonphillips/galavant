@@ -131,8 +131,11 @@ public struct TodayProjection: Equatable, Sendable {
       now: now,
       tripStartDate: tripStartDate,
       stays: tripPlan.stays(coveringDay: dayNumber))
+    let timing = ItineraryTiming(
+      dayNumber: dayNumber, tripStartDate: tripStartDate, items: items)
     let nextSelection = next(
       in: items,
+      timing: timing,
       tripPlan: tripPlan,
       dayNumber: dayNumber,
       now: now,
@@ -141,11 +144,7 @@ public struct TodayProjection: Equatable, Sendable {
       leaveByBuffer: leaveByBuffer)
     let progress = makeProgress(in: items)
 
-    let timeline = remainingTimeline(
-      items: items,
-      now: now,
-      dayNumber: dayNumber,
-      tripStartDate: tripStartDate)
+    let timeline = remainingTimeline(items: items, timing: timing, now: now)
 
     return Self(
       dayContext: dayContext(for: dayNumber, date: date, tripPlan: tripPlan),
@@ -197,8 +196,16 @@ public struct TodayProjection: Equatable, Sendable {
     return calendar.startOfDay(for: date)
   }
 
+  /// The next thing that happens to you today — of any kind. A stay's check-in,
+  /// its check-out and a timed calendar constraint are events exactly as a stop
+  /// is: you travel to them, you can be late for them, and a day that still holds
+  /// one is not "clear from here" (the dogfood defect this replaced). Travel
+  /// guidance follows the row's own `eventSchedule`, so "leave by" for a 15:00
+  /// check-in is as real as for a 15:00 museum and an untimed boundary stays
+  /// honestly approximate.
   private static func next(
     in items: [ItineraryItem],
+    timing: ItineraryTiming,
     tripPlan: TripPlan,
     dayNumber: Int,
     now: Date,
@@ -206,14 +213,13 @@ public struct TodayProjection: Equatable, Sendable {
     travelTimes: [LegKey: [TransportMode: TravelTime]],
     leaveByBuffer: TimeInterval
   ) -> (index: Int, value: Next)? {
-    guard let index = items.firstIndex(where: { item in
-      guard case let .stop(stop) = item else { return false }
-      return stop.entry.isPending && isUpcoming(stop, now: now, tripStartDate: tripStartDate)
+    guard let index = items.indices.first(where: { index in
+      isNext(items[index], at: index, timing: timing, in: items, now: now)
     }) else { return nil }
     let item = items[index]
-    guard case let .stop(stop) = item else { return nil }
+    guard let schedule = item.eventSchedule else { return nil }
     let connector = items.compactMap { element -> TravelConnector? in
-      guard case let .connector(connector) = element, connector.to.id == itemID(for: stop)
+      guard case let .connector(connector) = element, connector.to.id == item.travelEndpointID
       else { return nil }
       return connector
     }.first
@@ -222,71 +228,105 @@ public struct TodayProjection: Equatable, Sendable {
       Next(
         item: item,
         leaveBy: LeaveBy.resolve(
-          schedule: stop.entry.schedule,
+          schedule: schedule,
           connector: connector,
           travelTimes: travelTimes,
           tripStartDate: tripStartDate,
           buffer: leaveByBuffer),
         weatherAnchor: WeatherAnchor.resolve(
-          for: stop,
+          for: item,
           in: tripPlan,
           dayNumber: dayNumber,
           tripStartDate: tripStartDate)))
   }
 
+  /// Whether a row is a candidate to be *next*: an event in its own right, not
+  /// already behind you, and — for a stop — not already done or skipped
+  /// (ADR-0039). "Behind you" is the row's woven position (`ItineraryTiming`), so
+  /// an Anytime stop is judged by the anchor it is drawn at rather than by a clock
+  /// time it does not have; an unanchored one floats at the end of the day and
+  /// stays ahead of you, which is the truth about it.
+  private static func isNext(
+    _ item: ItineraryItem,
+    at index: Int,
+    timing: ItineraryTiming,
+    in items: [ItineraryItem],
+    now: Date
+  ) -> Bool {
+    switch item {
+    case let .stop(stop) where !stop.entry.isPending:
+      return false
+    case let .calendarConstraint(constraint) where constraint.isAllDay:
+      // Day-long context is not something you leave for.
+      return false
+    case .stop, .checkIn, .checkOut, .calendarConstraint:
+      guard let date = timing.nominalDate(at: index, in: items) else { return true }
+      return date >= now
+    case .connector, .nowMarker, .homeBase:
+      return false
+    }
+  }
+
+  /// What is still on the day, in timeline order. Two rules, applied to every row:
+  ///
+  /// 1. A row that is **day-scoped rather than momentary** ignores the clock. A
+  ///    pending stop stays listed after its hour passes (you can still do it, and
+  ///    still complete it — ADR-0039); an all-day calendar constraint is context
+  ///    for the whole day. Everything else survives while its time is still ahead.
+  /// 2. A **connector shares the fate of the row it arrives at.** The alternative
+  ///    — a stop shown with the directions to it hidden — was the worst of both,
+  ///    and it is exactly what the dogfood screenshot did to the 15:00 check-in.
   private static func remainingTimeline(
-    items: [ItineraryItem], now: Date, dayNumber: Int, tripStartDate: Date
+    items: [ItineraryItem], timing: ItineraryTiming, now: Date
   ) -> (
     remaining: [RemainingItem],
     doneStops: [ResolvedStop],
     skippedStops: [ResolvedStop]
   ) {
-    var completedStopCount = 0
-    var skippedStopCount = 0
     var doneStops: [ResolvedStop] = []
     var skippedStops: [ResolvedStop] = []
-    var remaining: [RemainingItem] = []
+    var keeps = [Bool?](repeating: nil, count: items.count)
 
     for index in items.indices {
-      let item = items[index]
-      if case let .stop(stop) = item {
+      switch items[index] {
+      case let .stop(stop):
         switch stop.entry.outcome {
         case .done:
-          completedStopCount += 1
           doneStops.append(stop)
-          continue
+          keeps[index] = false
         case .skipped:
-          skippedStopCount += 1
           skippedStops.append(stop)
-          continue
+          keeps[index] = false
         case .pending:
-          remaining.append(.item(item))
-          continue
+          keeps[index] = true
         }
+      case .connector:
+        continue  // resolved against its arrival row below
+      case .nowMarker:
+        continue  // the divider itself is never filtered, and anchors nothing
+      case let .calendarConstraint(constraint) where constraint.isAllDay:
+        keeps[index] = true
+      case .calendarConstraint, .checkIn, .checkOut, .homeBase:
+        keeps[index] = timing.nominalDate(at: index, in: items).map { $0 >= now } ?? true
       }
-
-      let nominalDate = rowNominalDate(
-        for: item,
-        preceding: index > items.startIndex ? items[index - 1] : nil,
-        following: index + 1 < items.endIndex ? items[index + 1] : nil,
-        dayNumber: dayNumber,
-        tripStartDate: tripStartDate)
-      if let nominalDate {
-        if nominalDate >= now {
-          remaining.append(.item(item))
-        }
-      } else {
-        remaining.append(.item(item))
-      }
+    }
+    for index in items.indices {
+      guard case .connector = items[index] else { continue }
+      keeps[index] = keeps[(index + 1)...].compactMap { $0 }.first
+        ?? keeps[..<index].compactMap { $0 }.last
+        ?? true
     }
 
     var summary: [RemainingItem] = []
-    if completedStopCount > 0 {
-      summary.append(.done(count: completedStopCount))
+    if !doneStops.isEmpty {
+      summary.append(.done(count: doneStops.count))
     }
-    if skippedStopCount > 0 {
-      summary.append(.skipped(count: skippedStopCount))
+    if !skippedStops.isEmpty {
+      summary.append(.skipped(count: skippedStops.count))
     }
+    let remaining = items.indices
+      .filter { keeps[$0] ?? true }
+      .map { RemainingItem.item(items[$0]) }
     return (summary + remaining, doneStops, skippedStops)
   }
 
@@ -305,55 +345,6 @@ public struct TodayProjection: Equatable, Sendable {
       }
     }
     return Progress(done: done, total: done + pending)
-  }
-
-  /// Returns the event time represented by a timeline row. A connector belongs
-  /// to the event at the edge it leaves; its neighboring row supplies that
-  /// event's time because the connector itself carries only endpoints.
-  private static func rowNominalDate(
-    for item: ItineraryItem,
-    preceding: ItineraryItem?,
-    following: ItineraryItem?,
-    dayNumber: Int,
-    tripStartDate: Date
-  ) -> Date? {
-    switch item {
-    case let .stop(stop):
-      return nominalDate(for: stop.entry.schedule, tripStartDate: tripStartDate)
-    case let .checkIn(stay):
-      return boundaryDate(
-        minutes: stay.stay.checkInSortMinutes,
-        dayNumber: dayNumber,
-        tripStartDate: tripStartDate)
-    case let .checkOut(stay):
-      return boundaryDate(
-        minutes: stay.stay.checkOutSortMinutes,
-        dayNumber: dayNumber,
-        tripStartDate: tripStartDate)
-    case let .calendarConstraint(constraint):
-      return nominalDate(for: constraint.schedule, tripStartDate: tripStartDate)
-    case .connector:
-      return [preceding, following].compactMap { neighboringItem in
-        neighboringItem.flatMap {
-          rowNominalDate(
-            for: $0,
-            preceding: nil,
-            following: nil,
-            dayNumber: dayNumber,
-            tripStartDate: tripStartDate)
-        }
-      }.first
-    case .nowMarker, .homeBase: return nil
-    }
-  }
-
-  private static func boundaryDate(
-    minutes: Int, dayNumber: Int, tripStartDate: Date
-  ) -> Date? {
-    guard let start = dayStart(
-      dayNumber: dayNumber, tripStartDate: tripStartDate, calendar: .current)
-    else { return nil }
-    return Calendar.current.date(byAdding: .minute, value: minutes, to: start)
   }
 
   private static func tonight(forDay dayNumber: Int, in tripPlan: TripPlan) -> Tonight? {
@@ -417,18 +408,6 @@ public struct TodayProjection: Equatable, Sendable {
       transfer: transfer)
   }
 
-  private static func itemID(for stop: ResolvedStop) -> String {
-    "stop-\(stop.id)"
-  }
-
-  private static func isUpcoming(
-    _ stop: ResolvedStop, now: Date, tripStartDate: Date
-  ) -> Bool {
-    guard let date = nominalDate(for: stop.entry.schedule, tripStartDate: tripStartDate) else {
-      return false
-    }
-    return date >= now
-  }
 }
 
 /// Honest travel guidance for the next stop: a clock only when the schedule
@@ -445,8 +424,10 @@ public enum LeaveBy: Equatable, Sendable {
     tripStartDate: Date,
     buffer: TimeInterval
   ) -> Self? {
+    // Any leg that *arrives at* the next event answers "when do I leave?" — a
+    // 15:00 check-in is as travel-to-able as a 15:00 museum, so the connector's
+    // kind no longer gates the guidance; the caller picks the arriving leg.
     guard let connector,
-      connector.kind == .fromLodging || connector.kind == .betweenStops,
       let travelTime = travelTimes[connector.leg]?[connector.mode]
     else { return nil }
 
@@ -529,6 +510,34 @@ public struct WeatherAnchor: Equatable, Sendable {
     return Self(coordinate: coordinate, timeWindow: timeWindow, isWeatherSensitive: sensitive)
   }
 
+  /// The anchor for any timeline row that can be *next* (ADR-0038 asks Today's
+  /// hero one weather question; which row it is asking about is not weather's
+  /// business). A stay boundary anchors on the stay itself — that is where you
+  /// will be — falling back to the day's coarse geography when the stay carries no
+  /// coordinate; a calendar constraint has no geography of its own and always uses
+  /// the day's. Neither is weather-sensitive: you check in rain or shine.
+  public static func resolve(
+    for item: ItineraryItem,
+    in tripPlan: TripPlan,
+    dayNumber: Int,
+    tripStartDate: Date
+  ) -> Self? {
+    if case let .stop(stop) = item {
+      return resolve(for: stop, in: tripPlan, dayNumber: dayNumber, tripStartDate: tripStartDate)
+    }
+    let stayCoordinate: Coordinate? = {
+      switch item {
+      case let .checkIn(stay), let .checkOut(stay), let .homeBase(stay): coordinate(for: stay)
+      default: nil
+      }
+    }()
+    guard let schedule = item.eventSchedule,
+      let coordinate = stayCoordinate ?? dayCoordinate(forDay: dayNumber, in: tripPlan),
+      let timeWindow = timeWindow(for: schedule, tripStartDate: tripStartDate)
+    else { return nil }
+    return Self(coordinate: coordinate, timeWindow: timeWindow, isWeatherSensitive: false)
+  }
+
   /// Resolves the coarse weather questions for one whole Journey day. A normal
   /// day has one anchor; a direct lodging transfer has an AM origin and PM
   /// destination so Journey never compresses two materially different places
@@ -544,7 +553,6 @@ public struct WeatherAnchor: Equatable, Sendable {
         dayNumber: dayNumber, tripStartDate: tripStartDate, calendar: .current)
     else { return [] }
 
-    let stays = tripPlan.stays(coveringDay: dayNumber)
     if let transfer = tripPlan.transferConnector(forDay: dayNumber, travelTimes: travelTimes) {
       return [
         Self(
@@ -572,17 +580,23 @@ public struct WeatherAnchor: Equatable, Sendable {
 
     // The coarse fallback deliberately uses a daily window: Journey answers
     // where the day is spent, not the exact forecast for one itinerary row.
-    let regionCoordinate: Coordinate? = coordinate(for: tripPlan.region(forDay: dayNumber))
-    let stayCoordinate: Coordinate? = stays.compactMap { coordinate(for: $0) }.first
-    let dayStopCoordinate: Coordinate? = stops.compactMap { coordinate(for: $0) }.first
-    let coordinate = regionCoordinate
-      ?? stayCoordinate
-      ?? dayStopCoordinate
+    let coordinate = dayCoordinate(forDay: dayNumber, in: tripPlan)
       ?? nearestKnownCoordinate(forDay: dayNumber, in: tripPlan)
     guard let coordinate else {
       return []
     }
     return [Self(coordinate: coordinate, timeWindow: .daily(dayStart), isWeatherSensitive: false)]
+  }
+
+  /// Where a day is spent, as coarsely as the plan knows it: its assigned region,
+  /// else a stay covering it, else any located stop on it.
+  private static func dayCoordinate(forDay dayNumber: Int, in tripPlan: TripPlan) -> Coordinate? {
+    let regionCoordinate: Coordinate? = coordinate(for: tripPlan.region(forDay: dayNumber))
+    let stayCoordinate: Coordinate? = tripPlan.stays(coveringDay: dayNumber)
+      .compactMap { coordinate(for: $0) }.first
+    let stopCoordinate: Coordinate? = (tripPlan.itinerary.first { $0.number == dayNumber }?.stops ?? [])
+      .compactMap { coordinate(for: $0) }.first
+    return regionCoordinate ?? stayCoordinate ?? stopCoordinate
   }
 
   private static func isWeatherSensitive(_ kind: IdeaKind?) -> Bool {
@@ -656,36 +670,3 @@ public struct WeatherAnchor: Equatable, Sendable {
   }
 }
 
-private func dayStart(dayNumber: Int, tripStartDate: Date, calendar: Calendar) -> Date? {
-  guard let date = calendar.date(byAdding: .day, value: dayNumber - 1, to: tripStartDate) else {
-    return nil
-  }
-  return calendar.startOfDay(for: date)
-}
-
-private func date(
-  dayNumber: Int, time: String, tripStartDate: Date, calendar: Calendar
-) -> Date? {
-  guard let dayStart = dayStart(dayNumber: dayNumber, tripStartDate: tripStartDate, calendar: calendar),
-    let minutes = Schedule.minutes(from: time)
-  else { return nil }
-  return calendar.date(byAdding: .minute, value: minutes, to: dayStart)
-}
-
-private func nominalDate(for schedule: Schedule, tripStartDate: Date) -> Date? {
-  let calendar = Calendar.current
-  switch schedule {
-  case .unscheduled:
-    return nil
-  case let .day(dayNumber):
-    guard let start = dayStart(dayNumber: dayNumber, tripStartDate: tripStartDate, calendar: calendar)
-    else { return nil }
-    return calendar.date(bySettingHour: 23, minute: 59, second: 59, of: start)
-  case let .daypart(dayNumber, part):
-    guard let start = dayStart(dayNumber: dayNumber, tripStartDate: tripStartDate, calendar: calendar)
-    else { return nil }
-    return calendar.date(bySettingHour: part.sortHour, minute: 0, second: 0, of: start)
-  case let .timed(dayNumber, start, _):
-    return date(dayNumber: dayNumber, time: start, tripStartDate: tripStartDate, calendar: calendar)
-  }
-}
