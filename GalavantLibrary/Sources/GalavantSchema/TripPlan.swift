@@ -458,9 +458,9 @@ public struct TripPlan: Equatable, Sendable {
   /// before or after, so the marker sits between the last past row and the first
   /// future one whatever kind they are. A stay's middle days carry no boundary row
   /// — they show a home-base row instead.
-  // The timeline's one-pass weave intentionally owns stop, boundary, now-marker,
-  // and lodging-direction ordering so both itinerary projections agree.
-  // swiftlint:disable:next function_body_length
+  // The timeline's one-pass weave and `routeLegs` read the *same* ordered event
+  // rows (`orderedEventRows`), so the direction rows here and the ETA leg set can
+  // never tell different stories.
   public func itineraryItems(
     forDay day: Int,
     travelTimes: [LegKey: [TransportMode: TravelTime]],
@@ -470,128 +470,42 @@ public struct TripPlan: Equatable, Sendable {
     stays: [ResolvedStay] = []
   ) -> [ItineraryItem] {
     let stops = itinerary.first(where: { $0.number == day })?.stops ?? []
+    let rows = orderedEventRows(forDay: day, stops: stops, stays: stays)
+    guard !rows.isEmpty else { return [] }
 
-    // The day's check boundary rows (a stay leaving and/or a stay arriving today).
-    // Rank orders ties against a same-minute stop: check-out (0) before, check-in
-    // (2) after, stops sit at rank 1. A *middle* day a stay covers (neither
-    // boundary) instead gets a persistent home-base row, pinned to the top.
-    enum TieBreak: Int {
-      case allDayContext
-      case checkOut
-      case calendarConstraint
-      case stop
-      case checkIn
-    }
-    struct Boundary { let key: Int; let rank: TieBreak; let item: ItineraryItem }
-    var boundaries: [Boundary] = []
-    var homeBaseRows: [ItineraryItem] = []
-    for resolved in stays {
-      let stay = resolved.stay
-      if stay.checkOutDay == day {
-        boundaries.append(Boundary(
-          key: stay.checkOutSortMinutes, rank: .checkOut, item: .checkOut(resolved)))
-      }
-      if stay.checkInDay == day {
-        boundaries.append(Boundary(
-          key: stay.checkInSortMinutes, rank: .checkIn, item: .checkIn(resolved)))
-      }
-      if stay.checkInDay != day, stay.checkOutDay != day {
-        homeBaseRows.append(.homeBase(resolved))  // covered middle day
+    // Every direction row is one leg of the day's located-waypoint chain, dressed
+    // with its mode and ETA. A connector renders immediately before the row of the
+    // waypoint it arrives at; the return-to-base leg (no `to` row of its own — the
+    // base is drawn once, atop the day or earlier) trails the day's last stop row.
+    var connectorsBeforeRow: [Int: [TravelConnector]] = [:]
+    var trailingConnectors: [TravelConnector] = []
+    for leg in routeLegs(forDay: day, stops: stops, stays: stays) {
+      let mode = effectiveModes[leg.leg] ?? .walking
+      let connector = TravelConnector(
+        from: leg.from, to: leg.to, leg: leg.leg, mode: mode,
+        travelTime: travelTimes[leg.leg]?[mode], kind: leg.kind)
+      if let index = leg.toRowIndex {
+        connectorsBeforeRow[index, default: []].append(connector)
+      } else {
+        trailingConnectors.append(connector)
       }
     }
-    let constraints = calendarConstraints.filter { $0.dayNumber == day }
-    boundaries += constraints.map { constraint in
-      Boundary(
-        key: constraint.intraDaySortMinutes,
-        rank: constraint.isAllDay ? .allDayContext : .calendarConstraint,
-        item: .calendarConstraint(constraint))
-    }
-
-    // A day with no stops, constraints, stay boundaries, or home base has no timeline.
-    guard !stops.isEmpty || !boundaries.isEmpty || !homeBaseRows.isEmpty else { return [] }
-
-    // One ordered stream of stops + boundaries. Stops carry their *effective*
-    // intra-day key at rank 1 (ADR-0033: an Anytime stop uses its anchor, not
-    // end-of-day, so it weaves among boundaries where it visually sits); a stable
-    // sort keeps stops in their existing order on ties.
-    let effectiveKey = TripIdea.effectiveIntraDaySort(stops.map(\.entry))
-    enum Slot { case stop(Int); case boundary(ItineraryItem) }
-    var stream: [(key: Int, rank: TieBreak, slot: Slot)] =
-      stops.enumerated().map { (i, stop) in
-        (effectiveKey[stop.id] ?? stop.entry.schedule.intraDaySort, .stop, .stop(i))
-      }
-    stream += boundaries.map { ($0.key, $0.rank, .boundary($0.item)) }
-    stream.sort {
-      ($0.key, $0.rank.rawValue) < ($1.key, $1.rank.rawValue)
-    }
-    let lastStopStreamIndex = stream.lastIndex { entry in
-      if case .stop = entry.slot { return true }
+    let lastStopRowIndex = rows.lastIndex {
+      if case .stop = $0 { return true }
       return false
     }
 
-    // Home-base rows lead the day (the persistent "you're staying here" anchor).
-    var items: [ItineraryItem] = homeBaseRows
-    let baseConnector = baseConnector(
-      forDay: day, stops: stops, stays: stays,
-      travelTimes: travelTimes, effectiveModes: effectiveModes)
-    // The outbound leg from a mid-day check-in to the next stop, mirroring the
-    // return leg so a changeover day reads symmetrically (arrival → stop → arrival)
-    // instead of showing only the trip home. Nil except on such a day; never the
-    // same leg as `baseConnector` (`arrivalToStopRoute` de-dupes).
-    let arrivalConnector = arrivalConnector(
-      forDay: day, stops: stops, stays: stays,
-      travelTimes: travelTimes, effectiveModes: effectiveModes)
-    let stayTransferConnector = stayTransferConnector(
-      forDay: day, stops: stops, stays: stays,
-      travelTimes: travelTimes, effectiveModes: effectiveModes)
-    let returnConnector = returnConnector(
-      forDay: day, stops: stops, stays: stays,
-      travelTimes: travelTimes, effectiveModes: effectiveModes)
-    var baseConnectorInserted = false
-    var arrivalConnectorInserted = false
-    var stayTransferInserted = false
-    for (streamIndex, entry) in stream.enumerated() {
-      switch entry.slot {
-      case let .boundary(item):
-        items.append(item)
-        if case let .checkOut(stay) = item,
-          !stayTransferInserted,
-          stayTransferConnector?.from.id == "stay-\(stay.id)",
-          let stayTransferConnector {
-          items.append(.connector(stayTransferConnector))
-          stayTransferInserted = true
-        }
-      case let .stop(i):
-        let stop = stops[i]
-        if !baseConnectorInserted, baseConnector?.to.id == "stop-\(stop.id)",
-          let baseConnector {
-          items.append(.connector(baseConnector))
-          baseConnectorInserted = true
-        }
-        if !arrivalConnectorInserted, arrivalConnector?.to.id == "stop-\(stop.id)",
-          let arrivalConnector {
-          items.append(.connector(arrivalConnector))
-          arrivalConnectorInserted = true
-        }
-        items.append(.stop(stop))
-        if streamIndex == lastStopStreamIndex, let returnConnector {
-          items.append(.connector(returnConnector))
-        }
-        // A connector trails a stop when the next route stop (i+1) is also located.
-        guard i < stops.count - 1 else { continue }
-        let next = stops[i + 1]
-        guard
-          let fromLat = stop.content.latitude, let fromLon = stop.content.longitude,
-          let toLat = next.content.latitude, let toLon = next.content.longitude
-        else { continue }
-        let key = LegKey(fromLat: fromLat, fromLon: fromLon, toLat: toLat, toLon: toLon)
-        let mode = effectiveModes[key] ?? .walking
-        let tt = travelTimes[key]?[mode]
-        items.append(.connector(TravelConnector(
-          from: endpoint(for: stop), to: endpoint(for: next),
-          leg: key, mode: mode, travelTime: tt)))
+    var items: [ItineraryItem] = []
+    for (index, row) in rows.enumerated() {
+      if let connectors = connectorsBeforeRow[index] {
+        items.append(contentsOf: connectors.map(ItineraryItem.connector))
+      }
+      items.append(row)
+      if index == lastStopRowIndex {
+        items.append(contentsOf: trailingConnectors.map(ItineraryItem.connector))
       }
     }
+
     if let at = nowMarkerIndex(
       in: items, day: day, now: now, tripStartDate: tripStartDate) {
       items.insert(.nowMarker, at: at)

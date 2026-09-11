@@ -1,9 +1,10 @@
 # Handoff: Dogfood round — a sense of *now*, lodging notes, heterogeneous directions, trip sketching
 
-Status: **In progress** — 2026-09-11. Seven slices, one new ADR. **Slices A, F and B1
+Status: **In progress** — 2026-09-11. Seven slices, one new ADR. **Slices A, F, B1 and C
 shipped** (a sense of *now* on the planning surface, PR #115; Today's non-stop events,
-ADR-0038 §10; device location and the blue dot, ADR-0046) and are retired from this brief;
-the other four are open. All Claude-executed
+ADR-0038 §10; device location and the blue dot, ADR-0046; heterogeneous connectors +
+the ADR-0046 §5 recentre-on-me gesture) and are retired from this brief; the remaining
+open slices are **0, D, B2, and E**. All Claude-executed
 (Codex is on the separate "cockpit" app — unrelated to this repo's iPhone cockpit,
 which is **Today**).
 Summary: Jon's 2026-09-11 dogfooding pass. Six complaints that resolve into one
@@ -328,93 +329,18 @@ what was built is in `docs/DONE_LOG.md`. Two notes for B2, the dependent slice:
 
 ---
 
-## Prompt C — Directions between *any* adjacent located things (Opus 5)
+## Prompt C — Directions between *any* adjacent located things — SHIPPED
 
-> In `~/code/galavant/galavant`, fix missing travel-time connectors between
-> heterogeneous itinerary rows.
->
-> **Do this first.** Jon's dogfood screenshot showed a missing St Maddalena → Forestis
-> check-in leg on **Today**, and the likely cause there is Today's own time filter,
-> not connector derivation — that half is **Slice F**, which should land before this.
-> So begin by reproducing on the *itinerary*: a day with a located stop followed by a
-> located check-in, and confirm whether the leg renders there. If it does, this slice
-> is purely about the structural gaps below; if it doesn't, you have a live
-> reproduction of gap 4. Either way the generalization below is the work — the repro
-> just tells you which test fails first.
->
-> **Read first:** `AGENTS.md`, `docs/STYLE.md`, `docs/trip-canvas.md`,
-> `docs/decisions/0011-accommodations-as-stays.md`,
-> `docs/decisions/0035-itinerary-alternatives.md`,
-> `docs/decisions/0043-travel-mode-overrides-keyed-by-stable-slot-identity.md`, and
-> the whole of `GalavantLibrary/Sources/GalavantSchema/TripPlan+Travel.swift`.
->
-> **Problem.** Connectors are not a general rule — they are four hand-written special
-> cases (`lodgingToStopRoute`, `arrivalToStopRoute`, `stopToLodgingRoute`,
-> `stayTransfer`), each guarded by `count == 1` conditions, woven into the timeline by
-> a hand-rolled insertion pass in `TripPlan.itineraryItems` that matches connectors to
-> rows by string-comparing endpoint IDs (`baseConnector?.to.id == "stop-\(stop.id)"`).
-> Anything the four cases don't name draws no directions. Known gaps:
->
-> 1. **Two or more stays covering a day** that aren't exactly one departure + one
->    arrival (overlapping stays, a data slip, a three-hotel day): every lodging leg
->    returns nil. `TripStay.overlapping` exists precisely because this state is
->    allowed — advisory, never blocked (ADR-0011 §6) — so the connectors must degrade
->    gracefully rather than vanish.
-> 2. **A located `CalendarTripConstraint`** is woven into the timeline as a real row
->    but is never an endpoint — a stop→obligation→stop day loses both legs around it.
-> 3. **Check-out → first stop on a changeover day** where a stay leaves but none
->    arrives: `lodgingToStopRoute` requires `departures.count == 1 && arrivals.count == 1`
->    when `stays.count > 1`, and returns nil otherwise.
-> 4. **Stop → check-in** when stops follow the check-in: `returnConnector` is appended
->    after the last stop in the stream rather than adjacent to the `.checkIn` row, so
->    the leg can render in the wrong place or not at all.
-> 5. **Unlocated stays** (freeform, no coordinate) produce nil endpoints and take the
->    whole day's lodging legs down with them.
->
-> **Change the shape, not just the cases.** Derive the day's ordered **located
-> waypoint chain** from the already-woven timeline stream, then emit a connector
-> between each consecutive pair of located waypoints. One rule, applied to stops,
-> stay boundaries, home-base rows, and located calendar constraints alike. The four
-> special cases become classifications of the resulting leg, not gates on whether a
-> leg exists.
->
-> **Invariants that must survive** (there is an existing test suite encoding them —
-> read it before you change it):
-> - `TravelConnector.Kind` still classifies each leg correctly; itinerary rows and the
->   canvas style off it.
-> - Alternatives rings keep sharing one `travelEndpointID` (`ring-<groupID>`), so a
->   swap doesn't create a new logical leg or lose a mode override (ADR-0043).
-> - **No duplicate legs.** The current `arrivalToStopRoute` de-dupes against
->   `lodgingToStopRoute` by identity comparison; whatever replaces it must not emit
->   the same directed pair twice.
-> - The stay-transfer suppression rule survives: a direct hotel→hotel leg is drawn
->   only when no stop sits between check-out and check-in (`transferConnector`), while
->   Journey's looser `lodgingChangeoverConnector` still reports the changeover
->   regardless. Two different consumers, two different rules — keep both.
-> - `routeEndpoints(forDay:)` stays consistent with the timeline: the canvas polyline
->   and the rows must tell the same story.
-> - **One pass.** PR #83 fixed a lockup caused by rebuilding the leg graph per leg
->   (`legModes` carries the comment). Do not reintroduce per-leg graph derivation —
->   the waypoint chain is built once per day.
-> - `allLegs` / `legIdentities` must still enumerate exactly the legs the timeline
->   renders, or `fetchMissingETAs` will fetch the wrong set.
->
-> **Then simplify the weave.** With a general rule in place, the connector-insertion
-> bookkeeping in `itineraryItems` (`baseConnectorInserted`, `arrivalConnectorInserted`,
-> `stayTransferInserted`, the string-matched `to.id` comparisons, the
-> `// swiftlint:disable:next function_body_length`) should collapse substantially. If
-> it doesn't, the abstraction is wrong — say so in the PR rather than layering a fifth
-> case on top.
->
-> **Test the gaps explicitly**, in `GalavantLibrary/Tests`: the five numbered cases
-> above, each as a named test. Unlocated endpoints must still produce *no* leg (a leg
-> to nowhere is worse than no leg) — assert that too.
->
-> **Out of scope:** fetching ETAs differently, transport-mode resolution, any UI
-> change beyond what falls out of rows receiving connectors they didn't get before.
->
-> **Verify:** `scripts/check-drift.sh`. Branch `fix/heterogeneous-connectors`, land
-> via PR with a body that lists which previously-missing legs now render.
+The four hand-written lodging cases (`lodgingToStopRoute`, `arrivalToStopRoute`,
+`stopToLodgingRoute`, `stayTransfer`) collapsed into one rule over the day's ordered
+located-waypoint chain (`TripPlan.routeLegs`, derived from the shared
+`orderedEventRows`). `TravelConnector.Kind` is now a classification of the leg's
+endpoints, not a gate on whether it exists; the weave's insertion bookkeeping and the
+`function_body_length` waiver are gone. Gaps 1–5 (overlapping stays, a located
+constraint's transparency, checkout-with-no-arrival, stop-before-mid-day-check-in,
+unlocated stays) each landed with a named test in
+`GalavantSchemaTests/HeterogeneousConnectorTests.swift`. The **recentre-on-me** gesture
+(ADR-0046 §5) shipped alongside. What's built is in `docs/DONE_LOG.md`.
 
 ---
 
