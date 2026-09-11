@@ -24,6 +24,8 @@
 	<true/>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>Galavant reads shared Calendar events for a trip so it can reconcile real commitments with the itinerary.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Galavant shows where you are on your trip map, so you can see what's nearby. Your location stays on this device.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

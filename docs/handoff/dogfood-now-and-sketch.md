@@ -1,8 +1,9 @@
 # Handoff: Dogfood round — a sense of *now*, lodging notes, heterogeneous directions, trip sketching
 
-Status: **In progress** — 2026-09-11. Seven slices, one new ADR. **Slices A and F
+Status: **In progress** — 2026-09-11. Seven slices, one new ADR. **Slices A, F and B1
 shipped** (a sense of *now* on the planning surface, PR #115; Today's non-stop events,
-ADR-0038 §10) and are retired from this brief; the other five are open. All Claude-executed
+ADR-0038 §10; device location and the blue dot, ADR-0046) and are retired from this brief;
+the other four are open. All Claude-executed
 (Codex is on the separate "cockpit" app — unrelated to this repo's iPhone cockpit,
 which is **Today**).
 Summary: Jon's 2026-09-11 dogfooding pass. Six complaints that resolve into one
@@ -266,60 +267,18 @@ Read first: AGENTS.md, docs/STYLE.md, the ADRs named in the prompt.
 
 ---
 
-## Prompt B1 — Device location and the blue dot (Opus 5)
+## Prompt B1 — Device location and the blue dot — SHIPPED
 
-> In `~/code/galavant/galavant`, add device location to the app and show the user's
-> position on the trip canvas map.
->
-> **Read first:** `AGENTS.md`, `docs/STYLE.md`, `docs/decisions/README.md`,
-> `docs/decisions/0005-platforms-capture-distribution.md`,
-> `docs/trip-canvas.md`. The app currently has **no location capability whatsoever** —
-> no `CLLocationManager`, no usage-description key, no `UserAnnotation`. You are
-> adding the first one.
->
-> **Write the ADR first.** Next free number in `docs/decisions/`, indexed in
-> `docs/decisions/README.md` in the same change. It should settle at minimum:
-> when-in-use authorization only (never Always, never background updates); location
-> is **never persisted and never synced** — it is ephemeral view state, which keeps
-> it out of CloudKit and out of the travel-party share entirely; what the app does
-> when authorization is denied or restricted (the map must stay fully useful); and
-> whether the ETA/`leaveBy` machinery in Today is allowed to read it later (state the
-> intent even if you don't build it — Jon will want "leave by" measured from where he
-> actually is, not from the previous stop).
->
-> **Build.**
-> 1. A `LocationClient` dependency in the app layer, in the exact shape of
->    `Trips/DirectionsClient.swift` — a `Sendable` struct of closures, `DependencyKey`
->    with `liveValue` and a deterministic `testValue`, and a `DependencyValues`
->    accessor. Do not introduce a singleton or an `ObservableObject` manager
->    (`docs/STYLE.md`). Prefer the modern async `CLLocationUpdate` sequence over the
->    delegate API; this is past your training cutoff, so check current CoreLocation
->    docs and the installed `swiftui-specialist` / `swiftui-whats-new-27` skills
->    rather than recalling an older pattern.
-> 2. `NSLocationWhenInUseUsageDescription` via **`project.yml`** (the app target's
->    `info.properties` — `project.yml` is source of truth), then `xcodegen generate`,
->    committing both `project.yml` and the regenerated `project.pbxproj`. Write the
->    string as a user-facing sentence: it's what Jon's wife reads on first launch.
-> 3. Blue dot on `Trips/TripCanvasMapView.swift`: add `UserAnnotation()` to the map
->    content and a `MapUserLocationButton` in the map controls. Authorization is
->    requested **on first use of that control**, not on app launch or on trip open —
->    an unprompted permission dialog on opening a trip is exactly the wrong first
->    impression.
-> 4. Denied/restricted: no dot, no button, no error state shouting at the user. The
->    map keeps working.
->
-> **Do not** change camera framing behavior (`frameSelection`, `revealStop`) to
-> follow the user. Auto-centring on the device fights the day-lens framing that
-> ADR-0012 established. If you think there's a case for a "recentre on me" gesture,
-> propose it in the PR body rather than building it.
->
-> **Out of scope:** the Today cockpit map (Slice B2 consumes this client), the Ideas
-> map, any distance-to-stop or arrival-detection logic.
->
-> **Verify:** `scripts/check-drift.sh`. Location is simulator-verifiable (Features →
-> Location → Custom) but per repo convention **do not run the simulator** — Jon
-> verifies on device. Branch `feat/device-location`, land via PR. Update
-> `docs/CURRENT_HANDOFF.md`.
+The ADR the prompt asked for is
+[`docs/decisions/0046-device-location-ephemeral-when-in-use.md`](../decisions/0046-device-location-ephemeral-when-in-use.md);
+what was built is in `docs/DONE_LOG.md`. Two notes for B2, the dependent slice:
+
+- The seam it consumes is `LocationClient.updates` (`Galavant/LocationClient.swift`) — an
+  `AsyncStream<LocationReading>`. The Info.plist key is already in `project.yml`.
+- The canvas holds **no live location session**: `UserAnnotation` draws the dot from
+  MapKit's own updates, and `DeviceLocationModel` consumes the stream only until the
+  authorization question is answered. B2 needs the *coordinate*, so it starts its own
+  stream and owns its lifetime.
 
 ---
 

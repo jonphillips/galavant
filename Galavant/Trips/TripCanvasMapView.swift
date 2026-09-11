@@ -29,6 +29,9 @@ struct TripCanvasMapView: View {
   /// out"). Entering the mode is the only custom gesture, and it is a single
   /// stationary long press.
   @State private var isPlacingPin = false
+  /// The blue dot and its control (ADR-0046). View-scoped by design: a device
+  /// position is ephemeral state that never reaches the schema or CloudKit.
+  @State private var deviceLocation = DeviceLocationModel()
 
   /// The days the map draws: every day covered by the selected stay, just the
   /// selected day, or all when the lens is "All".
@@ -51,6 +54,16 @@ struct TripCanvasMapView: View {
     }
     baseContent
     transientFreeformContent
+    userLocationContent
+  }
+
+  /// The system blue dot, drawn only once the user has actually authorized
+  /// location. MapKit maintains it from here; nothing in the app records it.
+  @MapContentBuilder
+  private var userLocationContent: some MapContent {
+    if deviceLocation.state == .tracking {
+      UserAnnotation()
+    }
   }
 
   var body: some View {
@@ -81,7 +94,17 @@ struct TripCanvasMapView: View {
       .mapFeatureSelectionDisabled { feature in
         feature.kind != .pointOfInterest
       }
+      // Supplying controls replaces the defaults, so the compass and scale are
+      // named explicitly to keep them.
+      .mapControls {
+        MapCompass()
+        MapScaleView()
+        locationControl
+      }
     }
+    // Authorization can change in Settings while the app is away; re-read it on
+    // the way back in. Never prompts.
+    .onAppear { deviceLocation.refresh() }
     .onChange(of: model.canvasSelectedDay, initial: true) { _, _ in frameSelection() }
     .onChange(of: model.canvasSelectedStayID) { _, _ in frameSelection() }
     .onChange(of: model.trip?.mainTransportationMode) { _, _ in
@@ -275,6 +298,32 @@ struct TripCanvasMapView: View {
       return model.plan.baseStays(forDay: nil).filter { $0.id == stayID }
     }
     return model.plan.baseStays(forDay: model.canvasSelectedDay)
+  }
+
+  // MARK: - Device location
+
+  /// One slot in the map controls, in two forms (ADR-0046 §3): the app's own
+  /// button until the user has been asked — tapping it is what raises the system
+  /// prompt — and the system's button afterwards, so follow-mode and heading
+  /// behave the way they do in Maps. Denied or restricted shows neither.
+  @ViewBuilder
+  private var locationControl: some View {
+    switch deviceLocation.state {
+    case .offered, .asking:
+      Button {
+        Task { await deviceLocation.locationButtonTapped() }
+      } label: {
+        Image(systemName: "location")
+      }
+      .buttonStyle(.glass)
+      .buttonBorderShape(.circle)
+      .disabled(deviceLocation.state == .asking)
+      .accessibilityLabel("Show my location")
+    case .tracking:
+      MapUserLocationButton()
+    case .withheld:
+      EmptyView()
+    }
   }
 
   // MARK: - Selection
