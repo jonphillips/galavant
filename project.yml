@@ -83,6 +83,9 @@ targets:
         # calendars in a dated trip's scope. EventKit full access needs this usage
         # description key; no entitlement is required.
         NSCalendarsFullAccessUsageDescription: "Galavant reads shared Calendar events for a trip so it can reconcile real commitments with the itinerary."
+        # Device location (ADR-0046): when-in-use only, asked for the first time you
+        # tap the location button on a map, never persisted and never synced.
+        NSLocationWhenInUseUsageDescription: "Galavant shows where you are on your trip map, so you can see what's nearby. Your location stays on this device."
     dependencies:
       - target: GalavantShare
       - sdk: WeatherKit.framework

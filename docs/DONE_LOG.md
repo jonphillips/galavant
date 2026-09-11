@@ -1,5 +1,47 @@
 # Done Log — completed enhancements
 
+## Device location and the blue dot (dogfood Slice B1) — SHIPPED (2026-09-11)
+
+The app had no location capability at all — no `CLLocationManager`, no usage-description
+key, no `UserAnnotation` anywhere in the tree. Standing on a hillside in the Dolomites,
+the trip canvas could show every pin except the one for where Jon was standing. **ADR-0046**
+settles the terms this first capability arrives on; this slice builds it on the trip canvas
+only.
+
+- **`LocationClient`** (app layer, shaped like `DirectionsClient`): a `Sendable` struct of
+  closures — `authorization()` reads the status *without* prompting, `updates()` yields an
+  `AsyncStream` of readings. Built on the modern `CLLocationUpdate.liveUpdates()` sequence,
+  not `CLLocationManager` delegation, so taking the when-in-use service session, prompting,
+  and learning the answer all ride one channel with one lifetime. No singleton, no manager
+  object.
+- **A reading is a value, not a nullable coordinate plus flags**: `LocationReading` is
+  `located / awaitingAuthorization / denied / restricted / unavailable`, and
+  `LocationAuthorization` collapses the CoreLocation status enum to the four cases the UI
+  can act on.
+- **Asked for on use.** `DeviceLocationModel` (view-scoped `@Observable`, held in the map's
+  `@State`) starts in `.offered` when authorization is undetermined; the stream — and
+  therefore the system prompt — starts only when the user taps the map's location control.
+  Opening a trip prompts nobody.
+- **Two forms of one control.** Before authorization it's the app's own button; after, it's
+  the system `MapUserLocationButton`, so follow-mode and heading behave like Maps. Denied or
+  restricted renders neither, plus no dot and **no error state** — the map keeps working and
+  says nothing.
+- **Never persisted, never synced.** Location has no schema presence by design: no `@Table`,
+  nothing registered with `GalavantCloudSync`, so it cannot reach CloudKit or the
+  travel-party share. It lives in one view's state and is gone with it.
+- **Camera framing untouched.** `frameSelection` / `revealStop` still frame the day lens and
+  the selected stop (ADR-0012); the only way location moves the camera is the user tapping
+  the system button.
+- `NSLocationWhenInUseUsageDescription` added via `project.yml` (source of truth), with
+  `project.pbxproj` and the generated `Info.plist` regenerated and committed alongside.
+
+Tests: 11 cases in `GalavantTests/DeviceLocationTests.swift` — the prompting branch (offers
+but never starts the stream on open or refresh; tap→grant tracks; tap→refuse goes quiet; a
+settled state never re-asks; a grant made in Settings is picked up on return) and the
+CoreLocation→app mapping. Verification: `scripts/check-drift.sh` green, and the new suites
+run green on the simulator. Device verification (the actual dot and the first-launch prompt
+string) is Jon's.
+
 ## Today: stay boundaries and constraints are real events (dogfood Slice F) — SHIPPED (2026-09-11)
 
 One dogfood screenshot from a live trip (day 12 of 16, 13:45, a 15:00 check-in) showed
