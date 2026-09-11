@@ -459,6 +459,29 @@ import Testing
     #expect(items.first == .nowMarker)
   }
 
+  @Test func nowMarkerSitsBeforeAFutureCheckInRow() {
+    let (stopID, hotelID) = (UUID(), UUID())
+    // Day 2: a 09:00 stop (past) and an 18:00 check-in (future) — now = 15:30.
+    // The marker used to scan stops only, so it landed after every row.
+    let hotel = TripStay(
+      id: UUID(), tripID: UUID(), ideaID: hotelID,
+      checkInDay: 2, checkOutDay: 3, checkInTime: "18:00")
+    let p = TripPlan(
+      entries: [entry(idea: stopID, status: .scheduled, schedule: .timed(2, start: "09:00", end: nil))],
+      ideasByID: [stopID: idea(stopID, lat: nil, lon: nil), hotelID: idea(hotelID, lat: nil, lon: nil)],
+      lengthInDays: 3,
+      tripStays: [hotel])
+    let items = p.itineraryItems(
+      forDay: 2, travelTimes: [:], effectiveModes: [:],
+      now: june20_1530, tripStartDate: tripStartJune19,
+      stays: p.stays(coveringDay: 2))
+
+    // stop(09:00), nowMarker, checkIn(18:00)
+    #expect(items.count == 3)
+    #expect(items[1] == .nowMarker)
+    if case .checkIn = items[2] {} else { Issue.record("expected the check-in below the marker") }
+  }
+
   @Test func connectorAbsentForUnlocatedNeighbour() {
     let (a, b, c) = (UUID(), UUID(), UUID())
     let entries = [

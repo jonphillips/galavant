@@ -159,4 +159,30 @@ public enum ItineraryItem: Identifiable, Equatable, Sendable {
     case .homeBase(let s): "homeBase-\(s.id)"
     }
   }
+
+  /// The identity this row wears as the *endpoint* of a travel connector, or nil
+  /// for rows you never travel to. Distinct from `id`, which identifies the row:
+  /// a connector arriving at a stay names `stay-…` whichever boundary row that
+  /// stay is drawn as, and an alternatives ring names its ring (ADR-0035).
+  public var travelEndpointID: String? {
+    switch self {
+    case let .stop(stop): stop.travelEndpointID
+    case let .checkIn(stay), let .checkOut(stay), let .homeBase(stay): stay.travelEndpointID
+    case .calendarConstraint, .connector, .nowMarker: nil
+    }
+  }
+
+  /// The schedule this row behaves as when asked a travel or weather question.
+  /// Nil for rows that are not events in their own right. A stay boundary reports
+  /// its check schedule, so "leave by" for a 15:00 check-in is as answerable as
+  /// for a 15:00 museum, and an untimed one stays honestly approximate.
+  public var eventSchedule: Schedule? {
+    switch self {
+    case let .stop(stop): stop.entry.schedule
+    case let .checkIn(stay): stay.stay.checkInSchedule
+    case let .checkOut(stay): stay.stay.checkOutSchedule
+    case let .calendarConstraint(constraint): constraint.schedule
+    case .connector, .nowMarker, .homeBase: nil
+    }
+  }
 }

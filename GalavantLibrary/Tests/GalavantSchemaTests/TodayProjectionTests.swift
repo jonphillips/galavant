@@ -493,6 +493,168 @@ import Testing
     #expect(today.remaining.isEmpty == false)
   }
 
+  // MARK: - Stay boundaries and constraints are real events (dogfood, Slice F)
+
+  /// The dogfood screenshot's exact shape: a done morning stop, a pending Anytime
+  /// lunch anchored to it, and a 15:00 check-in — read at 13:45, between them.
+  private func dogfoodDay(
+    lunchSchedule: Schedule = .day(2),
+    checkInTime: String? = "15:00"
+  ) -> (plan: TripPlan, travelTimes: [LegKey: [TransportMode: TravelTime]], lunchID: UUID, stayID: UUID) {
+    let (morningID, lunchID, hotelID) = (UUID(), UUID(), UUID())
+    let hotel = TripStay(
+      id: UUID(),
+      tripID: tripID,
+      ideaID: hotelID,
+      checkInDay: 2,
+      checkOutDay: 3,
+      checkInTime: checkInTime)
+    let tripPlan = plan(
+      entries: [
+        stop(morningID, schedule: .timed(2, start: "09:00", end: nil), completedAt: date(day: 2, hour: 9)),
+        stop(lunchID, schedule: lunchSchedule, rank: 1),
+      ],
+      ideas: [
+        idea(morningID, name: "Morning walk", latitude: 1, longitude: 2),
+        idea(lunchID, name: "St Maddalena", latitude: 3, longitude: 4),
+        idea(hotelID, name: "Forestis", latitude: 5, longitude: 6),
+      ],
+      stays: [hotel])
+    let toLodging = LegKey(fromLat: 3, fromLon: 4, toLat: 5, toLon: 6)
+    return (tripPlan, [toLodging: [.walking: TravelTime(seconds: 15 * 60, meters: 8_000)]], lunchID, hotel.id)
+  }
+
+  private func remainingItems(_ projection: TodayProjection) -> [ItineraryItem] {
+    projection.remaining.compactMap {
+      guard case let .item(item) = $0 else { return nil }
+      return item
+    }
+  }
+
+  @Test func aFutureCheckInIsNextWhenNoStopIsStillAhead() {
+    let day = dogfoodDay()
+
+    let today = projection(day.plan, now: date(day: 2, hour: 13, minute: 45), travelTimes: day.travelTimes)
+
+    guard case let .checkIn(stay) = today.next?.item else {
+      Issue.record("a 15:00 check-in 75 minutes away is what happens next, not nothing")
+      return
+    }
+    #expect(stay.id == day.stayID)
+    // A check-in you drive 15 minutes to is a departure time like any other.
+    #expect(today.next?.leaveBy == .clock(date(day: 2, hour: 14, minute: 45)))
+  }
+
+  @Test func anUntimedCheckInIsNextWithoutInventingAClock() {
+    let day = dogfoodDay(checkInTime: nil)
+
+    let today = projection(day.plan, now: date(day: 2, hour: 13, minute: 45), travelTimes: day.travelTimes)
+
+    guard case .checkIn = today.next?.item else {
+      Issue.record("an untimed check-in is still the next event of the day")
+      return
+    }
+    #expect(today.next?.leaveBy == .awayBy(TravelTime(seconds: 15 * 60, meters: 8_000), mode: .walking))
+  }
+
+  @Test func nowMarkerSitsAboveAFutureCheckInRatherThanBelowIt() {
+    let day = dogfoodDay()
+
+    let today = projection(day.plan, now: date(day: 2, hour: 13, minute: 45), travelTimes: day.travelTimes)
+
+    let items = remainingItems(today)
+    let markerIndex = items.firstIndex { if case .nowMarker = $0 { return true } else { return false } }
+    let checkInIndex = items.firstIndex { if case .checkIn = $0 { return true } else { return false } }
+    let lunchIndex = items.firstIndex { item in
+      guard case let .stop(stop) = item else { return false }
+      return stop.idea?.id == day.lunchID
+    }
+    guard let markerIndex, let checkInIndex, let lunchIndex else {
+      Issue.record("expected the lunch, the marker and the check-in on the timeline")
+      return
+    }
+    #expect(lunchIndex < markerIndex)
+    #expect(markerIndex < checkInIndex)
+  }
+
+  @Test func directionsToTheNextCheckInSurviveThePastStopTheyLeaveFrom() {
+    let day = dogfoodDay()
+
+    let today = projection(day.plan, now: date(day: 2, hour: 13, minute: 45), travelTimes: day.travelTimes)
+
+    // The leg belongs to the 15:00 arrival, not to the lunch it departs.
+    #expect(remainingItems(today).contains { item in
+      guard case let .connector(connector) = item else { return false }
+      return connector.kind == .toLodging && connector.to.id == "stay-\(day.stayID)"
+    })
+  }
+
+  @Test func anAnchoredAnytimeStopFallsBehindYouButAFloatingOneDoesNot() {
+    let anchored = dogfoodDay()
+    let floatingID = UUID()
+    let floating = plan(
+      entries: [stop(floatingID, schedule: .day(2))],
+      ideas: [idea(floatingID, name: "Wander")])
+    let afternoon = date(day: 2, hour: 13, minute: 45)
+
+    // Anchored to a 09:00 stop, the Anytime lunch sits at 09:00 in the weave — so
+    // at 13:45 it is behind you, and the 15:00 check-in is what's next.
+    let anchoredToday = projection(anchored.plan, now: afternoon, travelTimes: anchored.travelTimes)
+    #expect(stopID(in: anchoredToday.next?.item) != anchored.lunchID)
+    #expect(remainingItems(anchoredToday).contains { stopID(in: $0) == anchored.lunchID })
+    // Un-anchored it floats at the end of the day — still ahead of you, never
+    // dropped for "having no clock" the way `isUpcoming` used to drop it.
+    let floatingToday = projection(floating, now: afternoon)
+    #expect(stopID(in: floatingToday.next?.item) == floatingID)
+  }
+
+  @Test func aTimedCalendarConstraintCanBeNextButAllDayContextCannot() throws {
+    let id = UUID()
+    let civilDay = try #require(CalendarCivilDate(year: 2026, month: 8, day: 16))
+    let nextCivilDay = try #require(CalendarCivilDate(year: 2026, month: 8, day: 17))
+    let bookingStart = try #require(CalendarCivilDateTime(date: civilDay, hour: 16, minute: 0))
+    let bookingEnd = try #require(CalendarCivilDateTime(date: civilDay, hour: 17, minute: 0))
+    let bookingCommitment = try #require(CalendarCommitment(
+      temporal: .floating(start: bookingStart, end: bookingEnd), availability: .busy))
+    let strikeCommitment = try #require(CalendarCommitment(
+      temporal: .allDay(start: civilDay, endExclusive: nextCivilDay), availability: .free))
+    let timed = try #require(CalendarTripConstraint(
+      id: UUID(),
+      tripID: tripID,
+      sourceIdentityHash: "timed",
+      title: "Cable car booking",
+      dayNumber: 2,
+      startTime: "16:00",
+      endTime: "17:00",
+      commitment: bookingCommitment))
+    let allDay = try #require(CalendarTripConstraint(
+      id: UUID(),
+      tripID: tripID,
+      sourceIdentityHash: "all-day",
+      title: "Transit strike",
+      dayNumber: 2,
+      startTime: nil,
+      endTime: nil,
+      commitment: strikeCommitment))
+    var tripPlan = plan(
+      entries: [stop(id, schedule: .timed(2, start: "09:00", end: nil))],
+      ideas: [idea(id, name: "Morning walk")])
+    tripPlan.calendarConstraints = [allDay, timed]
+
+    let today = projection(tripPlan, now: date(day: 2, hour: 13, minute: 45))
+
+    guard case let .calendarConstraint(constraint) = today.next?.item else {
+      Issue.record("a 16:00 obligation is the next thing on the day")
+      return
+    }
+    #expect(constraint.id == timed.id)
+    // Day-long context is never something you leave for, but it stays on the day.
+    #expect(remainingItems(today).contains { item in
+      guard case let .calendarConstraint(constraint) = item else { return false }
+      return constraint.id == allDay.id
+    })
+  }
+
   private func stopID(in item: ItineraryItem?) -> UUID? {
     guard case let .stop(stop) = item else { return nil }
     return stop.idea?.id

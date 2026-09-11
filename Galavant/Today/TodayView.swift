@@ -102,7 +102,7 @@ struct TodayView: View {
     guard
       let projection,
       let tripStartDate = planningModel.trip?.startDate,
-      let nextID = projection.next?.item.id
+      let nextID = projection.next?.item.travelEndpointID
     else { return nil }
     return planningModel.plan.itineraryItems(
       forDay: projection.dayContext.dayNumber,
@@ -119,8 +119,11 @@ struct TodayView: View {
   }
 
   private var nextIdeaID: Idea.ID? {
-    guard let next = projection?.next, case let .stop(stop) = next.item else { return nil }
-    return stop.idea?.id
+    switch projection?.next?.item {
+    case let .stop(stop): stop.idea?.id
+    case let .checkIn(stay), let .checkOut(stay), let .homeBase(stay): stay.idea?.id
+    default: nil
+    }
   }
 
   private var displayImageIdeaIDs: [Idea.ID] {

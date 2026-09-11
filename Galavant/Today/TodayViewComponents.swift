@@ -92,6 +92,34 @@ struct TodayNextHero: View {
     return stop
   }
 
+  /// The pool record behind the next event, whatever kind it is — a stop's idea
+  /// or a stay's hotel. Drives the hero image and the details tap.
+  private var idea: Idea? {
+    switch next.item {
+    case let .stop(stop): stop.idea
+    case let .checkIn(stay), let .checkOut(stay), let .homeBase(stay): stay.idea
+    case .calendarConstraint, .connector, .nowMarker: nil
+    }
+  }
+
+  /// What the next event is called, and when it happens. A stay boundary and a
+  /// calendar obligation are events like a stop (ADR-0038 as amended), so the hero
+  /// speaks all three.
+  private var headline: (title: String, detail: String)? {
+    switch next.item {
+    case let .stop(stop):
+      (stop.content.title, stop.entry.schedule.display)
+    case let .checkIn(stay):
+      (stay.content.title, ["Check in", stay.stay.checkInDisplay.trailing].compactMap { $0 }.joined(separator: " · "))
+    case let .checkOut(stay):
+      (stay.content.title, ["Check out", stay.stay.checkOutDisplay.trailing].compactMap { $0 }.joined(separator: " · "))
+    case let .calendarConstraint(constraint):
+      (constraint.title, constraint.displayTime ?? constraint.startTime ?? "All day")
+    case .homeBase, .connector, .nowMarker:
+      nil
+    }
+  }
+
   var body: some View {
     VStack(alignment: .leading, spacing: 18) {
       Text("NEXT")
@@ -99,16 +127,16 @@ struct TodayNextHero: View {
         .foregroundStyle(.tint)
         .tracking(1.2)
 
-      if let stop {
-        if let idea = stop.idea {
+      if let headline {
+        if let idea {
           Button { onSelectIdea(idea) } label: {
-            stopSummary(stop)
+            summary(headline)
           }
           .buttonStyle(.plain)
           .contentShape(Rectangle())
-          .accessibilityHint("Shows stop details.")
+          .accessibilityHint("Shows details.")
         } else {
-          stopSummary(stop)
+          summary(headline)
         }
       }
 
@@ -143,9 +171,9 @@ struct TodayNextHero: View {
     .shadow(color: .black.opacity(0.06), radius: 16, y: 8)
   }
 
-  private func stopSummary(_ stop: ResolvedStop) -> some View {
+  private func summary(_ headline: (title: String, detail: String)) -> some View {
     VStack(alignment: .leading, spacing: 14) {
-      if let ideaID = stop.idea?.id,
+      if let ideaID = idea?.id,
         let image = displayImage ?? thumbnailByIdea[ideaID].flatMap({ UIImage(data: $0) }) {
         Image(uiImage: image)
           .resizable()
@@ -155,18 +183,18 @@ struct TodayNextHero: View {
           .clipped()
           .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
           .accessibilityHidden(true)
-      } else if let coordinate = trailCoordinate(for: stop) {
+      } else if let stop, let coordinate = trailCoordinate(for: stop) {
         TodayTrailThumbnail(coordinate: coordinate, title: stop.content.title)
           .frame(maxWidth: .infinity)
           .frame(height: 180)
       }
 
       VStack(alignment: .leading, spacing: 8) {
-        Text(stop.content.title)
+        Text(headline.title)
           .font(.title.weight(.bold))
           .fixedSize(horizontal: false, vertical: true)
 
-        Text(stop.entry.schedule.display)
+        Text(headline.detail)
           .font(.headline)
           .foregroundStyle(.secondary)
 
@@ -206,14 +234,20 @@ struct TodayNextHero: View {
   }
 
   private var nextEndpoint: TravelEndpoint? {
+    let content: StopContent? = switch next.item {
+    case let .stop(stop): stop.content
+    case let .checkIn(stay), let .checkOut(stay), let .homeBase(stay): stay.content
+    case .calendarConstraint, .connector, .nowMarker: nil
+    }
     guard
-      let stop,
-      let latitude = stop.content.latitude,
-      let longitude = stop.content.longitude
+      let content,
+      let id = next.item.travelEndpointID,
+      let latitude = content.latitude,
+      let longitude = content.longitude
     else { return nil }
     return TravelEndpoint(
-      id: "stop-\(stop.id)",
-      title: stop.content.title,
+      id: id,
+      title: content.title,
       latitude: latitude,
       longitude: longitude)
   }

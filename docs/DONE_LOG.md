@@ -1,5 +1,42 @@
 # Done Log — completed enhancements
 
+## Today: stay boundaries and constraints are real events (dogfood Slice F) — SHIPPED (2026-09-11)
+
+One dogfood screenshot from a live trip (day 12 of 16, 13:45, a 15:00 check-in) showed
+three defects at once: Today said *"Nothing else is scheduled / Your day is clear from
+here"* while a pending stop and a 75-minutes-away check-in sat below it; the **Now** marker
+rendered *below* the future 15:00 row; and the directions row leading to that check-in was
+gone. One root cause — Today treated stops as the only real events, so every *decision*
+about time ignored the stay boundaries and calendar constraints already woven into the
+stream (ADR-0038 §10, amended).
+
+- **One clock for the whole stream.** New pure `ItineraryTiming` (GalavantSchema) answers
+  "when does this row happen?" for any `ItineraryItem`, using the same intra-day minutes
+  the timeline weave sorts by. The marker placement, `next`, and the remaining timeline all
+  read it, so they can no longer disagree; the duplicated date helpers in `TripPlan` and
+  `TodayProjection` collapsed into it.
+- **`next` is event-kind-agnostic.** A check-in, a check-out and a timed calendar
+  constraint can be next. `LeaveBy` reads the row's `eventSchedule` — a real clock when the
+  stay has one, an honest ETA when it doesn't — and the weather anchor for a boundary is
+  the stay's own coordinate, falling back to the day's geography. All-day constraints stay
+  day *context*: never next, always listed. Today's hero renders all three kinds.
+- **The Now marker keys off the woven items**, not the bare stop list, so it lands between
+  the last past row and the first future one whatever kind they are — on the whole-trip
+  itinerary as well as on Today.
+- **An undated stop is judged where it is drawn.** An Anytime stop (ADR-0033) resolves
+  against its *effective* intra-day anchor instead of being dropped for "having no clock":
+  anchored, it falls behind as its anchor passes; unanchored, it floats at the end of the
+  day and stays ahead of you.
+- **A connector belongs to the event it arrives at** and survives exactly when that event
+  does — the filter inconsistency that showed a pending stop while hiding the directions
+  to it is gone.
+
+Tests: six named `TodayProjectionTests` cases built on the screenshot's shape (check-in as
+next with a real `leaveBy`, the untimed-check-in ETA, marker above the check-in, the
+surviving `.toLodging` leg, anchored-vs-floating Anytime, timed-vs-all-day constraints) plus
+`nowMarkerSitsBeforeAFutureCheckInRow` on the itinerary surface. Verification:
+`scripts/check-drift.sh` green.
+
 ## A sense of *now* on the planning surface (dogfood Slice A) — SHIPPED (2026-09-11)
 
 Jon's complaint: *"When the trip is ON, everything needs a sense of now. Not just the

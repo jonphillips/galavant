@@ -130,6 +130,22 @@ extension TripStay {
       ?? Self.defaultCheckOutMinutes
   }
 
+  /// The schedule a check-in behaves as for travel and weather questions: a real
+  /// clock when one is known (planned first, then the property's official time —
+  /// the same ladder `checkInSortMinutes` orders by), and otherwise the honest
+  /// "sometime that day". Keeps `LeaveBy` from inventing a departure time for a
+  /// check-in that has none (ADR-0011, ADR-0038).
+  public var checkInSchedule: Schedule {
+    (plannedCheckInTime ?? checkInTime)
+      .map { .timed(checkInDay, start: $0, end: nil) } ?? .day(checkInDay)
+  }
+
+  /// The check-out equivalent of `checkInSchedule`.
+  public var checkOutSchedule: Schedule {
+    (plannedCheckOutTime ?? checkOutTime)
+      .map { .timed(checkOutDay, start: $0, end: nil) } ?? .day(checkOutDay)
+  }
+
   /// The two times a check row shows. `trailing` is the prominent right-aligned
   /// time (planned when set, else official). `officialParenthetical` is the
   /// property time shown after the label — present only when a planned time also

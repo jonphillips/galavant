@@ -93,6 +93,17 @@ public struct CalendarTripConstraint: Identifiable, Equatable, Sendable {
     }
   }
 
+  /// Minutes-from-midnight key for ordering this constraint among a day's rows.
+  /// An all-day obligation leads the day (minute 0) because it is context for the
+  /// whole of it, not an appointment inside it. Shared by the timeline weave and
+  /// `ItineraryTiming` so the row's order and its clock always agree.
+  public var intraDaySortMinutes: Int {
+    startTime.map { Schedule.minutes(from: $0) ?? schedule.intraDaySort } ?? 0
+  }
+
+  /// True when the obligation covers the day rather than a moment in it.
+  public var isAllDay: Bool { startTime == nil }
+
   public static func upsert(_ constraint: Self, in db: Database) throws {
     try Self.upsert { Self.Draft(constraint) }.execute(db)
   }
