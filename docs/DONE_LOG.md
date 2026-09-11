@@ -1,5 +1,35 @@
 # Done Log — completed enhancements
 
+## A sense of *now* on the planning surface (dogfood Slice A) — SHIPPED (2026-09-11)
+
+Jon's complaint: *"When the trip is ON, everything needs a sense of now. Not just the
+phone cockpit, but the planning surface as well. Don't make me scroll to the day and
+select it."* The only live-day logic in the app was a private computed property inside
+`TodayView`; the canvas's day lens was seeded to `nil` ("All") forever.
+
+- **Live day promoted to the model.** `TripPlanningModel.liveDay` (+ `liveDay(at:)` for a
+  caller with its own clock) derives from the pure `TodayProjection.tripDay`, now also
+  offered over `lengthInDays` so a per-layout-pass reader never rebuilds `TripPlan`.
+  `TodayView` reads the model's derivation on its own minute clock instead of keeping a
+  copy, and the planning surface's two bare `Date.now` reads route through the model's
+  `@Dependency(\.date)` clock.
+- **The day lens opens on today.** `DayLensSeeding` (GalavantSchema, tested) is a
+  one-shot: an underway trip focuses its live day on first appear, and a later tick — or
+  an explicit "All" — never overrides the user. An underway trip also lands on Itinerary.
+- **Today reads as *Today* in the chip strip**, named and ringed even when it isn't the
+  selected lens, so "where I am" and "what I'm looking at" stay distinct.
+- **The whole-trip itinerary is already on the live day** — day sections carry a scroll
+  anchor, and the initial placement doesn't animate (it should already be there).
+- **A lodging capsule moves the list**, not just the map: the itinerary stays whole-trip
+  (a stay is a span) and scrolls to the stay's `checkInDay`, surfacing the Itinerary tab
+  the way a pin tap does.
+
+Tests: `PlanningDayLensTests` (live-day derivation + the seeding rule: undated, past,
+future, day 1/day N boundaries, one-shot-ness) in GalavantSchema, and
+`TripPlanningSenseOfNowTests` in the app target for the model wiring. Verification:
+`scripts/check-drift.sh` green; both test bundles run. Remaining dogfood slices are in
+`CURRENT_HANDOFF.md`.
+
 ## Plan-memoization — Phase 1 shipped, Phase 2 declined (2026-08-23)
 
 The itinerary-recompute hazard is resolved. **Phase 1** — the one-pass travel graph

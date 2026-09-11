@@ -44,11 +44,9 @@ struct TodayView: View {
   private var dayCount: Int { planningModel.plan.lengthInDays }
 
   /// The trip day the real clock is on, or `nil` when the trip isn't underway.
-  private var liveDay: Int? {
-    guard let tripStartDate else { return nil }
-    return TodayProjection.tripDay(
-      containing: model.now, tripStartDate: tripStartDate, in: planningModel.plan)
-  }
+  /// The derivation is the planning model's (shared with the canvas's day lens);
+  /// the instant is this view's own minute clock.
+  private var liveDay: Int? { planningModel.liveDay(at: model.now) }
 
   /// The day currently shown: an explicit selection, else the live day, else day 1.
   private var currentDay: Int? {

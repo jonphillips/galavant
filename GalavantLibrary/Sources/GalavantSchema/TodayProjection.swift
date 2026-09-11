@@ -170,8 +170,18 @@ public struct TodayProjection: Equatable, Sendable {
   public static func tripDay(
     containing now: Date, tripStartDate: Date, in tripPlan: TripPlan
   ) -> Int? {
+    tripDay(containing: now, tripStartDate: tripStartDate, lengthInDays: tripPlan.lengthInDays)
+  }
+
+  /// The same day derivation over a trip's length alone. The planning surface asks
+  /// this on every layout pass to place its "today" lens, and `TripPlan` rebuilds
+  /// its whole join graph on each access — so the cheap overload is the one that
+  /// surface calls.
+  public static func tripDay(
+    containing now: Date, tripStartDate: Date, lengthInDays: Int
+  ) -> Int? {
     guard let day = dayNumber(for: now, tripStartDate: tripStartDate, calendar: .current),
-      day <= tripPlan.lengthInDays
+      day <= lengthInDays
     else { return nil }
     return day
   }

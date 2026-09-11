@@ -86,6 +86,10 @@ final class TripPlanningModel {
   // Pool lens (reused from the Ideas screen, M2c), seeded from the trip's regions.
   var selectedRegionIDs: Set<MapRegion.ID> = []
   private var didSeedLens = false
+  // The one-shot "open on today" rule for the day lens (TripPlanningModel+Now.swift).
+  // Stored state lives here with the rest of it; the rule itself is a tested value
+  // type in GalavantSchema.
+  var dayLensSeeding = DayLensSeeding()
   var selectedKinds: Set<IdeaKind> = []
   var selectedTagIDs: Set<Tag.ID> = []
   var includeVisited = true
@@ -212,11 +216,13 @@ final class TripPlanningModel {
   var tripRegions: [MapRegion] { regions.filter { tripRegionIDs.contains($0.id) } }
 
   /// On first appear, land on Ideas rather than Itinerary when nothing is
-  /// scheduled yet, so an empty map isn't a dead end. Runs once.
+  /// scheduled yet, so an empty map isn't a dead end. A trip that is underway
+  /// always lands on Itinerary — mid-trip you are executing a day, not shopping,
+  /// even on the day you have yet to fill. Runs once.
   func pickInitialSheetTabIfNeeded() {
     guard !didPickInitialTab else { return }
     didPickInitialTab = true
-    sheetTab = plan.hasScheduledStops ? .itinerary : .ideas
+    sheetTab = plan.hasScheduledStops || liveDay != nil ? .itinerary : .ideas
   }
 
   /// Focus a stop from the map or the timeline — the single shared selection both
@@ -234,13 +240,16 @@ final class TripPlanningModel {
   }
 
   /// Toggle a stay lens. Selecting a stay clears the day lens; tapping it again
-  /// returns to All.
+  /// returns to All. Selecting also surfaces the Itinerary, which is the list the
+  /// lens then scrolls to the stay's first day (`itineraryFocusDay`) — the same
+  /// move `selectStop` makes for a pin.
   func toggleCanvasStay(_ id: TripStay.ID) {
     if canvasSelectedStayID == id {
       canvasSelectedStayID = nil
     } else {
       canvasSelectedStayID = id
       canvasSelectedDay = nil
+      sheetTab = .itinerary
     }
   }
 
