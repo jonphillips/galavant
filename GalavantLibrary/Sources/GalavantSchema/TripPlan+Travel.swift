@@ -81,28 +81,231 @@ extension TripPlan {
     let stays = deriveStays()
     return itinerary.flatMap { day in
       let dayStays = stays.filter { $0.stay.covers(day: day.number) }
-      return legPairs(in: day.stops)
-        + baseLegPairs(forDay: day.number, stops: day.stops, stays: dayStays)
-        + arrivalLegPairs(forDay: day.number, stops: day.stops, stays: dayStays)
-        + returnLegPairs(forDay: day.number, stops: day.stops, stays: dayStays)
-        + stayTransferLegPairs(forDay: day.number, stops: day.stops, stays: dayStays)
+      return routeLegs(forDay: day.number, stops: day.stops, stays: dayStays)
+        .map { ($0.leg, $0.identity) }
     }
   }
 
-  /// Directed route segments between consecutive located stops on `day`.
-  /// Iterates all stops in order — an unlocated stop between two located ones
-  /// breaks the chain on both sides (no phantom A→C leg when B has no coords).
-  public func legs(forDay day: Int) -> [LegKey] {
-    legPairs(forDay: day).map(\.leg)
+  // MARK: - The day's located-waypoint chain
+
+  /// One directed leg on a day's physical route, tagged with the row its
+  /// connector renders against. The whole travel story of a day — the ETA leg
+  /// set (`allLegs`), the itinerary's direction rows, and the canvas polyline —
+  /// is derived from this one chain, so the three cannot tell different stories.
+  ///
+  /// A leg exists between two *consecutive located waypoints* of the day. There
+  /// are no special cases per lodging shape: a stop, a stay boundary, a home-base
+  /// row, and (were it ever located) a calendar constraint are all just waypoints,
+  /// and `kind` is a *classification* of the endpoints, not a gate on whether the
+  /// leg exists (ADR — dogfood Slice C).
+  struct RouteLeg {
+    var from: TravelEndpoint
+    var to: TravelEndpoint
+    var kind: TravelConnector.Kind
+    /// The index, in the day's ordered event rows, of the row this connector
+    /// renders immediately *before* — or nil for the return-to-base leg, whose
+    /// destination is drawn once (atop the day or earlier in the stream) and so
+    /// trails the day's last stop row instead.
+    var toRowIndex: Int?
+
+    var leg: LegKey {
+      LegKey(
+        fromLat: from.latitude, fromLon: from.longitude,
+        toLat: to.latitude, toLon: to.longitude)
+    }
+    var identity: LegIdentity { LegIdentity(from: from.id, to: to.id) }
   }
 
-  private func legPairs(forDay day: Int) -> [(leg: LegKey, identity: LegIdentity)] {
-    let stops = itinerary.first(where: { $0.number == day })?.stops ?? []
-    return legPairs(in: stops)
+  static func legKind(fromBase: Bool, toBase: Bool) -> TravelConnector.Kind {
+    switch (fromBase, toBase) {
+    case (true, false): .fromLodging
+    case (false, true): .toLodging
+    case (true, true): .betweenLodgings
+    case (false, false): .betweenStops
+    }
+  }
+
+  /// The day's directed legs in render order, derived once from the woven event
+  /// stream. Walks the ordered rows into located waypoints (a located stop, a
+  /// located stay boundary, a located home base) plus the *gaps* an unlocated
+  /// stop leaves, then connects each consecutive pair.
+  ///
+  /// Two properties fall out of one rule rather than four hand-written cases:
+  /// - **A gap breaks a stop→stop chain but not a lodging bracket.** An unlocated
+  ///   stop between two located stops kills the leg (there is no honest route
+  ///   through a place with no coordinate), yet a base still reaches the first or
+  ///   last located stop across such a gap — the leg has a real endpoint at the
+  ///   lodging either way.
+  /// - **Suppression is adjacency.** A direct hotel→hotel transfer appears only
+  ///   when the two boundaries are adjacent in the stream; a stop scheduled
+  ///   between check-out and check-in simply sits between them as a waypoint, so
+  ///   no direct leg is emitted — no explicit "is there an intermediate stop"
+  ///   test is needed.
+  func routeLegs(
+    forDay day: Int, stops: [ResolvedStop], stays: [ResolvedStay]
+  ) -> [RouteLeg] {
+    let rows = orderedEventRows(forDay: day, stops: stops, stays: stays)
+
+    enum Token {
+      case waypoint(endpoint: TravelEndpoint, isBase: Bool, rowIndex: Int)
+      /// An unlocated stop: a break in the stop→stop chain, but transparent to a
+      /// lodging bracket reaching past it to the first/last *located* stop.
+      case stopGap
+    }
+    var tokens: [Token] = []
+    for (index, row) in rows.enumerated() {
+      switch row {
+      case let .stop(stop):
+        if let endpoint = locatedEndpoint(for: stop) {
+          tokens.append(.waypoint(endpoint: endpoint, isBase: false, rowIndex: index))
+        } else {
+          tokens.append(.stopGap)
+        }
+      case let .checkIn(stay), let .checkOut(stay), let .homeBase(stay):
+        if let endpoint = endpoint(for: stay) {
+          tokens.append(.waypoint(endpoint: endpoint, isBase: true, rowIndex: index))
+        }
+        // An unlocated stay (freeform, no coordinate) is transparent — it takes
+        // no leg down with it (dogfood Slice C, gap 5).
+      case .calendarConstraint, .connector, .nowMarker:
+        break  // non-spatial rows are transparent to the route
+      }
+    }
+
+    // The base you sleep at tonight, appended as the return target unless the day
+    // already ends on it. A middle-day base is drawn atop the day and a
+    // changeover's arriving base already closes the stream, so both need the
+    // explicit return; a pure check-out day sleeps nowhere located and gets none.
+    if let returnBase = nightBase(forDay: day, stays: stays),
+      let endpoint = endpoint(for: returnBase) {
+      let lastWaypointID = tokens.reversed().lazy.compactMap { token -> String? in
+        if case let .waypoint(waypoint, _, _) = token { return waypoint.id }
+        return nil
+      }.first
+      // Only append the return target when the day does not already *end* on it
+      // (a changeover's arriving base closes the stream); the base appearing atop
+      // the day as a home-base row does not count.
+      if lastWaypointID != endpoint.id {
+        tokens.append(.waypoint(endpoint: endpoint, isBase: true, rowIndex: -1))
+      }
+    }
+
+    var legs: [RouteLeg] = []
+    var previous: (endpoint: TravelEndpoint, isBase: Bool)?
+    var sawStopGap = false
+    for token in tokens {
+      switch token {
+      case .stopGap:
+        sawStopGap = true
+      case let .waypoint(endpoint, isBase, rowIndex):
+        if let previous {
+          let bothStops = !previous.isBase && !isBase
+          if !(bothStops && sawStopGap) {
+            legs.append(RouteLeg(
+              from: previous.endpoint, to: endpoint,
+              kind: Self.legKind(fromBase: previous.isBase, toBase: isBase),
+              toRowIndex: rowIndex < 0 ? nil : rowIndex))
+          }
+        }
+        previous = (endpoint, isBase)
+        sawStopGap = false
+      }
+    }
+    return legs
+  }
+
+  /// The located stay you spend the night of `day` in — a stay that covers the
+  /// day and does not check out on it. Prefers a stay arriving today (the new
+  /// hotel on a changeover) over a middle-day base you're already in.
+  private func nightBase(forDay day: Int, stays: [ResolvedStay]) -> ResolvedStay? {
+    let nightStays = stays.filter {
+      $0.stay.covers(day: day) && $0.stay.checkOutDay != day && endpoint(for: $0) != nil
+    }
+    return nightStays.first { $0.stay.checkInDay == day } ?? nightStays.first
+  }
+
+  /// The day's ordered event rows *before* connectors and the now-marker are
+  /// woven in: the home-base rows that lead the day, then stops, stay boundaries,
+  /// and calendar constraints sorted by their intra-day time. This ordering is
+  /// the single source of truth both the itinerary weave and `routeLegs` read, so
+  /// the direction rows and the ETA leg set can never disagree.
+  ///
+  /// Ranks break ties against a same-minute stop: an all-day constraint leads,
+  /// then check-out (you leave in the morning), a timed constraint, the stop
+  /// itself, then check-in (you arrive in the evening). A stable order index
+  /// keeps same-ranked rows in their input order.
+  func orderedEventRows(
+    forDay day: Int, stops: [ResolvedStop], stays: [ResolvedStay]
+  ) -> [ItineraryItem] {
+    enum TieBreak: Int {
+      case allDayContext
+      case checkOut
+      case calendarConstraint
+      case stop
+      case checkIn
+    }
+    struct Row { let key: Int; let rank: TieBreak; let order: Int; let item: ItineraryItem }
+    var boundaries: [Row] = []
+    var homeBaseRows: [ItineraryItem] = []
+    for resolved in stays {
+      let stay = resolved.stay
+      if stay.checkOutDay == day {
+        boundaries.append(Row(
+          key: stay.checkOutSortMinutes, rank: .checkOut, order: boundaries.count,
+          item: .checkOut(resolved)))
+      }
+      if stay.checkInDay == day {
+        boundaries.append(Row(
+          key: stay.checkInSortMinutes, rank: .checkIn, order: boundaries.count,
+          item: .checkIn(resolved)))
+      }
+      if stay.checkInDay != day, stay.checkOutDay != day {
+        homeBaseRows.append(.homeBase(resolved))  // covered middle day
+      }
+    }
+    let constraints = calendarConstraints.filter { $0.dayNumber == day }
+    boundaries += constraints.enumerated().map { offset, constraint in
+      Row(
+        key: constraint.intraDaySortMinutes,
+        rank: constraint.isAllDay ? .allDayContext : .calendarConstraint,
+        order: boundaries.count + offset,
+        item: .calendarConstraint(constraint))
+    }
+
+    // A day with no stops, constraints, stay boundaries, or home base has no timeline.
+    guard !stops.isEmpty || !boundaries.isEmpty || !homeBaseRows.isEmpty else { return [] }
+
+    // Stops carry their *effective* intra-day key (ADR-0033: an Anytime stop uses
+    // its anchor, not end-of-day, so it weaves among boundaries where it visually
+    // sits); the order index keeps stops in their existing order on ties.
+    let effectiveKey = TripIdea.effectiveIntraDaySort(stops.map(\.entry))
+    var stream: [Row] = stops.enumerated().map { index, stop in
+      Row(
+        key: effectiveKey[stop.id] ?? stop.entry.schedule.intraDaySort,
+        rank: .stop, order: index, item: .stop(stop))
+    }
+    stream += boundaries
+    stream.sort {
+      ($0.key, $0.rank.rawValue, $0.order) < ($1.key, $1.rank.rawValue, $1.order)
+    }
+    return homeBaseRows + stream.map(\.item)
+  }
+
+  // MARK: - Per-leg accessors (classifications of the day's chain)
+
+  private func daysStops(_ day: Int) -> [ResolvedStop] {
+    itinerary.first(where: { $0.number == day })?.stops ?? []
+  }
+
+  /// Directed route segments between consecutive located stops on `day`.
+  /// An unlocated stop between two located ones breaks the chain on both sides
+  /// (no phantom A→C leg when B has no coords).
+  public func legs(forDay day: Int) -> [LegKey] {
+    legPairs(in: daysStops(day)).map(\.leg)
   }
 
   private func legPairs(in stops: [ResolvedStop]) -> [(leg: LegKey, identity: LegIdentity)] {
-    return zip(stops, stops.dropFirst()).compactMap { a, b in
+    zip(stops, stops.dropFirst()).compactMap { a, b in
       guard
         let fromLat = a.content.latitude, let fromLon = a.content.longitude,
         let toLat = b.content.latitude, let toLon = b.content.longitude
@@ -113,95 +316,90 @@ extension TripPlan {
     }
   }
 
-  /// The located lodging → first-stop leg that is unambiguous in the day
-  /// timeline. A normal lodging day uses its one base. On a changeover day, a
-  /// first stop before check-in starts from the departing stay; one after it
-  /// starts from the arriving stay.
+  /// The lodging → first-located-stop leg of the day (`.fromLodging`), whatever
+  /// the day's shape: a normal base, the hotel you check into, or the one you
+  /// check out of on a changeover.
   public func baseLegs(forDay day: Int) -> [LegKey] {
-    baseLegPairs(forDay: day).map(\.leg)
+    baseRouteLeg(forDay: day, stops: daysStops(day), stays: stays(coveringDay: day))
+      .map { [$0.leg] } ?? []
   }
 
-  private func baseLegPairs(forDay day: Int) -> [(leg: LegKey, identity: LegIdentity)] {
-    let stops = itinerary.first(where: { $0.number == day })?.stops ?? []
-    return baseLegPairs(forDay: day, stops: stops, stays: stays(coveringDay: day))
-  }
-
-  private func baseLegPairs(
-    forDay day: Int,
-    stops: [ResolvedStop],
-    stays: [ResolvedStay]
-  ) -> [(leg: LegKey, identity: LegIdentity)] {
-    guard let route = lodgingToStopRoute(
-      forDay: day, stops: stops, stays: stays)
-    else { return [] }
-    return [(route.leg, route.identity)]
-  }
-
-  /// The arriving-lodging → next-stop leg on a mid-day changeover (see
-  /// `arrivalToStopRoute`) — the outbound mirror of `returnLegs`. Empty on days
-  /// with no check-in, and empty when `baseLegs` already covers the same leg.
+  /// `.fromLodging` legs into a stop other than the day's first — the outbound
+  /// leg from a mid-day check-in to the next activity. Empty on an ordinary day.
   public func arrivalLegs(forDay day: Int) -> [LegKey] {
-    let stops = itinerary.first(where: { $0.number == day })?.stops ?? []
-    return arrivalLegPairs(forDay: day, stops: stops, stays: stays(coveringDay: day)).map(\.leg)
+    let stops = daysStops(day)
+    let firstLocatedID = stops.first(where: isLocated)?.travelEndpointID
+    return routeLegs(forDay: day, stops: stops, stays: stays(coveringDay: day))
+      .filter { $0.kind == .fromLodging && $0.to.id != firstLocatedID }
+      .map(\.leg)
   }
 
-  /// The last located stop → lodging leg that is unambiguous in the day
-  /// timeline. A normal lodging day returns to its one base. On a changeover
-  /// day, the last located stop returns to the arriving stay.
+  /// The last-located-stop → lodging leg of the day (`.toLodging`), returning to
+  /// the base you spend the night in. Empty on a pure check-out day.
   public func returnLegs(forDay day: Int) -> [LegKey] {
-    returnLegPairs(forDay: day).map(\.leg)
+    returnRouteLeg(forDay: day, stops: daysStops(day), stays: stays(coveringDay: day))
+      .map { [$0.leg] } ?? []
   }
 
-  private func returnLegPairs(forDay day: Int) -> [(leg: LegKey, identity: LegIdentity)] {
-    let stops = itinerary.first(where: { $0.number == day })?.stops ?? []
-    return returnLegPairs(forDay: day, stops: stops, stays: stays(coveringDay: day))
-  }
-
-  private func arrivalLegPairs(
-    forDay day: Int,
-    stops: [ResolvedStop],
-    stays: [ResolvedStay]
-  ) -> [(leg: LegKey, identity: LegIdentity)] {
-    guard let route = arrivalToStopRoute(forDay: day, stops: stops, stays: stays) else { return [] }
-    return [(route.leg, route.identity)]
-  }
-
-  private func returnLegPairs(
-    forDay day: Int,
-    stops: [ResolvedStop],
-    stays: [ResolvedStay]
-  ) -> [(leg: LegKey, identity: LegIdentity)] {
-    guard let route = stopToLodgingRoute(
-      forDay: day, stops: stops, stays: stays)
-    else { return [] }
-    return [(route.leg, route.identity)]
-  }
-
-  /// A direct lodging transfer appears when check-out and check-in are adjacent
-  /// in the timeline. Stops before check-out or after check-in do not suppress
-  /// it; only a scheduled stop *between* those events does.
+  /// The direct lodging transfer (`.betweenLodgings`): a hotel→hotel leg drawn
+  /// only when the two boundaries are adjacent in the day's timeline. A stop
+  /// scheduled between check-out and check-in sits between them as a waypoint, so
+  /// no direct leg is emitted.
   public func stayTransferLegs(forDay day: Int) -> [LegKey] {
-    stayTransferLegPairs(forDay: day).map(\.leg)
+    routeLegs(forDay: day, stops: daysStops(day), stays: stays(coveringDay: day))
+      .filter { $0.kind == .betweenLodgings }
+      .map(\.leg)
   }
 
-  private func stayTransferLegPairs(forDay day: Int) -> [(leg: LegKey, identity: LegIdentity)] {
-    stayTransferLegPairs(
-      forDay: day,
-      stops: itinerary.first(where: { $0.number == day })?.stops ?? [],
-      stays: stays(coveringDay: day))
+  private func baseRouteLeg(
+    forDay day: Int, stops: [ResolvedStop], stays: [ResolvedStay]
+  ) -> RouteLeg? {
+    guard let firstLocatedID = stops.first(where: isLocated)?.travelEndpointID else { return nil }
+    return routeLegs(forDay: day, stops: stops, stays: stays)
+      .first { $0.kind == .fromLodging && $0.to.id == firstLocatedID }
   }
 
-  private func stayTransferLegPairs(
+  private func returnRouteLeg(
+    forDay day: Int, stops: [ResolvedStop], stays: [ResolvedStay]
+  ) -> RouteLeg? {
+    guard let lastLocatedID = stops.last(where: isLocated)?.travelEndpointID else { return nil }
+    return routeLegs(forDay: day, stops: stops, stays: stays)
+      .first { $0.kind == .toLodging && $0.from.id == lastLocatedID }
+  }
+
+  // MARK: - Connectors (a chain leg dressed with its ETA and mode)
+
+  private func connector(
+    for leg: RouteLeg,
+    travelTimes: [LegKey: [TransportMode: TravelTime]],
+    effectiveModes: [LegKey: TransportMode]
+  ) -> TravelConnector {
+    let mode = effectiveModes[leg.leg] ?? .walking
+    return TravelConnector(
+      from: leg.from, to: leg.to, leg: leg.leg, mode: mode,
+      travelTime: travelTimes[leg.leg]?[mode], kind: leg.kind)
+  }
+
+  func baseConnector(
     forDay day: Int,
     stops: [ResolvedStop],
-    stays: [ResolvedStay]
-  ) -> [(leg: LegKey, identity: LegIdentity)] {
-    guard let transfer = stayTransfer(
-      forDay: day,
-      stops: stops,
-      stays: stays)
-    else { return [] }
-    return [(transfer.leg, transfer.identity)]
+    stays: [ResolvedStay],
+    travelTimes: [LegKey: [TransportMode: TravelTime]],
+    effectiveModes: [LegKey: TransportMode]
+  ) -> TravelConnector? {
+    baseRouteLeg(forDay: day, stops: stops, stays: stays)
+      .map { connector(for: $0, travelTimes: travelTimes, effectiveModes: effectiveModes) }
+  }
+
+  func returnConnector(
+    forDay day: Int,
+    stops: [ResolvedStop],
+    stays: [ResolvedStay],
+    travelTimes: [LegKey: [TransportMode: TravelTime]],
+    effectiveModes: [LegKey: TransportMode]
+  ) -> TravelConnector? {
+    returnRouteLeg(forDay: day, stops: stops, stays: stays)
+      .map { connector(for: $0, travelTimes: travelTimes, effectiveModes: effectiveModes) }
   }
 
   /// The direct lodging transfer on `day`, if the two stay boundaries are
@@ -212,13 +410,11 @@ extension TripPlan {
     travelTimes: [LegKey: [TransportMode: TravelTime]] = [:],
     effectiveModes: [LegKey: TransportMode] = [:]
   ) -> TravelConnector? {
-    let stops = itinerary.first(where: { $0.number == day })?.stops ?? []
-    return stayTransferConnector(
-      forDay: day,
-      stops: stops,
-      stays: stays(coveringDay: day),
-      travelTimes: travelTimes,
-      effectiveModes: effectiveModes)
+    let stops = daysStops(day)
+    guard let transfer = routeLegs(forDay: day, stops: stops, stays: stays(coveringDay: day))
+      .first(where: { $0.kind == .betweenLodgings })
+    else { return nil }
+    return connector(for: transfer, travelTimes: travelTimes, effectiveModes: effectiveModes)
   }
 
   /// The lodging handoff on a changeover day, regardless of whether a daytime
@@ -243,190 +439,6 @@ extension TripPlan {
       mode: mode,
       travelTime: travelTimes[changeover.leg]?[mode],
       kind: .betweenLodgings)
-  }
-
-  func baseConnector(
-    forDay day: Int,
-    stops: [ResolvedStop],
-    stays: [ResolvedStay],
-    travelTimes: [LegKey: [TransportMode: TravelTime]],
-    effectiveModes: [LegKey: TransportMode]
-  ) -> TravelConnector? {
-    guard let route = lodgingToStopRoute(forDay: day, stops: stops, stays: stays) else { return nil }
-    let mode = effectiveModes[route.leg] ?? .walking
-    return TravelConnector(
-      from: route.from,
-      to: route.to,
-      leg: route.leg,
-      mode: mode,
-      travelTime: travelTimes[route.leg]?[mode],
-      kind: .fromLodging
-    )
-  }
-
-  func returnConnector(
-    forDay day: Int,
-    stops: [ResolvedStop],
-    stays: [ResolvedStay],
-    travelTimes: [LegKey: [TransportMode: TravelTime]],
-    effectiveModes: [LegKey: TransportMode]
-  ) -> TravelConnector? {
-    guard let route = stopToLodgingRoute(forDay: day, stops: stops, stays: stays) else { return nil }
-    let mode = effectiveModes[route.leg] ?? .walking
-    return TravelConnector(
-      from: route.from,
-      to: route.to,
-      leg: route.leg,
-      mode: mode,
-      travelTime: travelTimes[route.leg]?[mode],
-      kind: .toLodging
-    )
-  }
-
-  /// The outbound leg from a mid-day check-in to the next located stop (see
-  /// `arrivalToStopRoute`). Rendered like `baseConnector` — a `.fromLodging`
-  /// connector — so it reads as "leaving the hotel for the next stop."
-  func arrivalConnector(
-    forDay day: Int,
-    stops: [ResolvedStop],
-    stays: [ResolvedStay],
-    travelTimes: [LegKey: [TransportMode: TravelTime]] = [:],
-    effectiveModes: [LegKey: TransportMode] = [:]
-  ) -> TravelConnector? {
-    guard let route = arrivalToStopRoute(forDay: day, stops: stops, stays: stays) else { return nil }
-    let mode = effectiveModes[route.leg] ?? .walking
-    return TravelConnector(
-      from: route.from,
-      to: route.to,
-      leg: route.leg,
-      mode: mode,
-      travelTime: travelTimes[route.leg]?[mode],
-      kind: .fromLodging
-    )
-  }
-
-  func stayTransferConnector(
-    forDay day: Int,
-    stops: [ResolvedStop],
-    stays: [ResolvedStay],
-    travelTimes: [LegKey: [TransportMode: TravelTime]],
-    effectiveModes: [LegKey: TransportMode]
-  ) -> TravelConnector? {
-    guard let transfer = stayTransfer(forDay: day, stops: stops, stays: stays) else { return nil }
-    let mode = effectiveModes[transfer.leg] ?? .walking
-    return TravelConnector(
-      from: transfer.from,
-      to: transfer.to,
-      leg: transfer.leg,
-      mode: mode,
-      travelTime: travelTimes[transfer.leg]?[mode],
-      kind: .betweenLodgings
-    )
-  }
-
-  private func lodgingToStopRoute(
-    forDay day: Int, stops: [ResolvedStop], stays: [ResolvedStay]
-  ) -> (from: TravelEndpoint, to: TravelEndpoint, leg: LegKey, identity: LegIdentity)? {
-    let sortKeys = TripIdea.effectiveIntraDaySort(stops.map(\.entry))
-    let base: ResolvedStay?
-    let destination = stops.first(where: isLocated)
-    if stays.count == 1 {
-      base = stays[0]
-    } else {
-      let departures = stays.filter { $0.stay.checkOutDay == day }
-      let arrivals = stays.filter { $0.stay.checkInDay == day }
-      guard let destination, departures.count == 1, arrivals.count == 1 else { return nil }
-      base = (sortKeys[destination.id] ?? .max) > arrivals[0].stay.checkInSortMinutes
-        ? arrivals[0]
-        : departures[0]
-    }
-    guard let base, let destination, let from = endpoint(for: base) else { return nil }
-    let to = endpoint(for: destination)
-    return (
-      from: from,
-      to: to,
-      leg: LegKey(
-        fromLat: from.latitude, fromLon: from.longitude,
-        toLat: to.latitude, toLon: to.longitude),
-      identity: LegIdentity(from: base.travelEndpointID, to: destination.travelEndpointID)
-    )
-  }
-
-  /// The arriving-lodging → first-stop-after-check-in leg on a changeover day.
-  /// The mirror of `stopToLodgingRoute` (which draws the return leg *to* the
-  /// arriving stay): when a stay checks in mid-day and a located stop is scheduled
-  /// after that check-in, the *outbound* leg from the new base to the stop is
-  /// otherwise missing — `lodgingToStopRoute` only ever connects the day's *first*
-  /// located stop. Returns nil when `lodgingToStopRoute` already covers the same
-  /// leg (the day's first located stop is itself after check-in), so the two never
-  /// double up.
-  private func arrivalToStopRoute(
-    forDay day: Int, stops: [ResolvedStop], stays: [ResolvedStay]
-  ) -> (from: TravelEndpoint, to: TravelEndpoint, leg: LegKey, identity: LegIdentity)? {
-    let arrivals = stays.filter { $0.stay.checkInDay == day }
-    guard arrivals.count == 1, let from = endpoint(for: arrivals[0]) else { return nil }
-    let arrival = arrivals[0]
-    let sortKeys = TripIdea.effectiveIntraDaySort(stops.map(\.entry))
-    guard let destination = stops.first(where: { stop in
-      isLocated(stop) && (sortKeys[stop.id] ?? .max) >= arrival.stay.checkInSortMinutes
-    }) else { return nil }
-    let identity = LegIdentity(
-      from: arrival.travelEndpointID, to: destination.travelEndpointID)
-    // The base connector already draws arrival → this stop when it is the day's
-    // first located stop; don't emit a duplicate of it.
-    if lodgingToStopRoute(forDay: day, stops: stops, stays: stays)?.identity == identity {
-      return nil
-    }
-    let to = endpoint(for: destination)
-    return (
-      from: from,
-      to: to,
-      leg: LegKey(
-        fromLat: from.latitude, fromLon: from.longitude,
-        toLat: to.latitude, toLon: to.longitude),
-      identity: identity)
-  }
-
-  private func stopToLodgingRoute(
-    forDay day: Int, stops: [ResolvedStop], stays: [ResolvedStay]
-  ) -> (from: TravelEndpoint, to: TravelEndpoint, leg: LegKey, identity: LegIdentity)? {
-    guard let origin = stops.last(where: isLocated) else { return nil }
-    let destination: ResolvedStay?
-    if stays.count == 1 {
-      guard stays[0].stay.checkOutDay != day else { return nil }
-      destination = stays[0]
-    } else {
-      let arrivals = stays.filter { $0.stay.checkInDay == day }
-      guard arrivals.count == 1 else { return nil }
-      destination = arrivals[0]
-    }
-    guard let destination, let to = endpoint(for: destination) else { return nil }
-    let from = endpoint(for: origin)
-    return (
-      from: from,
-      to: to,
-      leg: LegKey(
-        fromLat: from.latitude, fromLon: from.longitude,
-        toLat: to.latitude, toLon: to.longitude),
-      identity: LegIdentity(from: origin.travelEndpointID, to: destination.travelEndpointID)
-    )
-  }
-
-  private func stayTransfer(
-    forDay day: Int, stops: [ResolvedStop], stays: [ResolvedStay]
-  ) -> (from: TravelEndpoint, to: TravelEndpoint, leg: LegKey, identity: LegIdentity)? {
-    guard let transfer = lodgingChangeover(forDay: day, stays: stays) else { return nil }
-    let leaving = stays.filter { $0.stay.checkOutDay == day }
-    let arriving = stays.filter { $0.stay.checkInDay == day }
-    guard leaving.count == 1, arriving.count == 1 else { return nil }
-    let sortKeys = TripIdea.effectiveIntraDaySort(stops.map(\.entry))
-    let hasIntermediateStop = stops.contains { stop in
-      let key = sortKeys[stop.id] ?? .max
-      return key >= leaving[0].stay.checkOutSortMinutes
-        && key <= arriving[0].stay.checkInSortMinutes
-    }
-    guard !hasIntermediateStop else { return nil }
-    return transfer
   }
 
   private func lodgingChangeover(
@@ -462,6 +474,14 @@ extension TripPlan {
       latitude: stop.content.latitude!, longitude: stop.content.longitude!)
   }
 
+  private func locatedEndpoint(for stop: ResolvedStop) -> TravelEndpoint? {
+    guard let latitude = stop.content.latitude, let longitude = stop.content.longitude
+    else { return nil }
+    return TravelEndpoint(
+      id: stop.travelEndpointID, title: stop.content.title,
+      latitude: latitude, longitude: longitude)
+  }
+
   private func endpoint(for stay: ResolvedStay) -> TravelEndpoint? {
     guard let latitude = stay.content.latitude, let longitude = stay.content.longitude else { return nil }
     return TravelEndpoint(
@@ -474,7 +494,7 @@ extension TripPlan {
   /// (when the return leg is unambiguous). The same connector resolution that
   /// powers timeline rows supplies both lodging endpoints.
   public func routeEndpoints(forDay day: Int) -> [TravelEndpoint] {
-    let stops = itinerary.first(where: { $0.number == day })?.stops ?? []
+    let stops = daysStops(day)
     let dayStays = stays(coveringDay: day)
     let base = baseConnector(
       forDay: day, stops: stops, stays: dayStays, travelTimes: [:], effectiveModes: [:])

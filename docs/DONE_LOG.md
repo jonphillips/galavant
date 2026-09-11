@@ -1,5 +1,60 @@
 # Done Log — completed enhancements
 
+## Directions between any adjacent located waypoints + recentre-on-me (dogfood Slice C) — SHIPPED (2026-09-11)
+
+Travel-time connectors were four hand-written special cases (`lodgingToStopRoute`,
+`arrivalToStopRoute`, `stopToLodgingRoute`, `stayTransfer`), each gated by
+`count == 1` conditions and woven into the timeline by a bespoke insertion pass that
+matched connectors to rows by string-comparing endpoint IDs. Anything the four cases
+did not name drew no directions — the heterogeneous-leg complaint from the Dolomites
+dogfood (a located stop followed by a located check-in with no leg between them).
+
+- **One rule replaces four.** `TripPlan.routeLegs(forDay:stops:stays:)` derives the
+  day's ordered **located-waypoint chain** from a single shared `orderedEventRows`
+  (the woven stream both the itinerary weave and the leg set now read), then emits a
+  connector between each consecutive pair. A stop, a stay boundary, a home-base row,
+  and (were it ever located) a calendar constraint are all just waypoints;
+  `TravelConnector.Kind` (`fromLodging` / `toLodging` / `betweenLodgings` /
+  `betweenStops`) is a **classification of the endpoints**, not a gate on whether a
+  leg exists.
+- **Previously-missing legs that now render:** overlapping stays covering one day
+  (advisory, ADR-0011 §6 — legs degrade gracefully instead of vanishing); a stay that
+  checks out with none arriving (the checkout hotel → first stop leg); a stop before a
+  mid-day check-in (the leg into the check-in now renders adjacent to the row, not
+  floated to the day's end); and unlocated stays (freeform lodging) no longer take the
+  day's other legs down with them.
+- **Invariants preserved:** alternatives rings still share one `travelEndpointID`
+  (`ring-…`) so a swap keeps mode overrides (ADR-0043); no duplicate directed legs;
+  the strict `transferConnector` (direct hotel→hotel only when the boundaries are
+  adjacent — suppression is now just chain adjacency) and Journey's looser
+  `lodgingChangeoverConnector` remain two rules for two consumers; `allLegs` /
+  `legIdentities` enumerate exactly the legs the timeline renders; the leg graph is
+  built **once per day** (PR #83 lockup rule) — `orderedEventRows` and `routeLegs`
+  take already-derived stops/stays. An unlocated **stop** still breaks a stop→stop
+  chain (no leg to a place with no coordinate), while a lodging bracket reaches past it
+  to the first/last located stop.
+- **The weave collapsed.** The `baseConnectorInserted` / `arrivalConnectorInserted` /
+  `stayTransferInserted` bookkeeping, the string-matched `to.id == "stop-…"`
+  comparisons, and the `function_body_length` waiver are gone: `itineraryItems` now
+  buckets each chain leg's connector before the row it arrives at (the return-to-base
+  leg trails the day's last stop row).
+- **Recentre on me (ADR-0046 §5).** The trip-canvas location control now recentres the
+  camera on the device — the system `MapUserLocationButton` already did this once
+  authorized; the app's own "show my location" button, once its tap *grants*
+  authorization, now brings the camera to the blue dot (`.userLocation(fallback:)`)
+  instead of only lighting it. This is the sole path by which location moves the
+  camera: a grant picked up from Settings via `refresh()` does not, because it is not
+  an explicit in-app request. `frameSelection` / `revealStop` still never consult
+  location, so a day- or stop-lens change takes the camera straight back to the plan.
+
+Tests: 8 new named cases in `GalavantSchemaTests/HeterogeneousConnectorTests.swift`
+(the dogfood repro + gaps 1–5 + two "a leg to nowhere is worse than no leg" cases);
+the existing connector suites (`CheckInConnectorTests`, `TripStayTests`,
+`TripPlanTests`, `CalendarTripConstraintTests`) stay green unchanged — 472
+GalavantSchema tests pass. Verification: `scripts/check-drift.sh` — SwiftLint
+`--strict` clean, GalavantSchema tests green, `build-for-testing` linked the app +
+`GalavantUITests`. The recentre gesture and the redrawn legs are Jon's device review.
+
 ## Device location and the blue dot (dogfood Slice B1) — SHIPPED (2026-09-11)
 
 The app had no location capability at all — no `CLLocationManager`, no usage-description

@@ -306,12 +306,22 @@ struct TripCanvasMapView: View {
   /// button until the user has been asked — tapping it is what raises the system
   /// prompt — and the system's button afterwards, so follow-mode and heading
   /// behave the way they do in Maps. Denied or restricted shows neither.
+  ///
+  /// Both forms recentre on the device (ADR-0046 §5): the system button does it
+  /// for a user who has already authorized; the app's own button, once the tap
+  /// grants authorization, brings the camera to the blue dot rather than only
+  /// lighting it. This is the sole path by which location moves the camera — a
+  /// grant picked up from Settings via `refresh()` does not, because it is not an
+  /// explicit in-app request.
   @ViewBuilder
   private var locationControl: some View {
     switch deviceLocation.state {
     case .offered, .asking:
       Button {
-        Task { await deviceLocation.locationButtonTapped() }
+        Task {
+          await deviceLocation.locationButtonTapped()
+          if deviceLocation.state == .tracking { recentreOnDevice() }
+        }
       } label: {
         Image(systemName: "location")
       }
@@ -324,6 +334,15 @@ struct TripCanvasMapView: View {
     case .withheld:
       EmptyView()
     }
+  }
+
+  /// Follow the device position, falling back to the trip's own framing until a
+  /// fix arrives. Only ever called from an explicit tap on the location control
+  /// (ADR-0046 §5) — `frameSelection`/`revealStop` never consult location, so a
+  /// day- or stop-lens change afterwards takes the camera straight back to the
+  /// plan.
+  private func recentreOnDevice() {
+    cameraPosition = .userLocation(fallback: .automatic)
   }
 
   // MARK: - Selection

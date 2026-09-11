@@ -49,13 +49,18 @@ choice, and a self-contained prompt per slice:
   (ADR-0038 §10; see `DONE_LOG.md`).
 - **Slice B1 — device location + blue dot on the trip canvas — SHIPPED** (ADR-0046;
   see `DONE_LOG.md`). **B2 is now unblocked**: it consumes `LocationClient.updates`
-  for the coordinate it frames on, and inherits the Info.plist key.
+  for the coordinate it frames on, and inherits the Info.plist key. The **recentre-on-me
+  gesture** (ADR-0046 §5) B1 left for later is now built: tapping the canvas location
+  control follows the device (the app's own button once its tap grants authorization,
+  the system button thereafter) — see `DONE_LOG.md`, shipped alongside Slice C.
+- **Slice C — directions between any adjacent located waypoints — SHIPPED** (see
+  `DONE_LOG.md`). The four hand-written lodging cases collapsed into one
+  located-waypoint-chain rule (`TripPlan.routeLegs`); heterogeneous days (overlapping /
+  departing-only / unlocated stays, a stop next to a check-in) now draw connectors
+  instead of dropping them.
 - Still open, in the brief's suggested order: **0** (day header shows the region chip,
   demotes the time zone), **D** (a note on any lodging stay), **B2** (daily map on
-  Today), **C** (generalize travel connectors to any adjacent located waypoints — its
-  scope question is now answered: F fixed the *timing* of the lodging leg, not its
-  absence between heterogeneous waypoints), and **E** (sketch a trip: days × regions),
-  which follows 0 and A.
+  Today), and **E** (sketch a trip: days × regions), which follows 0 and A.
 
   One thing B1 deliberately did **not** build, flagged for whoever takes B2: the
   canvas holds no live location session. `UserAnnotation` draws the dot from MapKit's
