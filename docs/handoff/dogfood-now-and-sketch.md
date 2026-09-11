@@ -1,0 +1,672 @@
+# Handoff: Dogfood round — a sense of *now*, lodging notes, heterogeneous directions, trip sketching
+
+Status: **In progress** — 2026-09-11. Seven slices, one new ADR. **Slice A shipped**
+(a sense of *now* on the planning surface, PR #115); the other six are open. All Claude-executed
+(Codex is on the separate "cockpit" app — unrelated to this repo's iPhone cockpit,
+which is **Today**).
+Summary: Jon's 2026-09-11 dogfooding pass. Six complaints that resolve into one
+product theme (**the app has no sense of *now*** — not on the phone cockpit, not on
+the planning surface) plus three independent defects (lodging can't take a note,
+heterogeneous legs draw no directions, a new trip's only visible per-day affordance
+is a time-zone picker) and one new capability (device location / blue dot).
+
+Implements: a new ADR (device location, §Slice B) plus amendments to **ADR-0012**
+(per-day regions), **ADR-0011** (stays), **ADR-0038** (Today projection), and the
+travel-connector model in `TripPlan+Travel.swift`. Read those first — they carry
+the *why*; this brief is the *how*.
+
+---
+
+## Terminology
+
+"Cockpit" now means three things. In **this repo** it only ever means the *iPhone
+cockpit* = **Today** (ADR-0038/0039, `docs/M10-EXECUTION.md`) or the *evaluation
+cockpit* = **Evaluate**/`RecommendationWorkspace` (ADR-0037). Jon's separate
+**"cockpit" app** is a different codebase entirely and has nothing to do with any
+slice here. Everything in this brief is Galavant, and all of it is Claude's.
+
+## What the dogfood screenshot proved
+
+Jon's screenshot (Today, Day 12 of 16, 13:45, Dolomites) shows one day with three
+separate defects visible at once:
+
+```
+Nothing else is scheduled          ← next == nil …
+Your day is clear from here.
+
+REMAINING
+  ○  St Maddalena / Lunch          ← … while this is still pending
+  •  Check in / Forestis   15:00   ← … and this is 75 min away
+  •  Now                           ← rendered BELOW a future 15:00 row
+```
+
+…and **no directions row between St Maddalena and the Forestis check-in** — the
+item-5 complaint, caught in the act.
+
+All three share one root cause: **Today treats stops as the only real events.**
+Stay boundaries and calendar constraints are woven into the timeline but are
+invisible to every decision Today makes about time. See Slice F.
+
+Critically, this screenshot changes the diagnosis for item 5 on *this* surface. The
+missing leg here is most likely **not** a connector-derivation gap — it is
+`TodayProjection.rowNominalDate`, which gives a `.connector` the time of its
+**preceding** row (`[preceding, following]….first`). A `.toLodging` connector between
+a past lunch and a future check-in therefore inherits the *lunch's* past time and
+fails `nominalDate >= now`, so `remainingTimeline` drops it — even though the same
+day's itinerary may render it fine. Note the internal inconsistency: a *pending stop*
+bypasses that time filter entirely (`case .pending: remaining.append`), but the
+connector attached to it does not.
+
+**First diagnostic step for Slice C:** open the same trip's itinerary, day 12, and
+look between St Maddalena and Check in. Leg present there but missing in Today ⇒ it's
+the Today filter (Slice F). Missing in both ⇒ it's also a derivation gap (Slice C).
+Jon's "a number of places" suggests both are real.
+
+---
+
+## Diagnosis — each complaint traced to a cause
+
+| # | Complaint | Root cause | Evidence |
+| --- | --- | --- | --- |
+| 1a | No blue dot on the trip map | The app has **no location capability at all** — no `CLLocationManager`, no `NSLocationWhenInUseUsageDescription`, no `UserAnnotation` anywhere in the tree | `grep CLLocationManager\|UserAnnotation` → zero hits; `Galavant/Info.plist` has only the Calendar key |
+| 1b | No daily map on the cockpit | `TodayView` is a pure `ScrollView` of cards; no map | `Galavant/Today/TodayView.swift` |
+| 2 | Can't note a lodging | The Note section is **hidden for idea-backed stays**, and the write path actively nils it | `TripPlanningStaySheets.swift:242` (`if draft.ideaID == nil`), `TripStayOperations.swift:114` (`$0.inlineNote = #bind(ideaID == nil ? note : nil)`), `TripStay.create` takes no note |
+| 3a | Itinerary doesn't scroll to today | The `ScrollViewReader` only reacts to `canvasSelectedStopID`; day sections carry **no scroll anchor** and nothing ever targets a day | `TripItineraryView.swift:31–35`, `fullItinerary` |
+| 3b | Lodging capsule doesn't scroll the itinerary | `toggleCanvasStay` sets `canvasSelectedStayID` only; the itinerary's `focusedDay` reads `canvasSelectedDay`, which a stay tap **clears** — so the list doesn't move at all | `TripPlanningModel.swift:238–245`, `TripDetailContent.swift` (`focusedDay: model.canvasSelectedDay`) |
+| 4 | Planning surface has no sense of now | `canvasSelectedDay` is seeded to `nil` ("All") forever; the model has **no `liveDay` concept** — it exists only as a private computed property inside `TodayView` | `TripPlanningModel.swift:62`, `seedLensIfNeeded()` (seeds regions only), `TodayView.swift` `liveDay` |
+| 5 | Heterogeneous directions missing | Connectors are **four bespoke special cases**, not a general rule over adjacent located rows. Each has `count == 1` guards that silently return nil | `TripPlan+Travel.swift` — `lodgingToStopRoute`, `arrivalToStopRoute`, `stopToLodgingRoute`, `stayTransfer` |
+| 5b | Same leg missing **in Today** specifically | `rowNominalDate` gives a connector its **preceding** row's time, so a leg into a future check-in inherits a past stop's time and is filtered out of `remaining` | `TodayProjection.swift` `.connector` case — `[preceding, following]….first` |
+| 6 | New trip shows only time zones | `DayRegionMenu` is gated on `model.tripRegions.count >= 2`; `DayTimeZoneMenu` is **ungated**. A new trip has 0–1 regions, so the per-day header renders exactly one chip: the time zone | `TripItineraryRows.swift:22–27` |
+| 7a | "Nothing else is scheduled" with a pending stop and a 15:00 check-in on screen | `TodayProjection.next` matches `case .stop` only, and `isUpcoming` returns **false** for any stop without a nominal date (a floating Anytime stop, ADR-0033) as well as for past ones | `TodayProjection.swift:190–200`, `isUpcoming` at `:414` |
+| 7b | "Now" rendered below a future 15:00 check-in | `nowMarkerIndex(in: stops, …)` scans **stops only**; all stops past ⇒ `at == stops.count` ⇒ the marker is appended at the very end of `items`, after the check-in row | `TripPlan.swift:610`, and the trailing append at `:604` |
+
+Item 6's cause is worth restating, because it is a one-line gate producing a
+first-run impression: on a brand-new trip the only thing a day offers you is a
+list of IANA time-zone identifiers.
+
+---
+
+## Slices, models, and sequencing
+
+House rule (ROADMAP preamble): conservative and Opus-leaning; Sonnet only where
+there's an in-tree pattern to clone, guarded by tests and the drift gate.
+
+| Slice | Work | Model | Depends on | Branch |
+| --- | --- | --- | --- | --- |
+| **0** | Quick win: un-gate the day-region chip, demote the time-zone chip | **Sonnet 5** | — | `fix/day-header-region-chip` |
+| **A** | A sense of *now* on the planning surface: `liveDay` in the model, day lens seeded to today, itinerary auto-scroll, lodging-capsule → day scroll | **Opus 5** | — | `feat/planning-sense-of-now` |
+| **B1** | `LocationClient` + blue dot on the trip canvas map (+ new ADR) | **Opus 5** | — | `feat/device-location` |
+| **B2** | Daily map card on the Today cockpit | **Sonnet 5** | B1 | `feat/today-day-map` |
+| **C** | Generalize travel connectors to any adjacent located waypoints | **Opus 5** | — | `fix/heterogeneous-connectors` |
+| **D** | A note on any lodging stay, idea-backed or freeform | **Sonnet 5** | — | `feat/stay-notes` |
+| **E** | Sketch a trip: days × regions as a first-class planning pass | **Opus 5** | Slice 0, Slice A | `feat/trip-sketch` |
+| **F** | Today: stay boundaries and constraints become first-class events | **Opus 5** | — | `fix/today-non-stop-events` |
+
+**Why these models.** F is the one the screenshot proves is biting *right now*, on a
+live trip — it is small in code and large in product semantics ("what counts as an
+event?"), which is why it's Opus. C is the highest-risk item on the list — it rewrites the pure
+core that four surfaces (itinerary rows, canvas polylines, Today, Journey) all read,
+under an existing test suite that encodes the current special cases; getting the
+dedup and `.kind` classification wrong produces phantom or doubled legs that look
+plausible. A and E are product-design calls (what does "now" mean on a planning
+surface you're also using six months early?) rather than mechanical edits. B1 adds a
+privacy-sensitive capability, touches entitlements/plist/XcodeGen, and lands on
+MapKit and CoreLocation API surface that is past training cutoff — check current
+docs and the `swiftui-whats-new-27` skill rather than recall. D and B2 clone
+patterns that already exist in-tree (the freeform-stay note path; `PlaceSelectionMap`
++ `DayPalette`), and Slice 0 is a two-line gate change.
+
+Haiku isn't right for any of these — every slice touches either the pure core under
+test or a product decision.
+
+**Sequencing.** 0, D, B1, F are independent — run them concurrently, and **start with
+F**: it's the one actively degrading a trip Jon is on. C is independent of those but
+should follow F, since F's diagnostic answers whether C's scope includes this day at
+all, and both touch the connector stream. A follows 0 (both touch the day-section
+header area). B2 follows B1. E follows A and 0 (all three touch
+`TripItineraryView`/`SectionHeader`; E is the one that reshapes them).
+
+**Verification for every slice:** `scripts/check-drift.sh` (SwiftLint --strict,
+`swift test --package-path GalavantLibrary`, and the `build-for-testing` pass that
+compiles + links `GalavantUITests`). Branch + PR, never push to `master`. If you
+touch targets or add files outside the recursive `Galavant/` source path, update
+`project.yml` and run `xcodegen generate`.
+
+---
+
+# Prompts
+
+Each prompt is self-contained — hand it to a cold session. All of them assume:
+
+```
+Repo: ~/code/galavant/galavant   (NOT ~/code/galavant/galavantios — that's V1)
+Read first: AGENTS.md, docs/STYLE.md, the ADRs named in the prompt.
+```
+
+---
+
+## Prompt 0 — Day header: show the region chip, demote the time zone (Sonnet 5)
+
+> In `~/code/galavant/galavant`, fix a first-run impression problem in the trip
+> itinerary's per-day section header.
+>
+> **Read first:** `AGENTS.md`, `docs/decisions/0012-per-day-region-framing.md`,
+> `docs/decisions/0041-calendar-dogfood-amendments.md` (the per-day time-zone
+> feature is deliberate — you are demoting it, not deleting it).
+>
+> **Problem.** `Galavant/Trips/TripItineraryRows.swift:22–27` renders the day
+> header's chip row as:
+>
+> ```swift
+> if model.tripRegions.count >= 2 {
+>   DayRegionMenu(day: day, model: model)
+> }
+> DayTimeZoneMenu(day: day, model: model)
+> ```
+>
+> On a new trip `tripRegions` is empty or has one entry, so the region chip is
+> hidden and the **only** per-day affordance a user sees is a time-zone picker
+> listing every IANA identifier. That is the first thing Jon meets on a fresh trip.
+>
+> **Change.**
+> 1. Show `DayRegionMenu` whenever the trip has **one or more** regions. With
+>    exactly one region the menu still earns its place — it's how you say "day 3 is
+>    in this region" and drive the empty-day map frame (ADR-0012).
+> 2. When the trip has **zero** regions, render the chip in an unassigned state
+>    whose tap routes to the existing region picker (`TripRegionPicker`, reachable
+>    from Edit Trip) rather than showing nothing. Keep the label honest — "Set
+>    region" reading as tertiary, as it does today.
+> 3. Gate `DayTimeZoneMenu` so it appears only when it can matter: the trip is
+>    `.dated` **and** (a per-day override is already set for that day **or** the
+>    trip's regions span more than one time zone). Otherwise hide it. Do not remove
+>    the type or the model methods — ADR-0041 keeps them.
+>
+> **Out of scope:** the sketch surface (a separate slice), any schema change, any
+> change to `TripDayRegion`/`TripDayTimeZone` write paths.
+>
+> **Verify:** `scripts/check-drift.sh`. Branch `fix/day-header-region-chip`, land
+> via PR. Do not run the simulator — Jon reviews on device.
+
+---
+
+## Prompt A — A sense of *now* on the planning surface (Opus 5)
+
+> In `~/code/galavant/galavant`, give the trip planning surface a sense of *now*.
+>
+> **Read first:** `AGENTS.md`, `docs/STYLE.md`, `docs/trip-canvas.md`,
+> `docs/decisions/0038-journey-today-projections-and-weather.md`,
+> `docs/decisions/0011-accommodations-as-stays.md`.
+>
+> **The complaint, in Jon's words:** *"When the trip is ON, everything needs a sense
+> of now. Not just the phone cockpit, but the planning surface as well. Don't make me
+> scroll to the day and select it."* Plus: the itinerary should scroll to today
+> automatically, and tapping a lodging capsule should scroll the itinerary to the
+> first day of that stay.
+>
+> **Current state.**
+> - `TripPlanningModel.canvasSelectedDay` (`Trips/TripPlanningModel.swift:62`) is
+>   seeded to `nil` ("All") and never learns the date. `seedLensIfNeeded()` seeds
+>   regions only.
+> - The only live-day logic in the app is a **private computed property inside
+>   `Today/TodayView.swift`** (`liveDay`), built on
+>   `TodayProjection.tripDay(containing:tripStartDate:in:)` — which already lives in
+>   the pure core and returns nil when the trip isn't underway.
+> - `TripItineraryView`'s `ScrollViewReader` (`Trips/TripItineraryView.swift:31–35`)
+>   only reacts to `canvasSelectedStopID`. Day sections carry no scroll anchor.
+> - `toggleCanvasStay` (`TripPlanningModel.swift:238`) sets `canvasSelectedStayID`
+>   and **clears** `canvasSelectedDay`; `TripDetailContent` passes
+>   `focusedDay: model.canvasSelectedDay`, so a capsule tap moves the map lens and
+>   leaves the list exactly where it was.
+>
+> **Build.**
+> 1. **Promote `liveDay` to the model.** Expose it on `TripPlanningModel`, derived
+>    from the pure `TodayProjection.tripDay` helper, nil when the trip is undated or
+>    not underway. `TodayView` should then read the model's value instead of keeping
+>    its own copy. Take the clock from `@Dependency(\.date)`, not `Date.now` — note
+>    that `TripItineraryView` currently passes a bare `Date.now` into
+>    `itineraryItems(...)` in two places; route those through the model's clock as
+>    part of this change so the behavior is testable.
+> 2. **Seed the day lens to today, once.** Extend the first-appear seeding so a trip
+>    that is underway opens on its live day rather than "All". Do not fight the user:
+>    seed once, and never re-seed over an explicit selection. A trip that is not
+>    underway keeps today's behavior. Coordinate with
+>    `pickInitialSheetTabIfNeeded()` — an active trip should land on Itinerary.
+> 3. **Mark today in `DayChipBar`.** The live day's chip needs to read as *today* at
+>    a glance, distinct from "selected". Your call on the treatment; keep it legible
+>    against the existing `DayPalette` colour dot and the selected capsule state.
+> 4. **Auto-scroll the whole-trip itinerary to the live day.** Give each day section
+>    a stable scroll anchor and scroll to the live day on appear (animation off for
+>    the initial placement — it should already be there, not glide there). Preserve
+>    the existing stop-selection scroll.
+> 5. **Lodging capsule → itinerary.** Tapping a capsule in `LodgingCapsuleBar` must
+>    move the list to the stay's `checkInDay`, not only the map. Decide the cleanest
+>    semantics and say which you chose in the PR body — either the stay lens sets the
+>    focused day to `checkInDay` (simple, but conflates the two lenses), or the
+>    itinerary keeps the whole-trip list under a stay lens and scrolls to the first
+>    covered day (preserves "a stay spans days", costs a branch in
+>    `TripDetailContent`). The second is probably right — a stay is a span, and
+>    collapsing it to one day loses the thing the lens exists to show — but make the
+>    call deliberately.
+>
+> **Constraints.** The now-marker row already exists in `TripPlan.itineraryItems`;
+> don't build a second one. Keep pure logic in `GalavantSchema` with tests — model
+> state changes belong in `TripPlanningModel`, day-derivation belongs in the core.
+> No new dependency.
+>
+> **Out of scope:** the Today cockpit's own layout, the daily map (Slice B2), the
+> trip sketch surface (Slice E).
+>
+> **Verify:** `scripts/check-drift.sh`, plus unit tests for the live-day derivation
+> and the seeding rule (including: undated trip, trip in the past, trip in the
+> future, day 1 and day N boundaries). Branch `feat/planning-sense-of-now`, land via
+> PR. Update `docs/CURRENT_HANDOFF.md` / `docs/DONE_LOG.md` per house rule.
+
+---
+
+## Prompt B1 — Device location and the blue dot (Opus 5)
+
+> In `~/code/galavant/galavant`, add device location to the app and show the user's
+> position on the trip canvas map.
+>
+> **Read first:** `AGENTS.md`, `docs/STYLE.md`, `docs/decisions/README.md`,
+> `docs/decisions/0005-platforms-capture-distribution.md`,
+> `docs/trip-canvas.md`. The app currently has **no location capability whatsoever** —
+> no `CLLocationManager`, no usage-description key, no `UserAnnotation`. You are
+> adding the first one.
+>
+> **Write the ADR first.** Next free number in `docs/decisions/`, indexed in
+> `docs/decisions/README.md` in the same change. It should settle at minimum:
+> when-in-use authorization only (never Always, never background updates); location
+> is **never persisted and never synced** — it is ephemeral view state, which keeps
+> it out of CloudKit and out of the travel-party share entirely; what the app does
+> when authorization is denied or restricted (the map must stay fully useful); and
+> whether the ETA/`leaveBy` machinery in Today is allowed to read it later (state the
+> intent even if you don't build it — Jon will want "leave by" measured from where he
+> actually is, not from the previous stop).
+>
+> **Build.**
+> 1. A `LocationClient` dependency in the app layer, in the exact shape of
+>    `Trips/DirectionsClient.swift` — a `Sendable` struct of closures, `DependencyKey`
+>    with `liveValue` and a deterministic `testValue`, and a `DependencyValues`
+>    accessor. Do not introduce a singleton or an `ObservableObject` manager
+>    (`docs/STYLE.md`). Prefer the modern async `CLLocationUpdate` sequence over the
+>    delegate API; this is past your training cutoff, so check current CoreLocation
+>    docs and the installed `swiftui-specialist` / `swiftui-whats-new-27` skills
+>    rather than recalling an older pattern.
+> 2. `NSLocationWhenInUseUsageDescription` via **`project.yml`** (the app target's
+>    `info.properties` — `project.yml` is source of truth), then `xcodegen generate`,
+>    committing both `project.yml` and the regenerated `project.pbxproj`. Write the
+>    string as a user-facing sentence: it's what Jon's wife reads on first launch.
+> 3. Blue dot on `Trips/TripCanvasMapView.swift`: add `UserAnnotation()` to the map
+>    content and a `MapUserLocationButton` in the map controls. Authorization is
+>    requested **on first use of that control**, not on app launch or on trip open —
+>    an unprompted permission dialog on opening a trip is exactly the wrong first
+>    impression.
+> 4. Denied/restricted: no dot, no button, no error state shouting at the user. The
+>    map keeps working.
+>
+> **Do not** change camera framing behavior (`frameSelection`, `revealStop`) to
+> follow the user. Auto-centring on the device fights the day-lens framing that
+> ADR-0012 established. If you think there's a case for a "recentre on me" gesture,
+> propose it in the PR body rather than building it.
+>
+> **Out of scope:** the Today cockpit map (Slice B2 consumes this client), the Ideas
+> map, any distance-to-stop or arrival-detection logic.
+>
+> **Verify:** `scripts/check-drift.sh`. Location is simulator-verifiable (Features →
+> Location → Custom) but per repo convention **do not run the simulator** — Jon
+> verifies on device. Branch `feat/device-location`, land via PR. Update
+> `docs/CURRENT_HANDOFF.md`.
+
+---
+
+## Prompt B2 — A daily map on the Today cockpit (Sonnet 5, or hand to Codex)
+
+> **Dependency: Slice B1 must be merged first** (this consumes its `LocationClient`
+> and its Info.plist key).
+>
+> In `~/code/galavant/galavant`, add a map of the current day to the **Today** view —
+> the on-the-ground iPhone cockpit, `Galavant/Today/TodayView.swift`.
+>
+> **Read first:** `AGENTS.md`, `docs/decisions/0038-journey-today-projections-and-weather.md`,
+> `docs/decisions/0039-today-execution-completion-skip-defer.md`,
+> `docs/M10-EXECUTION.md`, and `Galavant/Trips/TripCanvasMapView.swift` (the idioms
+> to mirror, not to copy wholesale).
+>
+> **Problem.** Today is a `ScrollView` of cards with no spatial view at all. On the
+> ground, the one thing you want alongside "what's next" is *where that is relative
+> to where I am*.
+>
+> **Build.** A day-map card in the Today stack showing:
+> - today's located stops in itinerary order, numbered, in that day's `DayPalette`
+>   colour, with the day's polyline — reuse `plan.locatedStops(forDay:)` and
+>   `plan.routeEndpoints(forDay:)`; do not derive a second route,
+> - the day's lodging base pin, matching the canvas's `BasePin` treatment,
+> - the user's location (`UserAnnotation`, from Slice B1),
+> - the **next** stop visually distinguished — Today's whole job is "what's next",
+>   and the map should answer it without reading the cards.
+>
+> Frame the camera on the union of today's stops plus the user's location when it's
+> available and nearby; fall back to the existing `MapFraming` helpers otherwise.
+> Tapping the card's next-stop pin should select the same idea the cards select
+> (`onSelectIdea`), so the map and the cards stay one surface.
+>
+> **Respect the preview mode.** `TodayView` renders any trip day via its day stepper;
+> when `isPreviewing` is true the map shows that day's route but **not** a live
+> "you are here" framing — previewing day 5 from day 2 shouldn't fly the camera to
+> Jon's kitchen.
+>
+> **Constraints.** No new projection type and no persistence — Today is a read-only
+> projection over `TripPlan` (ADR-0038) and this card must stay that way. No second
+> Directions polling loop; `TodayModel` deliberately avoids one. Keep `TodayView`
+> from growing — it's already 263 lines and the repo has been actively splitting
+> these files (PRs #104–110); put the card in `TodayCards.swift` or its own file.
+>
+> **Verify:** `scripts/check-drift.sh`. Branch `feat/today-day-map`, land via PR.
+
+---
+
+## Prompt C — Directions between *any* adjacent located things (Opus 5)
+
+> In `~/code/galavant/galavant`, fix missing travel-time connectors between
+> heterogeneous itinerary rows.
+>
+> **Do this first.** Jon's dogfood screenshot showed a missing St Maddalena → Forestis
+> check-in leg on **Today**, and the likely cause there is Today's own time filter,
+> not connector derivation — that half is **Slice F**, which should land before this.
+> So begin by reproducing on the *itinerary*: a day with a located stop followed by a
+> located check-in, and confirm whether the leg renders there. If it does, this slice
+> is purely about the structural gaps below; if it doesn't, you have a live
+> reproduction of gap 4. Either way the generalization below is the work — the repro
+> just tells you which test fails first.
+>
+> **Read first:** `AGENTS.md`, `docs/STYLE.md`, `docs/trip-canvas.md`,
+> `docs/decisions/0011-accommodations-as-stays.md`,
+> `docs/decisions/0035-itinerary-alternatives.md`,
+> `docs/decisions/0043-travel-mode-overrides-keyed-by-stable-slot-identity.md`, and
+> the whole of `GalavantLibrary/Sources/GalavantSchema/TripPlan+Travel.swift`.
+>
+> **Problem.** Connectors are not a general rule — they are four hand-written special
+> cases (`lodgingToStopRoute`, `arrivalToStopRoute`, `stopToLodgingRoute`,
+> `stayTransfer`), each guarded by `count == 1` conditions, woven into the timeline by
+> a hand-rolled insertion pass in `TripPlan.itineraryItems` that matches connectors to
+> rows by string-comparing endpoint IDs (`baseConnector?.to.id == "stop-\(stop.id)"`).
+> Anything the four cases don't name draws no directions. Known gaps:
+>
+> 1. **Two or more stays covering a day** that aren't exactly one departure + one
+>    arrival (overlapping stays, a data slip, a three-hotel day): every lodging leg
+>    returns nil. `TripStay.overlapping` exists precisely because this state is
+>    allowed — advisory, never blocked (ADR-0011 §6) — so the connectors must degrade
+>    gracefully rather than vanish.
+> 2. **A located `CalendarTripConstraint`** is woven into the timeline as a real row
+>    but is never an endpoint — a stop→obligation→stop day loses both legs around it.
+> 3. **Check-out → first stop on a changeover day** where a stay leaves but none
+>    arrives: `lodgingToStopRoute` requires `departures.count == 1 && arrivals.count == 1`
+>    when `stays.count > 1`, and returns nil otherwise.
+> 4. **Stop → check-in** when stops follow the check-in: `returnConnector` is appended
+>    after the last stop in the stream rather than adjacent to the `.checkIn` row, so
+>    the leg can render in the wrong place or not at all.
+> 5. **Unlocated stays** (freeform, no coordinate) produce nil endpoints and take the
+>    whole day's lodging legs down with them.
+>
+> **Change the shape, not just the cases.** Derive the day's ordered **located
+> waypoint chain** from the already-woven timeline stream, then emit a connector
+> between each consecutive pair of located waypoints. One rule, applied to stops,
+> stay boundaries, home-base rows, and located calendar constraints alike. The four
+> special cases become classifications of the resulting leg, not gates on whether a
+> leg exists.
+>
+> **Invariants that must survive** (there is an existing test suite encoding them —
+> read it before you change it):
+> - `TravelConnector.Kind` still classifies each leg correctly; itinerary rows and the
+>   canvas style off it.
+> - Alternatives rings keep sharing one `travelEndpointID` (`ring-<groupID>`), so a
+>   swap doesn't create a new logical leg or lose a mode override (ADR-0043).
+> - **No duplicate legs.** The current `arrivalToStopRoute` de-dupes against
+>   `lodgingToStopRoute` by identity comparison; whatever replaces it must not emit
+>   the same directed pair twice.
+> - The stay-transfer suppression rule survives: a direct hotel→hotel leg is drawn
+>   only when no stop sits between check-out and check-in (`transferConnector`), while
+>   Journey's looser `lodgingChangeoverConnector` still reports the changeover
+>   regardless. Two different consumers, two different rules — keep both.
+> - `routeEndpoints(forDay:)` stays consistent with the timeline: the canvas polyline
+>   and the rows must tell the same story.
+> - **One pass.** PR #83 fixed a lockup caused by rebuilding the leg graph per leg
+>   (`legModes` carries the comment). Do not reintroduce per-leg graph derivation —
+>   the waypoint chain is built once per day.
+> - `allLegs` / `legIdentities` must still enumerate exactly the legs the timeline
+>   renders, or `fetchMissingETAs` will fetch the wrong set.
+>
+> **Then simplify the weave.** With a general rule in place, the connector-insertion
+> bookkeeping in `itineraryItems` (`baseConnectorInserted`, `arrivalConnectorInserted`,
+> `stayTransferInserted`, the string-matched `to.id` comparisons, the
+> `// swiftlint:disable:next function_body_length`) should collapse substantially. If
+> it doesn't, the abstraction is wrong — say so in the PR rather than layering a fifth
+> case on top.
+>
+> **Test the gaps explicitly**, in `GalavantLibrary/Tests`: the five numbered cases
+> above, each as a named test. Unlocated endpoints must still produce *no* leg (a leg
+> to nowhere is worse than no leg) — assert that too.
+>
+> **Out of scope:** fetching ETAs differently, transport-mode resolution, any UI
+> change beyond what falls out of rows receiving connectors they didn't get before.
+>
+> **Verify:** `scripts/check-drift.sh`. Branch `fix/heterogeneous-connectors`, land
+> via PR with a body that lists which previously-missing legs now render.
+
+---
+
+## Prompt D — A note on any lodging stay (Sonnet 5)
+
+> In `~/code/galavant/galavant`, let a lodging stay carry a note whether or not it's
+> backed by a pool hotel.
+>
+> **Read first:** `AGENTS.md`, `docs/decisions/0011-accommodations-as-stays.md`,
+> `docs/decisions/0026-idea-description-vs-notes.md`.
+>
+> **Problem.** `TripStay.inlineNote` exists but is treated as *freeform-stay-only*
+> content. Three places enforce that:
+> - `Galavant/Trips/TripPlanningStaySheets.swift:241` — the Note section is wrapped in
+>   `if draft.ideaID == nil`, so a hotel from the pool has no note field at all.
+> - `GalavantSchema/TripStayOperations.swift:114` — `edit` writes
+>   `$0.inlineNote = #bind(ideaID == nil ? note : nil)`, actively **erasing** a note
+>   the moment a stay gains an idea.
+> - `TripStay.create` (idea-backed) takes no `note` parameter at all.
+>
+> Result: Jon books a real hotel and has nowhere to put "ask for a room away from the
+> lift, parking is €18/night, breakfast until 10."
+>
+> **Change.** A stay note is the **trip party's note about this stay** and applies to
+> both kinds. The pool `Idea`'s own notes remain separate and untouched — one is "this
+> hotel", the other is "our stay at it" (the ADR-0026 distinction).
+>
+> 1. **Do not rename the column.** `inlineNote` stays `inlineNote` — a `@Table` column
+>    rename is a CloudKit schema change and this needs none. Update its doc comment to
+>    say what it now means, and note the name is historical.
+> 2. `TripStay.create` accepts an optional note; `TripStay.edit` persists the note
+>    unconditionally.
+> 3. Resolve the note into the read model for idea-backed stays too —
+>    `GalavantSchema/TripPlan.swift:186` and `:260` currently surface it only through
+>    the freeform `.stay(title:note:)` content case. Check how `ResolvedStay.content`
+>    is built for an idea-backed stay and make the note reachable there without
+>    breaking the `StopContent` enum's contract.
+> 4. `StaySheet`: show the Note section always. Keep the placeholder honest for a
+>    hotel — the freeform "Optional details" is fine, but a hotel note is more likely
+>    a reservation detail.
+> 5. **Show it.** A note that only exists in the edit sheet isn't a feature. Surface
+>    it, truncated, on the rows that already render a stay: `CheckRow` and
+>    `HomeBaseRow` in `Trips/TripItineraryRows.swift`, and `TodayTonightCard` in
+>    `Today/TodayCards.swift` — tonight's lodging note is exactly the thing you want on
+>    the phone at 6pm.
+>
+> **Out of scope:** booking metadata (confirmation numbers, URLs — `BookingFieldsDraft`
+> already exists for stops and the stay-booking seam is explicitly deferred in
+> `TripStay`'s doc comment to the trip-time-model work), images, any new column.
+>
+> **Verify:** `scripts/check-drift.sh`, with schema tests covering: create idea-backed
+> with a note; edit a freeform stay into an idea-backed one and confirm the note
+> **survives** (it currently does not — that's the regression test); clear a note back
+> to nil. Branch `feat/stay-notes`, land via PR.
+
+---
+
+## Prompt E — Sketch a trip: days × regions as a planning pass (Opus 5)
+
+> **Dependencies: Slices 0 and A merged first** (both touch the day-section header and
+> `TripItineraryView`).
+>
+> In `~/code/galavant/galavant`, build the missing first step of trip planning.
+>
+> **Read first:** `AGENTS.md`, `docs/PRODUCT.md`, `docs/trip-canvas.md`,
+> `docs/trip-time-model.md`, `docs/decisions/0012-per-day-region-framing.md`,
+> `docs/decisions/0013-ideas-screen-trip-shopping-surface.md`,
+> `docs/decisions/0004-pull-based-trip-membership.md`.
+>
+> **The complaint, in Jon's words:** *"I want a way to sketch out a trip from the
+> start with days and regions. Right now in a new trip all I can see are time zones."*
+>
+> The second half is a gate bug, fixed in Slice 0 — don't redo it. The first half is
+> the real ask: **the shape of a trip is decided before any stop exists.** "Four
+> nights Loire, three nights Paris, fly home day 8" is the first thing a planner
+> writes down, and Galavant has no surface for it. Today you can set the trip's
+> length in the form and assign a region to one day at a time from a menu buried in a
+> section header — which is the same information entered the slowest possible way.
+>
+> **Everything needed is already modelled.** `TripDayRegion` (per-day region
+> assignment, `TripPlanningModel+Scheduling.swift:235`), `TripRegion` (trip↔region),
+> `Trip.lengthInDays`, and `TripStay` (the nights). `TripPlan.region(forDay:)` already
+> drives the empty-day map frame (ADR-0012 rung 3), and `PlaceIdeaSheet` already
+> scopes "Browse *Loire* Ideas" off the day's region. **The payoff is already wired
+> — nothing is feeding it.** This slice is a view over existing schema; resist adding
+> a table.
+>
+> **Design, then build.** Write a short design note in `docs/handoff/` (or an ADR if
+> you conclude this changes a settled decision rather than implementing one) covering:
+>
+> - **Where it lives.** Candidates: a step after the new-trip form; a mode on the
+>   trip canvas when nothing is scheduled; a permanent entry in the trip settings
+>   menu. It must be reachable *again* later — trips get re-shaped, and a one-shot
+>   wizard you can't return to is worse than no wizard.
+> - **The interaction.** The natural unit is a **span**, not a day: "days 1–4, Loire"
+>   in one gesture, not four menu taps. Contiguous spans covering 1…N, each with an
+>   optional region. Assigning a region to a span writes `TripDayRegion` rows for
+>   every day in it. Changing trip length must behave sanely (a shortened trip drops
+>   orphaned day rows; a lengthened one leaves the new days unassigned).
+> - **Regions that don't exist yet.** A new trip's region list is usually empty, and
+>   regions are defined on the Ideas map (ADR-0004). The sketch must offer a path to
+>   create or attach one inline, or it dead-ends exactly where a new user starts.
+> - **Its relationship to stays.** A region span and a lodging stay are *not* the same
+>   thing — you can be based in one hotel and day-trip across two regions — but they
+>   usually coincide. Decide whether the sketch also offers "add lodging for this
+>   span" (probably yes: it's the same gesture and it's what a planner means), and
+>   whether an existing stay suggests a span. Do not merge the two models.
+> - **What it does to the canvas.** With spans assigned, an empty trip stops being an
+>   empty map: each day already frames to its region. Say how the sketch hands off to
+>   the existing planning surface — the sketch is the trip's skeleton, and the canvas
+>   remains where stops land.
+>
+> Get Jon's sign-off on the design note before building the UI. He is the product
+> owner and this one is a shape decision, not a mechanical change.
+>
+> **Constraints.** No new table without a very good argument. Pure day/span logic in
+> `GalavantSchema` with tests (span coverage, gaps, overlaps, length changes). No
+> version suffixes in identifiers (ADR-0006). If you add files outside the recursive
+> `Galavant/` source path, update `project.yml` and run `xcodegen generate`.
+>
+> **Verify:** `scripts/check-drift.sh`. Branch `feat/trip-sketch`, land via PR.
+> Update `docs/CURRENT_HANDOFF.md` and index any new doc per the house rule.
+
+---
+
+## Prompt F — Today: stay boundaries and constraints are real events (Opus 5)
+
+> In `~/code/galavant/galavant`, fix three coupled defects on the **Today** surface.
+> They were all visible in a single dogfood screenshot from a live trip, and they
+> share one root cause.
+>
+> **Read first:** `AGENTS.md`, `docs/STYLE.md`,
+> `docs/decisions/0038-journey-today-projections-and-weather.md`,
+> `docs/decisions/0039-today-execution-completion-skip-defer.md`,
+> `docs/decisions/0011-accommodations-as-stays.md`,
+> `docs/decisions/0033-floating-untimed-stops.md`, and all of
+> `GalavantLibrary/Sources/GalavantSchema/TodayProjection.swift`.
+>
+> **The evidence.** Day 12 of 16, 13:45, one hotel checking in at 15:00:
+>
+> ```
+> Nothing else is scheduled / Your day is clear from here.
+> REMAINING
+>   ○  St Maddalena / Lunch        (pending)
+>   •  Check in / Forestis  15:00
+>   •  Now
+> ```
+>
+> Three things are wrong at once: Today says the day is clear while a pending stop and
+> a 75-minutes-away check-in sit right below it; the **Now** marker renders *below* a
+> future 15:00 row; and the directions row between St Maddalena and the check-in is
+> absent.
+>
+> **The root cause.** Today treats stops as the only real events. Stay boundaries and
+> calendar constraints are woven into `itineraryItems` as rows, but every *decision*
+> about time ignores them:
+>
+> 1. `TodayProjection.next` matches `case .stop` only, so a check-in can never be
+>    "next". Compounding it, `isUpcoming` returns **false** when a stop has no nominal
+>    date — which is every floating Anytime stop (ADR-0033), not just past ones. So
+>    `next` goes nil and `TodayNoNextCard` claims the day is clear.
+> 2. `TripPlan.nowMarkerIndex(in: stops, …)` scans **stops only**. With every stop
+>    past it returns `stops.count`, and `itineraryItems` appends the marker at the very
+>    end of `items` — after the 15:00 check-in row.
+> 3. `TodayProjection.rowNominalDate` gives a `.connector` the time of its
+>    **preceding** row (`[preceding, following]….first`). A `.toLodging` leg between a
+>    past lunch and a future check-in inherits the *lunch's* time and fails
+>    `nominalDate >= now`, so `remainingTimeline` drops it. Note the inconsistency it
+>    sits next to: a **pending stop bypasses that time filter entirely**
+>    (`case .pending: remaining.append`), while the connector attached to it does not.
+>
+> **Build.**
+> 1. **Make `next` event-kind-agnostic.** A check-in, a check-out, and a located
+>    calendar constraint are all things that can be next. Decide what `LeaveBy` and
+>    `WeatherAnchor` mean for a non-stop event — "leave by" to reach a 15:00 check-in
+>    is exactly as meaningful as to reach a museum — and say so in the PR body. Keep
+>    `TodayProjection.Next.item` as an `ItineraryItem`; it already admits every case.
+> 2. **Handle the undated stop.** `isUpcoming` treating "no clock" as "not upcoming"
+>    is wrong for a floating stop: an Anytime stop that hasn't been done is still
+>    ahead of you. Resolve it against the stop's *effective* intra-day position
+>    (`TripIdea.effectiveIntraDaySort`, the same anchor the timeline weaves on) rather
+>    than inventing a clock time.
+> 3. **Place the Now marker against the whole stream.** Move the decision so it keys
+>    off the woven, time-sorted items, not the bare stop list. The marker must land
+>    between the last row whose time is past and the first row whose time is future,
+>    whatever kind those rows are.
+> 4. **Fix the connector's time.** A connector belongs to the event it *arrives at* —
+>    prefer the **following** neighbor's time, falling back to the preceding one. Fix
+>    the doc comment, which currently asserts the opposite rule. Then reconcile the
+>    filter inconsistency in 3 above: either pending rows and their connectors both
+>    bypass the time filter, or neither does. Pick one and make it explicit — a
+>    timeline that shows a stop but hides the directions to it is the worst of both.
+>
+> **Constraints.** Today stays a read-only projection over `TripPlan` (ADR-0038) — no
+> new model, no persistence, no second itinerary. The changes belong in the pure core
+> (`TodayProjection`, `TripPlan.nowMarkerIndex`) with tests, not in `TodayView`. Be
+> careful with `nowMarkerIndex`: the **itinerary** also renders the now-marker from the
+> same function, so a change there is visible on both surfaces — that's desirable, but
+> verify the whole-trip itinerary still reads correctly.
+>
+> **Test each defect as a named test** in `GalavantLibrary/Tests`, using the
+> screenshot's shape as the fixture: a day whose only remaining events are a pending
+> untimed stop and a later check-in, evaluated at a `now` between them. Assert `next`
+> is the check-in, the marker sits before it, and the connector survives.
+>
+> **Out of scope:** the day map (Slice B2), stop completion semantics, weather.
+>
+> **Verify:** `scripts/check-drift.sh`. Branch `fix/today-non-stop-events`, land via
+> PR. Update `docs/CURRENT_HANDOFF.md`.
+
+---
+
+## Notes for whoever sweeps this file
+
+Retire slices from this brief as they ship (per the `CURRENT_HANDOFF.md` rule — an
+entry that is done gets deleted, not annotated). When the last slice lands, mark this
+brief **Done** in `docs/handoff/README.md` and move the summary to `docs/DONE_LOG.md`.

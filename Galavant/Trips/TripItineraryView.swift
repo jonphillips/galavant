@@ -17,10 +17,25 @@ struct TripItineraryView: View {
   var focusedDay: Int?
   @State private var selectedCalendarConstraint: CalendarTripConstraint?
   @State private var pendingStopRemoval: PendingStopRemoval?
+  /// The first placement on the live day should *already be there* rather than
+  /// gliding there, so only later moves animate.
+  @State private var didPlaceInitialDayScroll = false
 
   private struct PendingStopRemoval {
     let stopID: TripIdea.ID
     let title: String
+  }
+
+  /// Scroll targets for the whole-trip list. Its own type so day anchors can never
+  /// collide with the stop-selection scroll, which targets `TripIdea.ID`.
+  private enum DayAnchor: Hashable {
+    case day(Int)
+  }
+
+  /// The day the whole-trip list should sit on — today, or the first day of the
+  /// selected stay. Nil under a day lens: that list is already one day.
+  private var scrollDay: Int? {
+    focusedDay == nil ? model.itineraryFocusDay : nil
   }
 
   var body: some View {
@@ -31,6 +46,20 @@ struct TripItineraryView: View {
         .onChange(of: model.canvasSelectedStopID) { _, id in
           guard let id else { return }
           withAnimation { proxy.scrollTo(id, anchor: .center) }
+        }
+        // A sense of *now* on the planning surface: the whole-trip list opens on
+        // today, and a lodging capsule moves it to that stay's first day. `.task`
+        // rather than `.onChange` so the target day's section exists to scroll to —
+        // a stay tap swaps the list out of its day lens in the same update.
+        .task(id: scrollDay) {
+          guard let day = scrollDay else { return }
+          await Task.yield()
+          guard didPlaceInitialDayScroll else {
+            didPlaceInitialDayScroll = true
+            proxy.scrollTo(DayAnchor.day(day), anchor: .top)
+            return
+          }
+          withAnimation { proxy.scrollTo(DayAnchor.day(day), anchor: .top) }
         }
         .sheet(item: $selectedCalendarConstraint) { constraint in
           CalendarConstraintDetailSheet(
@@ -63,7 +92,7 @@ struct TripItineraryView: View {
     let stops = plan.itinerary.first(where: { $0.number == day })?.stops ?? []
     let items = plan.itineraryItems(
       forDay: day, travelTimes: model.travelTimes, effectiveModes: model.effectiveModes,
-      now: Date.now, tripStartDate: model.trip?.startDate,
+      now: model.now, tripStartDate: model.trip?.startDate,
       stays: plan.stays(coveringDay: day))
     let sequence = plan.locatedSequenceNumbers(forDay: day)
     let cells = focusedDayCells(stops: stops, items: items)
@@ -230,7 +259,7 @@ struct TripItineraryView: View {
       ForEach(plan.itinerary) { day in
         let items = plan.itineraryItems(
           forDay: day.number, travelTimes: model.travelTimes, effectiveModes: modes,
-          now: Date.now, tripStartDate: model.trip?.startDate,
+          now: model.now, tripStartDate: model.trip?.startDate,
           stays: plan.stays(coveringDay: day.number))
         let sequence = plan.locatedSequenceNumbers(forDay: day.number)
         Section {
@@ -246,6 +275,7 @@ struct TripItineraryView: View {
             label: dayLabel(day.number, trip: model.trip),
             day: day.number,
             model: model)
+            .id(DayAnchor.day(day.number))
         }
       }
     }

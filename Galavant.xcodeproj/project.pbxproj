@@ -12,6 +12,7 @@
 		076EC78EEEA664F8BF4FC53F /* CalendarExportClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51AA50E3CB7A4D6C5DD50110 /* CalendarExportClient.swift */; };
 		0A4F2D930190CC5D4B629BCC /* SQLiteData in Frameworks */ = {isa = PBXBuildFile; productRef = EB30B546BC69ECE08A9C6766 /* SQLiteData */; };
 		0BB238241FF15660518799F8 /* GalavantSchema in Frameworks */ = {isa = PBXBuildFile; productRef = 9CF31E175F7DCB4D59EAF394 /* GalavantSchema */; };
+		0D41C115701ECA126F98EB77 /* TripPlanningModel+Now.swift in Sources */ = {isa = PBXBuildFile; fileRef = 027A438B9BEF5C05EBB3F4EF /* TripPlanningModel+Now.swift */; };
 		0D52F2373EEF284921180A85 /* IdeaRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EF8BE4704C36D1A6FFB14D6 /* IdeaRow.swift */; };
 		1284CC7780258FD4F4425010 /* BrowserScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8181602270C693F3DBB397 /* BrowserScreen.swift */; };
 		12F45B75F8F418158124463E /* GalavantSchema in Frameworks */ = {isa = PBXBuildFile; productRef = F2CB005A8EB3216DE2ACF7EF /* GalavantSchema */; };
@@ -151,6 +152,7 @@
 		F569C91AF0E8633E066AA600 /* WebExtractorKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4D543244A7EA1E4F10D196DF /* WebExtractorKit */; };
 		F57648A300EA9E12818CF2AC /* WeatherAttributionLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5F159E1049DE135201C5821 /* WeatherAttributionLink.swift */; };
 		F82D8FFDDCDBA5EEC7FED0AB /* TripCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CBA766947DA059C035C1937 /* TripCard.swift */; };
+		FB833A8213FBA1E378DDC0D8 /* TripPlanningSenseOfNowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7EC4E4FC4F7E11352D4E74 /* TripPlanningSenseOfNowTests.swift */; };
 		FC020B16F76EF347447EA884 /* PlaceSelectionMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B9FE29B0BE3BE657414B717 /* PlaceSelectionMap.swift */; };
 		FC93F141F3BAB4EC6E09A89F /* CalendarReconciliationModel+Promotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = E16C0BEC67299FCDA71789C9 /* CalendarReconciliationModel+Promotion.swift */; };
 		FF6492EB056141CC9F75093F /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = C6C18315C28F69E95AB54F85 /* Dependencies */; };
@@ -196,6 +198,7 @@
 
 /* Begin PBXFileReference section */
 		00154E6FD53486C6ECD8CBD9 /* PoolIdentityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoolIdentityUITests.swift; sourceTree = "<group>"; };
+		027A438B9BEF5C05EBB3F4EF /* TripPlanningModel+Now.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripPlanningModel+Now.swift"; sourceTree = "<group>"; };
 		02F3EA63CB8A4B8B546438F5 /* RegionManagementSettingsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegionManagementSettingsModel.swift; sourceTree = "<group>"; };
 		0620B4CD2A26F04156B150D3 /* RecommendationWorkspaceModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationWorkspaceModel.swift; sourceTree = "<group>"; };
 		07A4BE5288975EEF3DA91B16 /* TripDetailContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripDetailContent.swift; sourceTree = "<group>"; };
@@ -319,6 +322,7 @@
 		E754846D1941C6A46BF20DFB /* TripPlanningModel+Freeform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripPlanningModel+Freeform.swift"; sourceTree = "<group>"; };
 		E818B469EB6F7EB6FB4F33D6 /* CloudSyncKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = CloudSyncKit; path = "../../jon-platform/packages/CloudSyncKit"; sourceTree = SOURCE_ROOT; };
 		EA2BBF3B289FD7D02957833B /* AppContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainer.swift; sourceTree = "<group>"; };
+		EB7EC4E4FC4F7E11352D4E74 /* TripPlanningSenseOfNowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripPlanningSenseOfNowTests.swift; sourceTree = "<group>"; };
 		EC86C7931F1026669DFCE6AB /* TripBadgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripBadgeView.swift; sourceTree = "<group>"; };
 		EC86C99C4DC8F10257E93B99 /* BrowserScreenModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserScreenModel.swift; sourceTree = "<group>"; };
 		ED4DA130D3A7069430825C31 /* TripCanvasMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripCanvasMapView.swift; sourceTree = "<group>"; };
@@ -481,6 +485,7 @@
 				93731311444130D979F919BE /* TripPlanningModel+Alternatives.swift */,
 				0F84BC54D6D414EBFC202ED7 /* TripPlanningModel+Directions.swift */,
 				E754846D1941C6A46BF20DFB /* TripPlanningModel+Freeform.swift */,
+				027A438B9BEF5C05EBB3F4EF /* TripPlanningModel+Now.swift */,
 				47B9767D73E65C3D4D10CC30 /* TripPlanningModel+Recommendation.swift */,
 				72A6C6AEFAD6483C0E0AF70C /* TripPlanningModel+Scheduling.swift */,
 				74F16970DCFE2E14E475DB66 /* TripPlanningSheets.swift */,
@@ -543,6 +548,7 @@
 			isa = PBXGroup;
 			children = (
 				DFDD20F3FC13F6B974FF8181 /* IdeasListDeleteTests.swift */,
+				EB7EC4E4FC4F7E11352D4E74 /* TripPlanningSenseOfNowTests.swift */,
 			);
 			path = GalavantTests;
 			sourceTree = "<group>";
@@ -889,6 +895,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				8E5F270D961669BB1431CDAD /* IdeasListDeleteTests.swift in Sources */,
+				FB833A8213FBA1E378DDC0D8 /* TripPlanningSenseOfNowTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -997,6 +1004,7 @@
 				B312D71FEAB71A2F440A2B92 /* TripPlanningModel+Alternatives.swift in Sources */,
 				5E128AA508FD75DB537A0366 /* TripPlanningModel+Directions.swift in Sources */,
 				D5EFD53E633A9C43FADEAC53 /* TripPlanningModel+Freeform.swift in Sources */,
+				0D41C115701ECA126F98EB77 /* TripPlanningModel+Now.swift in Sources */,
 				67E36BA27F8A9760AAC49994 /* TripPlanningModel+Recommendation.swift in Sources */,
 				8B65E5CA383B4D16F3685A39 /* TripPlanningModel+Scheduling.swift in Sources */,
 				C4D03D83083C9022183ABEF2 /* TripPlanningModel.swift in Sources */,

@@ -123,6 +123,8 @@ struct TripPlanningView: View {
       .task {
         model.pickInitialSheetTabIfNeeded()
         model.seedLensIfNeeded()
+        // A trip that is on opens on today rather than the whole-trip lens.
+        model.seedDayLensIfNeeded()
         // Present the persistent sheet on appear (compact only) — `.constant(true)`
         // is unreliable on a NavigationStack push.
         if !usesColumn { showDetailSheet = true }
