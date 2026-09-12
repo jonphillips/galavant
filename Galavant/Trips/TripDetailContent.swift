@@ -80,6 +80,9 @@ struct TripDetailContent: View {
     .sheet(item: $model.destination.stopEditor, id: \.id) { draft in
       StopEditorSheet(model: model, draft: draft)
     }
+    .sheet(item: $model.destination.editTripRegions, id: \.id) { draft in
+      TripFormView(draft: draft, startOnRegions: true)
+    }
   }
 
   private func detailView(_ idea: Idea) -> some View {

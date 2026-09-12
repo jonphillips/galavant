@@ -4,15 +4,22 @@ import SwiftUI
 struct TripFormView: View {
   @State private var model: TripFormModel
   @State private var showingHeaderPicker = false
+  @State private var path = NavigationPath()
+  @State private var didAutoNavigateToRegions = false
   @Environment(\.dismiss) private var dismiss
+  private let startOnRegions: Bool
 
-  init(draft: Trip.Draft) {
+  /// - Parameter startOnRegions: push straight to the Regions picker on
+  ///   presentation — the day header's zero-region chip routes here (dogfood
+  ///   brief item 6) because there's nothing else for it to offer.
+  init(draft: Trip.Draft, startOnRegions: Bool = false) {
     _model = State(initialValue: TripFormModel(draft: draft))
+    self.startOnRegions = startOnRegions
   }
 
   var body: some View {
     @Bindable var model = model
-    NavigationStack {
+    NavigationStack(path: $path) {
       Form {
         StackedTextField(title: "Name", text: $model.draft.name)
 
@@ -73,9 +80,7 @@ struct TripFormView: View {
         }
 
         Section {
-          NavigationLink {
-            TripRegionPicker(model: model)
-          } label: {
+          NavigationLink(value: RegionsRoute()) {
             LabeledContent("Regions", value: model.selectedRegionsSummary)
           }
         } footer: {
@@ -96,7 +101,16 @@ struct TripFormView: View {
           StackedTextEditor(title: "Notes", text: $model.draft.notes, minHeight: 120)
         }
       }
-      .task { await model.task() }
+      .navigationDestination(for: RegionsRoute.self) { _ in
+        TripRegionPicker(model: model)
+      }
+      .task {
+        await model.task()
+        if startOnRegions, !didAutoNavigateToRegions {
+          didAutoNavigateToRegions = true
+          path.append(RegionsRoute())
+        }
+      }
       .sheet(isPresented: $showingHeaderPicker) {
         if let tripID = model.draft.id {
           TripHeaderPickerSheet(
@@ -125,6 +139,10 @@ struct TripFormView: View {
     }
   }
 }
+
+/// Navigation-path value for pushing straight to `TripRegionPicker`, so the
+/// zero-region day-header chip can deep-link there on presentation.
+private struct RegionsRoute: Hashable {}
 
 /// Multi-select list of regions for a trip — pushed from the form so the trip
 /// detail can grow more fields without crowding one screen.
