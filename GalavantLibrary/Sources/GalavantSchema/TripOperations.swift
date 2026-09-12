@@ -96,6 +96,20 @@ extension Trip {
       .execute(db)
   }
 
+  /// Set the trip's duration in days (clamped to `>= 1`) — the trip sketch's
+  /// duration control (docs/handoff/trip-sketch-design.md). Same fact the new-trip
+  /// form's Duration stepper writes; a focused op so the sketch can change length
+  /// without folding a whole `Trip.Draft` and its certainty back through `update`.
+  /// The itinerary is day-relative (docs/trip-time-model.md), so shortening simply
+  /// collapses out-of-range days on read; the sketch drops orphaned `TripDayRegion`
+  /// rows in the same save.
+  public static func setLength(_ lengthInDays: Int, tripID: Trip.ID, in db: Database) throws {
+    let clamped = Swift.max(1, lengthInDays)
+    try Trip.find(tripID)
+      .update { $0.lengthInDays = #bind(clamped) }
+      .execute(db)
+  }
+
   // MARK: - Pure sectioning (functional core)
 
   /// Split trips into the three certainty sections, each in its own natural

@@ -83,6 +83,9 @@ struct TripDetailContent: View {
     .sheet(item: $model.destination.editTripRegions, id: \.id) { draft in
       TripFormView(draft: draft, startOnRegions: true)
     }
+    .sheet(item: $model.destination.sketch, id: \.id) { _ in
+      TripSketchSheet(model: model)
+    }
   }
 
   private func detailView(_ idea: Idea) -> some View {
@@ -144,25 +147,29 @@ struct TripDetailContent: View {
     }
   }
 
-  @ViewBuilder private var tripSettingsMenu: some View {
-    if !model.startDaySolverStops.isEmpty || model.trip?.certainty.stage == .dated {
-      Menu {
-        if !model.startDaySolverStops.isEmpty {
-          Button(action: onShowStartDay) {
-            Label("Start Day", systemImage: "calendar.day")
-          }
-        }
-        if model.trip?.certainty.stage == .dated {
-          Button(action: onShowCalendarReconciliation) {
-            Label("Reconcile Calendar", systemImage: "clock.arrow.trianglehead.2.counterclockwise.rotate.90")
-          }
-        }
-      } label: {
-        Image(systemName: "ellipsis.circle")
-          .imageScale(.large)
+  private var tripSettingsMenu: some View {
+    // Always present: "Shape Trip" is the always-reachable entry to the sketch
+    // surface (docs/handoff/trip-sketch-design.md) — trips get re-shaped, so it is
+    // not a one-shot wizard. Start Day / Reconcile Calendar join it when they apply.
+    Menu {
+      Button(action: model.sketchTapped) {
+        Label("Shape Trip", systemImage: "calendar.day.timeline.leading")
       }
-      .accessibilityLabel("Trip settings")
+      if !model.startDaySolverStops.isEmpty {
+        Button(action: onShowStartDay) {
+          Label("Start Day", systemImage: "calendar.day")
+        }
+      }
+      if model.trip?.certainty.stage == .dated {
+        Button(action: onShowCalendarReconciliation) {
+          Label("Reconcile Calendar", systemImage: "clock.arrow.trianglehead.2.counterclockwise.rotate.90")
+        }
+      }
+    } label: {
+      Image(systemName: "ellipsis.circle")
+        .imageScale(.large)
     }
+    .accessibilityLabel("Trip settings")
   }
 }
 

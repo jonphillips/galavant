@@ -1,12 +1,13 @@
 # Handoff: Dogfood round — a sense of *now*, lodging notes, heterogeneous directions, trip sketching
 
-Status: **In progress** — 2026-09-11. Seven slices, one new ADR. **Slices A, F, B1 and C
-shipped** (a sense of *now* on the planning surface, PR #115; Today's non-stop events,
-ADR-0038 §10; device location and the blue dot, ADR-0046; heterogeneous connectors +
-the ADR-0046 §5 recentre-on-me gesture) and are retired from this brief; the remaining
-open slices are **0, D, B2, and E**. All Claude-executed
-(Codex is on the separate "cockpit" app — unrelated to this repo's iPhone cockpit,
-which is **Today**).
+Status: **In progress** — 2026-09-12. Seven slices, one new ADR. **Slices A, F, B1, C,
+0, D and E shipped** (a sense of *now* on the planning surface, PR #115; Today's non-stop
+events, ADR-0038 §10; device location and the blue dot, ADR-0046; heterogeneous connectors
++ the ADR-0046 §5 recentre-on-me gesture; the day-header region chip #119; stay notes #120;
+the trip sketch — days × regions, `docs/handoff/trip-sketch-design.md`) and are retired
+from this brief; the only remaining open slice is **B2** (daily map on Today). All
+Claude-executed (Codex is on the separate "cockpit" app — unrelated to this repo's iPhone
+cockpit, which is **Today**).
 Summary: Jon's 2026-09-11 dogfooding pass. Six complaints that resolve into one
 product theme (**the app has no sense of *now*** — not on the phone cockpit, not on
 the planning surface) plus three independent defects (lodging can't take a note,
@@ -398,71 +399,14 @@ unlocated stays) each landed with a named test in
 
 ---
 
-## Prompt E — Sketch a trip: days × regions as a planning pass (Opus 5)
+## Prompt E — Sketch a trip: days × regions — SHIPPED
 
-> **Dependencies: Slices 0 and A merged first** (both touch the day-section header and
-> `TripItineraryView`).
->
-> In `~/code/galavant/galavant`, build the missing first step of trip planning.
->
-> **Read first:** `AGENTS.md`, `docs/PRODUCT.md`, `docs/trip-canvas.md`,
-> `docs/trip-time-model.md`, `docs/decisions/0012-per-day-region-framing.md`,
-> `docs/decisions/0013-ideas-screen-trip-shopping-surface.md`,
-> `docs/decisions/0004-pull-based-trip-membership.md`.
->
-> **The complaint, in Jon's words:** *"I want a way to sketch out a trip from the
-> start with days and regions. Right now in a new trip all I can see are time zones."*
->
-> The second half is a gate bug, fixed in Slice 0 — don't redo it. The first half is
-> the real ask: **the shape of a trip is decided before any stop exists.** "Four
-> nights Loire, three nights Paris, fly home day 8" is the first thing a planner
-> writes down, and Galavant has no surface for it. Today you can set the trip's
-> length in the form and assign a region to one day at a time from a menu buried in a
-> section header — which is the same information entered the slowest possible way.
->
-> **Everything needed is already modelled.** `TripDayRegion` (per-day region
-> assignment, `TripPlanningModel+Scheduling.swift:235`), `TripRegion` (trip↔region),
-> `Trip.lengthInDays`, and `TripStay` (the nights). `TripPlan.region(forDay:)` already
-> drives the empty-day map frame (ADR-0012 rung 3), and `PlaceIdeaSheet` already
-> scopes "Browse *Loire* Ideas" off the day's region. **The payoff is already wired
-> — nothing is feeding it.** This slice is a view over existing schema; resist adding
-> a table.
->
-> **Design, then build.** Write a short design note in `docs/handoff/` (or an ADR if
-> you conclude this changes a settled decision rather than implementing one) covering:
->
-> - **Where it lives.** Candidates: a step after the new-trip form; a mode on the
->   trip canvas when nothing is scheduled; a permanent entry in the trip settings
->   menu. It must be reachable *again* later — trips get re-shaped, and a one-shot
->   wizard you can't return to is worse than no wizard.
-> - **The interaction.** The natural unit is a **span**, not a day: "days 1–4, Loire"
->   in one gesture, not four menu taps. Contiguous spans covering 1…N, each with an
->   optional region. Assigning a region to a span writes `TripDayRegion` rows for
->   every day in it. Changing trip length must behave sanely (a shortened trip drops
->   orphaned day rows; a lengthened one leaves the new days unassigned).
-> - **Regions that don't exist yet.** A new trip's region list is usually empty, and
->   regions are defined on the Ideas map (ADR-0004). The sketch must offer a path to
->   create or attach one inline, or it dead-ends exactly where a new user starts.
-> - **Its relationship to stays.** A region span and a lodging stay are *not* the same
->   thing — you can be based in one hotel and day-trip across two regions — but they
->   usually coincide. Decide whether the sketch also offers "add lodging for this
->   span" (probably yes: it's the same gesture and it's what a planner means), and
->   whether an existing stay suggests a span. Do not merge the two models.
-> - **What it does to the canvas.** With spans assigned, an empty trip stops being an
->   empty map: each day already frames to its region. Say how the sketch hands off to
->   the existing planning surface — the sketch is the trip's skeleton, and the canvas
->   remains where stops land.
->
-> Get Jon's sign-off on the design note before building the UI. He is the product
-> owner and this one is a shape decision, not a mechanical change.
->
-> **Constraints.** No new table without a very good argument. Pure day/span logic in
-> `GalavantSchema` with tests (span coverage, gaps, overlaps, length changes). No
-> version suffixes in identifiers (ADR-0006). If you add files outside the recursive
-> `Galavant/` source path, update `project.yml` and run `xcodegen generate`.
->
-> **Verify:** `scripts/check-drift.sh`. Branch `feat/trip-sketch`, land via PR.
-> Update `docs/CURRENT_HANDOFF.md` and index any new doc per the house rule.
+The trip sketch — a view + editor over `TripDayRegion` + `Trip.lengthInDays` (no new
+table, ADR-0012) — shipped. Pure `TripSketch`/`DaySpan` span core in `GalavantSchema`;
+`TripSketchSheet` reachable from the trip settings menu and the empty-itinerary CTA;
+per-span "Add lodging" reuses `StaySheet`; regions are attached (not created) inline via
+Edit Trip's Regions picker. Design + Jon's Q1–Q3 sign-off:
+`docs/handoff/trip-sketch-design.md`. What's built is in `docs/DONE_LOG.md`.
 
 ---
 

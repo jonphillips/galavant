@@ -123,6 +123,9 @@ final class TripPlanningModel {
     /// A zero-region trip's day header has nothing to assign yet — route the tap
     /// to Edit Trip's Regions picker instead of an empty menu.
     case editTripRegions(Trip.Draft)
+    /// Sketch the trip's shape — days × regions — before any stop exists
+    /// (docs/handoff/trip-sketch-design.md).
+    case sketch(TripSketchPresentation)
   }
 
   init(tripID: Trip.ID) {

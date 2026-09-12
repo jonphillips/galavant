@@ -1,5 +1,40 @@
 # Done Log — completed enhancements
 
+## Sketch a trip: days × regions as a first-class planning pass (dogfood Slice E) — SHIPPED (2026-09-12)
+
+The shape of a trip — "four nights Loire, three nights Paris, fly home day 8" — is
+decided before any stop exists, and Galavant had no surface for it: the only way to
+record a day's region was one menu tap at a time in each day-section header. Slice E
+adds the sketch, a **view + editor over `TripDayRegion` + `Trip.lengthInDays`**
+(ADR-0012) — no new table. Design + sign-off: `docs/handoff/trip-sketch-design.md`.
+
+- **Pure core.** `TripSketch` (`GalavantSchema`) holds the per-day region array and
+  projects contiguous **`DaySpan`s** — adjacent same-region days (and unassigned runs)
+  coalesce; a region on two non-adjacent runs stays two spans. `assign(_:toDays:)`
+  (a sub-range assignment *is* a split), `setLength(_:)` (grow → unassigned tail;
+  shrink → drop the orphaned days), and `assignments()` (→ persistence) are all pure
+  and tested (`TripSketchTests`: coalescing, gaps, non-adjacent same region, clamping,
+  length grow/shrink).
+- **Persistence, one transaction.** `TripDayRegion.replaceAssignments(_:forTrip:in:)`
+  rewrites the whole layout (dropping cleared days and length-orphans); `Trip.setLength`
+  is a focused duration write. Both are tested against a real database.
+- **The surface.** `TripSketchSheet` — a duration stepper, a list of span rows each with
+  a region menu (the trip's attached regions, "None", "Attach regions…"), and a
+  "Set a region for specific days…" range editor (region + from/to steppers) that is how
+  a span is split. Edits persist live, matching the day-header chip. Reachable **again**:
+  a permanent "Shape Trip" item in the trip settings ("···") menu, plus a "Sketch your
+  days" call-to-action leading the empty itinerary.
+- **Regions (Q1).** No inline region creation — regions are made asynchronously on the
+  Ideas map (ADR-0044); the sketch's "Attach regions…" routes to Edit Trip's Regions
+  picker (the existing `editTripRegions` path) to attach them, then assigns them to days.
+- **Lodging (Q2).** A per-span "Add lodging" (menu + swipe) seeds the existing `StaySheet`
+  to the span (check-in = span start, check-out the morning after its last day); an
+  overlapping stay shows as a hint on the span row. The region and lodging models stay
+  separate (ADR-0011), never fused.
+- **Canvas handoff.** Nothing new: assigned spans already frame each empty day to its
+  region (ADR-0012 rung 2) and the day-header already shows the region chip (Slice 0);
+  the sketch is the trip's skeleton and the canvas remains where stops land.
+
 ## Directions between any adjacent located waypoints + recentre-on-me (dogfood Slice C) — SHIPPED (2026-09-11)
 
 Travel-time connectors were four hand-written special cases (`lodgingToStopRoute`,

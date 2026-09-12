@@ -61,4 +61,31 @@ extension TripDayRegion {
       .execute(db)
     }
   }
+
+  /// Reconcile a trip's *whole* per-day region layout to exactly `assignments`
+  /// (day → region) in one transaction — the trip-sketch save. Every existing row
+  /// for the trip is dropped and only the listed days re-inserted, so a day cleared
+  /// in the sketch, and any orphan day past a shortened length, simply falls away.
+  /// At household scale (≤60 days) rewriting the layout wholesale is trivial and
+  /// leaves no diffing bug surface. Converges on the same rows the per-day
+  /// `setRegion` writes, so the sketch and the day-header chip never disagree.
+  public static func replaceAssignments(
+    _ assignments: [Int: MapRegion.ID],
+    forTrip tripID: Trip.ID,
+    in db: Database
+  ) throws {
+    try TripDayRegion
+      .where { $0.tripID.eq(tripID) }
+      .delete()
+      .execute(db)
+    for day in assignments.keys.sorted() {
+      guard let regionID = assignments[day] else { continue }
+      try TripDayRegion.insert {
+        TripDayRegion.Draft(
+          TripDayRegion(id: UUID(), tripID: tripID, dayNumber: day, regionID: regionID)
+        )
+      }
+      .execute(db)
+    }
+  }
 }
