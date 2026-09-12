@@ -241,6 +241,14 @@ extension TripPlanningModel {
   /// selection.
   func dayRegion(forDay day: Int) -> MapRegion? { plan.region(forDay: day) }
 
+  /// A trip with no regions attached has nothing for the day-header region chip
+  /// to offer — route straight to where regions are attached (Edit Trip's
+  /// Regions picker) rather than opening an empty menu.
+  func regionChipTapped() {
+    guard let trip else { return }
+    destination = .editTripRegions(Trip.Draft(trip))
+  }
+
   func dayTimeZone(forDay day: Int) -> TimeZone? {
     allTripDayTimeZones.first {
       $0.tripID == tripID && $0.dayNumber == day
@@ -254,6 +262,16 @@ extension TripPlanningModel {
         try TripDayTimeZone.set(identifier, forTrip: tripID, day: day, in: db)
       }
     }
+  }
+
+  /// Whether the per-day time-zone chip can matter for this day: the trip has
+  /// real dates to confuse, and either this day already carries an explicit
+  /// override or the trip's regions are numerous enough that a same-region trip's
+  /// one implied zone stops being a safe assumption. A brand-new trip (0–1
+  /// regions, no overrides) hides the chip entirely (item 6 of the dogfood brief).
+  func showsDayTimeZoneMenu(forDay day: Int) -> Bool {
+    guard trip?.certainty.stage == .dated else { return false }
+    return dayTimeZone(forDay: day) != nil || tripRegions.count >= 2
   }
 
   /// Commit a stop to the itinerary without a day — it lands in the "To Be

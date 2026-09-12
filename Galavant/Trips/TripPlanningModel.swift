@@ -120,6 +120,9 @@ final class TripPlanningModel {
     case stopEditor(StopEditorDraft)
     case recommendationHandoff(RecommendationHandoffPresentation)
     case recommendationWorkspace(RecommendationWorkspacePresentation)
+    /// A zero-region trip's day header has nothing to assign yet — route the tap
+    /// to Edit Trip's Regions picker instead of an empty menu.
+    case editTripRegions(Trip.Draft)
   }
 
   init(tripID: Trip.ID) {

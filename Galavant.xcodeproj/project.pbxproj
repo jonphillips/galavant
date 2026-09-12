@@ -58,6 +58,7 @@
 		600B8A48EBF6C2B3E5856903 /* RecommendationWorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57F320EF0E0815866BE1B3F0 /* RecommendationWorkspaceView.swift */; };
 		61F763B5AFB58555F44D6E47 /* RegionPhotoPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FDEEFB9B00C30C4D7DE3CBE /* RegionPhotoPickerSheet.swift */; };
 		626DB4453DDF7BA57BE9AF1C /* GalavantImaging in Frameworks */ = {isa = PBXBuildFile; productRef = ABAC675A63A6A34C180B7D93 /* GalavantImaging */; };
+		64DA23327BDCED1B251EBBFD /* TripItineraryDayHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93D3FB4AFD291BCF150B74B2 /* TripItineraryDayHeader.swift */; };
 		64FFD213B12CE5D4202414B0 /* JourneyModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA06BA808AA093D53CD34D93 /* JourneyModel.swift */; };
 		666F98ED751CC0C6994CFED4 /* GalavantAI in Frameworks */ = {isa = PBXBuildFile; productRef = 7DEA217772737FC17F262759 /* GalavantAI */; };
 		66E8ED4BF33E10641C5CA1D9 /* TripsListModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07FF30B2A97AE7158A524026 /* TripsListModel.swift */; };
@@ -276,6 +277,7 @@
 		92BBE67122AFC3C8773380D0 /* JourneyImagePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyImagePanel.swift; sourceTree = "<group>"; };
 		92EB0541350B5FCB540931D3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		93731311444130D979F919BE /* TripPlanningModel+Alternatives.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripPlanningModel+Alternatives.swift"; sourceTree = "<group>"; };
+		93D3FB4AFD291BCF150B74B2 /* TripItineraryDayHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripItineraryDayHeader.swift; sourceTree = "<group>"; };
 		95C568B98EA55277C2DDA065 /* DayPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayPalette.swift; sourceTree = "<group>"; };
 		97954EEA93EDDCB81E746016 /* PlanningRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanningRow.swift; sourceTree = "<group>"; };
 		99EE3153CDA64E66C39149A9 /* IdeaFormModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaFormModel.swift; sourceTree = "<group>"; };
@@ -482,6 +484,7 @@
 				0E5E2C9449BAC2E031A8745F /* TripHeaderImageView.swift */,
 				DEEC45147F36D138F0ABA934 /* TripHeaderPickerSheet.swift */,
 				BA0BD75B2D9BBEA758A6A8DA /* TripIdeasView.swift */,
+				93D3FB4AFD291BCF150B74B2 /* TripItineraryDayHeader.swift */,
 				5E93F53C2FF3C7D7B4496034 /* TripItineraryDetails.swift */,
 				5136B6948D6F84243B5FFAA0 /* TripItineraryRows.swift */,
 				6839D17655A85296477C1D5D /* TripItineraryView.swift */,
@@ -1008,6 +1011,7 @@
 				2BCD153BD1286735123E24B7 /* TripHeaderImageView.swift in Sources */,
 				57928FB375F27A957BC3FE09 /* TripHeaderPickerSheet.swift in Sources */,
 				9946E181AD4D8380729C5D0E /* TripIdeasView.swift in Sources */,
+				64DA23327BDCED1B251EBBFD /* TripItineraryDayHeader.swift in Sources */,
 				793885D05FB2B42D7F002F39 /* TripItineraryDetails.swift in Sources */,
 				5097A31BB1F6D41AE7DEE5E2 /* TripItineraryRows.swift in Sources */,
 				43267C623EF3B32592F6BCF0 /* TripItineraryView.swift in Sources */,
