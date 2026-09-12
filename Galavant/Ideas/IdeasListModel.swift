@@ -446,10 +446,6 @@ final class IdeasListModel {
     )
   }
 
-  func ideaFormSaved(_ ideaID: Idea.ID) async {
-    await MapPlaceCapture().enrichIfNeeded(ideaID: ideaID)
-  }
-
   func deleteIdeas(_ displayed: [Idea], at offsets: IndexSet) {
     let ids = offsets.map { displayed[$0].id }
     withErrorReporting {

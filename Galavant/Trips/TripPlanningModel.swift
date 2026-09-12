@@ -371,8 +371,9 @@ final class TripPlanningModel {
   }
 
   func mapPlaceIdeaSaved(_ ideaID: Idea.ID) async {
+    // Pull onto the trip's shortlist; the second enrichment hop is fired by the
+    // idea form's save itself now (dogfood #2), so it's no longer done here.
     addNewIdeaToShortlist(ideaID)
-    await MapPlaceCapture().enrichIfNeeded(ideaID: ideaID)
   }
 
   /// Present a pulled idea's read-only detail from the visible planning surface.

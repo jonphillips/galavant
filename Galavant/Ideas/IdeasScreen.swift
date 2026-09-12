@@ -131,8 +131,7 @@ struct IdeasScreen: View {
     .sheet(item: $model.destination.form) { presentation in
       IdeaFormView(
         draft: presentation.draft,
-        searchRegions: presentation.searchRegions,
-        onSave: model.ideaFormSaved
+        searchRegions: presentation.searchRegions
       )
     }
     .sheet(isPresented: Binding($model.destination.identity)) {
