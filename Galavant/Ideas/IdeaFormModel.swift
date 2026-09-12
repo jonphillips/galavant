@@ -48,6 +48,11 @@ final class IdeaFormModel {
   var addingImage = false
   /// A short result line shown after an image refresh attempt.
   var imagesStatus: String?
+  /// The hand-set Michelin rating (dogfood #3): 0 = none, 1–3 = stars (restaurants)
+  /// or keys (stays), the glyph chosen by the idea's kind. Bound to the form's
+  /// rating picker; persisted as a `.manual` `IdeaEvaluation` on save. Loaded from
+  /// any existing manual rating so the picker reflects what's set.
+  var manualRating: Int = 0
 
   init(draft: Idea.Draft) {
     self.draft = draft
@@ -79,6 +84,71 @@ final class IdeaFormModel {
   func task() async {
     await loadTags()
     await reloadImages()
+    await loadManualRating()
+  }
+
+  // MARK: - Manual rating (dogfood #3)
+
+  /// The kind-aware source name + rating unit — Michelin uses Keys for hotels,
+  /// Stars for restaurants. A saved rating is stamped `.manual` so it never reads
+  /// as fetched, but is otherwise a first-class `IdeaEvaluation` (ADR-0015).
+  var ratingIsForStay: Bool { draft.kind == .stay }
+  var ratingUnitLabel: String { ratingIsForStay ? "Keys" : "Stars" }
+  /// The glyph a single rating unit renders as, for the picker + the stored display.
+  var ratingUnitGlyph: String { ratingIsForStay ? "🗝" : "★" }
+  /// The picker's label for `count` units (e.g. "★★★", "🗝🗝", "None").
+  func ratingDisplay(_ count: Int) -> String {
+    count <= 0 ? "None" : String(repeating: ratingUnitGlyph, count: count)
+  }
+
+  /// Whether the manual-rating affordance applies — a saved idea (it writes by id
+  /// against the owning party), matching the other post-save supplements.
+  var canRateManually: Bool { !isNew }
+
+  private func loadManualRating() async {
+    guard let id = draft.id else { return }
+    await withErrorReporting {
+      let existing = try await database.read { db in
+        try IdeaEvaluation.where { $0.ideaID.eq(id) }.fetchAll(db)
+      }
+      // Reflect an existing hand-set rating; ignore fetched/official ones here.
+      let manual = existing.first { $0.confidence == .manual && $0.kind == .stars }
+      manualRating = manual.flatMap { $0.nativeValueNumber.map { Int($0) } } ?? 0
+    }
+  }
+
+  /// Persist the hand-set rating for a just-saved idea: replace any prior manual
+  /// rating (one per idea), and record the new one — or leave none when set to 0.
+  /// Called from the save button once the idea has an id + owning party.
+  func applyManualRating(ideaID: Idea.ID) async {
+    let rating = manualRating
+    let glyph = ratingUnitGlyph
+    await withErrorReporting {
+      try await database.write { db in
+        guard let idea = try Idea.find(ideaID).fetchOne(db), let partyID = idea.travelPartyID
+        else { return }
+        let priorManual = try IdeaEvaluation.where { $0.ideaID.eq(ideaID) }
+          .fetchAll(db)
+          .filter { $0.confidence == .manual && $0.kind == .stars }
+        for evaluation in priorManual {
+          try IdeaEvaluation.remove(evaluationID: evaluation.id, in: db)
+        }
+        guard rating > 0 else { return }  // "None" clears the rating
+        try IdeaEvaluation.create(
+          travelPartyID: partyID,
+          ideaID: ideaID,
+          sourceName: "Michelin",
+          kind: .stars,
+          nativeValueText: "\(rating)",
+          nativeDisplay: String(repeating: glyph, count: rating),
+          nativeValueNumber: Double(rating),
+          nativeValueMax: 3,
+          confidence: .manual,
+          staleness: .current,
+          in: db
+        )
+      }
+    }
   }
 
   /// The chosen cover image's display bytes, when the idea has one — for a header

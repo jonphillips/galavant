@@ -40,6 +40,52 @@ import Testing
     )
   }
 
+  // MARK: - headline(forIdea:from:knownIdeaIDs:)
+
+  @Test func headlinePrefersTieredAccoladeOverSoftMention() {
+    let id = UUID()
+    let evals = [
+      evaluation(ideaID: id, source: "Blog", kind: .mention, nativeDisplay: "Mentioned"),
+      evaluation(ideaID: id, source: "Michelin Guide", kind: .stars, nativeDisplay: "★★"),
+    ]
+    let headline = IdeaEvaluation.headline(forIdea: id, from: evals, knownIdeaIDs: [id])
+    #expect(headline?.nativeDisplay == "★★")
+  }
+
+  @Test func headlinePrefersCurrentOverStale() {
+    let id = UUID()
+    let evals = [
+      evaluation(
+        ideaID: id, source: "Michelin Guide", kind: .stars, nativeDisplay: "★★★",
+        staleness: .stale),
+      evaluation(
+        ideaID: id, source: "Michelin Guide", kind: .numericScore, nativeDisplay: "92",
+        staleness: .current),
+    ]
+    // The current score outranks a stale ★★★, even though stars is the higher kind.
+    let headline = IdeaEvaluation.headline(forIdea: id, from: evals, knownIdeaIDs: [id])
+    #expect(headline?.nativeDisplay == "92")
+  }
+
+  @Test func headlineBreaksKindTiesByRecency() {
+    let id = UUID()
+    let old = Date(timeIntervalSince1970: 1_000)
+    let recent = Date(timeIntervalSince1970: 2_000)
+    let evals = [
+      evaluation(
+        ideaID: id, source: "Old Keys", kind: .stars, nativeDisplay: "🗝", recordedAt: old),
+      evaluation(
+        ideaID: id, source: "New Keys", kind: .stars, nativeDisplay: "🗝🗝🗝", recordedAt: recent),
+    ]
+    let headline = IdeaEvaluation.headline(forIdea: id, from: evals, knownIdeaIDs: [id])
+    #expect(headline?.nativeDisplay == "🗝🗝🗝")
+  }
+
+  @Test func headlineIsNilWithoutEvaluations() {
+    let id = UUID()
+    #expect(IdeaEvaluation.headline(forIdea: id, from: [], knownIdeaIDs: [id]) == nil)
+  }
+
   // MARK: - evaluations(forIdea:from:knownIdeaIDs:)
 
   @Test func basicFilterByIdeaID() {

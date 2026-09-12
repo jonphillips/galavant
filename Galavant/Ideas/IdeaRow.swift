@@ -16,6 +16,9 @@ struct IdeaRow: View {
   /// The header image's thumbnail bytes, when the idea has one — shown in the
   /// leading slot in place of the kind glyph (M4f). Nil → the kind icon.
   var headerThumbnail: Data? = nil
+  /// The one accolade to headline on the row (dogfood #3) — a Michelin ★/🗝, a
+  /// score — so a planner can weigh ideas without tapping in. Nil → no rating.
+  var evaluation: IdeaEvaluation? = nil
   /// Every travel-party planner with their level (nil = pending), or empty when
   /// nobody has rated yet. Shown as the his/hers bars.
   let interests: [(planner: Planner, level: Interest?)]
@@ -32,12 +35,23 @@ struct IdeaRow: View {
       VStack(alignment: .leading, spacing: 4) {
         Button(action: onTap) {
           VStack(alignment: .leading, spacing: 2) {
-            Text(idea.name)
-              .foregroundStyle(.primary)
+            HStack(spacing: 6) {
+              Text(idea.name)
+                .foregroundStyle(.primary)
+              ratingPill
+            }
             if let regionName = idea.regionName, !regionName.isEmpty {
               Text(regionName)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+            }
+            // A one-line note snippet so the deciding surface carries more than the
+            // name (dogfood #4) — the user's own note, not the page description.
+            if !idea.notes.isEmpty {
+              Text(idea.notes)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
             }
           }
         }
@@ -60,6 +74,21 @@ struct IdeaRow: View {
       trailingAccessories
     }
     .padding(.vertical, 2)
+  }
+
+  /// The headline accolade as a compact capsule, shown as the source expressed it
+  /// (ADR-0015: never normalized) — a Michelin ★★★ / 🗝🗝, a score. Nil-safe.
+  @ViewBuilder
+  private var ratingPill: some View {
+    if let evaluation {
+      Text(evaluation.nativeDisplay)
+        .font(.caption.weight(.semibold))
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(Color(.secondarySystemFill), in: Capsule())
+        .foregroundStyle(.primary)
+        .accessibilityLabel("\(evaluation.sourceName) rating \(evaluation.nativeDisplay)")
+    }
   }
 
   /// A small rounded header thumbnail when the idea has an image, else the kind

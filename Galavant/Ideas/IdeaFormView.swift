@@ -132,6 +132,9 @@ struct IdeaFormView: View {
         if model.canFindGuideRating {
           guideRatingSection
         }
+        if model.canRateManually {
+          ratingSection
+        }
         Section {
           StackedTextEditor(title: "Description", text: $model.draft.description, minHeight: 80)
         }
@@ -183,6 +186,9 @@ struct IdeaFormView: View {
           Button(saveTitle) {
             if let ideaID = model.saveButtonTapped() {
               Task { await onSave?(ideaID) }
+              // Persist any hand-set Michelin rating (dogfood #3) now that the idea
+              // has an id + owning party.
+              Task { await model.applyManualRating(ideaID: ideaID) }
             }
             dismiss()
           }
@@ -268,6 +274,23 @@ struct IdeaFormView: View {
           .font(.caption)
           .foregroundStyle(.secondary)
       }
+    }
+  }
+
+  /// Hand-set the Michelin rating when it can't be fetched (dogfood #3). The unit
+  /// follows the idea's kind — Keys for a stay, Stars otherwise — and the value is
+  /// saved as a `.manual` evaluation that shows on the idea row.
+  @ViewBuilder private var ratingSection: some View {
+    Section {
+      Picker("Michelin \(model.ratingUnitLabel)", selection: $model.manualRating) {
+        ForEach(0...3, id: \.self) { count in
+          Text(model.ratingDisplay(count)).tag(count)
+        }
+      }
+    } header: {
+      Text("Michelin \(model.ratingUnitLabel)")
+    } footer: {
+      Text("Set by hand when the guide rating can't be fetched — it shows on the idea row.")
     }
   }
 

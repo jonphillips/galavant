@@ -321,6 +321,7 @@ struct IdeasScreen: View {
         IdeaRow(
           idea: idea,
           headerThumbnail: model.headerThumbnailByIdea[idea.id],
+          evaluation: model.headlineEvaluationByIdea[idea.id],
           interests: model.ratingRow(for: idea),
           isMatch: model.isMatch(idea),
           myInterest: model.myInterest(for: idea),
