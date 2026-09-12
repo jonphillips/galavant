@@ -185,10 +185,15 @@ struct IdeaFormView: View {
         ToolbarItem(placement: .confirmationAction) {
           Button(saveTitle) {
             if let ideaID = model.saveButtonTapped() {
+              // Fast post-save side effects (e.g. pull onto the trip) run promptly…
               Task { await onSave?(ideaID) }
               // Persist any hand-set Michelin rating (dogfood #3) now that the idea
               // has an id + owning party.
               Task { await model.applyManualRating(ideaID: ideaID) }
+              // …while the second enrichment hop (images/facts/rating) runs on its
+              // own so a save never waits on the network. Both tasks outlive the
+              // dismiss below (they're not tied to this view's lifecycle).
+              Task { await model.enrichSavedIdea(ideaID) }
             }
             dismiss()
           }

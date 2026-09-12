@@ -11,6 +11,7 @@ import Sharing
 @Observable
 final class IdeasListModel {
   @ObservationIgnored @Dependency(\.defaultDatabase) var database
+  @ObservationIgnored @Dependency(\.date) var date
   @ObservationIgnored @Dependency(\.recentTripStore) var recentTripStore
   @ObservationIgnored @FetchAll(Idea.order(by: \.name)) var ideas
   @ObservationIgnored @FetchAll(Planner.all) var planners
@@ -141,7 +142,7 @@ final class IdeasListModel {
   // MARK: - Active-trip capsules (launchpad)
 
   /// The in-play trips to show as capsules, lifecycle-derived (not filter MRU).
-  var capsules: [Trip] { Trip.activeCapsules(trips) }
+  var capsules: [Trip] { Trip.activeCapsules(trips, now: date.now) }
 
   var activeTrip: Trip? {
     guard let id = activeTripID else { return nil }
@@ -460,10 +461,6 @@ final class IdeasListModel {
         searchRegions: scopeRegions
       )
     )
-  }
-
-  func ideaFormSaved(_ ideaID: Idea.ID) async {
-    await MapPlaceCapture().enrichIfNeeded(ideaID: ideaID)
   }
 
   func deleteIdeas(_ displayed: [Idea], at offsets: IndexSet) {

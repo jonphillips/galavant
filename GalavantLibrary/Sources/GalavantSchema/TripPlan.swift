@@ -410,6 +410,22 @@ public struct TripPlan: Equatable, Sendable {
       .flatMap { regionsByID[$0.regionID] }
   }
 
+  /// Scope resolved stops to `day`'s assigned region (ADR-0012): when the day
+  /// carries a region, only stops whose coordinate falls inside it survive — so the
+  /// per-day "add" picker offers just the ideas that belong there (dogfood #5). A
+  /// day with no region, or the `nil` To-Be-Scheduled bucket, imposes no
+  /// geographic constraint. An unlocated stop can't be placed in a region, so a
+  /// region-scoped day drops it (the picker keeps a "show all" escape hatch for
+  /// those). Pure — coordinate containment, the same predicate the pool lens uses.
+  public func stops(_ stops: [ResolvedStop], inRegionForDay day: Int?) -> [ResolvedStop] {
+    guard let day, let region = region(forDay: day) else { return stops }
+    return stops.filter { stop in
+      guard let latitude = stop.content.latitude, let longitude = stop.content.longitude
+      else { return false }
+      return region.contains(latitude: latitude, longitude: longitude)
+    }
+  }
+
   // MARK: - Canvas geometry (pure projections over located stops)
 
   /// True when at least one scheduled stop carries coordinates to plot.
