@@ -114,8 +114,16 @@ extension Trip {
 
   /// Split trips into the three certainty sections, each in its own natural
   /// order: someday by backlog rank, targeted by year then quarter, dated by
-  /// start date. Pure — no I/O — so it's the densely-tested core.
-  public static func sectioned(_ trips: [Trip]) -> TripSections {
+  /// start date — but with **completed dated trips sunk to the bottom** of their
+  /// section so the upcoming ones lead (upcoming soonest-first, then past
+  /// most-recent-first). `now`/`calendar` are injected so completion is
+  /// deterministic and this stays pure — the densely-tested core, never reading a
+  /// device clock (see `Trip.isPast(at:calendar:)`).
+  public static func sectioned(
+    _ trips: [Trip],
+    now: Date,
+    calendar: Calendar = .current
+  ) -> TripSections {
     let someday = trips
       .filter { $0.certaintyStage == .someday }
       .sorted { ($0.somedayRank, $0.name.lowercased()) < ($1.somedayRank, $1.name.lowercased()) }
@@ -128,7 +136,17 @@ extension Trip {
       }
     let dated = trips
       .filter { $0.certaintyStage == .dated }
-      .sorted { ($0.startDate ?? .distantFuture) < ($1.startDate ?? .distantFuture) }
+      .sorted { lhs, rhs in
+        let lPast = lhs.isPast(at: now, calendar: calendar)
+        let rPast = rhs.isPast(at: now, calendar: calendar)
+        // Upcoming trips lead; a completed trip sinks below every upcoming one.
+        if lPast != rPast { return !lPast }
+        // Both upcoming: soonest departure first. Both past: most-recently
+        // finished first, so the trip you just returned from sits atop the pile.
+        return lPast
+          ? (lhs.startDate ?? .distantPast) > (rhs.startDate ?? .distantPast)
+          : (lhs.startDate ?? .distantFuture) < (rhs.startDate ?? .distantFuture)
+      }
     return TripSections(someday: someday, targeted: targeted, dated: dated)
   }
 
@@ -140,8 +158,12 @@ extension Trip {
   /// `Trip` carries no touch timestamp, so "most-recently-touched someday" is
   /// approximated by the top of the someday backlog (lowest `somedayRank`); when
   /// touch tracking exists this can sharpen without changing callers.
-  public static func activeCapsules(_ trips: [Trip]) -> [Trip] {
-    let sections = sectioned(trips)
+  public static func activeCapsules(
+    _ trips: [Trip],
+    now: Date,
+    calendar: Calendar = .current
+  ) -> [Trip] {
+    let sections = sectioned(trips, now: now, calendar: calendar)
     return sections.dated + sections.targeted + Array(sections.someday.prefix(1))
   }
 }

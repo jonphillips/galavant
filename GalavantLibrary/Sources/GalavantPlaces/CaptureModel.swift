@@ -259,7 +259,7 @@ public final class CaptureModel {
   /// trip among the active ones.
   private func loadTrips() async {
     let allTrips = (try? await database.read { db in try Trip.all.fetchAll(db) }) ?? []
-    var ordered = Trip.activeCapsules(allTrips)
+    var ordered = Trip.activeCapsules(allTrips, now: now.now)
     if let recentID = recentTripStore.read(),
       let index = ordered.firstIndex(where: { $0.id == recentID })
     {
