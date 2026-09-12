@@ -324,6 +324,17 @@ final class IdeaFormModel {
     }
   }
 
+  /// Take the deferred second enrichment hop for a just-saved idea (dogfood #2) —
+  /// images, page facts, a guide rating, hours from its own website — right away,
+  /// rather than making the user reopen the idea and tap Refresh. Fired from the
+  /// save button so *every* add/edit path gets it, not only the call sites that
+  /// wired an `onSave`. Idempotent and gated inside `enrichIfNeeded`: a no-op when
+  /// the idea is already enriched or carries no website URL (a bare Maps pin has
+  /// nothing to fetch — Refresh Images stays the fallback there).
+  func enrichSavedIdea(_ ideaID: Idea.ID) async {
+    await PlaceEnricher().enrichIfNeeded(ideaID: ideaID)
+  }
+
   private func loadTags() async {
     guard let id = draft.id else { return }
     await withErrorReporting {
