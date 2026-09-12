@@ -669,4 +669,60 @@ struct TripStayOperationTests {
     #expect(edited?.plannedCheckInTime == "10:00")
     #expect(edited?.plannedCheckOutTime == "10:30")
   }
+
+  /// A hotel pulled from the pool can carry the trip party's own note about the
+  /// stay ("ask for a room away from the lift") — this used to have nowhere to
+  /// go, since `create` took no note parameter at all.
+  @Test func createIdeaBackedStayWithNote() async throws {
+    let ideaID = UUID()
+    let stayID = try await database.write { db in
+      let trip = try Trip.create(name: "Bavaria", in: db)
+      try Idea.insert { Idea.Draft(id: ideaID, name: "Forestis") }.execute(db)
+      return try TripStay.create(
+        tripID: trip.id, ideaID: ideaID, note: "Ask for a room away from the lift",
+        checkInDay: 1, checkOutDay: 3, in: db)
+    }
+    let created = try await database.read { db in try TripStay.find(stayID).fetchOne(db) }
+    #expect(created?.ideaID != nil)
+    #expect(created?.inlineNote == "Ask for a room away from the lift")
+  }
+
+  /// Regression: editing a freeform stay into an idea-backed one used to erase
+  /// its note (`edit` bound `ideaID == nil ? note : nil`). The note is the trip
+  /// party's own and must survive switching to a pool hotel.
+  @Test func editingFreeformIntoIdeaBackedPreservesNote() async throws {
+    let ideaID = UUID()
+    let stayID = try await database.write { db in
+      let trip = try Trip.create(name: "Bavaria", in: db)
+      try Idea.insert { Idea.Draft(id: ideaID, name: "Forestis") }.execute(db)
+      return try TripStay.createFreeform(
+        tripID: trip.id, title: "Some Airbnb", note: "Parking is €18/night",
+        checkInDay: 1, checkOutDay: 3, in: db)
+    }
+    try await database.write { db in
+      try TripStay.edit(
+        stayID: stayID, ideaID: ideaID, note: "Parking is €18/night",
+        checkInDay: 1, checkOutDay: 3, in: db)
+    }
+    let edited = try await database.read { db in try TripStay.find(stayID).fetchOne(db) }
+    #expect(edited?.ideaID == ideaID)
+    #expect(edited?.inlineNote == "Parking is €18/night")
+  }
+
+  /// Clearing the note field writes it back to nil, for either kind of stay.
+  @Test func clearingNoteSetsItNil() async throws {
+    let stayID = try await database.write { db in
+      let trip = try Trip.create(name: "Bavaria", in: db)
+      return try TripStay.createFreeform(
+        tripID: trip.id, title: "Some Airbnb", note: "Breakfast until 10",
+        checkInDay: 1, checkOutDay: 3, in: db)
+    }
+    try await database.write { db in
+      try TripStay.edit(
+        stayID: stayID, ideaID: nil, title: "Some Airbnb", note: nil,
+        checkInDay: 1, checkOutDay: 3, in: db)
+    }
+    let edited = try await database.read { db in try TripStay.find(stayID).fetchOne(db) }
+    #expect(edited?.inlineNote == nil)
+  }
 }

@@ -28,6 +28,7 @@ extension TripStay {
   public static func create(
     tripID: Trip.ID,
     ideaID: Idea.ID,
+    note: String? = nil,
     checkInDay: Int,
     checkOutDay: Int,
     checkInTime: String? = nil,
@@ -42,6 +43,7 @@ extension TripStay {
       TripStay.Draft(
         TripStay(
           id: id, tripID: tripID, ideaID: ideaID,
+          inlineNote: note,
           checkInDay: span.checkIn, checkOutDay: span.checkOut,
           checkInTime: checkInTime, checkOutTime: checkOutTime,
           plannedCheckInTime: plannedCheckInTime, plannedCheckOutTime: plannedCheckOutTime
@@ -86,10 +88,11 @@ extension TripStay {
   }
 
   /// Edit a stay's identity, span, and times. `ideaID` set ⇒ the stay is backed by
-  /// that pool hotel and the inline content is cleared; `ideaID == nil` ⇒ a
-  /// freeform stay carrying `title`/`note`. This lets the editor switch a stay
-  /// between a pool hotel and a custom name. Span is coerced valid. No-op on a
-  /// missing stay.
+  /// that pool hotel and the inline title is cleared; `ideaID == nil` ⇒ a freeform
+  /// stay carrying `title`. `note` is the trip party's note about the stay and
+  /// persists either way — it is not tied to `ideaID` (see `TripStay.inlineNote`).
+  /// This lets the editor switch a stay between a pool hotel and a custom name
+  /// without losing the note. Span is coerced valid. No-op on a missing stay.
   public static func edit(
     stayID: TripStay.ID,
     ideaID: Idea.ID?,
@@ -109,9 +112,10 @@ extension TripStay {
       .update {
         $0.ideaID = #bind(ideaID)
         // An idea-backed stay takes its name from the pool hotel, so drop any
-        // stale inline content; a freeform stay carries title/note.
+        // stale inline title; a freeform stay carries the title. The note is the
+        // party's own and survives the switch either way.
         $0.inlineTitle = #bind(ideaID == nil ? title : nil)
-        $0.inlineNote = #bind(ideaID == nil ? note : nil)
+        $0.inlineNote = #bind(note)
         $0.checkInDay = #bind(span.checkIn)
         $0.checkOutDay = #bind(span.checkOut)
         $0.checkInTime = #bind(checkInTime)
