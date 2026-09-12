@@ -73,10 +73,12 @@ struct StopTimeDraft: Identifiable {
 /// The editable state of the lodging sheet — author a new stay or edit one in
 /// place (ADR-0011). `stayID == nil` means creating. `ideaID` set means the stay
 /// is backed by a pool hotel (chosen in the sheet's Hotel picker, or seeded by
-/// "Stay here") and `title`/`note` are unused; `ideaID == nil` is a freeform stay
-/// whose `title`/`note` carry it. `checkInDay`/`checkOutDay` are the span; optional
-/// `"HH:mm"` times default to evening / morning ordering. Identifiable so each
-/// presentation drives a fresh `.sheet(item:)`.
+/// "Stay here") and `title` is unused (the name comes from the pool hotel);
+/// `ideaID == nil` is a freeform stay whose `title` carries its name. `note` is
+/// the trip party's own note about the stay and applies either way. `checkInDay`/
+/// `checkOutDay` are the span; optional `"HH:mm"` times default to evening /
+/// morning ordering. Identifiable so each presentation drives a fresh
+/// `.sheet(item:)`.
 struct StayDraft: Identifiable {
   let id = UUID()
   var stayID: TripStay.ID?

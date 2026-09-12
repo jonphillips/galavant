@@ -78,6 +78,11 @@ public struct ResolvedStay: Identifiable, Equatable, Sendable {
   /// The pool hotel for idea-backed stays; nil for freeform stays.
   public var idea: Idea? { content.idea }
 
+  /// The trip party's note about this stay — read straight off `TripStay`
+  /// (rather than through `content`) so it's available whether or not the stay
+  /// is idea-backed; distinct from the pool idea's own notes (ADR-0026).
+  public var note: String? { stay.inlineNote }
+
   public init(stay: TripStay, content: StopContent) {
     self.stay = stay
     self.content = content

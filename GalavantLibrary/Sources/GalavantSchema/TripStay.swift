@@ -12,11 +12,17 @@ import SQLiteData
 /// cascade-deletes with it); `ideaID` is a loose, *optional* UUID, not a SQL FK,
 /// per the single-FK sharing rule (ADR-0007) — orphans (the pool hotel deleted)
 /// are reconciled on read, as with `TripIdea`. When `ideaID == nil` this is a
-/// freeform stay (an unsaved Airbnb, "staying with friends") and
-/// `inlineTitle`/`inlineNote` carry its content; the read-model resolves the
-/// identity into the same `StopContent` enum a stop uses (ADR-0010), so a
-/// freeform/unlocated stay carries no coordinate and falls out of the canvas for
-/// free.
+/// freeform stay (an unsaved Airbnb, "staying with friends") and `inlineTitle`
+/// carries its name; the read-model resolves the identity into the same
+/// `StopContent` enum a stop uses (ADR-0010), so a freeform/unlocated stay
+/// carries no coordinate and falls out of the canvas for free.
+///
+/// `inlineNote` is the trip party's own note about *this stay* ("ask for a room
+/// away from the lift"), independent of `ideaID` — it applies to a pool hotel
+/// exactly as it does to a freeform one. It is distinct from the pool `Idea`'s
+/// own `notes` ("this hotel"), which stay untouched (ADR-0026). The name is
+/// historical (predates idea-backed stays carrying a note) — it is not a
+/// `@Table` rename, which would be a CloudKit schema change.
 ///
 /// `checkInDay` is required at creation (1…N); `checkOutDay` must be `> checkInDay`
 /// (validated by the write path). `checkInTime`/`checkOutTime` are the property's

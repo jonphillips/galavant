@@ -111,6 +111,12 @@ struct HomeBaseRow: View {
           .font(.subheadline)
           .foregroundStyle(.secondary)
           .lineLimit(1)
+        if let note = stay.note, !note.isEmpty {
+          Text(note)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+        }
       }
       Spacer()
       if isOverlapping {
@@ -195,6 +201,12 @@ struct CheckRow: View {
           .font(.subheadline)
           .foregroundStyle(.secondary)
           .lineLimit(1)
+        if let note = stay.note, !note.isEmpty {
+          Text(note)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+        }
       }
       Spacer()
       if let trailing = display.trailing {

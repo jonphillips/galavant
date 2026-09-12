@@ -204,7 +204,9 @@ struct FreeformStopSheet: View {
 /// (check-in day → check-out day, the latter always after the former) and an
 /// optional check-in / check-out time; absent a time the rows sort to evening /
 /// morning. The span pickers can't express an invalid range, so Save is gated only
-/// on a freeform title being present.
+/// on a freeform title being present. The Note field is always shown — it's the
+/// trip party's own note about the stay, not the pool hotel's details, so it
+/// applies whether or not the stay is idea-backed (ADR-0026).
 struct StaySheet: View {
   let model: TripPlanningModel
   @State private var draft: StayDraft
@@ -241,11 +243,11 @@ struct StaySheet: View {
               .focused($titleFocused)
           }
         }
-        if draft.ideaID == nil {
-          Section("Note") {
-            TextField("Optional details", text: $draft.note, axis: .vertical)
-              .lineLimit(2...5)
-          }
+        Section("Note") {
+          TextField(
+            draft.ideaID == nil ? "Optional details" : "Reservation details, room requests…",
+            text: $draft.note, axis: .vertical)
+            .lineLimit(2...5)
         }
         Section("Check-in") {
           dayPicker(selection: $draft.checkInDay, range: 1...(tripLength - 1))

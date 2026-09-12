@@ -153,18 +153,18 @@ extension TripPlanningModel {
       ideaID: idea.id, checkInDay: 1, checkOutDay: last))
   }
 
-  /// Re-open the lodging editor seeded from an existing stay.
+  /// Re-open the lodging editor seeded from an existing stay. The title is only
+  /// meaningful for a freeform stay (an idea-backed one takes its name from the
+  /// pool hotel); the note applies to either kind.
   func editStay(_ resolved: ResolvedStay) {
     let stay = resolved.stay
     var title = ""
-    var note = ""
-    if case let .stay(t, n) = resolved.content {
+    if case let .stay(t, _) = resolved.content {
       title = t
-      note = n ?? ""
     }
     destination = .stay(StayDraft(
       stayID: stay.id, ideaID: stay.ideaID,
-      title: title, note: note,
+      title: title, note: resolved.note ?? "",
       checkInDay: stay.checkInDay, checkOutDay: stay.checkOutDay,
       checkInTime: stay.checkInTime, checkOutTime: stay.checkOutTime,
       plannedCheckInTime: stay.plannedCheckInTime,
@@ -191,7 +191,7 @@ extension TripPlanningModel {
             plannedCheckOutTime: draft.plannedCheckOutTime, in: db)
         } else if let ideaID = draft.ideaID {
           try TripStay.create(
-            tripID: tripID, ideaID: ideaID,
+            tripID: tripID, ideaID: ideaID, note: note,
             checkInDay: draft.checkInDay, checkOutDay: draft.checkOutDay,
             checkInTime: draft.checkInTime, checkOutTime: draft.checkOutTime,
             plannedCheckInTime: draft.plannedCheckInTime,

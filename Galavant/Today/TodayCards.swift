@@ -15,6 +15,12 @@ struct TodayTonightCard: View {
       Text("Night \(tonight.nightNumber) of \(tonight.totalNights)")
         .font(.subheadline)
         .foregroundStyle(.secondary)
+      if let note = tonight.stay.note, !note.isEmpty {
+        Text(note)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+          .lineLimit(2)
+      }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .padding(18)
