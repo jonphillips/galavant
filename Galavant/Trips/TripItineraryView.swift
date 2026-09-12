@@ -246,6 +246,9 @@ struct TripItineraryView: View {
       let plan = model.plan
       let modes = model.effectiveModes
       inlineAddSection
+      if !plan.hasScheduledStops && plan.dayRegions.isEmpty {
+        sketchPrompt
+      }
       let bucket = plan.toBeScheduled
       if !bucket.isEmpty {
         Section {
@@ -278,6 +281,31 @@ struct TripItineraryView: View {
             .id(DayAnchor.day(day.number))
         }
       }
+    }
+  }
+
+  /// Before any stop or region exists, the first thing a planner writes down is the
+  /// trip's *shape* — "four nights Loire, three nights Paris" — not a stop. Lead the
+  /// empty itinerary with that instead of a column of "No stops yet" rows
+  /// (docs/handoff/trip-sketch-design.md).
+  private var sketchPrompt: some View {
+    Section {
+      Button(action: model.sketchTapped) {
+        HStack(spacing: 12) {
+          Image(systemName: "calendar.day.timeline.leading")
+            .imageScale(.large)
+            .foregroundStyle(.tint)
+          VStack(alignment: .leading, spacing: 2) {
+            Text("Sketch your days").font(.headline)
+            Text("Set which region each part of the trip is in, before placing stops.")
+              .font(.subheadline)
+              .foregroundStyle(.secondary)
+          }
+          Spacer(minLength: 0)
+          Icon.disclosure.image.font(.footnote).foregroundStyle(.tertiary)
+        }
+      }
+      .buttonStyle(.plain)
     }
   }
 

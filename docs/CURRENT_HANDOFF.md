@@ -58,9 +58,13 @@ choice, and a self-contained prompt per slice:
   located-waypoint-chain rule (`TripPlan.routeLegs`); heterogeneous days (overlapping /
   departing-only / unlocated stays, a stop next to a check-in) now draw connectors
   instead of dropping them.
-- Still open, in the brief's suggested order: **0** (day header shows the region chip,
-  demotes the time zone), **D** (a note on any lodging stay), **B2** (daily map on
-  Today), and **E** (sketch a trip: days × regions), which follows 0 and A.
+- **Slice 0 — day header shows the region chip, demotes the time zone — SHIPPED** (#119).
+- **Slice D — a note on any lodging stay, idea-backed or freeform — SHIPPED** (#120).
+- **Slice E — sketch a trip: days × regions — SHIPPED** (see `DONE_LOG.md`). A pure
+  `TripSketch`/`DaySpan` core over `TripDayRegion` + `Trip.lengthInDays` (no new table),
+  a `TripSketchSheet` reachable from the "···" menu and the empty-itinerary CTA. Design +
+  sign-off in `docs/handoff/trip-sketch-design.md`.
+- Still open: **B2** (daily map on Today) — the last slice in this brief.
 
   One thing B1 deliberately did **not** build, flagged for whoever takes B2: the
   canvas holds no live location session. `UserAnnotation` draws the dot from MapKit's
