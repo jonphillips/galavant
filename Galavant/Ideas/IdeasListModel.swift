@@ -22,6 +22,7 @@ final class IdeasListModel {
   @ObservationIgnored @FetchAll(Trip.all) var trips
   @ObservationIgnored @FetchAll(TripIdea.all) var tripIdeas
   @ObservationIgnored @FetchAll(TripRegion.all) var tripRegions
+  @ObservationIgnored @FetchAll(IdeaEvaluation.all) var evaluations
   // Only the header rows' *thumbnail* bytes — the display BLOBs never load into the
   // list (a row shows a small thumbnail; M4f).
   @ObservationIgnored @FetchAll(
@@ -111,6 +112,21 @@ final class IdeasListModel {
   /// Header thumbnail bytes per idea, for the cell's leading image.
   var headerThumbnailByIdea: [Idea.ID: Data] {
     Dictionary(headerThumbs.map { ($0.ideaID, $0.thumbnail) }, uniquingKeysWith: { first, _ in first })
+  }
+
+  /// The one accolade to headline on each idea's row (dogfood #3), keyed by idea.
+  /// Grouped once from the pool's evaluations so the row lookup is O(1); ideas with
+  /// no evaluation simply don't appear.
+  var headlineEvaluationByIdea: [Idea.ID: IdeaEvaluation] {
+    let known = Set(ideas.map(\.id))
+    let byIdea = Dictionary(grouping: evaluations, by: \.ideaID)
+    var result: [Idea.ID: IdeaEvaluation] = [:]
+    for (ideaID, evals) in byIdea {
+      if let headline = IdeaEvaluation.headline(forIdea: ideaID, from: evals, knownIdeaIDs: known) {
+        result[ideaID] = headline
+      }
+    }
+    return result
   }
 
   var currentPlanner: Planner? {

@@ -115,6 +115,43 @@ extension IdeaEvaluation {
       .sorted { $0.recordedAt > $1.recordedAt }
   }
 
+  /// The single evaluation to headline on a compact idea row (dogfood #3) — the
+  /// accolade a planner scans for when comparing ideas. Prefers a *current*
+  /// judgment, then a tiered kind (a Michelin ★/🗝 or a score over a soft
+  /// recommendation/mention), then recency. Reuses the orphan-drop reconciliation.
+  /// `nil` when the idea carries no evaluation. Pure.
+  public static func headline(
+    forIdea ideaID: Idea.ID,
+    from all: [IdeaEvaluation],
+    knownIdeaIDs: Set<Idea.ID>
+  ) -> IdeaEvaluation? {
+    evaluations(forIdea: ideaID, from: all, knownIdeaIDs: knownIdeaIDs)
+      .min { lhs, rhs in
+        let l = headlineRank(lhs)
+        let r = headlineRank(rhs)
+        if l != r { return l < r }
+        return lhs.recordedAt > rhs.recordedAt  // newest wins the tie
+      }
+  }
+
+  /// Row-headline precedence, lower = shown first. A current judgment beats a stale
+  /// one; within that, a tiered accolade beats a soft mention (see `EvaluationKind`).
+  private static func headlineRank(_ evaluation: IdeaEvaluation) -> Int {
+    let stalenessRank = evaluation.staleness == .current ? 0 : 1
+    let kindRank: Int
+    switch evaluation.kind {
+    case .stars: kindRank = 0
+    case .numericScore: kindRank = 1
+    case .rank: kindRank = 2
+    case .badge: kindRank = 3
+    case .recommendation: kindRank = 4
+    case .personal: kindRank = 5
+    case .mention: kindRank = 6
+    case .text: kindRank = 7
+    }
+    return stalenessRank * 10 + kindRank
+  }
+
   /// Split evaluations for an idea into current (`.current` staleness) and
   /// everything else (historical / stale / unknown), most-recently-recorded first
   /// within each bucket. Reuses the orphan-drop reconciliation from
