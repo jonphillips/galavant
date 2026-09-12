@@ -11,6 +11,7 @@ import SQLiteData
 @Observable
 final class TripsListModel {
   @ObservationIgnored @Dependency(\.defaultDatabase) var database
+  @ObservationIgnored @Dependency(\.date) var date
   @ObservationIgnored @FetchAll(Trip.all) var trips
 
   var destination: Destination?
@@ -20,8 +21,9 @@ final class TripsListModel {
     case form(Trip.Draft)
   }
 
-  /// Trips grouped and sorted by certainty (pure core).
-  var sections: TripSections { Trip.sectioned(trips) }
+  /// Trips grouped and sorted by certainty (pure core). Completed dated trips
+  /// sink to the bottom of the Dated section — `date.now` drives the cutoff.
+  var sections: TripSections { Trip.sectioned(trips, now: date.now) }
 
   func addTripButtonTapped() {
     destination = .form(Trip.Draft(Trip(id: UUID())))

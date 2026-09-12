@@ -60,10 +60,31 @@ struct TripTests {
       trip("Departs late", .dated(start: late)),
       trip("Departs early", .dated(start: early)),
     ]
-    let sections = Trip.sectioned(trips)
+    // `now` in the distant past keeps every dated trip upcoming, so the section
+    // orders purely by soonest departure.
+    let sections = Trip.sectioned(trips, now: .distantPast)
     #expect(sections.someday.map(\.name) == ["Backlog A", "Backlog B"])
     #expect(sections.targeted.map(\.name) == ["Same Year Q1", "Same Year Q3", "Later Year"])
     #expect(sections.dated.map(\.name) == ["Departs early", "Departs late"])
+  }
+
+  @Test func sectionedSinksCompletedDatedTripsToTheBottom() {
+    let calendar = Calendar(identifier: .gregorian)
+    let day = TimeInterval(86_400)
+    // Two upcoming, two already finished (start + 7-day default length < now).
+    let now = Date(timeIntervalSince1970: 2_000_000_000)
+    let trips = [
+      trip("Finished recently", .dated(start: now.addingTimeInterval(-20 * day))),
+      trip("Upcoming later", .dated(start: now.addingTimeInterval(60 * day))),
+      trip("Finished long ago", .dated(start: now.addingTimeInterval(-400 * day))),
+      trip("Upcoming soon", .dated(start: now.addingTimeInterval(10 * day))),
+    ]
+    let sections = Trip.sectioned(trips, now: now, calendar: calendar)
+    // Upcoming first (soonest → latest), then past (most-recently finished first).
+    #expect(
+      sections.dated.map(\.name)
+        == ["Upcoming soon", "Upcoming later", "Finished recently", "Finished long ago"]
+    )
   }
 
   @Test func activeCapsulesKeepInPlayTripsPlusTopSomeday() {
@@ -78,14 +99,14 @@ struct TripTests {
     ]
     // Dated (by date) → targeted → exactly one someday (the top of the backlog).
     #expect(
-      Trip.activeCapsules(trips).map(\.name)
+      Trip.activeCapsules(trips, now: .distantPast).map(\.name)
         == ["Departs early", "Departs late", "Targeted", "Top backlog"]
     )
   }
 
   @Test func activeCapsulesWithoutSomedayOmitsThatSlot() {
     let trips = [trip("Targeted", .targeted(year: 2027, quarter: nil))]
-    #expect(Trip.activeCapsules(trips).map(\.name) == ["Targeted"])
+    #expect(Trip.activeCapsules(trips, now: .distantPast).map(\.name) == ["Targeted"])
   }
 
   // MARK: - Persistence
@@ -234,7 +255,7 @@ struct TripTests {
       let b = try Trip.create(name: "B", in: db)
       let c = try Trip.create(name: "C", in: db)
       try Trip.reorderSomeday([c.id, a.id, b.id], in: db)
-      return Trip.sectioned(try Trip.all.fetchAll(db)).someday.map(\.name)
+      return Trip.sectioned(try Trip.all.fetchAll(db), now: .distantPast).someday.map(\.name)
     }
     #expect(reordered == ["C", "A", "B"])
   }
