@@ -53,6 +53,7 @@ struct TripsScreen: View {
         certaintySection(model.sections.dated, "Dated")
         certaintySection(model.sections.targeted, "Targeted")
         somedaySection
+        certaintySection(model.sections.completed, "Completed")
       }
       .padding(16)
     }
