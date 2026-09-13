@@ -2,14 +2,38 @@ import GalavantSchema
 import SwiftUI
 import UIKit
 
+/// Where an idea sits on the active trip, in the three plain-language stages the
+/// planner thinks in (dogfood): **Consider** (a maybe), **Schedule** (committed
+/// to go, awaiting a day — the shortlist), **Scheduled** (placed on a day). A
+/// display projection over `TripIdeaStatus` (+ whether it has a day); the core
+/// keeps its richer statuses.
+enum TripPullStage {
+  case consider, schedule, scheduled
+
+  var label: String {
+    switch self {
+    case .consider: "Consider"
+    case .schedule: "Schedule"
+    case .scheduled: "Scheduled"
+    }
+  }
+}
+
 struct IdeaRow: View {
-  /// The cell's trailing trip-awareness affordance, before the rating heart.
-  /// Two modes (BACKLOG "Ideas list trip-awareness"): the eternal pool shows a
-  /// derived association badge; an active-trip capsule turns the row into a
-  /// pull/shortlist surface for that trip.
+  /// The cell's trailing trip-awareness affordance. Two modes (BACKLOG "Ideas
+  /// list trip-awareness"): the eternal pool shows a derived association badge +
+  /// the rating heart; an active-trip capsule turns the row into a pull surface
+  /// — two plain-word menus, Vote and Status, whose labels show the current
+  /// value (dogfood).
   enum TripAccessory {
     case badge(IdeaTripBadge?)
-    case pull(status: TripIdeaStatus?, onConsidering: () -> Void, onShortlist: () -> Void)
+    case pull(
+      stage: TripPullStage?,
+      onConsider: () -> Void,
+      onSchedule: () -> Void,
+      onUnschedule: () -> Void,
+      onClear: () -> Void
+    )
   }
 
   let idea: Idea
@@ -30,7 +54,9 @@ struct IdeaRow: View {
 
   var body: some View {
     HStack(alignment: .top, spacing: 12) {
-      leadingImage
+      // The leading image opens the editor too, not just the text (dogfood).
+      Button(action: onTap) { leadingImage }
+        .buttonStyle(.plain)
         .padding(.top, 2)
       VStack(alignment: .leading, spacing: 4) {
         Button(action: onTap) {
@@ -112,21 +138,26 @@ struct IdeaRow: View {
   }
 
   /// The trailing cluster. In the eternal pool: the derived trip badge, then the
-  /// rating heart. Once scoped to a trip the heart becomes the left-most icon,
-  /// followed by a vertical stack of the two pull toggles — a question mark
-  /// (considering) over a checkmark (shortlisted).
+  /// rating heart. Once scoped to a trip the row becomes two plain-word menus —
+  /// **Vote** (the interest levels) over **Status** (Consider / Schedule /
+  /// Unschedule / Clear) — each labelled with its current value (dogfood).
   @ViewBuilder
   private var trailingAccessories: some View {
     switch tripAccessory {
     case let .badge(badge):
       if let badge { TripBadgeView(badge: badge) }
       interestHeart
-    case let .pull(status, onConsidering, onShortlist):
-      interestHeart
-      VStack(spacing: 10) {
-        pullToggle("questionmark", on: status == .considering, action: onConsidering)
-        pullToggle("checkmark", on: status?.isOnShortlist == true, action: onShortlist)
+    case let .pull(stage, onConsider, onSchedule, onUnschedule, onClear):
+      VStack(alignment: .trailing, spacing: 6) {
+        voteMenu
+        statusMenu(
+          stage: stage,
+          onConsider: onConsider,
+          onSchedule: onSchedule,
+          onUnschedule: onUnschedule,
+          onClear: onClear)
       }
+      .frame(minWidth: 92, alignment: .trailing)
     }
   }
 
@@ -137,16 +168,91 @@ struct IdeaRow: View {
     }
   }
 
-  /// One quick pull-state icon (considering / shortlist). These glyphs (a plain
-  /// `questionmark` / `checkmark`) have no `.fill` cousin, so the lit state reads
-  /// through tint + weight rather than a fill swap.
-  private func pullToggle(_ symbol: String, on: Bool, action: @escaping () -> Void) -> some View {
-    Button(action: action) {
-      Image(systemName: symbol)
-        .imageScale(.large)
-        .fontWeight(on ? .bold : .regular)
-        .foregroundStyle(on ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+  /// The Vote menu: the current planner's interest levels, its label showing the
+  /// current vote (or "Vote" when unrated).
+  private var voteMenu: some View {
+    InterestMenu(current: myInterest, onSelect: onSetInterest) {
+      menuChip(
+        title: myInterest?.label ?? "Vote",
+        systemImage: myInterest == nil ? "heart" : "heart.fill",
+        filled: myInterest != nil,
+        tint: .red)
     }
-    .buttonStyle(.borderless)
+  }
+
+  /// The Status menu: the idea's stage on the active trip. Its label shows the
+  /// current stage (or "Status" when the idea isn't on the trip yet); the items
+  /// are the plain-language moves — Consider, Schedule, Unschedule (only once
+  /// it's on a day), Clear.
+  private func statusMenu(
+    stage: TripPullStage?,
+    onConsider: @escaping () -> Void,
+    onSchedule: @escaping () -> Void,
+    onUnschedule: @escaping () -> Void,
+    onClear: @escaping () -> Void
+  ) -> some View {
+    Menu {
+      Button {
+        onConsider()
+      } label: {
+        statusItemLabel("Consider", checked: stage == .consider)
+      }
+      Button {
+        onSchedule()
+      } label: {
+        statusItemLabel("Schedule", checked: stage == .schedule)
+      }
+      if stage == .scheduled {
+        Button("Unschedule", action: onUnschedule)
+      }
+      if stage != nil {
+        Divider()
+        Button("Clear", role: .destructive, action: onClear)
+      }
+    } label: {
+      menuChip(
+        title: stage?.label ?? "Status",
+        systemImage: statusGlyph(stage),
+        filled: stage != nil,
+        tint: .accentColor)
+    }
+  }
+
+  private func statusItemLabel(_ title: String, checked: Bool) -> some View {
+    Group {
+      if checked {
+        Label(title, systemImage: Icon.checkmark.systemName)
+      } else {
+        Text(title)
+      }
+    }
+  }
+
+  private func statusGlyph(_ stage: TripPullStage?) -> String {
+    switch stage {
+    case .none: "circle.dashed"
+    case .consider: "questionmark.circle"
+    case .schedule: "checkmark.circle"
+    case .scheduled: "calendar.badge.checkmark"
+    }
+  }
+
+  /// A compact rounded chip used as a menu's label — the current value in words,
+  /// so the menu reads as its state rather than a bare icon.
+  private func menuChip(
+    title: String,
+    systemImage: String,
+    filled: Bool,
+    tint: Color
+  ) -> some View {
+    HStack(spacing: 4) {
+      Image(systemName: systemImage).imageScale(.small)
+      Text(title).lineLimit(1)
+    }
+    .font(.caption.weight(.medium))
+    .padding(.horizontal, 8)
+    .padding(.vertical, 4)
+    .foregroundStyle(filled ? AnyShapeStyle(tint) : AnyShapeStyle(.secondary))
+    .background(Color(.secondarySystemFill), in: Capsule())
   }
 }

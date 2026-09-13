@@ -11,6 +11,7 @@ struct IdeaFormView: View {
   @State private var model: IdeaFormModel
   @State private var search: PlaceSearchModel
   @Environment(\.dismiss) private var dismiss
+  @Environment(\.openURL) private var openURL
   @FocusState private var tagFieldFocused: Bool
   @State private var photosItem: PhotosPickerItem?
   private let saveTitle: String
@@ -32,8 +33,21 @@ struct IdeaFormView: View {
     @Bindable var model = model
     NavigationStack {
       Form {
-        if !model.isNew || !model.images.isEmpty {
-          photosSection
+        // Identity up top (dogfood): name, the user's own notes, the link (with a
+        // one-tap open button), then kind — the fields you reach for first.
+        Section {
+          StackedTextField(title: "Name", text: $model.draft.name)
+          StackedTextEditor(title: "Notes", text: $model.draft.notes, minHeight: 120)
+          linkField
+          StackedFormField(title: "Kind") {
+            Picker("Kind", selection: $model.draft.kind) {
+              Text("Unspecified").tag(IdeaKind?.none)
+              ForEach(IdeaKind.allCases, id: \.self) { kind in
+                Label(kind.label, systemImage: kind.systemImage).tag(IdeaKind?.some(kind))
+              }
+            }
+            .labelsHidden()
+          }
         }
 
         Section {
@@ -60,20 +74,7 @@ struct IdeaFormView: View {
           Text("Place")
         } footer: {
           if !model.hasLocation {
-            Text("Search to auto-fill name, kind, and details — or just type a name below.")
-          }
-        }
-
-        Section {
-          StackedTextField(title: "Name", text: $model.draft.name)
-          StackedFormField(title: "Kind") {
-            Picker("Kind", selection: $model.draft.kind) {
-              Text("Unspecified").tag(IdeaKind?.none)
-              ForEach(IdeaKind.allCases, id: \.self) { kind in
-                Label(kind.label, systemImage: kind.systemImage).tag(IdeaKind?.some(kind))
-              }
-            }
-            .labelsHidden()
+            Text("Search to auto-fill name, kind, and details — or just type a name above.")
           }
         }
 
@@ -118,12 +119,6 @@ struct IdeaFormView: View {
           }
         }
 
-        StackedFormField(title: "Link") {
-          TextField("Link", text: $model.draft.url, prompt: Text(verbatim: "https://…"))
-            .textContentType(.URL)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-        }
         Toggle("Visited", isOn: $model.draft.visited)
         if !model.isNew {
           hoursSection
@@ -138,8 +133,10 @@ struct IdeaFormView: View {
         Section {
           StackedTextEditor(title: "Description", text: $model.draft.description, minHeight: 80)
         }
-        Section {
-          StackedTextEditor(title: "Notes", text: $model.draft.notes, minHeight: 120)
+        // Photos live at the bottom (dogfood): the gallery + cover picker, after
+        // the fields you edit by hand.
+        if !model.isNew || !model.images.isEmpty {
+          photosSection
         }
       }
       .sheet(
@@ -180,10 +177,14 @@ struct IdeaFormView: View {
           }
         }
       }
-      .navigationTitle(model.isNew ? "New Idea" : "Edit Idea")
+      // An idea auto-created on open (to preview photos) still reads as "New"
+      // until the user actually saves it (dogfood).
+      .navigationTitle(model.isNew || model.autoCreated ? "New Idea" : "Edit Idea")
+      .onDisappear { Task { await model.discardIfAbandoned() } }
       .toolbar {
         ToolbarItem(placement: .confirmationAction) {
           Button(saveTitle) {
+            model.keepOnDismiss = true
             if let ideaID = model.saveButtonTapped() {
               // Fast post-save side effects (e.g. pull onto the trip) run promptly…
               Task { await onSave?(ideaID) }
@@ -217,7 +218,9 @@ struct IdeaFormView: View {
       .task { await model.task() }
     }
   }
+}
 
+extension IdeaFormView {
   /// Opening hours (a *fact* on the idea, ADR-0016 §2): the current value with its
   /// provenance, and the supplement affordance that fills it from the cheapest
   /// source — the place's own site, falling through to an in-app browser.
@@ -348,6 +351,11 @@ struct IdeaFormView: View {
     } header: {
       Text("Photos")
     } footer: {
+      if model.enrichingOnOpen {
+        Label { Text("Finding photos…") } icon: { ProgressView() }
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
       if model.images.count > 1 {
         Text("Tap a photo to make it the cover.")
       }
@@ -419,6 +427,30 @@ struct IdeaFormView: View {
     await withCheckedContinuation { continuation in
       provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, _ in
         continuation.resume(returning: data)
+      }
+    }
+  }
+
+  /// The Link field with a one-tap open button to its right (dogfood): edit the
+  /// URL inline, and jump straight to the page when it's a real link.
+  @ViewBuilder private var linkField: some View {
+    @Bindable var model = model
+    StackedFormField(title: "Link") {
+      HStack(spacing: 8) {
+        TextField("Link", text: $model.draft.url, prompt: Text(verbatim: "https://…"))
+          .textContentType(.URL)
+          .textInputAutocapitalization(.never)
+          .autocorrectionDisabled()
+        if let url = model.linkURL {
+          Button {
+            openURL(url)
+          } label: {
+            Image(systemName: "arrow.up.right.square")
+              .imageScale(.large)
+          }
+          .buttonStyle(.borderless)
+          .accessibilityLabel("Open link")
+        }
       }
     }
   }

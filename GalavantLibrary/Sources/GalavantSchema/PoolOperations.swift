@@ -120,6 +120,27 @@ extension Idea {
 }
 
 extension Planner {
+  /// Rename a planner (the Settings planner manager, dogfood). Trims; a blank
+  /// name is ignored so a voter never loses its label to an empty edit.
+  public static func rename(id: Planner.ID, to displayName: String, in db: Database) throws {
+    let trimmed = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return }
+    try Planner.where { $0.id.eq(id) }
+      .update { $0.displayName = #bind(trimmed) }
+      .execute(db)
+  }
+
+  /// Delete a planner and everything authored under its identity — the ratings it
+  /// left and any per-planner travel profile. Neither `ideaInterests.plannerID`
+  /// nor `travelProfiles.plannerID` carries a DB foreign key to the planner, so
+  /// they're removed explicitly here. Used by the Settings planner manager to
+  /// prune stale/duplicate voters (dogfood).
+  public static func deletePlanner(id: Planner.ID, in db: Database) throws {
+    try IdeaInterest.where { $0.plannerID.eq(id) }.delete().execute(db)
+    try TravelProfile.where { $0.plannerID.eq(id) }.delete().execute(db)
+    try Planner.where { $0.id.eq(id) }.delete().execute(db)
+  }
+
   /// Create a planner attached to the default travel party and return it.
   public static func create(displayName: String, in db: Database) throws -> Planner {
     let travelPartyID = try TravelParty.ensureDefault(in: db).id
