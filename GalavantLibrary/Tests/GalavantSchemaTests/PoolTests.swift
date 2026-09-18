@@ -53,6 +53,38 @@ struct PoolTests {
     #expect(count == 0)
   }
 
+  @Test func deletingPlannerAlsoRemovesTheirRatings() async throws {
+    let (keepID, dropID) = try await database.write { db -> (Planner.ID, Planner.ID) in
+      let idea = try seedIdea(name: "Noma", kind: .food, in: db)
+      let keep = try Planner.create(displayName: "Jon", in: db)
+      let drop = try Planner.create(displayName: "Stale", in: db)
+      try IdeaInterest.set(level: .mustDo, ideaID: idea.id, plannerID: keep.id, in: db)
+      try IdeaInterest.set(level: .couldDo, ideaID: idea.id, plannerID: drop.id, in: db)
+      try Planner.deletePlanner(id: drop.id, in: db)
+      return (keep.id, drop.id)
+    }
+    let (planners, interests) = try await database.read { db in
+      (try Planner.all.fetchAll(db), try IdeaInterest.all.fetchAll(db))
+    }
+    // The stale planner and the vote it left are both gone; the kept voter stays.
+    #expect(planners.map(\.id) == [keepID])
+    #expect(interests.map(\.plannerID) == [keepID])
+    #expect(dropID != keepID)
+  }
+
+  @Test func renamingPlannerIgnoresABlankName() async throws {
+    let plannerID = try await database.write { db -> Planner.ID in
+      let planner = try Planner.create(displayName: "Jon", in: db)
+      try Planner.rename(id: planner.id, to: "   ", in: db)
+      try Planner.rename(id: planner.id, to: "Jonathan", in: db)
+      return planner.id
+    }
+    let name = try await database.read { db in
+      try Planner.find(plannerID).fetchOne(db)?.displayName
+    }
+    #expect(name == "Jonathan")
+  }
+
   private func seedIdea(name: String, kind: IdeaKind, in db: Database) throws -> Idea {
     let travelPartyID = try TravelParty.ensureDefault(in: db).id
     let id = UUID()

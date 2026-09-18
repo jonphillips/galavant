@@ -112,13 +112,14 @@ extension Trip {
 
   // MARK: - Pure sectioning (functional core)
 
-  /// Split trips into the three certainty sections, each in its own natural
-  /// order: someday by backlog rank, targeted by year then quarter, dated by
-  /// start date — but with **completed dated trips sunk to the bottom** of their
-  /// section so the upcoming ones lead (upcoming soonest-first, then past
-  /// most-recent-first). `now`/`calendar` are injected so completion is
-  /// deterministic and this stays pure — the densely-tested core, never reading a
-  /// device clock (see `Trip.isPast(at:calendar:)`).
+  /// Split trips into their sections, each in its own natural order: someday by
+  /// backlog rank, targeted by year then quarter, dated (upcoming only) by
+  /// soonest departure — and **completed dated trips pulled out into their own
+  /// section** so they sit apart at the bottom of the Trips page (most-recently
+  /// finished first, so the trip you just returned from leads the pile).
+  /// `now`/`calendar` are injected so completion is deterministic and this stays
+  /// pure — the densely-tested core, never reading a device clock (see
+  /// `Trip.isPast(at:calendar:)`).
   public static func sectioned(
     _ trips: [Trip],
     now: Date,
@@ -134,26 +135,24 @@ extension Trip {
         let r = (rhs.targetYear ?? .max, rhs.targetQuarter?.rawValue ?? 0, rhs.name.lowercased())
         return l < r
       }
-    let dated = trips
-      .filter { $0.certaintyStage == .dated }
-      .sorted { lhs, rhs in
-        let lPast = lhs.isPast(at: now, calendar: calendar)
-        let rPast = rhs.isPast(at: now, calendar: calendar)
-        // Upcoming trips lead; a completed trip sinks below every upcoming one.
-        if lPast != rPast { return !lPast }
-        // Both upcoming: soonest departure first. Both past: most-recently
-        // finished first, so the trip you just returned from sits atop the pile.
-        return lPast
-          ? (lhs.startDate ?? .distantPast) > (rhs.startDate ?? .distantPast)
-          : (lhs.startDate ?? .distantFuture) < (rhs.startDate ?? .distantFuture)
-      }
-    return TripSections(someday: someday, targeted: targeted, dated: dated)
+    let datedAll = trips.filter { $0.certaintyStage == .dated }
+    let dated = datedAll
+      .filter { !$0.isPast(at: now, calendar: calendar) }
+      // Soonest departure first.
+      .sorted { ($0.startDate ?? .distantFuture) < ($1.startDate ?? .distantFuture) }
+    let completed = datedAll
+      .filter { $0.isPast(at: now, calendar: calendar) }
+      // Most-recently finished first.
+      .sorted { ($0.startDate ?? .distantPast) > ($1.startDate ?? .distantPast) }
+    return TripSections(someday: someday, targeted: targeted, dated: dated, completed: completed)
   }
 
   /// The in-play trips for the Ideas-screen capsules (the "launchpad"): every
   /// `dated` and `targeted` trip, plus the single top-of-backlog `someday` —
   /// derived from the certainty lifecycle, never filter MRU (which lingers
-  /// stale). Ordered dated → targeted → someday, matching the sections.
+  /// stale). **Upcoming trips lead; completed trips trail** so a live trip is
+  /// never buried behind one you've already taken (dogfood): upcoming dated →
+  /// targeted → top someday → completed.
   ///
   /// `Trip` carries no touch timestamp, so "most-recently-touched someday" is
   /// approximated by the top of the someday backlog (lowest `somedayRank`); when
@@ -165,6 +164,7 @@ extension Trip {
   ) -> [Trip] {
     let sections = sectioned(trips, now: now, calendar: calendar)
     return sections.dated + sections.targeted + Array(sections.someday.prefix(1))
+      + sections.completed
   }
 }
 
@@ -193,17 +193,25 @@ extension Trip {
   }
 }
 
-/// Trips grouped by certainty stage, each section pre-sorted (see
-/// `Trip.sectioned`).
+/// Trips grouped for the Trips page, each section pre-sorted (see
+/// `Trip.sectioned`). `dated` holds only *upcoming* dated trips; finished ones
+/// live in `completed`, shown as their own category at the bottom of the page.
 public struct TripSections: Equatable, Sendable {
   public var someday: [Trip]
   public var targeted: [Trip]
   public var dated: [Trip]
+  public var completed: [Trip]
 
-  public init(someday: [Trip] = [], targeted: [Trip] = [], dated: [Trip] = []) {
+  public init(
+    someday: [Trip] = [],
+    targeted: [Trip] = [],
+    dated: [Trip] = [],
+    completed: [Trip] = []
+  ) {
     self.someday = someday
     self.targeted = targeted
     self.dated = dated
+    self.completed = completed
   }
 }
 

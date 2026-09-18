@@ -28,6 +28,11 @@ struct SettingsScreen: View {
         } label: {
           Icon.map.label("Map Regions")
         }
+        NavigationLink {
+          PlannerManagementView()
+        } label: {
+          Icon.travelParty.label("Planners")
+        }
       }
 
       Section {

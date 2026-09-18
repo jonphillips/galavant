@@ -1,11 +1,13 @@
 import GalavantSchema
 import SwiftUI
 
-/// The trip's Ideas tab: the pulled ideas grouped Shortlist / To Be Scheduled /
-/// Scheduled / Considering, with one-tap state icons (star/calendar) and swipe
-/// actions. A scheduled stop can't be removed here — it's unscheduled back to the
-/// shortlist first (ADR-0004). The Add button (in the parent shell) opens the pool
-/// sheet.
+/// The trip's Ideas tab: the pulled ideas grouped into the planner's three
+/// plain-language stages — Consider / Schedule / Scheduled (dogfood) — with
+/// one-tap state icons (star/calendar) and swipe actions. "Schedule" is the
+/// shortlist (committed, awaiting a day) plus anything already sent to be
+/// scheduled but still dayless. A scheduled stop can't be removed here — it's
+/// unscheduled back to Schedule first (ADR-0004). The Add button (in the parent
+/// shell) opens the pool sheet.
 struct TripIdeasView: View {
   let model: TripPlanningModel
   /// On compact layouts this is the first list section, so it scrolls with the
@@ -43,19 +45,47 @@ struct TripIdeasView: View {
           Text("Open the most recent recommendation set for this trip.")
         }
       }
-      if !toBeScheduled.isEmpty {
-        Section("To Be Scheduled") {
-          ForEach(toBeScheduled) { resolved in
-            scheduledIdeaRow(resolved)
+      // The three plain-language stages the planner thinks in (dogfood):
+      // Consider (a maybe), Schedule (committed, awaiting a day — the shortlist,
+      // plus anything already sent to be scheduled but still dayless), Scheduled
+      // (placed on a day).
+      if !model.plan.considering.isEmpty {
+        Section("Consider") {
+          ForEach(model.plan.considering) { resolved in
+            PlanningRow(content: resolved.content, subtitle: .category) {
+              // Empty star = considering; tap moves it into Schedule.
+              starButton(filled: false) {
+                model.setStatus(.shortlisted, for: resolved.id)
+              }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { if let idea = resolved.idea { model.showDetail(idea) } }
+            .swipeActions(edge: .leading) {
+              if resolved.idea?.kind == .stay {
+                Button {
+                  if let idea = resolved.idea { model.stayHere(idea) }
+                } label: {
+                  Icon.stay.label("Stay here")
+                }
+                .tint(.indigo)
+              }
+            }
+            .swipeActions(edge: .trailing) {
+              Button(role: .destructive) {
+                model.remove(resolved.id)
+              } label: {
+                Icon.delete.label("Remove")
+              }
+            }
           }
         }
       }
-      if !model.plan.shortlist.isEmpty {
-        Section("Shortlist") {
+      if !model.plan.shortlist.isEmpty || !toBeScheduled.isEmpty {
+        Section("Schedule") {
           ForEach(model.plan.shortlist) { resolved in
             PlanningRow(content: resolved.content, subtitle: .category) {
               HStack(spacing: 14) {
-                // Lit star = shortlisted; tap demotes it back to Considering.
+                // Lit star = in Schedule; tap demotes it back to Consider.
                 starButton(filled: true) {
                   model.setStatus(.considering, for: resolved.id)
                 }
@@ -95,6 +125,10 @@ struct TripIdeasView: View {
             }
           }
           .reorderable()
+          // Committed but not yet on a day — waiting to be placed on the itinerary.
+          ForEach(toBeScheduled) { resolved in
+            scheduledIdeaRow(resolved)
+          }
         }
       }
       if !placedScheduled.isEmpty {
@@ -113,37 +147,6 @@ struct TripIdeasView: View {
             }
             .buttonStyle(.borderless)
             .accessibilityLabel("Show scheduled itinerary")
-          }
-        }
-      }
-      if !model.plan.considering.isEmpty {
-        Section("Considering") {
-          ForEach(model.plan.considering) { resolved in
-            PlanningRow(content: resolved.content, subtitle: .category) {
-              // Empty star = considering; tap promotes it to the Shortlist.
-              starButton(filled: false) {
-                model.setStatus(.shortlisted, for: resolved.id)
-              }
-            }
-            .contentShape(Rectangle())
-            .onTapGesture { if let idea = resolved.idea { model.showDetail(idea) } }
-            .swipeActions(edge: .leading) {
-              if resolved.idea?.kind == .stay {
-                Button {
-                  if let idea = resolved.idea { model.stayHere(idea) }
-                } label: {
-                  Icon.stay.label("Stay here")
-                }
-                .tint(.indigo)
-              }
-            }
-            .swipeActions(edge: .trailing) {
-              Button(role: .destructive) {
-                model.remove(resolved.id)
-              } label: {
-                Icon.delete.label("Remove")
-              }
-            }
           }
         }
       }

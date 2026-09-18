@@ -48,6 +48,17 @@ final class IdeaFormModel {
   var addingImage = false
   /// A short result line shown after an image refresh attempt.
   var imagesStatus: String?
+  /// True while the on-open enrichment pass is fetching photos/facts, so the
+  /// form can show a "finding photos…" hint before Save (dogfood).
+  var enrichingOnOpen = false
+  /// We persisted this idea on open purely so enrichment could fetch images the
+  /// user can see and pick *before* saving (dogfood). If the user then abandons
+  /// the sheet (Cancel / swipe-away) without a real Save, `discardIfAbandoned`
+  /// deletes it so no orphan idea is left behind.
+  var autoCreated = false
+  /// Set true once the user commits with Save, so an auto-created idea survives
+  /// dismissal instead of being discarded.
+  var keepOnDismiss = false
   /// The hand-set Michelin rating (dogfood #3): 0 = none, 1–3 = stars (restaurants)
   /// or keys (stays), the glyph chosen by the idea's kind. Bound to the form's
   /// rating picker; persisted as a `.manual` `IdeaEvaluation` on save. Loaded from
@@ -61,6 +72,15 @@ final class IdeaFormModel {
 
   var isNew: Bool { draft.id == nil }
   var hasLocation: Bool { draft.latitude != nil && draft.longitude != nil }
+
+  /// The idea's link as an openable URL, when it has a real scheme — drives the
+  /// "open" button beside the Link field (dogfood). Nil for an empty or malformed
+  /// entry so the button hides rather than opening nothing.
+  var linkURL: URL? {
+    let trimmed = draft.url.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty, let url = URL(string: trimmed), url.scheme != nil else { return nil }
+    return url
+  }
   var canSave: Bool { !draft.name.trimmingCharacters(in: .whitespaces).isEmpty }
   var trimmedNewTag: String { newTag.trimmingCharacters(in: .whitespacesAndNewlines) }
 
@@ -85,6 +105,76 @@ final class IdeaFormModel {
     await loadTags()
     await reloadImages()
     await loadManualRating()
+    await enrichOnOpenIfNeeded()
+  }
+
+  /// True when opening the sheet should kick off enrichment right away (dogfood):
+  /// a brand-new idea that already has a website to fetch photos/facts from.
+  var canEnrichOnOpen: Bool { isNew && !draft.url.isEmpty }
+
+  /// Fire the enrichment hop as soon as the create sheet is viewed, so photos are
+  /// fetched and pickable *before* Save (dogfood). Enrichment writes by idea id,
+  /// so persist the draft first (auto-create), then fetch, then merge the fetched
+  /// facts back into the draft so a later Save doesn't overwrite them. An
+  /// abandoned auto-create is cleaned up by `discardIfAbandoned`.
+  func enrichOnOpenIfNeeded() async {
+    guard canEnrichOnOpen else { return }
+    enrichingOnOpen = true
+    defer { enrichingOnOpen = false }
+    guard let id = saveButtonTapped() else { return }
+    autoCreated = true
+    draft.id = id
+    await reloadImages()
+    await enrichSavedIdea(id)
+    await mergeEnrichedFacts()
+    await reloadImages()
+    await loadManualRating()
+  }
+
+  /// Pull the facts enrichment just wrote onto the DB row back into the in-memory
+  /// draft. User-facing text is filled only when still empty, so anything typed
+  /// while the fetch was in flight wins; the derived facts (enrichment stamp,
+  /// hours, map identity, place details) are taken outright so a subsequent Save
+  /// never writes stale/empty values back over the enrichment.
+  private func mergeEnrichedFacts() async {
+    guard let id = draft.id else { return }
+    await withErrorReporting {
+      guard let idea = try await database.read({ db in try Idea.find(id).fetchOne(db) })
+      else { return }
+      if draft.name.trimmingCharacters(in: .whitespaces).isEmpty { draft.name = idea.name }
+      if draft.kind == nil { draft.kind = idea.kind }
+      if draft.url.isEmpty { draft.url = idea.url }
+      if draft.description.isEmpty { draft.description = idea.description }
+      if draft.notes.isEmpty { draft.notes = idea.notes }
+      draft.enrichedAt = idea.enrichedAt
+      draft.mapItemIdentifier = idea.mapItemIdentifier
+      if draft.address == nil { draft.address = idea.address }
+      if draft.phone == nil { draft.phone = idea.phone }
+      if draft.regionName == nil { draft.regionName = idea.regionName }
+      if draft.latitude == nil {
+        draft.latitude = idea.latitude
+        draft.longitude = idea.longitude
+      }
+      draft.openingHours = idea.openingHours
+      draft.hoursProvenance = idea.hoursProvenance
+      draft.hoursVerifiedAt = idea.hoursVerifiedAt
+      draft.structuredHours = idea.structuredHours
+      weeklyHours = idea.weeklyHours ?? .unknown
+    }
+  }
+
+  /// Delete an idea that was auto-created on open only to preview photos, when the
+  /// user leaves without a real Save (dogfood) — including any images enrichment
+  /// fetched — so an abandoned create leaves nothing behind. A no-op for a real
+  /// edit or a saved idea.
+  func discardIfAbandoned() async {
+    guard autoCreated, !keepOnDismiss, let id = draft.id else { return }
+    await withErrorReporting {
+      try await database.write { db in
+        try ImageAsset.where { $0.ideaID.eq(id) }.delete().execute(db)
+        try Idea.where { $0.id.eq(id) }.delete().execute(db)
+      }
+    }
   }
 
   // MARK: - Manual rating (dogfood #3)

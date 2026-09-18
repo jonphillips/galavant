@@ -277,11 +277,27 @@ final class IdeasListModel {
     )
   }
 
-  /// This idea's status on the active trip — drives the pull toggles when a
-  /// capsule is selected. Nil when no capsule is active or it isn't pulled.
+  /// This idea's status on the active trip. Nil when no capsule is active or it
+  /// isn't pulled.
   func activeTripStatus(for idea: Idea) -> TripIdeaStatus? {
     guard let tripID = activeTripID else { return nil }
     return tripIdeas.first { $0.tripID == tripID && $0.ideaID == idea.id }?.status
+  }
+
+  /// This idea's stage on the active trip in the planner's plain-language terms
+  /// (dogfood) — Consider / Schedule / Scheduled — the Status menu's current
+  /// value. Nil when no capsule is active or the idea isn't on the trip.
+  func activeTripStage(for idea: Idea) -> TripPullStage? {
+    guard let tripID = activeTripID,
+      let entry = tripIdeas.first(where: { $0.tripID == tripID && $0.ideaID == idea.id })
+    else { return nil }
+    switch entry.status {
+    case .considering: return .consider
+    case .shortlisted: return .schedule
+    case .scheduled: return entry.dayNumber != nil ? .scheduled : .schedule
+    case .done: return .scheduled
+    case .skipped: return .consider
+    }
   }
 
   var isFiltering: Bool {
@@ -401,41 +417,56 @@ final class IdeasListModel {
 
   // MARK: - Pull onto the active trip
 
-  /// Toggle an idea's "considering" state on the active trip (the launchpad's
-  /// thought-bubble): pull it if it's off the trip, demote a shortlisted one, or
-  /// remove an already-considering one. Mirrors `TripPlanningModel.tapConsidering`
-  /// over the same tested `TripIdea` ops; a no-op when no capsule is active.
-  func tapConsideringOnActiveTrip(_ idea: Idea) {
+  /// Set an idea to "Consider" on the active trip (the Status menu, dogfood):
+  /// pull it on if it's off, or demote a committed one back to the maybe-pile.
+  /// Pull is idempotent, so this is safe to call from any current stage. A no-op
+  /// when no capsule is active.
+  func considerOnActiveTrip(_ idea: Idea) {
     guard let tripID = activeTripID else { return }
     let ideaID = idea.id
     withErrorReporting {
       try database.write { db in
-        switch activeTripStatus(for: idea) {
-        case nil: try TripIdea.pull(ideaID: ideaID, into: tripID, in: db)
-        case .considering: try TripIdea.remove(ideaID: ideaID, from: tripID, in: db)
-        case .shortlisted: try TripIdea.setStatus(.considering, ideaID: ideaID, tripID: tripID, in: db)
-        case .scheduled, .done, .skipped: break  // manage scheduled stops from the trip
-        }
+        try TripIdea.pull(ideaID: ideaID, into: tripID, in: db)
+        try TripIdea.setStatus(.considering, ideaID: ideaID, tripID: tripID, in: db)
       }
     }
   }
 
-  /// Toggle an idea's shortlist state on the active trip (the launchpad's star):
-  /// pull straight to the shortlist, promote a considering one, or remove an
-  /// already-shortlisted one. Mirrors `TripPlanningModel.tapShortlist`.
-  func tapShortlistOnActiveTrip(_ idea: Idea) {
+  /// Set an idea to "Schedule" on the active trip — committed to go, awaiting a
+  /// day (the shortlist; the planner's "Schedule" and "Shortlist" are one and
+  /// the same). Pull it on first if needed. Place it on an actual day from the
+  /// trip's itinerary. A no-op when no capsule is active.
+  func scheduleOnActiveTrip(_ idea: Idea) {
     guard let tripID = activeTripID else { return }
     let ideaID = idea.id
     withErrorReporting {
       try database.write { db in
-        switch activeTripStatus(for: idea) {
-        case nil:
-          try TripIdea.pull(ideaID: ideaID, into: tripID, in: db)
-          try TripIdea.setStatus(.shortlisted, ideaID: ideaID, tripID: tripID, in: db)
-        case .considering: try TripIdea.setStatus(.shortlisted, ideaID: ideaID, tripID: tripID, in: db)
-        case .shortlisted: try TripIdea.remove(ideaID: ideaID, from: tripID, in: db)
-        case .scheduled, .done, .skipped: break
-        }
+        try TripIdea.pull(ideaID: ideaID, into: tripID, in: db)
+        try TripIdea.setStatus(.shortlisted, ideaID: ideaID, tripID: tripID, in: db)
+      }
+    }
+  }
+
+  /// Take a scheduled idea off its day, back to the "Schedule" bucket — the
+  /// Status menu's "Unschedule". A no-op when no capsule is active.
+  func unscheduleOnActiveTrip(_ idea: Idea) {
+    guard let tripID = activeTripID else { return }
+    let ideaID = idea.id
+    withErrorReporting {
+      try database.write { db in
+        try TripIdea.unschedule(ideaID: ideaID, tripID: tripID, in: db)
+      }
+    }
+  }
+
+  /// Remove an idea from the active trip entirely — the Status menu's "Clear",
+  /// back to the untouched pool. A no-op when no capsule is active.
+  func clearFromActiveTrip(_ idea: Idea) {
+    guard let tripID = activeTripID else { return }
+    let ideaID = idea.id
+    withErrorReporting {
+      try database.write { db in
+        try TripIdea.remove(ideaID: ideaID, from: tripID, in: db)
       }
     }
   }

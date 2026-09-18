@@ -243,9 +243,11 @@ struct IdeasScreen: View {
       return .badge(model.tripBadge(for: idea))
     }
     return .pull(
-      status: model.activeTripStatus(for: idea),
-      onConsidering: { model.tapConsideringOnActiveTrip(idea) },
-      onShortlist: { model.tapShortlistOnActiveTrip(idea) }
+      stage: model.activeTripStage(for: idea),
+      onConsider: { model.considerOnActiveTrip(idea) },
+      onSchedule: { model.scheduleOnActiveTrip(idea) },
+      onUnschedule: { model.unscheduleOnActiveTrip(idea) },
+      onClear: { model.clearFromActiveTrip(idea) }
     )
   }
 

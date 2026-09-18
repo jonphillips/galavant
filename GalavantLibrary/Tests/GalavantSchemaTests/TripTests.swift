@@ -68,7 +68,7 @@ struct TripTests {
     #expect(sections.dated.map(\.name) == ["Departs early", "Departs late"])
   }
 
-  @Test func sectionedSinksCompletedDatedTripsToTheBottom() {
+  @Test func sectionedSplitsCompletedDatedTripsIntoTheirOwnSection() {
     let calendar = Calendar(identifier: .gregorian)
     let day = TimeInterval(86_400)
     // Two upcoming, two already finished (start + 7-day default length < now).
@@ -80,10 +80,26 @@ struct TripTests {
       trip("Upcoming soon", .dated(start: now.addingTimeInterval(10 * day))),
     ]
     let sections = Trip.sectioned(trips, now: now, calendar: calendar)
-    // Upcoming first (soonest → latest), then past (most-recently finished first).
+    // `dated` holds only upcoming (soonest → latest); finished trips move to
+    // their own `completed` section (most-recently finished first).
+    #expect(sections.dated.map(\.name) == ["Upcoming soon", "Upcoming later"])
+    #expect(sections.completed.map(\.name) == ["Finished recently", "Finished long ago"])
+  }
+
+  @Test func activeCapsulesTrailCompletedTripsAfterUpcoming() {
+    let calendar = Calendar(identifier: .gregorian)
+    let day = TimeInterval(86_400)
+    let now = Date(timeIntervalSince1970: 2_000_000_000)
+    let trips = [
+      trip("Finished", .dated(start: now.addingTimeInterval(-20 * day))),
+      trip("Upcoming", .dated(start: now.addingTimeInterval(10 * day))),
+      trip("Targeted", .targeted(year: 2099, quarter: .q2)),
+      trip("Top backlog", .someday(rank: 0)),
+    ]
+    // Upcoming dated → targeted → top someday → completed (never buried).
     #expect(
-      sections.dated.map(\.name)
-        == ["Upcoming soon", "Upcoming later", "Finished recently", "Finished long ago"]
+      Trip.activeCapsules(trips, now: now, calendar: calendar).map(\.name)
+        == ["Upcoming", "Targeted", "Top backlog", "Finished"]
     )
   }
 
