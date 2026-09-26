@@ -32,8 +32,81 @@ import Testing
       let model = PlaceSearchModel()
       model.query = "noma"
       await model.searchTask?.value
-      expectNoDifference(model.results, [noma])
+      expectNoDifference(model.results, [.place(noma)])
     }
+  }
+
+  /// Type-ahead suggestions lead (they match the half-typed word); natural-language
+  /// hits follow, minus any the completer already suggested by name.
+  @Test func suggestionsLeadAndSuggestedNamesAreNotRepeated() async {
+    let hotel = PlaceSuggestion(
+      id: UUID(), title: "Château la Commaraine Hotel", subtitle: "Pommard, France"
+    )
+    let sameHotel = Place(
+      id: UUID(), name: "chateau La Commaraine hotel", latitude: 47.0, longitude: 4.8
+    )
+    let street = Place(
+      id: UUID(), name: "Route du Château", latitude: 47.1, longitude: 4.7
+    )
+    await withDependencies {
+      $0.placeSearch.complete = { query, scope in
+        expectNoDifference(query, "Chateau La Commaraine Hote")
+        expectNoDifference(scope, .worldwide)
+        return [hotel]
+      }
+      $0.placeSearch.search = { _, _ in [sameHotel, street] }
+    } operation: {
+      let model = PlaceSearchModel()
+      model.query = "Chateau La Commaraine Hote"
+      await model.searchTask?.value
+      expectNoDifference(model.results, [.suggestion(hotel), .place(street)])
+    }
+  }
+
+  /// A failing completer mustn't blank the list: the natural-language hits still show.
+  @Test func completerFailureStillShowsSearchHits() async {
+    let street = Place(id: UUID(), name: "Route du Château", latitude: 47.1, longitude: 4.7)
+    struct Throttled: Error {}
+    await withDependencies {
+      $0.placeSearch.complete = { _, _ in throw Throttled() }
+      $0.placeSearch.search = { _, _ in [street] }
+    } operation: {
+      let model = PlaceSearchModel()
+      model.query = "route"
+      await model.searchTask?.value
+      expectNoDifference(model.results, [.place(street)])
+    }
+  }
+
+  /// Tapping a suggestion looks it up through the client; a resolved hit passes through.
+  @Test func resolvingASuggestionLooksItUp() async {
+    let suggestion = PlaceSuggestion(id: UUID(), title: "Noma", subtitle: "Copenhagen")
+    let noma = Place(id: UUID(), name: "Noma", latitude: 55.683, longitude: 12.610)
+    await withDependencies {
+      $0.placeSearch.resolve = { resolving in
+        expectNoDifference(resolving, suggestion)
+        return noma
+      }
+    } operation: {
+      let model = PlaceSearchModel()
+      let resolvedSuggestion = await model.resolve(.suggestion(suggestion))
+      let resolvedPlace = await model.resolve(.place(noma))
+      expectNoDifference(resolvedSuggestion, noma)
+      expectNoDifference(resolvedPlace, noma)
+    }
+  }
+
+  @Test func mergeCapsSuggestionsAndTotal() {
+    let suggestions = (0..<10).map {
+      PlaceSuggestion(id: UUID(), title: "Suggestion \($0)", subtitle: "")
+    }
+    let places = (0..<10).map {
+      Place(id: UUID(), name: "Place \($0)", latitude: 0, longitude: 0)
+    }
+    let merged = PlaceSearchResult.merged(suggestions: suggestions, places: places)
+    #expect(merged.count == 12)
+    #expect(merged.prefix(8).allSatisfy { if case .suggestion = $0 { true } else { false } })
+    #expect(merged.suffix(4).allSatisfy { if case .place = $0 { true } else { false } })
   }
 
   /// A one-character query is below the threshold: no search fires, results clear.

@@ -68,18 +68,18 @@ struct MapPlaceSearchOverlay: View {
         Divider()
         ScrollView {
           LazyVStack(spacing: 0) {
-            ForEach(search.results) { place in
+            ForEach(search.results) { result in
               Button {
-                Task { await resultTapped(place) }
+                Task { await resultTapped(result) }
               } label: {
                 MapPlaceSearchResultRow(
                   // Rural MapKit hits often carry no city or address, so several
                   // same-named results (a lake, a hotel, an alm all called
                   // "Lautersee") would render identically. Fall back to the kind
                   // label so the icon isn't the only thing telling them apart.
-                  name: place.name,
-                  subtitle: place.subtitle.isEmpty ? (place.kind?.label ?? "") : place.subtitle,
-                  systemImage: place.kind?.systemImage ?? "mappin"
+                  name: result.title,
+                  subtitle: result.subtitle.isEmpty ? (result.kind?.label ?? "") : result.subtitle,
+                  systemImage: result.kind?.systemImage ?? "mappin"
                 )
               }
               .buttonStyle(.plain)
@@ -115,7 +115,9 @@ struct MapPlaceSearchOverlay: View {
     }
   }
 
-  private func resultTapped(_ place: Place) async {
+  private func resultTapped(_ result: PlaceSearchResult) async {
+    // A type-ahead suggestion is resolved to its full Maps record only now, on tap.
+    guard let place = await search.resolve(result), !Task.isCancelled else { return }
     await onSelect(place)
     guard !Task.isCancelled else { return }
     search.resultTapped()

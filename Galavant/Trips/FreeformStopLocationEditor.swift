@@ -125,15 +125,18 @@ struct FreeformStopLocationSearchView: View {
 
   var body: some View {
     @Bindable var search = search
-    List(search.results) { place in
+    List(search.results) { result in
       Button {
-        onSelect(place)
-        dismiss()
+        Task {
+          guard let place = await search.resolve(result) else { return }
+          onSelect(place)
+          dismiss()
+        }
       } label: {
         VStack(alignment: .leading, spacing: 2) {
-          Text(place.name)
-          if !place.subtitle.isEmpty {
-            Text(place.subtitle)
+          Text(result.title)
+          if !result.subtitle.isEmpty {
+            Text(result.subtitle)
               .font(.footnote)
               .foregroundStyle(.secondary)
           }

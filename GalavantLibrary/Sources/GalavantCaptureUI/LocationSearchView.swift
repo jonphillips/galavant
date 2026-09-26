@@ -14,15 +14,18 @@ struct LocationSearchView: View {
   @Environment(\.dismiss) private var dismiss
 
   var body: some View {
-    List(search.results) { place in
+    List(search.results) { result in
       Button {
-        model.useLocation(place)
-        dismiss()
+        Task {
+          guard let place = await search.resolve(result) else { return }
+          model.useLocation(place)
+          dismiss()
+        }
       } label: {
         VStack(alignment: .leading, spacing: 2) {
-          Text(place.name)
-          if !place.subtitle.isEmpty {
-            Text(place.subtitle)
+          Text(result.title)
+          if !result.subtitle.isEmpty {
+            Text(result.subtitle)
               .font(.footnote)
               .foregroundStyle(.secondary)
           }
