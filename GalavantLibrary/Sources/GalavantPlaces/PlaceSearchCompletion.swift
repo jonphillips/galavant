@@ -66,18 +66,24 @@ public enum PlaceSearchResult: Identifiable, Equatable, Sendable {
   }
 
   /// Suggestions first (they match what's half-typed), then natural-language hits
-  /// that aren't already suggested — the fallback for a full "Noma Copenhagen" query
-  /// the completer handles poorly.
+  /// the completer didn't suggest — the fallback for a full "Noma Copenhagen" query
+  /// it handles poorly. A suggestion the natural-language search also found by name
+  /// is shown as that resolved hit instead: a completion carries no category, so this
+  /// is what gives a hotel its bed icon (and skips the lookup on tap).
   static func merged(
     suggestions: [PlaceSuggestion],
     places: [Place],
     limit: Int = 12
   ) -> [PlaceSearchResult] {
-    let suggested = Set(suggestions.map { $0.title.searchFolded })
-    let fallbacks = places.filter { !suggested.contains($0.name.searchFolded) }
-    let rows = suggestions.prefix(8).map(PlaceSearchResult.suggestion)
-      + fallbacks.map(PlaceSearchResult.place)
-    return Array(rows.prefix(limit))
+    var unclaimed = places
+    let leading = suggestions.prefix(8).map { suggestion -> PlaceSearchResult in
+      let title = suggestion.title.searchFolded
+      guard let index = unclaimed.firstIndex(where: { $0.name.searchFolded == title }) else {
+        return .suggestion(suggestion)
+      }
+      return .place(unclaimed.remove(at: index))
+    }
+    return Array((leading + unclaimed.map(PlaceSearchResult.place)).prefix(limit))
   }
 }
 

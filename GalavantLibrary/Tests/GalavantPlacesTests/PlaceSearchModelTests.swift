@@ -37,13 +37,18 @@ import Testing
   }
 
   /// Type-ahead suggestions lead (they match the half-typed word); natural-language
-  /// hits follow, minus any the completer already suggested by name.
-  @Test func suggestionsLeadAndSuggestedNamesAreNotRepeated() async {
+  /// hits follow. A suggestion the search also found by name takes that resolved hit's
+  /// place in line, so it shows its kind (the hotel's bed) and isn't listed twice.
+  @Test func suggestionsLeadAndTakeOverMatchingSearchHits() async {
     let hotel = PlaceSuggestion(
       id: UUID(), title: "Château la Commaraine Hotel", subtitle: "Pommard, France"
     )
+    let lateSuggestion = PlaceSuggestion(
+      id: UUID(), title: "Impasse de la Commaraine", subtitle: "Pommard, France"
+    )
     let sameHotel = Place(
-      id: UUID(), name: "chateau La Commaraine hotel", latitude: 47.0, longitude: 4.8
+      id: UUID(), name: "chateau La Commaraine hotel", latitude: 47.0, longitude: 4.8,
+      kind: .stay
     )
     let street = Place(
       id: UUID(), name: "Route du Château", latitude: 47.1, longitude: 4.7
@@ -52,14 +57,16 @@ import Testing
       $0.placeSearch.complete = { query, scope in
         expectNoDifference(query, "Chateau La Commaraine Hote")
         expectNoDifference(scope, .worldwide)
-        return [hotel]
+        return [lateSuggestion, hotel]
       }
-      $0.placeSearch.search = { _, _ in [sameHotel, street] }
+      $0.placeSearch.search = { _, _ in [street, sameHotel] }
     } operation: {
       let model = PlaceSearchModel()
       model.query = "Chateau La Commaraine Hote"
       await model.searchTask?.value
-      expectNoDifference(model.results, [.suggestion(hotel), .place(street)])
+      expectNoDifference(
+        model.results, [.suggestion(lateSuggestion), .place(sameHotel), .place(street)]
+      )
     }
   }
 
