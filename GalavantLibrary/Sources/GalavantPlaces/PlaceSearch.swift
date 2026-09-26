@@ -116,33 +116,90 @@ enum PlaceSearchScope: Equatable, Sendable {
 /// is what Maps uses and is forgiving of "Noma Copenhagen". A caller may instead
 /// supply one or more saved regions; strict region scopes stay inside each region,
 /// while biased region scopes rank toward them without fencing the result.
+///
+/// Natural-language search needs a *finished* query, though: a half-typed word
+/// ("Commaraine Hote") matches nothing and it falls back to a fuzzy street. So a
+/// type-into field also runs `complete` — `MKLocalSearchCompleter`, the as-you-type
+/// engine Maps' own search bar uses — scoped to the same regions (which is what
+/// defeats its device-location bias), and `resolve`s a tapped suggestion to a full
+/// `Place`. `PlaceSearchModel` merges the two, suggestions first.
 struct PlaceSearchClient: Sendable {
   var search: @Sendable (_ query: String, _ scope: PlaceSearchScope) async throws -> [Place]
+  var complete: @Sendable (_ query: String, _ scope: PlaceSearchScope) async throws -> [PlaceSuggestion]
+  var resolve: @Sendable (_ suggestion: PlaceSuggestion) async throws -> Place?
 }
 
 extension PlaceSearchClient: DependencyKey {
-  static let liveValue = PlaceSearchClient { query, scope in
-    guard scope != .unavailable else { return [] }
-    let searchRegions = Self.searchRegions(for: scope)
-    var found: [Place] = []
-    var seen = Set<String>()
-    for searchRegion in searchRegions {
-      let response = try await MKLocalSearch(
-        request: Self.request(
-          query: query,
-          region: searchRegion.region,
-          required: searchRegion.required
+  static let liveValue = PlaceSearchClient(
+    search: { query, scope in
+      guard scope != .unavailable else { return [] }
+      var found: [Place] = []
+      var seen = Set<String>()
+      for searchRegion in Self.searchRegions(for: scope) {
+        // Points of interest and addresses as *separate* requests, POIs listed first:
+        // asked together, a close street-name match ("Impasse de la Commaraine") can
+        // come back alone and hide the hotel the street is named after.
+        async let pointsOfInterest = Self.places(
+          query: query, region: searchRegion.region, required: searchRegion.required,
+          resultTypes: .pointOfInterest
         )
+        async let addresses = Self.places(
+          query: query, region: searchRegion.region, required: searchRegion.required,
+          resultTypes: .address
+        )
+        let (poiResult, addressResult) = await (pointsOfInterest, addresses)
+        // Only a total failure throws (so the model keeps its last results); a
+        // throttled or not-found half just contributes nothing.
+        if case .failure(let error) = poiResult, case .failure = addressResult { throw error }
+        for place in ((try? poiResult.get()) ?? []) + ((try? addressResult.get()) ?? []) {
+          guard seen.insert(place.searchIdentity).inserted else { continue }
+          found.append(place)
+          if found.count == 12 { return found }
+        }
+      }
+      return found
+    },
+    complete: { query, scope in
+      guard scope != .unavailable else { return [] }
+      var found: [PlaceSuggestion] = []
+      var seen = Set<String>()
+      for searchRegion in Self.searchRegions(for: scope) {
+        let request = await CompletionRequest()
+        let completions = try await request.results(
+          for: query, region: searchRegion.region, required: searchRegion.required
+        )
+        for suggestion in completions {
+          guard seen.insert(suggestion.searchIdentity).inserted else { continue }
+          found.append(suggestion)
+        }
+      }
+      return found
+    },
+    resolve: { suggestion in
+      guard let completion = suggestion.completion?.value else { return nil }
+      let response = try await MKLocalSearch(
+        request: MKLocalSearch.Request(completion: completion)
       )
       .start()
-      for item in response.mapItems {
-        let place = Place(mapItem: item)
-        guard seen.insert(place.searchIdentity).inserted else { continue }
-        found.append(place)
-        if found.count == 12 { return found }
-      }
+      return response.mapItems.first.map(Place.init(mapItem:))
     }
-    return found
+  )
+
+  private static func places(
+    query: String,
+    region: MKCoordinateRegion,
+    required: Bool,
+    resultTypes: MKLocalSearch.ResultType
+  ) async -> Result<[Place], any Error> {
+    do {
+      let response = try await MKLocalSearch(
+        request: request(query: query, region: region, required: required, resultTypes: resultTypes)
+      )
+      .start()
+      return .success(response.mapItems.map(Place.init(mapItem:)))
+    } catch {
+      return .failure(error)
+    }
   }
 
   /// Derives each MapKit request's geographic preference from the caller's scope.
@@ -170,18 +227,23 @@ extension PlaceSearchClient: DependencyKey {
   }
 
   /// No network in tests/previews — override per case to supply fixtures.
-  static let testValue = PlaceSearchClient { _, _ in [] }
+  static let testValue = PlaceSearchClient(
+    search: { _, _ in [] },
+    complete: { _, _ in [] },
+    resolve: { _ in nil }
+  )
 
   /// Required region scopes are deliberately strict: a trip's regions are their
   /// geographic contract, while biased scopes pass the default MapKit priority.
   private static func request(
     query: String,
     region: MKCoordinateRegion,
-    required: Bool
+    required: Bool,
+    resultTypes: MKLocalSearch.ResultType
   ) -> MKLocalSearch.Request {
     let request = MKLocalSearch.Request()
     request.naturalLanguageQuery = query
-    request.resultTypes = [.pointOfInterest, .address]
+    request.resultTypes = resultTypes
     request.region = region
     if required {
       request.regionPriority = .required
@@ -300,7 +362,7 @@ public enum RecommendationResolution {
 public final class PlaceSearchModel {
   @ObservationIgnored @Dependency(\.placeSearch) private var placeSearch
 
-  public private(set) var results: [Place] = []
+  public private(set) var results: [PlaceSearchResult] = []
   private(set) var searchTask: Task<Void, Never>?
   private var scope: PlaceSearchScope
 
@@ -370,10 +432,26 @@ public final class PlaceSearchModel {
     }
   }
 
+  /// The place a tapped row stands for: a resolved hit as-is, a suggestion looked up
+  /// through Maps. `nil` when the lookup fails, so the caller leaves the list up.
+  public func resolve(_ result: PlaceSearchResult) async -> Place? {
+    switch result {
+    case .place(let place):
+      return place
+    case .suggestion(let suggestion):
+      return try? await placeSearch.resolve(suggestion)
+    }
+  }
+
   private func runSearch(_ text: String) async {
+    let client = placeSearch
+    let scope = scope
+    async let suggestions = try? client.complete(text, scope)
+    async let places = try? client.search(text, scope)
+    let (suggested, found) = await (suggestions, places)
     // Leave the last results in place on throttle/cancel/no-network rather than
     // flashing an empty list mid-typing.
-    guard let found = try? await placeSearch.search(text, scope), !Task.isCancelled else { return }
-    results = found
+    guard !Task.isCancelled, suggested != nil || found != nil else { return }
+    results = PlaceSearchResult.merged(suggestions: suggested ?? [], places: found ?? [])
   }
 }

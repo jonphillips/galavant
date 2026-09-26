@@ -58,11 +58,14 @@ struct IdeaFormView: View {
               .textInputAutocapitalization(.words)
             ForEach(search.results) { result in
               Button {
-                model.setLocation(result)
-                search.query = ""
+                Task {
+                  guard let place = await search.resolve(result) else { return }
+                  model.setLocation(place)
+                  search.query = ""
+                }
               } label: {
                 VStack(alignment: .leading) {
-                  Text(result.name).foregroundStyle(.primary)
+                  Text(result.title).foregroundStyle(.primary)
                   if !result.subtitle.isEmpty {
                     Text(result.subtitle).font(.caption).foregroundStyle(.secondary)
                   }
