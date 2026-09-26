@@ -10,8 +10,12 @@ import UniformTypeIdentifiers
 
 @testable import GalavantPlaces
 
+/// `prepare()` reads `date` to order the trip picker (`Trip.activeCapsules`), so the
+/// whole suite needs a controlled clock. Pinned to the epoch — before every fixture
+/// trip — so dated trips read as upcoming; tests that care override it inline.
 @MainActor
-@Suite struct CaptureModelTests {
+@Suite(.dependency(\.date, .constant(Date(timeIntervalSince1970: 0))))
+struct CaptureModelTests {
   /// A restaurant page with structured opening hours in JSON-LD.
   private static let restaurantWithHoursHTML = """
     <html><head>
