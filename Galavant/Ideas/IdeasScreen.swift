@@ -18,6 +18,9 @@ struct IdeasScreen: View {
   @State private var managingRegions = false
   @State private var managingTags = false
   @State private var showingChat = false
+  /// The idea whose map pin was last tapped — the list scrolls to and highlights
+  /// its row, so the pin and the row read as one selection.
+  @State private var focusedIdeaID: Idea.ID?
 
   enum Mode: String, CaseIterable {
     case list, map
@@ -198,10 +201,17 @@ struct IdeasScreen: View {
       placeSelectionPolicy: horizontalSizeClass == .regular
         ? .exploreFirst(.popover)
         : .exploreFirst(.sheet),
-      onSelect: model.ideaTapped,
+      onSelect: pinTapped,
       onSelectMapPlace: model.mapPlaceTapped,
       visibleRegion: $visibleRegion
     )
+  }
+
+  /// A pin tap finds the idea in the list (scrolled to and highlighted, beside the
+  /// map on iPad) and opens its detail, the same as tapping the row.
+  private func pinTapped(_ idea: Idea) {
+    focusedIdeaID = idea.id
+    model.ideaTapped(idea)
   }
 
   /// The active trip's subregions as opt-in narrowing chips (ADR-0013). None on =
@@ -317,6 +327,20 @@ struct IdeasScreen: View {
   }
 
   private var ideasList: some View {
+    ScrollViewReader { proxy in
+      ideaRows
+        .onChange(of: focusedIdeaID) { _, id in scroll(proxy, to: id) }
+        // iPhone swaps list and map, so the list may appear after the pin tap.
+        .onAppear { scroll(proxy, to: focusedIdeaID) }
+    }
+  }
+
+  private func scroll(_ proxy: ScrollViewProxy, to id: Idea.ID?) {
+    guard let id else { return }
+    withAnimation { proxy.scrollTo(id, anchor: .center) }
+  }
+
+  private var ideaRows: some View {
     List {
       ForEach(model.filteredIdeas) { idea in
         IdeaRow(
@@ -330,6 +354,9 @@ struct IdeasScreen: View {
           onTap: { model.ideaTapped(idea) },
           onSetInterest: { model.setMyInterest($0, for: idea) }
         )
+        .id(idea.id)
+        .listRowBackground(
+          focusedIdeaID == idea.id ? Color.accentColor.opacity(0.15) : nil)
       }
       .onDelete { model.deleteIdeas(model.filteredIdeas, at: $0) }
     }
