@@ -1,0 +1,5 @@
+#!/bin/sh
+# Regenerates the XcodeGen project after a branch checkout, including `git worktree add`.
+# $3 is 1 for a branch checkout and 0 for a file checkout, which can't change the file list.
+[ "$3" = "1" ] || exit 0
+exec "$(dirname "$0")/xcodegen-sync"

@@ -1,0 +1,5 @@
+#!/bin/sh
+# Regenerates the XcodeGen project after `git pull --rebase` / `git rebase`. An amend doesn't
+# change the working tree, so it's skipped.
+[ "$1" = "rebase" ] || exit 0
+exec "$(dirname "$0")/xcodegen-sync"
