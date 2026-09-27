@@ -17,8 +17,6 @@ struct TripDetailContent: View {
   let model: TripPlanningModel
   let reconciliationModel: CalendarReconciliationModel
   let usesColumn: Bool
-  var onShowStartDay: () -> Void = {}
-  var onShowCalendarReconciliation: () -> Void = {}
 
   var body: some View {
     @Bindable var model = model
@@ -51,7 +49,10 @@ struct TripDetailContent: View {
     .sheet(item: $model.destination.mapPlaceIdea, id: \.id) { presentation in
       MapPlaceIdeaSheet(model: model, presentation: presentation)
     }
-    .sheet(item: $model.destination.placeIdea, id: \.id) { target in
+    .sheet(
+      item: $model.destination.placeIdea, id: \.id,
+      onDismiss: model.placeIdeaSheetDismissed
+    ) { target in
       PlaceIdeaSheet(model: model, target: target)
     }
   }
@@ -106,7 +107,6 @@ struct TripDetailContent: View {
         TripItineraryView(
           model: model,
           reconciliationModel: reconciliationModel,
-          showsInlineAdd: !usesColumn,
           focusedDay: model.canvasSelectedDay
         )
       case .ideas:
@@ -120,10 +120,11 @@ struct TripDetailContent: View {
         if usesColumn, let header = model.trip?.headerImage {
           TripHeaderImageView(image: header)
         }
-        if usesColumn {
+        // The Itinerary adds from each day's "+"; only Ideas has a tab-wide add.
+        if usesColumn, model.sheetTab == .ideas {
           HStack {
             Spacer()
-            TripAddButton(model: model, tab: model.sheetTab)
+            TripAddButton(model: model)
           }
           .padding(.horizontal)
           .padding(.vertical, 8)
@@ -138,38 +139,12 @@ struct TripDetailContent: View {
             }
           }
           .pickerStyle(.segmented)
-          tripSettingsMenu
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
         .background(Color(.systemGroupedBackground))
       }
     }
-  }
-
-  private var tripSettingsMenu: some View {
-    // Always present: "Shape Trip" is the always-reachable entry to the sketch
-    // surface (docs/handoff/trip-sketch-design.md) — trips get re-shaped, so it is
-    // not a one-shot wizard. Start Day / Reconcile Calendar join it when they apply.
-    Menu {
-      Button(action: model.sketchTapped) {
-        Label("Shape Trip", systemImage: "calendar.day.timeline.leading")
-      }
-      if !model.startDaySolverStops.isEmpty {
-        Button(action: onShowStartDay) {
-          Label("Start Day", systemImage: "calendar.day")
-        }
-      }
-      if model.trip?.certainty.stage == .dated {
-        Button(action: onShowCalendarReconciliation) {
-          Label("Reconcile Calendar", systemImage: "clock.arrow.trianglehead.2.counterclockwise.rotate.90")
-        }
-      }
-    } label: {
-      Image(systemName: "ellipsis.circle")
-        .imageScale(.large)
-    }
-    .accessibilityLabel("Trip settings")
   }
 }
 

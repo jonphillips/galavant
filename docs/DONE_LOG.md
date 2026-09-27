@@ -1,5 +1,28 @@
 # Done Log — completed enhancements
 
+## Dogfood round 2026-09-27 — pin → row, lodging in the trip's regions, the day's "+" sheet — SHIPPED (2026-09-27)
+
+- **Ideas map pin → its row.** Tapping a pin on the Ideas screen scrolls the list to
+  that idea (beside the map on iPad; on iPhone when the list next appears), tints the
+  row, and opens its detail — the pin and the row read as one selection.
+- **Lodging picker scoped to the trip's regions.** `StaySheet`'s hotel picker offered
+  every `.stay` idea in the pool; it now filters to the trip's regions through the
+  tested `poolFiltered` (a trip with no regions is unconstrained), pins the stay's
+  current hotel so editing never drops it, and offers "Show all" when hotels are
+  hidden.
+- **The day's "+" sheet is the itinerary's one add.** It leads with a one-line
+  **purpose** field for the day, then **Add Custom Stop** (landing on that day) and
+  **Add Lodging** (checking in that day), then the shortlist. The editors open after
+  the sheet has dismissed (`queuedDestination`), since swapping sheets in one
+  transaction drops the second. The itinerary's tab-wide "+ Add" menu is gone;
+  **Shape Trip**, **Start Day** (when it applies), and **Reconcile Calendar** (dated
+  trips) moved from the "···" menu to the trip toolbar, and the "···" menu is gone.
+- **Day purpose note.** New synced `tripDayNotes` table (`TripDayNote`), mirroring
+  `TripDayTimeZone`: one FK to `Trip`, at most one row per day, and an id derived from
+  `(tripID, dayNumber)` so two devices writing the same day converge on one record.
+  Blank clears; the note folds to one line and shows under the day header. Tested
+  (`TripDayNoteTests`).
+
 ## Sketch a trip: days × regions as a first-class planning pass (dogfood Slice E) — SHIPPED (2026-09-12)
 
 The shape of a trip — "four nights Loire, three nights Paris, fly home day 8" — is

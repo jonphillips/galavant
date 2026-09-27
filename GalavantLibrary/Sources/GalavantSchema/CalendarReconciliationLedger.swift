@@ -204,6 +204,10 @@ public enum CalendarReconciliationFingerprint {
     uuid(from: digest("calendar-day-time-zone-v1|\(tripID.uuidString)|\(day)"))
   }
 
+  static func dayNoteID(tripID: Trip.ID, day: DayNumber) -> UUID {
+    uuid(from: digest("trip-day-note-v1|\(tripID.uuidString)|\(day)"))
+  }
+
   static func planRepairID(
     tripID: Trip.ID,
     sourceFingerprint: String,

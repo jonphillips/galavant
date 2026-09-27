@@ -212,6 +212,8 @@ struct StaySheet: View {
   @State private var draft: StayDraft
   @Environment(\.dismiss) private var dismiss
   @FocusState private var titleFocused: Bool
+  /// Lift the trip-region scope on the hotel picker for this visit.
+  @State private var showingAllHotels = false
 
   init(model: TripPlanningModel, draft: StayDraft) {
     self.model = model
@@ -231,10 +233,10 @@ struct StaySheet: View {
         // A stay can tie to a pool hotel (so it gets a map pin, ADR-0011) or carry
         // a custom name. The picker offers both; a custom name reveals the text
         // fields.
-        Section("Hotel") {
+        Section {
           Picker("Hotel", selection: $draft.ideaID) {
             Text("Custom name").tag(Idea.ID?.none)
-            ForEach(model.lodgingIdeas) { idea in
+            ForEach(hotels) { idea in
               Text(idea.name).tag(Idea.ID?.some(idea.id))
             }
           }
@@ -242,6 +244,10 @@ struct StaySheet: View {
             TextField("Name (e.g. Airbnb — Old Town)", text: $draft.title)
               .focused($titleFocused)
           }
+        } header: {
+          Text("Hotel")
+        } footer: {
+          hotelScopeFooter
         }
         Section("Note") {
           TextField(
@@ -288,6 +294,23 @@ struct StaySheet: View {
       .onAppear { titleFocused = !isEditing && !draft.isIdeaBacked }
     }
     .presentationDetents([.medium, .large])
+  }
+
+  private var hotels: [Idea] {
+    model.lodgingIdeas(keeping: draft.ideaID, showingAll: showingAllHotels)
+  }
+
+  /// Pool hotels the trip-region scope is hiding — drives the "show all" escape.
+  private var hiddenHotelCount: Int {
+    guard !showingAllHotels else { return 0 }
+    return model.lodgingIdeas(keeping: draft.ideaID, showingAll: true).count - hotels.count
+  }
+
+  @ViewBuilder private var hotelScopeFooter: some View {
+    if hiddenHotelCount > 0 {
+      Button("Showing hotels in this trip's regions · Show all") { showingAllHotels = true }
+        .font(.footnote)
+    }
   }
 
   private func dayPicker(selection: Binding<Int>, range: ClosedRange<Int>) -> some View {

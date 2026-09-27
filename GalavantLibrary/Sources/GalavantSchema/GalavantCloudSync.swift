@@ -128,6 +128,7 @@ public enum GalavantCloudSync {
         TripStay.self,
         TripDayRegion.self,
         TripDayTimeZone.self,
+        TripDayNote.self,
         TripAlternativeGroup.self,
         IdeaEvaluation.self,
         TravelProfile.self,

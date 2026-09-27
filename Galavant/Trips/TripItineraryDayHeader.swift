@@ -18,6 +18,13 @@ struct SectionHeader: View {
         .buttonStyle(.borderless)
         .accessibilityLabel("Add to \(label)")
       }
+      if let day, let note = model.dayNote(forDay: day) {
+        Text(note)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+          .textCase(nil)
+          .lineLimit(1)
+      }
       if let day {
         HStack(spacing: 8) {
           if model.tripRegions.isEmpty {

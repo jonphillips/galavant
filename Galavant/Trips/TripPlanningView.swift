@@ -99,6 +99,27 @@ struct TripPlanningView: View {
               Label("Today", systemImage: "sun.max")
             }
           }
+          // The trip-shaping tools, promoted from the itinerary's "···" menu so
+          // they're one tap away; Start Day / Reconcile appear when they apply.
+          Button(action: model.sketchTapped) {
+            Label("Shape Trip", systemImage: "calendar.day.timeline.leading")
+          }
+          if !model.startDaySolverStops.isEmpty {
+            Button {
+              showingStartDay = true
+            } label: {
+              Label("Start Day", systemImage: "calendar.day")
+            }
+          }
+          if model.trip?.certainty.stage == .dated {
+            Button {
+              showingCalendarReconciliation = true
+            } label: {
+              Label(
+                "Reconcile Calendar",
+                systemImage: "clock.arrow.trianglehead.2.counterclockwise.rotate.90")
+            }
+          }
           Button {
             model.startRecommendationHandoff()
           } label: {
@@ -192,9 +213,7 @@ struct TripPlanningView: View {
       TripDetailContent(
         model: model,
         reconciliationModel: calendarReconciliationModel,
-        usesColumn: usesColumn,
-        onShowStartDay: { showingStartDay = true },
-        onShowCalendarReconciliation: { showingCalendarReconciliation = true }
+        usesColumn: usesColumn
       )
         .frame(width: Self.columnWidth)
         .background(.background)
@@ -211,9 +230,7 @@ struct TripPlanningView: View {
         TripDetailContent(
           model: model,
           reconciliationModel: calendarReconciliationModel,
-          usesColumn: usesColumn,
-          onShowStartDay: { showingStartDay = true },
-          onShowCalendarReconciliation: { showingCalendarReconciliation = true }
+          usesColumn: usesColumn
         )
           .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { sheetHeight = $0 }
           .presentationDetents([Self.peek, .medium, .large], selection: $sheetDetent)
