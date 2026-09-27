@@ -13,8 +13,13 @@ import UniformTypeIdentifiers
 /// `prepare()` reads `date` to order the trip picker (`Trip.activeCapsules`), so the
 /// whole suite needs a controlled clock. Pinned to the epoch — before every fixture
 /// trip — so dated trips read as upcoming; tests that care override it inline.
+/// `prepare()` also races its optional steps against `continuousClock` deadlines; a
+/// never-advanced `TestClock` means the deadline never wins unless a test asks.
 @MainActor
-@Suite(.dependency(\.date, .constant(Date(timeIntervalSince1970: 0))))
+@Suite(
+  .dependency(\.date, .constant(Date(timeIntervalSince1970: 0))),
+  .dependency(\.continuousClock, TestClock())
+)
 struct CaptureModelTests {
   /// A restaurant page with structured opening hours in JSON-LD.
   private static let restaurantWithHoursHTML = """
@@ -67,6 +72,27 @@ struct CaptureModelTests {
       #expect(model.draft.longitude == 12.6109)
       // The unconsumed second-hop target is preserved for app-side enrichment.
       #expect(model.captured?.websiteURL == URL(string: "https://noma.dk"))
+    }
+  }
+
+  @Test("A model that never answers can't strand the sheet on Reading page…")
+  func stalledIntelligenceStillReachesReady() async {
+    await withDependencies {
+      try? $0.bootstrapDatabase()
+      $0.uuid = .incrementing
+      $0.placeMatcher = .testValue
+      // The deadline fires at once; the on-device model never returns and ignores
+      // cancellation — the device failure mode (2026-09-24).
+      $0.continuousClock = ImmediateClock()
+      $0.placeIntelligence = PlaceIntelligence { _ in
+        await withUnsafeContinuation { (_: UnsafeContinuation<PlaceRefinement?, Never>) in }
+      }
+    } operation: {
+      let model = CaptureModel(html: Self.restaurantHTML, sourceURL: nil)
+      await model.prepare()
+
+      #expect(model.phase == .ready)
+      #expect(model.draft.name == "Noma")  // the deterministic parse still stands
     }
   }
 

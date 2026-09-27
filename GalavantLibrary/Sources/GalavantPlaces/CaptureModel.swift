@@ -4,6 +4,7 @@ import GalavantCapture
 import GalavantImaging
 import GalavantSchema
 import SQLiteData
+import os
 
 /// The capture flow's view-model — drives the share-extension confirm sheet
 /// (Jon's choice: vet captures at the source). It parses the shared page, refines
@@ -36,6 +37,16 @@ public final class CaptureModel {
   @ObservationIgnored @Dependency(\.evaluationExtractor) private var evaluationExtractor
   @ObservationIgnored @Dependency(\.uuid) private var uuid
   @ObservationIgnored @Dependency(\.date) private var now
+  @ObservationIgnored @Dependency(\.continuousClock) private var clock
+
+  /// How long each *optional* `prepare()` step may take before the sheet moves on
+  /// without it. None of them is load-bearing — the deterministic parse always
+  /// stands — so a stalled on-device model or Maps lookup must never strand the
+  /// share sheet on "Reading page…" (it did, on device, 2026-09-24).
+  static let refinementDeadline: Duration = .seconds(10)
+  static let matchDeadline: Duration = .seconds(12)
+  static let evaluationDeadline: Duration = .seconds(8)
+  static let lookupDeadline: Duration = .seconds(5)
 
   private let html: String
   private let sourceURL: URL?
@@ -109,11 +120,18 @@ public final class CaptureModel {
     // A location share seeds a synthesized page (ADR-0020); a web share parses HTML.
     var page = seedLocation?.parsedPage(capturedAt: now.now)
       ?? PageParser.parse(html: html, sourceURL: sourceURL)
+    Self.log.info("prepare: parsed (location share: \(self.seedLocation != nil))")
     // On-device Apple Intelligence refines the parse before matching — a cleaned
     // name and a mined city feed both the draft and the Apple Maps query (so a
     // name-only page like koancph.dk can resolve). Confirm-and-tweak: it only
-    // fills blanks / cleans chrome titles, and is a no-op when unavailable.
-    let refinement = await placeIntelligence(page)
+    // fills blanks / cleans chrome titles, and is a no-op when unavailable — or
+    // when it doesn't answer in time.
+    let placeIntelligence = placeIntelligence
+    let parsed = page
+    let refinement = await withDeadline(
+      Self.refinementDeadline, clock: clock, fallback: PlaceRefinement?.none
+    ) { await placeIntelligence(parsed) }
+    Self.log.info("prepare: refinement \(refinement == nil ? "skipped" : "applied")")
     if let refinement { page = page.applying(refinement) }
     let captured = CapturedPlace.from(page, id: uuid())
     var draft = captured.draft
@@ -124,7 +142,12 @@ public final class CaptureModel {
     // ADR-0019 dedup banner works even if the match below comes back empty (offline).
     if let mid = seedLocation?.mapItemIdentifier { draft.mapItemIdentifier = mid }
 
-    let locationMatch = await placeMatcher.match(page)
+    let placeMatcher = placeMatcher
+    let refined = page
+    let locationMatch = await withDeadline(
+      Self.matchDeadline, clock: clock, fallback: LocationMatch?.none
+    ) { await placeMatcher.match(refined) }
+    Self.log.info("prepare: match \(locationMatch == nil ? "none" : "resolved")")
     if let match = locationMatch {
       draft.latitude = match.coordinate.latitude
       draft.longitude = match.coordinate.longitude
@@ -158,15 +181,28 @@ public final class CaptureModel {
     self.captured = captured
     self.draft = draft
     self.detectedEvaluations = await resolveEvaluations(captured.evaluations, page: page)
+    Self.log.info("prepare: \(self.detectedEvaluations.count) evaluation(s)")
     await self.refreshExistingMatch()
     await self.loadTrips()
     #if DEBUG
-      self.diagnostics = await collectDiagnostics(page: page, refinement: refinement, match: locationMatch)
+      let diagnosticsPage = page
+      self.diagnostics = await withDeadline(
+        Self.lookupDeadline, clock: clock, fallback: CaptureDiagnostics?.none
+      ) { [weak self] in
+        await self?.collectDiagnostics(
+          page: diagnosticsPage, refinement: refinement, match: locationMatch)
+      }
     #endif
     // Apply explicit tap-to-fill overrides last — user selection wins over the parser.
     if let o = draftOverrides { o.apply(to: &self.draft) }
     self.phase = .ready
+    Self.log.info("prepare: ready")
   }
+
+  /// Breadcrumbs for on-device diagnosis (Console.app, subsystem
+  /// `com.jonphillips.galavant`, category `capture`) — the share extension has no
+  /// debugger attached, so a stall is otherwise invisible.
+  public static let log = Logger(subsystem: "com.jonphillips.galavant", category: "capture")
 
   #if DEBUG
     /// Build the match trace for the confirm sheet's DEBUG readout. Re-runs the
@@ -248,7 +284,11 @@ public final class CaptureModel {
         DetectedEvaluation(id: uuid(), parsed: $0, confidence: .official)
       }
     }
-    return await evaluationExtractor(page).map {
+    let evaluationExtractor = evaluationExtractor
+    let extracted = await withDeadline(
+      Self.evaluationDeadline, clock: clock, fallback: [ParsedEvaluation]()
+    ) { await evaluationExtractor(page) }
+    return extracted.map {
       DetectedEvaluation(id: uuid(), parsed: $0, confidence: .inferred)
     }
   }

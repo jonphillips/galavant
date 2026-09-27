@@ -10,8 +10,10 @@ import Testing
 
 /// Capturing a place shared *as a location* — Apple Maps map item or vCard (ADR-0020)
 /// — by seeding the existing parse→match→save pipeline from a `SharedLocation`.
+/// `prepare()` races its optional steps against `continuousClock` deadlines.
 @MainActor
-@Suite struct SharedLocationCaptureTests {
+@Suite(.dependency(\.continuousClock, TestClock()))
+struct SharedLocationCaptureTests {
   @Test("SharedLocation synthesizes a structured ParsedPage")
   func parsedPageSynthesis() {
     let location = SharedLocation(
