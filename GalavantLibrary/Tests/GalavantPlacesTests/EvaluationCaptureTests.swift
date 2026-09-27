@@ -12,8 +12,10 @@ import Testing
 /// faithful sibling `IdeaEvaluation`s, in one transaction; the LLM extract-only
 /// fallback fires only when deterministic recognizers find nothing; the bridge
 /// stamps confidence/staleness/kind.
+/// `prepare()` races its optional steps against `continuousClock` deadlines.
 @MainActor
-@Suite struct EvaluationCaptureTests {
+@Suite(.dependency(\.continuousClock, TestClock()))
+struct EvaluationCaptureTests {
   private static let michelinHTML = """
     <html><head>
     <script type="application/ld+json">{
