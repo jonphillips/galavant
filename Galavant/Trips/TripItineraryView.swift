@@ -9,9 +9,6 @@ import SwiftUI
 struct TripItineraryView: View {
   let model: TripPlanningModel
   let reconciliationModel: CalendarReconciliationModel
-  /// On compact layouts this is the first list section, so it scrolls with the
-  /// timeline instead of taking permanent vertical space above it.
-  var showsInlineAdd = false
   /// When set, render only this day's stops (the canvas day lens). Nil = the
   /// whole trip.
   var focusedDay: Int?
@@ -97,7 +94,6 @@ struct TripItineraryView: View {
     let sequence = plan.locatedSequenceNumbers(forDay: day)
     let cells = focusedDayCells(stops: stops, items: items)
     return List {
-      inlineAddSection
       Section {
         if items.isEmpty {
           Text("No stops on this day yet")
@@ -245,7 +241,6 @@ struct TripItineraryView: View {
       // O(days) times per layout pass and locked up large trips.
       let plan = model.plan
       let modes = model.effectiveModes
-      inlineAddSection
       if !plan.hasScheduledStops && plan.dayRegions.isEmpty {
         sketchPrompt
       }
@@ -306,14 +301,6 @@ struct TripItineraryView: View {
         }
       }
       .buttonStyle(.plain)
-    }
-  }
-
-  @ViewBuilder private var inlineAddSection: some View {
-    if showsInlineAdd {
-      Section {
-        TripAddButton(model: model, tab: .itinerary)
-      }
     }
   }
 

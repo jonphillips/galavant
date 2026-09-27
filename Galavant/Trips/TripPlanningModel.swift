@@ -27,6 +27,7 @@ final class TripPlanningModel {
   @ObservationIgnored @FetchAll(TripRegion.all) var allTripRegions
   @ObservationIgnored @FetchAll(TripDayRegion.all) var allTripDayRegions
   @ObservationIgnored @FetchAll(TripDayTimeZone.all) var allTripDayTimeZones
+  @ObservationIgnored @FetchAll(TripDayNote.all) var allTripDayNotes
   @ObservationIgnored @FetchAll(TripTravelModeOverride.all) var allTravelModeOverrides
   @ObservationIgnored @FetchAll(CalendarTripConstraint.all) var allCalendarConstraints
   @ObservationIgnored @FetchAll(TripAlternativeGroup.all) var allAlternativeGroups
@@ -90,6 +91,10 @@ final class TripPlanningModel {
   // Stored state lives here with the rest of it; the rule itself is a tested value
   // type in GalavantSchema.
   var dayLensSeeding = DayLensSeeding()
+  /// An editor the day's "+" sheet asked for, held until that sheet has finished
+  /// dismissing — swapping one sheet for another in a single transaction drops the
+  /// second presentation. `placeIdeaSheetDismissed()` presents it.
+  @ObservationIgnored var queuedDestination: Destination?
   var selectedKinds: Set<IdeaKind> = []
   var selectedTagIDs: Set<Tag.ID> = []
   var includeVisited = true
@@ -310,7 +315,19 @@ final class TripPlanningModel {
   /// Pool hotels (kind `.stay`) the lodging editor can attach a stay to, name-
   /// ordered (the pool is already name-sorted). Tying a stay to a located hotel is
   /// what puts it on the map (ADR-0011).
-  var lodgingIdeas: [Idea] { ideas.filter { $0.kind == .stay } }
+  ///
+  /// Scoped to the trip's regions unless `showingAll` — offering every hotel in the
+  /// pool buried the few that fit the trip. A trip with no regions imposes no
+  /// constraint, and `keeping` pins the stay's current hotel so editing a stay whose
+  /// hotel sits outside the regions never silently drops it from the picker.
+  func lodgingIdeas(keeping selected: Idea.ID?, showingAll: Bool = false) -> [Idea] {
+    poolFiltered(
+      ideas,
+      regions: showingAll ? [] : tripRegions,
+      kinds: [.stay],
+      pinnedIDs: selected.map { [$0] } ?? []
+    )
+  }
 
   var sortedRegions: [MapRegion] {
     regions.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }

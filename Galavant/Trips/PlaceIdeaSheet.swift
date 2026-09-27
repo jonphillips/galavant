@@ -1,9 +1,11 @@
 import GalavantSchema
 import SwiftUI
 
-/// Places a shortlisted idea on a target day. Previously scheduled ideas are
-/// kept in a separate section so choosing one means an additional visit rather
-/// than moving its existing occurrence.
+/// A day's "+" sheet: the day's one-line purpose note, then "Add Custom Stop" and
+/// "Add Lodging" (checking in that day), then the shortlisted ideas to place on
+/// it. Previously scheduled ideas are kept in a separate section so choosing one
+/// means an additional visit rather than moving its existing occurrence. The To Be
+/// Scheduled bucket's sheet has no note or lodging — neither means anything dayless.
 ///
 /// When the target day carries a region (ADR-0012), the picker is scoped to ideas
 /// inside it (dogfood #5) — you only see what belongs there. "Show all" is the
@@ -17,6 +19,15 @@ struct PlaceIdeaSheet: View {
   /// Lift the region scope for this visit — surfaces shortlisted ideas outside the
   /// day's region (and unlocated ones the containment check can't place).
   @State private var showAll = false
+  /// The day's purpose note, saved when the sheet goes away (or on Return) rather
+  /// than per keystroke, so typing doesn't write and sync every character.
+  @State private var purpose: String
+
+  init(model: TripPlanningModel, target: PlaceIdeaTarget) {
+    self.model = model
+    self.target = target
+    _purpose = State(initialValue: target.day.flatMap { model.dayNote(forDay: $0) } ?? "")
+  }
 
   private var sectionLabel: String {
     target.day.map { dayLabel($0, trip: model.trip) } ?? "To Be Scheduled"
@@ -48,30 +59,45 @@ struct PlaceIdeaSheet: View {
 
   var body: some View {
     NavigationStack {
-      Group {
+      List {
+        if target.day != nil {
+          Section("Purpose") {
+            TextField("What's this day for?", text: $purpose)
+              .submitLabel(.done)
+              .onSubmit(savePurpose)
+          }
+        }
+        Section {
+          Button { model.addCustomStop(onDay: target.day) } label: {
+            Label("Add Custom Stop", systemImage: "mappin.and.ellipse")
+          }
+          if let day = target.day {
+            Button { model.addLodging(checkingInOn: day) } label: {
+              Icon.stay.label("Add Lodging")
+            }
+          }
+        }
         if shortlistStops.isEmpty && (target.day == nil || scheduledStops.isEmpty) {
-          emptyState
+          Section { emptyState }
         } else {
-          List {
-            if !shortlistStops.isEmpty {
-              Section {
-                ForEach(shortlistStops) { ideaButton($0, isRepeat: false) }
-              } header: {
-                Text("Shortlist")
-              } footer: {
-                if let region = dayRegion, isRegionScoped {
-                  showAllFooter(region: region)
-                }
+          if !shortlistStops.isEmpty {
+            Section {
+              ForEach(shortlistStops) { ideaButton($0, isRepeat: false) }
+            } header: {
+              Text("Shortlist")
+            } footer: {
+              if let region = dayRegion, isRegionScoped {
+                showAllFooter(region: region)
               }
             }
-            if target.day != nil, !scheduledStops.isEmpty {
-              Section {
-                ForEach(scheduledStops) { ideaButton($0, isRepeat: true) }
-              } header: {
-                Text("Already Scheduled")
-              } footer: {
-                Text("Choosing one creates another visit without changing the existing one.")
-              }
+          }
+          if target.day != nil, !scheduledStops.isEmpty {
+            Section {
+              ForEach(scheduledStops) { ideaButton($0, isRepeat: true) }
+            } header: {
+              Text("Already Scheduled")
+            } footer: {
+              Text("Choosing one creates another visit without changing the existing one.")
             }
           }
         }
@@ -79,13 +105,20 @@ struct PlaceIdeaSheet: View {
       .navigationTitle("Add to \(sectionLabel)")
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
-        ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+        ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
         ToolbarItem(placement: .primaryAction) {
           Button(action: browse) { Label(browseLabel, systemImage: Icon.map.systemName) }
         }
       }
     }
     .presentationDetents([.medium, .large])
+    // Every way out (Done, a swipe, picking an idea, Add Custom Stop) keeps the note.
+    .onDisappear(perform: savePurpose)
+  }
+
+  private func savePurpose() {
+    guard let day = target.day else { return }
+    model.setDayNote(purpose, forDay: day)
   }
 
   /// Empty either because nothing is shortlisted, or because the day's region hid

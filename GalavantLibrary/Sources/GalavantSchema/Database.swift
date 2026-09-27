@@ -809,6 +809,24 @@ extension DependencyValues {
         """
       ).execute(db)
     }
+    migrator.registerMigration("Create tripDayNotes table") { db in
+      try #sql(
+        """
+        CREATE TABLE "tripDayNotes" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE,
+          "tripID" TEXT NOT NULL REFERENCES "trips"("id") ON DELETE CASCADE,
+          "dayNumber" INTEGER NOT NULL,
+          "note" TEXT NOT NULL DEFAULT ''
+        ) STRICT
+        """
+      ).execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_tripDayNotes_on_tripID"
+        ON "tripDayNotes"("tripID")
+        """
+      ).execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if case let .configured(startImmediately) = syncMode {

@@ -52,13 +52,6 @@ extension TripPlanningModel {
     destination = nil
   }
 
-  /// Present the custom-stop editor to author a new freeform stop ("lunch",
-  /// "train to Aarhus", "check in"). Defaults to the To-Be-Scheduled bucket; the
-  /// sheet's day picker can land it on a day directly (ADR-0010).
-  func addCustomStopButtonTapped() {
-    destination = .freeformStop(FreeformStopDraft())
-  }
-
   /// Re-open the editor seeded from an existing freeform stop. No-op on an
   /// idea-backed stop (those use the entry-scoped stop editor).
   func editFreeform(_ stop: ResolvedStop) {
@@ -130,19 +123,6 @@ extension TripPlanningModel {
   }
 
   // MARK: - Stays (accommodations, ADR-0011)
-
-  /// "Add lodging" — present the lodging editor for a new freeform stay. Defaults
-  /// to nights 1→2; the sheet picks the span and (optionally) the hotel.
-  func addLodgingButtonTapped() {
-    let length = max(2, trip?.lengthInDays ?? 2)
-    let maximumCheckIn = length - 1
-    let earliestUncoveredDay = (1...maximumCheckIn).first {
-      plan.stays(coveringDay: $0).isEmpty
-    } ?? 1
-    destination = .stay(StayDraft(
-      checkInDay: earliestUncoveredDay,
-      checkOutDay: earliestUncoveredDay + 1))
-  }
 
   /// "Stay here" — present the lodging editor seeded from a pool hotel. The span
   /// defaults to the whole trip (a reasonable first guess for the one place you're

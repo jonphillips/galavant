@@ -20,7 +20,7 @@ struct TripIdeasView: View {
     List {
       if showsInlineAdd {
         Section {
-          TripAddButton(model: model, tab: .ideas)
+          TripAddButton(model: model)
         }
       }
       if let trip = model.trip {
