@@ -12,13 +12,14 @@ import SwiftUI
 struct EvaluateScreen: View {
   @Environment(\.scenePhase) private var scenePhase
   @Environment(AppRouter.self) private var router
-  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+  @Environment(\.prefersTabNavigation) private var prefersTabNavigation
   @State private var model = EvaluateQueueModel()
 
   var body: some View {
     @Bindable var router = router
     return Group {
-      if horizontalSizeClass == .regular {
+      // Idiom, not size class — same transient-compact-width trap as `TripsScreen`.
+      if !prefersTabNavigation {
         if let entry = router.openEvaluateEntry {
           RecommendationWorkspaceHost(tripID: entry.tripID, sessionID: entry.sessionID)
             .toolbar {

@@ -8,16 +8,19 @@ struct TripsScreen: View {
   @State private var model = TripsListModel()
   @State private var editingDraft: Trip.Draft?
   @Environment(AppRouter.self) private var router
-  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+  @Environment(\.prefersTabNavigation) private var prefersTabNavigation
 
   var body: some View {
     @Bindable var router = router
     Group {
-      if horizontalSizeClass == .regular {
+      if !prefersTabNavigation {
         // iPad/Mac: the split detail rebuilds when you flip sections, which *pops* a
         // pushed trip and clears the binding. So drill into a trip as an in-panel
         // overlay swap, driven purely by `router.openTrip` (the codebase's iPad
-        // pattern) — it survives the rebuild because we own the state.
+        // pattern) — it survives the rebuild because we own the state. Keyed on the
+        // idiom, not the size class: any transient compact width (a narrow window,
+        // resizes around backgrounding) swapped to the push branch and back, and the
+        // destination's teardown cleared `openTrip` — dropping you to the Trips list.
         if let trip = router.openTrip {
           TripPlanningView(trip: trip)
             .toolbar {

@@ -8,6 +8,10 @@ struct AppContainer: View {
   @State private var browserModel = BrowserScreenModel()
   @Environment(\.prefersTabNavigation) private var prefersTabNavigation
   @Environment(\.scenePhase) private var scenePhase
+  /// Where this scene was, mirrored from the router so it survives iPadOS killing
+  /// the app in the background — without it every relaunch lands on the Trips list.
+  @SceneStorage("selection") private var storedSelection: AppScreen?
+  @SceneStorage("openTripID") private var storedOpenTripID: String?
 
   var body: some View {
     @Bindable var router = router
@@ -48,6 +52,14 @@ struct AppContainer: View {
     .background(sectionShortcuts)
     .environment(router)
     .environment(browserModel)
+    .onAppear {
+      router.restore(
+        selection: storedSelection,
+        openTripID: storedOpenTripID.flatMap(UUID.init(uuidString:))
+      )
+    }
+    .onChange(of: router.selection) { _, selection in storedSelection = selection }
+    .onChange(of: router.openTrip?.id) { _, id in storedOpenTripID = id?.uuidString }
     .onChange(of: scenePhase) { _, phase in
       // Consumer-side drain: the pending-changes table drains only inside `start()`,
       // and a running engine never re-reads it. The launch → background → share →
