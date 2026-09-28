@@ -72,6 +72,25 @@ choice, and a self-contained prompt per slice:
   the authorization question answered. A surface that needs the *coordinate* — B2's
   union framing — starts its own stream and owns its lifetime.
 
+## Dogfood round 2026-09-28 — trip ideas on the map, lost Evaluate matches, bookings
+
+- **Codex slice (items 1, 3, 4).** (1) Tapping a Consider/Schedule row on the trip's Ideas
+  tab centres the canvas on a temporary preview pin, and a second tap opens the detail.
+  (3) Recommendation reasoning (`TripIdea.inlineNote`) shows on Consider/Schedule rows and
+  in the detail, and unresolved candidate rows become tappable, with a "Find on Map"
+  resolve. (4) The Ideas-screen subregion chips actually narrow: trip-pulled ideas stop
+  bypassing the region filter once any chip is on. Delete this bullet when it lands.
+- **Evaluate matches reverting (item 2) — open, under investigation.** Candidates Jon
+  resolved (cards went green) read grey/Unresolved the next morning, on the same device.
+  Grey means `TripIdea.ideaID == nil`. The only app-code writer that clears it is the
+  Disconnect button (`TripIdea.detachResolvedIdea`), so the suspects are a sync-merge
+  regression, a stale peer device, or the candidate links pointing at duplicate freeform
+  rows. The next step is evidence: a local-only audit trigger that records every
+  non-nil→nil `ideaID` transition with `SyncEngine.isSynchronizingChanges()`. It gives
+  both the culprit and the lost idea IDs for recovery.
+- **Booking status (item 5) — designed, ADR-0047.** Build order is in the ADR's Scope
+  section.
+
 ## Blocked (Xcode 27 beta) — cross-day itinerary drag + sectioned inline reorder
 
 Within-day drag-to-reorder ships (#72; `dayRank` for Anytime stops per ADR-0033). Two
