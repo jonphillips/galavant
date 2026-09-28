@@ -22,10 +22,12 @@ struct StopEditorSheet: View {
           TextField("Optional details", text: $draft.note, axis: .vertical)
             .lineLimit(1...3)
         }
-        if !draft.calendarLinked {
-          Section("Reservation") {
-            BookingFields(draft: $draft.booking)
-          }
+        Section {
+          BookingFields(draft: $draft.booking)
+        } header: {
+          Text("Booking")
+        } footer: {
+          if let footer = draft.booking.footer { Text(footer) }
         }
         Section {
           AlternativeAddMenu(model: model, targetStopID: draft.stopID)
@@ -64,21 +66,47 @@ struct StopEditorSheet: View {
   }
 }
 
-private struct BookingFields: View {
+struct BookingFields: View {
   @Binding var draft: BookingFieldsDraft
 
   var body: some View {
-    Toggle("Pinned reservation", isOn: $draft.isPinned)
-    if draft.isPinned {
-      DatePicker("Date", selection: $draft.date, displayedComponents: .date)
+    let booking = draft.resolvedBooking
+    Picker("Status", selection: statusSelection) {
+      ForEach(BookingStatus.allCases, id: \.self) { status in
+        Text(status.label).tag(Optional(status))
+      }
     }
-    TextField("Confirmation number", text: $draft.confirmationNumber)
-    TextField("Booking URL", text: $draft.bookingURL)
-      .keyboardType(.URL)
-      .textInputAutocapitalization(.never)
-      .autocorrectionDisabled()
-    TextField("Party size", text: $draft.partySize)
-      .keyboardType(.numberPad)
+    .pickerStyle(.segmented)
+    .disabled(booking.source == .evidence)
+
+    if booking.status == .booked {
+      TextField("Confirmation number", text: $draft.confirmationNumber)
+    }
+    if booking.status == .toBook || booking.status == .booked {
+      TextField("Booking URL", text: $draft.bookingURL)
+        .keyboardType(.URL)
+        .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+      if booking.status == .booked, draft.includesPin {
+        TextField("Party size", text: $draft.partySize)
+          .keyboardType(.numberPad)
+      }
+    }
+
+    if draft.includesPin {
+      Toggle("Pinned reservation", isOn: $draft.isPinned)
+        .disabled(!draft.canEditPin)
+      if draft.isPinned {
+        DatePicker("Date", selection: $draft.date, displayedComponents: .date)
+          .disabled(!draft.canEditPin)
+      }
+    }
+  }
+
+  private var statusSelection: Binding<BookingStatus?> {
+    Binding(
+      get: { draft.resolvedBooking.status },
+      set: { draft.selectStatus($0) })
   }
 }
 
@@ -105,11 +133,6 @@ struct FreeformStopSheet: View {
     !draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
   }
 
-  private var canEditBooking: Bool {
-    guard let stopID = draft.stopID else { return true }
-    return model.calendarTimeAuthority(for: stopID) == .manual
-  }
-
   var body: some View {
     NavigationStack {
       Form {
@@ -121,10 +144,12 @@ struct FreeformStopSheet: View {
           TextField("Optional details", text: $draft.note, axis: .vertical)
             .lineLimit(2...5)
         }
-        if canEditBooking {
-          Section("Reservation") {
-            BookingFields(draft: $draft.booking)
-          }
+        Section {
+          BookingFields(draft: $draft.booking)
+        } header: {
+          Text("Booking")
+        } footer: {
+          if let footer = draft.booking.footer { Text(footer) }
         }
         if isEditing && !isAlternative, let stopID = draft.stopID {
           Section {
@@ -254,6 +279,13 @@ struct StaySheet: View {
             draft.ideaID == nil ? "Optional details" : "Reservation details, room requests…",
             text: $draft.note, axis: .vertical)
             .lineLimit(2...5)
+        }
+        Section {
+          BookingFields(draft: $draft.booking)
+        } header: {
+          Text("Booking")
+        } footer: {
+          if let footer = draft.booking.footer { Text(footer) }
         }
         Section("Check-in") {
           dayPicker(selection: $draft.checkInDay, range: 1...(tripLength - 1))

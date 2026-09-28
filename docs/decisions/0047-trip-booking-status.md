@@ -118,8 +118,9 @@ booking yet.
 
 - **Stop editor and stay editor** get a Booking section with a segmented
   *Not needed / To book / Booked* control that writes `bookingStatus`. Choosing Booked
-  reveals confirmation #, booking URL, and party size, which **no longer require a pinned
-  date**. `setBooking` is split so the booking metadata can be written without a pin.
+  reveals confirmation # and party size, which **no longer require a pinned date**;
+  the booking URL is available for both To book and Booked rows. `setBooking` is split
+  so the booking metadata can be written without a pin.
   Pinning the date stays its own toggle, with the same meaning as before ("this
   reservation holds its real date if the trip slides").
 - **Row action "Mark booked"** through the existing stop menu (`StopMenu`), not a

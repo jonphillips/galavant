@@ -28,6 +28,15 @@ struct TripBookingTests {
     #expect(stop.resolvedBooking(idea: nil).source == .evidence)
   }
 
+  @Test func bookingQuickActionFollowsResolutionAndHidesForEvidence() {
+    #expect(BookingStatus.quickAction(
+      for: ResolvedBooking(status: .toBook, source: .inferred)) == .booked)
+    #expect(BookingStatus.quickAction(
+      for: ResolvedBooking(status: .booked, source: .explicit)) == .toBook)
+    #expect(BookingStatus.quickAction(
+      for: ResolvedBooking(status: .booked, source: .evidence)) == nil)
+  }
+
   @Test func inferenceTableCoversEveryIdeaKindAndKindlessStops() {
     for kind in IdeaKind.allCases {
       let expected: BookingStatus? = switch kind {

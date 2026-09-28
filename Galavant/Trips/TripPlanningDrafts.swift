@@ -98,6 +98,7 @@ struct StayDraft: Identifiable {
   var checkOutTime: String?
   var plannedCheckInTime: String?
   var plannedCheckOutTime: String?
+  var booking = BookingFieldsDraft(subject: .stay, inferredStatus: .toBook)
 
   /// Backed by a pool hotel (vs. a freeform stay) — the sheet hides the title
   /// field and shows the hotel name instead.
@@ -107,11 +108,101 @@ struct StayDraft: Identifiable {
 /// Entry-scoped reservation fields shared by the idea-backed stop editor and the
 /// freeform stop editor. A pin is optional; blank booking metadata is stored as nil.
 struct BookingFieldsDraft {
+  enum Subject {
+    case stop(canEditPin: Bool)
+    case stay
+  }
+
+  var subject: Subject
+  var explicitStatus: BookingStatus?
+  var inferredStatus: BookingStatus?
+  var statusWasChanged = false
   var isPinned = false
   var date = Date.now
   var confirmationNumber = ""
   var bookingURL = ""
   var partySize = ""
+
+  init(
+    subject: Subject = .stop(canEditPin: true),
+    explicitStatus: BookingStatus? = nil,
+    inferredStatus: BookingStatus? = .notNeeded,
+    isPinned: Bool = false,
+    date: Date = .now,
+    confirmationNumber: String = "",
+    bookingURL: String = "",
+    partySize: String = ""
+  ) {
+    self.subject = subject
+    self.explicitStatus = explicitStatus
+    self.inferredStatus = inferredStatus
+    self.isPinned = isPinned
+    self.date = date
+    self.confirmationNumber = confirmationNumber
+    self.bookingURL = bookingURL
+    self.partySize = partySize
+  }
+
+  var resolvedBooking: ResolvedBooking {
+    BookingStatus.resolve(
+      explicit: explicitStatus,
+      pinnedDate: includesPin && isPinned ? date : nil,
+      confirmationNumber: confirmationNumber,
+      inferred: inferredStatus)
+  }
+
+  mutating func selectStatus(_ status: BookingStatus?) {
+    guard resolvedBooking.source != .evidence else { return }
+    explicitStatus = status
+    statusWasChanged = true
+    if status != .booked {
+      confirmationNumber = ""
+      partySize = ""
+    }
+  }
+
+  var statusToWrite: BookingStatus? {
+    statusWasChanged ? explicitStatus : nil
+  }
+
+  var includesPin: Bool {
+    if case .stop = subject { return true }
+    return false
+  }
+
+  var canEditPin: Bool {
+    guard case let .stop(canEditPin) = subject else { return false }
+    return canEditPin
+  }
+
+  var reservationPin: ReservationPin? {
+    guard includesPin, isPinned else { return nil }
+    return ReservationPin(date: date)
+  }
+
+  var bookingDetails: BookingDetails {
+    let confirmation = confirmationNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+    let url = bookingURL.trimmingCharacters(in: .whitespacesAndNewlines)
+    return BookingDetails(
+      confirmationNumber: confirmation.isEmpty ? nil : confirmation,
+      bookingURL: url.isEmpty ? nil : url,
+      partySize: includesPin
+        ? Int(partySize.trimmingCharacters(in: .whitespacesAndNewlines))
+        : nil)
+  }
+
+  var footer: String? {
+    let booking = resolvedBooking
+    if booking.source == .evidence {
+      return "Booked: has a confirmation number or pinned date"
+    }
+    if explicitStatus == nil, inferredStatus != nil {
+      if case .stay = subject { return "Stays usually need booking" }
+      return "Suggested from the place type"
+    }
+    if resolvedBooking.status == nil { return "Decide whether this needs booking" }
+    return nil
+  }
 }
 
 /// The entry-scoped editor for an idea-backed itinerary stop. The optional idea is
@@ -123,6 +214,5 @@ struct StopEditorDraft: Identifiable {
   var idea: Idea?
   var note: String
   var booking: BookingFieldsDraft
-  var calendarLinked: Bool
   var id: TripIdea.ID { stopID }
 }
