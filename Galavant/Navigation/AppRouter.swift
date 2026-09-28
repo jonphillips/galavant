@@ -1,5 +1,7 @@
+import Dependencies
 import GalavantAI
 import GalavantSchema
+import SQLiteData
 import SwiftUI
 
 /// A request to open the Ideas screen scoped to a trip, optionally pre-toggling a
@@ -38,6 +40,19 @@ final class AppRouter {
   /// against. `@ObservationIgnored` — it's a cache vended *during* view body, so it
   /// must not register as observed state being mutated mid-update.
   @ObservationIgnored private var planningModels: [Trip.ID: TripPlanningModel] = [:]
+
+  @ObservationIgnored @Dependency(\.defaultDatabase) private var database
+
+  /// Reopen where a scene was when iPadOS killed it in the background: the section,
+  /// and the open trip — re-fetched by id, so one deleted meanwhile just stays
+  /// closed. Idempotent: it never overrides a trip that's already open.
+  func restore(selection: AppScreen?, openTripID: Trip.ID?) {
+    if let selection { self.selection = selection }
+    guard openTrip == nil, let openTripID else { return }
+    openTrip = withErrorReporting {
+      try database.read { db in try Trip.find(openTripID).fetchOne(db) }
+    } ?? nil
+  }
 
   /// The (cached) planning model for a trip — stable across screen flips.
   func planningModel(for trip: Trip) -> TripPlanningModel {

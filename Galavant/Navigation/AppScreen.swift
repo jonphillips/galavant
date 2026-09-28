@@ -1,8 +1,9 @@
 import SwiftUI
 
 /// Top-level sections of the app. The adaptive shell renders these as tabs on
-/// iPhone and a sidebar+detail split on iPad/Mac.
-enum AppScreen: Codable, Hashable, Identifiable, CaseIterable {
+/// iPhone and a sidebar+detail split on iPad/Mac. `String`-backed so the selection
+/// can ride `@SceneStorage` across a background kill.
+enum AppScreen: String, Codable, Hashable, Identifiable, CaseIterable {
   case trips
   case ideas
   case browser
