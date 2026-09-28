@@ -751,11 +751,10 @@ struct TripTests {
     entry.confirmationNumber = "ABC123"
     entry.bookingURL = "https://opentable.com/r/x"
     entry.partySize = 4
-    #expect(
-      entry.booking
-        == ReservationPin(
-          date: date, confirmationNumber: "ABC123",
-          bookingURL: "https://opentable.com/r/x", partySize: 4))
+    #expect(entry.booking == ReservationPin(date: date))
+    #expect(entry.confirmationNumber == "ABC123")
+    #expect(entry.bookingURL == "https://opentable.com/r/x")
+    #expect(entry.partySize == 4)
   }
 
   // `dayNumber(forPinnedDate:startDate:)` is the exact inverse of `date(forDay:)`:
@@ -801,8 +800,9 @@ struct TripTests {
       let idea = try seedIdea(name: "Noma", in: db)
       let pulled = try TripIdea.pull(ideaID: idea.id, into: trip.id, in: db)
       let pinnedDate = Calendar.current.date(byAdding: .day, value: 5, to: start)!  // day 6
-      try TripIdea.setBooking(
-        ReservationPin(date: pinnedDate, confirmationNumber: "RES-9", partySize: 2),
+      try TripIdea.setPinnedReservation(ReservationPin(date: pinnedDate), stopID: pulled.id, in: db)
+      try TripIdea.setBookingDetails(
+        confirmationNumber: "RES-9", bookingURL: nil, partySize: 2,
         stopID: pulled.id, in: db)
       return try TripIdea.find(pulled.id).fetchOne(db)!
     }
@@ -818,7 +818,7 @@ struct TripTests {
       let trip = try Trip.create(name: "Someday Denmark", in: db)  // undated (someday)
       let idea = try seedIdea(name: "Noma", in: db)
       let pulled = try TripIdea.pull(ideaID: idea.id, into: trip.id, in: db)
-      try TripIdea.setBooking(ReservationPin(date: pinnedDate), stopID: pulled.id, in: db)
+      try TripIdea.setPinnedReservation(ReservationPin(date: pinnedDate), stopID: pulled.id, in: db)
       return try TripIdea.find(pulled.id).fetchOne(db)!
     }
     // The pin round-trips through storage even with no start date to derive against.
@@ -834,11 +834,17 @@ struct TripTests {
       let idea = try seedIdea(name: "Noma", in: db)
       let pulled = try TripIdea.pull(ideaID: idea.id, into: trip.id, in: db)
       let pinnedDate = Calendar.current.date(byAdding: .day, value: 2, to: start)!  // day 3
-      try TripIdea.setBooking(ReservationPin(date: pinnedDate), stopID: pulled.id, in: db)
-      try TripIdea.setBooking(nil, stopID: pulled.id, in: db)
+      try TripIdea.setBookingDetails(
+        confirmationNumber: "KEEP-ME", bookingURL: "https://example.com", partySize: 2,
+        stopID: pulled.id, in: db)
+      try TripIdea.setPinnedReservation(ReservationPin(date: pinnedDate), stopID: pulled.id, in: db)
+      try TripIdea.setPinnedReservation(nil, stopID: pulled.id, in: db)
       return try TripIdea.find(pulled.id).fetchOne(db)!
     }
     #expect(entry.booking == nil)
+    #expect(entry.confirmationNumber == "KEEP-ME")
+    #expect(entry.bookingURL == "https://example.com")
+    #expect(entry.partySize == 2)
     #expect(entry.status == .scheduled)  // untouched, still where the pin left it
     #expect(entry.dayNumber == 3)
   }
@@ -910,7 +916,7 @@ struct TripTests {
       let unpinnedStop = try TripIdea.pull(ideaID: unpinnedIdea.id, into: trip.id, in: db)
       // Pin the reservation to what's currently day 6; place the other stop on day 6 too.
       let pinnedDate = Calendar.current.date(byAdding: .day, value: 5, to: originalStart)!
-      try TripIdea.setBooking(ReservationPin(date: pinnedDate), stopID: pinnedStop.id, in: db)
+      try TripIdea.setPinnedReservation(ReservationPin(date: pinnedDate), stopID: pinnedStop.id, in: db)
       try TripIdea.schedule(.day(6), ideaID: unpinnedIdea.id, tripID: trip.id, in: db)
 
       // Slide the start date two days later.
@@ -935,7 +941,7 @@ struct TripTests {
       let idea = try seedIdea(name: "Noma", in: db)
       let pulled = try TripIdea.pull(ideaID: idea.id, into: trip.id, in: db)
       // Pin while still undated — held inert (no dayNumber yet).
-      try TripIdea.setBooking(ReservationPin(date: pinnedDate), stopID: pulled.id, in: db)
+      try TripIdea.setPinnedReservation(ReservationPin(date: pinnedDate), stopID: pulled.id, in: db)
       #expect(try TripIdea.find(pulled.id).fetchOne(db)!.dayNumber == nil)
 
       // Certainty transitions someday → dated: the pin should become effective.
@@ -954,7 +960,7 @@ struct TripTests {
       let idea = try seedIdea(name: "Noma", in: db)
       let pulled = try TripIdea.pull(ideaID: idea.id, into: trip.id, in: db)
       let pinnedDate = Calendar.current.date(byAdding: .day, value: 5, to: start)!
-      try TripIdea.setBooking(ReservationPin(date: pinnedDate), stopID: pulled.id, in: db)
+      try TripIdea.setPinnedReservation(ReservationPin(date: pinnedDate), stopID: pulled.id, in: db)
       // Update the trip's name only — same certainty/start date.
       var draft = Trip.Draft(trip)
       draft.name = "Copenhagen (renamed)"

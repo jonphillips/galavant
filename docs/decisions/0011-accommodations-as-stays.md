@@ -54,7 +54,7 @@ not a `TripIdea` and not a `Schedule` case.**
   public var checkOutTime: String?    // official property time, optional "HH:mm"
   public var plannedCheckInTime: String?  // personal expected time, optional "HH:mm"
   public var plannedCheckOutTime: String? // personal expected time, optional "HH:mm"
-  // Seam for trip-time-model §4: pinnedDate / confirmation# / bookingURL — NOT this slice.
+  // Booking status/details land additively via ADR-0047; stays remain day-span based.
 }
 ```
 
@@ -75,8 +75,8 @@ not a `TripIdea` and not a `Schedule` case.**
    independent expectations. The planned time wins timeline ordering and display;
    when both exist, the official time remains visible parenthetically as the
    contrast. Absent a time, the check-in row sorts to evening and the check-out row
-   to morning. This partially realizes the booked-vs-planned seam for times only;
-   `pinnedDate`, confirmation number, and booking URL remain future seams.
+   to morning. This partially realized the booked-vs-planned seam for times; ADR-0047
+   later adds trip-row booking status and details without a `pinnedDate` on stays.
 5. **Lifecycle: born on the trip, not pulled.** A `TripStay` does **not** travel
    `considering → shortlisted → scheduled` it is created directly, like a freeform
    stop. Two entry points: **"Stay here"** stamps `ideaID` + nights from a pool /
@@ -141,9 +141,9 @@ not hidden behind a discriminator on a shared one.
 ## Scope deferred (clean seams, decided this session)
 
 - **Booking metadata / `pinnedDate`** (trip-time-model §4): option (b) model the
-  span cleanly now, leave a documented seam (`pinnedDate`, confirmation #, booking
-  URL, booked-vs-planned). It lands when capture/OpenTable import actually creates
-  a booking; not entangled with this design.
+  span cleanly and leave a documented seam. Trip-row booking status and details
+  later land in ADR-0047; a stay still has no `pinnedDate` because its check-in and
+  check-out days already anchor the span.
 - **Per-day region driving:** display-only this slice (Q4). The home-base chip
   *shows* the base; the deferred per-day-regions design consumes it later (it does
   not yet drive the day's map framing).
@@ -170,8 +170,8 @@ not hidden behind a discriminator on a shared one.
   **declines it** — an alternatives ring is expressed by two loose `TripIdea` columns
   (`alternativeGroupID` + `isActive`) on the members rather than a `TripStay`-style side table
   with a dangling winner pointer (see that ADR's "Why not" table).
-- **trip-time-model §2/§4:** day-relative span (§2-consistent); `pinnedDate` is the
-  §4 seam, deferred.
+- **trip-time-model §2/§4:** day-relative span (§2-consistent); stop `pinnedDate`
+  remains the §4 absolute-date pin, while ADR-0047 adds booking status/details to stays.
 
 ## Consequences
 

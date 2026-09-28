@@ -30,9 +30,8 @@ import SQLiteData
 /// are the travel party's optional expected times. Absent a time, the check-in row
 /// sorts to evening and the check-out row to morning.
 ///
-/// *Seam for trip-time-model §4 (NOT this slice):* `pinnedDate` / confirmation # /
-/// booking URL / booked-vs-planned land when capture or an import actually creates
-/// a booking.
+/// Booking status and details are trip-row facts, independent of the stay's dates
+/// (ADR-0047).
 @Table
 public struct TripStay: Identifiable, Equatable, Sendable {
   public let id: UUID
@@ -46,6 +45,9 @@ public struct TripStay: Identifiable, Equatable, Sendable {
   public var checkOutTime: String?
   public var plannedCheckInTime: String?
   public var plannedCheckOutTime: String?
+  public var bookingStatus: BookingStatus? = nil
+  public var confirmationNumber: String? = nil
+  public var bookingURL: String? = nil
 
   public init(
     id: UUID,
@@ -58,7 +60,10 @@ public struct TripStay: Identifiable, Equatable, Sendable {
     checkInTime: String? = nil,
     checkOutTime: String? = nil,
     plannedCheckInTime: String? = nil,
-    plannedCheckOutTime: String? = nil
+    plannedCheckOutTime: String? = nil,
+    bookingStatus: BookingStatus? = nil,
+    confirmationNumber: String? = nil,
+    bookingURL: String? = nil
   ) {
     self.id = id
     self.tripID = tripID
@@ -71,6 +76,9 @@ public struct TripStay: Identifiable, Equatable, Sendable {
     self.checkOutTime = checkOutTime
     self.plannedCheckInTime = plannedCheckInTime
     self.plannedCheckOutTime = plannedCheckOutTime
+    self.bookingStatus = bookingStatus
+    self.confirmationNumber = confirmationNumber
+    self.bookingURL = bookingURL
   }
 
   /// Make a freeform stay (no pool idea) on a trip — a name + nights with no pool

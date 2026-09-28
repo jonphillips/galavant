@@ -70,9 +70,11 @@ public struct ResolvedBooking: Equatable, Sendable {
 ```
 
 1. **Evidence → `.booked`.** Any of the following means the thing is booked, whatever
-   the explicit value says: a `pinnedDate`, a non-empty `confirmationNumber`, or (for
-   stops) Calendar-linked time authority (ADR-0034). Recording a confirmation number
-   can't leave the stop saying "to book".
+   the explicit value says: a `pinnedDate` or a non-empty `confirmationNumber`.
+   Evidence uses synced row fields only, never the device-local Calendar time authority
+   or reconciliation history; Calendar-linked stops already carry their synced
+   `pinnedDate` cache. Recording a confirmation number can't leave the stop saying
+   "to book".
 2. **Explicit.** Otherwise the stored `bookingStatus`, when non-nil.
 3. **Inferred from kind.** Otherwise:
    - `.stay` (every `TripStay`, idea-backed or freeform), `.tour`, `.theater` → `.toBook`

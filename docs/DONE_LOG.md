@@ -1,5 +1,18 @@
 # Done Log — completed enhancements
 
+## ADR-0047 Slice 1 — booking status core — IMPLEMENTED
+
+- Added nullable per-stop/per-stay booking status, stay booking details, evidence →
+  explicit → inferred resolution, and the trip-wide rollup. The rollup counts only
+  live scheduled stops and stays, with day filtering and alternative-ring winners.
+- Split pinned reservation dates from booking details; unpinning preserves the details.
+  Added per-row status and stay detail writes, plus resolver, inference, persistence,
+  and rollup tests.
+- Verification unavailable. `scripts/check-drift.sh` was attempted with the
+  requested `/Applications/Xcode-beta.app/Contents/Developer`, but that bundle is
+  not installed here (only `/Applications/Xcode.app` is present); SwiftLint stopped
+  before tests or compilation. No simulator was booted.
+
 ## Dogfood round 2026-09-28 — Ideas filters, recommendation detail, and map previews — SHIPPED
 
 - **Subregion chips filter pulled ideas.** Pinned ideas bypass the region
