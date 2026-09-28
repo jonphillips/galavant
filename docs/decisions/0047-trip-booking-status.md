@@ -1,6 +1,6 @@
 # ADR-0047: Booking status is a trip-level fact — not needed, to book, booked
 
-*Status: **accepted** — 2026-09-28 (design; not yet built). Dogfood 2026-09-28: "I want a
+*Status: **accepted** — 2026-09-28; Slice 1 core implemented in PR #136. Dogfood 2026-09-28: "I want a
 better sense of what is Bookable and what has been Booked or, even more importantly, not."
 Gives every trip stop and stay a three-state booking status. You set it by hand; when you
 haven't, it is guessed from the kind of place, and evidence of a real booking wins over
@@ -14,13 +14,14 @@ columns, no server) and ADR-0004 (booking says nothing about pull lifecycle stat
 Galavant already knows a little about bookings, but only for stops, and only after the
 fact:
 
-- `TripIdea.pinnedDate` + `confirmationNumber` / `bookingURL` / `partySize` — a
-  **confirmed reservation** pinned to its real date (trip-time-model §4). `setBooking`
-  writes the four together, so the metadata can't exist without a pinned date.
-- A stop linked to a shared-Calendar event (ADR-0034) is a commitment, with the time
-  owned by Calendar.
-- `TripStay` has **no** booking fields; its doc comment reserves the seam ("booked-vs-planned
-  land when capture or an import actually creates a booking").
+- `TripIdea.pinnedDate` — a **confirmed reservation** pinned to its real date
+  (trip-time-model §4). Confirmation number, booking URL, and party size are now
+  independent details and do not require a pin.
+- A stop linked to a shared-Calendar event (ADR-0034) gets its time from Calendar.
+  Calendar authority is device-local and is not itself booking evidence; timed events
+  also carry the synced `pinnedDate` cache described below.
+- Slice 1 adds booking status to `TripIdea` and `TripStay`, plus confirmation details to
+  stays, filling the booking seam left open by ADR-0011.
 
 What's missing is the question Jon actually asks while planning: **what still needs
 booking?** "Booked" is a fact we can partly detect. "Needs booking" is a judgement, and
@@ -70,12 +71,16 @@ public struct ResolvedBooking: Equatable, Sendable {
 ```
 
 1. **Evidence → `.booked`.** Any of the following means the thing is booked, whatever
-   the explicit value says: a `pinnedDate`, a non-empty `confirmationNumber`, or (for
-   stops) Calendar-linked time authority (ADR-0034). Recording a confirmation number
-   can't leave the stop saying "to book".
+   the explicit value says: a `pinnedDate` or a non-empty `confirmationNumber`.
+   Evidence uses synced row fields only, never the device-local Calendar time authority
+   or reconciliation history. Timed Calendar-linked stops carry a synced `pinnedDate`
+   cache; all-day Calendar links have no pin and are not booking evidence. Recording a
+   confirmation number can't leave the stop saying "to book".
 2. **Explicit.** Otherwise the stored `bookingStatus`, when non-nil.
 3. **Inferred from kind.** Otherwise:
-   - `.stay` (every `TripStay`, idea-backed or freeform), `.tour`, `.theater` → `.toBook`
+   - Every `TripStay` (idea-backed or freeform), `.tour`, `.theater` → `.toBook`
+   - An idea-backed stop whose kind is `.stay` → `.notNeeded`; its separate `TripStay`
+     carries the lodging booking decision, avoiding a duplicate count.
    - `.food`, `.activity`, `.museum`, `.nightlife` → **undecided** (`status == nil`): a
      *suggestion* to decide, not a claim
    - everything else, and unlocated or kindless freeform stops → `.notNeeded`

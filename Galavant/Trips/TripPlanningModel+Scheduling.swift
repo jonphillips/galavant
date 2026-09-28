@@ -91,8 +91,15 @@ extension TripPlanningModel {
       try database.write { db in
         try TripIdea.setInlineNote(stopID: draft.stopID, note: note, in: db)
         if calendarTimeAuthority(for: draft.stopID) == .manual {
-          try TripIdea.setBooking(
+          try TripIdea.setPinnedReservation(
             reservationPin(from: draft.booking), stopID: draft.stopID, in: db)
+          let details = bookingDetails(from: draft.booking)
+          try TripIdea.setBookingDetails(
+            confirmationNumber: details.confirmationNumber,
+            bookingURL: details.bookingURL,
+            partySize: details.partySize,
+            stopID: draft.stopID,
+            in: db)
         }
       }
     }
@@ -112,14 +119,16 @@ extension TripPlanningModel {
 
   func reservationPin(from booking: BookingFieldsDraft) -> ReservationPin? {
     guard booking.isPinned else { return nil }
+    return ReservationPin(date: booking.date)
+  }
+
+  func bookingDetails(from booking: BookingFieldsDraft) -> BookingDetails {
     let confirmation = booking.confirmationNumber.trimmingCharacters(in: .whitespacesAndNewlines)
     let url = booking.bookingURL.trimmingCharacters(in: .whitespacesAndNewlines)
-    let partySize = Int(booking.partySize.trimmingCharacters(in: .whitespacesAndNewlines))
-    return ReservationPin(
-      date: booking.date,
+    return BookingDetails(
       confirmationNumber: confirmation.isEmpty ? nil : confirmation,
       bookingURL: url.isEmpty ? nil : url,
-      partySize: partySize)
+      partySize: Int(booking.partySize.trimmingCharacters(in: .whitespacesAndNewlines)))
   }
 
   // MARK: - Stays (accommodations, ADR-0011)

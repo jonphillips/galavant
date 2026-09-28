@@ -2,6 +2,25 @@ import Foundation
 import SQLiteData
 
 extension TripStay {
+  /// Set or clear a stay's explicit booking decision.
+  public static func setBookingStatus(
+    _ status: BookingStatus?, stayID: TripStay.ID, in db: Database
+  ) throws {
+    try TripStay.find(stayID).update { $0.bookingStatus = #bind(status) }.execute(db)
+  }
+
+  /// Store booking details independently of the stay's dates.
+  public static func setBookingDetails(
+    confirmationNumber: String?, bookingURL: String?, stayID: TripStay.ID, in db: Database
+  ) throws {
+    try TripStay.find(stayID)
+      .update {
+        $0.confirmationNumber = #bind(confirmationNumber)
+        $0.bookingURL = #bind(bookingURL)
+      }
+      .execute(db)
+  }
+
   // MARK: - Validation (pure)
 
   /// A stay's day span is valid only when check-out is strictly after check-in

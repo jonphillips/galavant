@@ -372,11 +372,11 @@ struct ItineraryAlternativeOperationTests {
       let start = Date(timeIntervalSince1970: 1_800_000_000)
       let trip = try Trip.create(name: "Booking", certainty: .dated(start: start), in: db)
       let members = try insertRing(tripID: trip.id, in: db)
-      try TripIdea.setBooking(
+      try TripIdea.setPinnedReservation(
         ReservationPin(date: start.addingTimeInterval(2 * 24 * 60 * 60)),
         stopID: members[0].id,
         in: db)
-      try TripIdea.setBooking(
+      try TripIdea.setPinnedReservation(
         ReservationPin(date: start.addingTimeInterval(4 * 24 * 60 * 60)),
         stopID: members[1].id,
         in: db)

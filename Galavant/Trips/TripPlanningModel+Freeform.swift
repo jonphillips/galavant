@@ -58,8 +58,15 @@ extension TripPlanningModel {
           }
         }
         if canEditBooking, let savedStopID {
-          try TripIdea.setBooking(
+          try TripIdea.setPinnedReservation(
             reservationPin(from: draft.booking), stopID: savedStopID, in: db)
+          let details = bookingDetails(from: draft.booking)
+          try TripIdea.setBookingDetails(
+            confirmationNumber: details.confirmationNumber,
+            bookingURL: details.bookingURL,
+            partySize: details.partySize,
+            stopID: savedStopID,
+            in: db)
         }
       }
     }

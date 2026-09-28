@@ -827,6 +827,12 @@ extension DependencyValues {
         """
       ).execute(db)
     }
+    migrator.registerMigration("Add trip booking status and stay booking details (ADR-0047)") { db in
+      try #sql(#"ALTER TABLE "tripIdeas" ADD COLUMN "bookingStatus" INTEGER"#).execute(db)
+      try #sql(#"ALTER TABLE "tripStays" ADD COLUMN "bookingStatus" INTEGER"#).execute(db)
+      try #sql(#"ALTER TABLE "tripStays" ADD COLUMN "confirmationNumber" TEXT"#).execute(db)
+      try #sql(#"ALTER TABLE "tripStays" ADD COLUMN "bookingURL" TEXT"#).execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if case let .configured(startImmediately) = syncMode {

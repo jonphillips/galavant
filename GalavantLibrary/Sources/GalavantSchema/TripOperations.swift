@@ -707,16 +707,19 @@ extension TripIdea {
 
   // MARK: - Pinned reservations (docs/trip-time-model.md §4)
 
-  /// Pin (or, with `nil`, un-pin) a stop's absolute reservation date and booking
-  /// metadata. No-op if the stop doesn't exist. Pinning marks the stop
+  /// Pin (or, with `nil`, un-pin) a stop's absolute reservation date. Booking
+  /// details are edited independently by `setBookingDetails`. No-op if the stop
+  /// doesn't exist. Pinning marks the stop
   /// `.scheduled` and, when the trip is already dated, immediately re-derives its
   /// `dayNumber` from the pin so the itinerary reflects the booking without
   /// waiting for a later `Trip.update` — on an undated trip the pin is stored
   /// inert (kept, and made effective once the trip is dated and `Trip.update`
-  /// runs `rederivePinnedStops`). Un-pinning drops the pin/metadata but leaves the
+  /// runs `rederivePinnedStops`). Un-pinning drops only the pin but leaves the
   /// stop's current `dayNumber`/status alone — it becomes an ordinary day-relative
   /// stop sitting right where it was.
-  public static func setBooking(_ pin: ReservationPin?, stopID: TripIdea.ID, in db: Database) throws {
+  public static func setPinnedReservation(
+    _ pin: ReservationPin?, stopID: TripIdea.ID, in db: Database
+  ) throws {
     guard let existing = try TripIdea.find(stopID).fetchOne(db) else { return }
     let members = try alternativeMembers(containing: existing, in: db)
     let appliesToSlot = TripIdea.effectiveActiveMember(in: members)?.id == stopID
@@ -727,9 +730,6 @@ extension TripIdea {
     try TripIdea.find(stopID)
       .update {
         $0.pinnedDate = #bind(pin?.date)
-        $0.confirmationNumber = #bind(pin?.confirmationNumber)
-        $0.bookingURL = #bind(pin?.bookingURL)
-        $0.partySize = #bind(pin?.partySize)
         $0.dayNumber = #bind(dayNumber)
         $0.status = #bind(status)
       }
@@ -737,6 +737,31 @@ extension TripIdea {
     guard appliesToSlot else { return }
     let schedule = dayNumber.map { existing.schedule.onDay($0) } ?? .unscheduled
     try updateSharedSlot(members: members, status: status, schedule: schedule, in: db)
+  }
+
+  /// Store booking details independently from an absolute-date pin.
+  public static func setBookingDetails(
+    confirmationNumber: String?,
+    bookingURL: String?,
+    partySize: Int?,
+    stopID: TripIdea.ID,
+    in db: Database
+  ) throws {
+    try TripIdea.find(stopID)
+      .update {
+        $0.confirmationNumber = #bind(confirmationNumber)
+        $0.bookingURL = #bind(bookingURL)
+        $0.partySize = #bind(partySize)
+      }
+      .execute(db)
+  }
+
+  /// Set or clear a stop's explicit booking decision. Status belongs to this row,
+  /// including when the stop is a member of an alternatives ring.
+  public static func setBookingStatus(
+    _ status: BookingStatus?, stopID: TripIdea.ID, in db: Database
+  ) throws {
+    try TripIdea.find(stopID).update { $0.bookingStatus = #bind(status) }.execute(db)
   }
 
   /// Re-derive `dayNumber` for every pinned stop on `tripID` after its `startDate`
