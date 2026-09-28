@@ -36,14 +36,10 @@ struct TripCanvasMapView: View {
   /// The days the map draws: every day covered by the selected stay, just the
   /// selected day, or all when the lens is "All".
   private var visibleDays: [ResolvedDay] {
-    if let stayID = model.canvasSelectedStayID,
-      let stay = model.plan.stays.first(where: { $0.id == stayID }) {
-      return model.plan.itinerary.filter { stay.stay.covers(day: $0.number) }
-    }
-    if let day = model.canvasSelectedDay {
-      return model.plan.itinerary.filter { $0.number == day }
-    }
-    return model.plan.itinerary
+    model.plan.visibleDays(day: model.canvasSelectedDay, stayID: model.canvasSelectedStayID)
+      .map { day in
+        ResolvedDay(number: day.number, stops: day.stops.filter { $0.coordinate != nil })
+      }
   }
 
   @MapContentBuilder
@@ -53,6 +49,7 @@ struct TripCanvasMapView: View {
       dayContent(day)
     }
     baseContent
+    previewContent
     transientFreeformContent
     userLocationContent
   }
@@ -82,6 +79,9 @@ struct TripCanvasMapView: View {
         let selection = id.map(MapSelection.init)
         if mapSelection != selection { mapSelection = selection }
         revealStop(id)
+      }
+      .onChange(of: model.canvasPreviewStopID, initial: true) { _, id in
+        centerPreview(id)
       }
       .task(id: mapSelection) {
         await handleMapSelection()
@@ -134,6 +134,23 @@ struct TripCanvasMapView: View {
     }
   }
 
+  /// A temporary, unnumbered stop from the Ideas tab. The hollow pin separates
+  /// it from the day sequence while keeping the candidate's kind recognizable.
+  @MapContentBuilder
+  private var previewContent: some MapContent {
+    if let stop = model.canvasPreviewStop, let coordinate = stop.mapCoordinate {
+      Annotation(stop.content.title, coordinate: coordinate, anchor: .bottom) {
+        Button {
+          model.canvasPreviewPinTapped(stop.id)
+        } label: {
+          CanvasPreviewPin(systemImage: stop.idea?.kind?.systemImage ?? "mappin")
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Show details for \(stop.content.title)")
+      }
+    }
+  }
+
   /// On the All lens, show the lodging sequence as a subtle neutral path behind
   /// the day-coloured stop routes. It tells the overnight story without turning
   /// hotel stays into numbered itinerary stops.
@@ -154,7 +171,7 @@ struct TripCanvasMapView: View {
   /// colour.
   @MapContentBuilder
   private func dayContent(_ day: ResolvedDay) -> some MapContent {
-    let stops = model.plan.locatedStops(forDay: day.number)
+    let stops = day.stops
     let color = DayPalette.color(forDay: day.number)
     let route = model.plan.routeEndpoints(forDay: day.number).map { endpoint in
       CLLocationCoordinate2D(latitude: endpoint.latitude, longitude: endpoint.longitude)
@@ -164,7 +181,7 @@ struct TripCanvasMapView: View {
         .stroke(color, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
     }
     ForEach(Array(stops.enumerated()), id: \.element.id) { index, resolved in
-      if let coordinate = resolved.coordinate {
+      if let coordinate = resolved.mapCoordinate {
         Annotation(resolved.content.title, coordinate: coordinate, anchor: .bottom) {
           SequencePin(
             number: index + 1,
@@ -186,7 +203,7 @@ struct TripCanvasMapView: View {
   private func alternativePinContent(for activeStop: ResolvedStop, color: Color) -> some MapContent {
     if let ring = model.plan.alternatives(forStop: activeStop.id), model.alternativesAreVisible(for: ring) {
       ForEach(ring.members) { member in
-        if member.id != ring.activeMember.id, let coordinate = member.coordinate {
+        if member.id != ring.activeMember.id, let coordinate = member.mapCoordinate {
           Annotation(member.content.title, coordinate: coordinate, anchor: .bottom) {
             AlternativePin(color: color)
           }
@@ -430,8 +447,11 @@ struct TripCanvasMapView: View {
     guard
       let id,
       let resolved = model.plan.itinerary.flatMap(\.stops).first(where: { $0.id == id }),
-      let coordinate = resolved.coordinate
+      let tripCoordinate = resolved.coordinate
     else { return }
+    let coordinate = CLLocationCoordinate2D(
+      latitude: tripCoordinate.latitude,
+      longitude: tripCoordinate.longitude)
     guard let region = visibleRegion else {
       // No settled camera yet (rare at tap time): frame on the stop to seed one.
       cameraPosition = .region(
@@ -456,6 +476,33 @@ struct TripCanvasMapView: View {
       MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: panned.latitude, longitude: panned.longitude),
         span: region.span))
+  }
+
+  /// Centre the temporary preview without changing the current zoom. On iPhone,
+  /// offset the camera south so the pin sits at the centre of the clear map band.
+  private func centerPreview(_ id: TripIdea.ID?) {
+    guard
+      let id,
+      let stop = model.canvasPreviewStop,
+      stop.id == id,
+      let tripCoordinate = stop.coordinate
+    else { return }
+    let coordinate = CLLocationCoordinate2D(
+      latitude: tripCoordinate.latitude,
+      longitude: tripCoordinate.longitude)
+    let span = visibleRegion?.span ?? MKCoordinateSpan(
+      latitudeDelta: MapFraming.singlePointDelta,
+      longitudeDelta: MapFraming.singlePointDelta
+    )
+    cameraPosition = .region(
+      MKCoordinateRegion(
+        center: CLLocationCoordinate2D(
+          latitude: coordinate.latitude - span.latitudeDelta * bottomInsetFraction / 2,
+          longitude: coordinate.longitude
+        ),
+        span: span
+      )
+    )
   }
 
   /// A region covering every map region the trip is scoped to (the union of their
@@ -503,6 +550,20 @@ private struct AlternativePin: View {
   }
 }
 
+private struct CanvasPreviewPin: View {
+  let systemImage: String
+
+  var body: some View {
+    Image(systemName: systemImage)
+      .font(.body.weight(.semibold))
+      .foregroundStyle(.tint)
+      .frame(width: 34, height: 34)
+      .background(.regularMaterial, in: Circle())
+      .overlay(Circle().strokeBorder(Color.accentColor, lineWidth: 2.5))
+      .shadow(radius: 3)
+  }
+}
+
 private struct DraftFreeformPin: View {
   var body: some View {
     Image(systemName: "mappin.and.ellipse")
@@ -516,10 +577,10 @@ private struct DraftFreeformPin: View {
 }
 
 extension ResolvedStop {
-  /// The stop's map coordinate, when its resolved content has one.
-  fileprivate var coordinate: CLLocationCoordinate2D? {
-    guard let latitude = content.latitude, let longitude = content.longitude else { return nil }
-    return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+  /// The stop's MapKit coordinate, when its resolved content has one.
+  fileprivate var mapCoordinate: CLLocationCoordinate2D? {
+    guard let coordinate else { return nil }
+    return CLLocationCoordinate2D(latitude: coordinate.latitude, longitude: coordinate.longitude)
   }
 }
 

@@ -1,6 +1,7 @@
 import Dependencies
 import Foundation
 import GalavantAI
+import GalavantPlaces
 import GalavantSchema
 import SQLiteData
 
@@ -164,5 +165,34 @@ extension TripPlanningModel {
 
   func recommendationWorkspaceIsAvailable(for sessionID: HandoffSession.ID) -> Bool {
     handoffSessionStore.session(sessionID)?.hasCommittedRecommendationCandidates ?? false
+  }
+
+  func recommendationPlaceSelected(stopID: TripIdea.ID, place: Place) {
+    let result = withErrorReporting {
+      try database.write { db -> (collision: ResolveReconcile.Collision?, confirmed: Bool) in
+        guard let resolution = try GalavantSchema.RecommendationResolution.confirm(
+          candidateStopID: stopID,
+          capture: place.ideaCapture(),
+          in: db
+        ) else { return (nil, false) }
+        return (resolution.collision, true)
+      }
+    }
+    guard let result, result.confirmed else { return }
+    pendingRecommendationReconcile = result.collision
+    if result.collision == nil { destination = nil }
+  }
+
+  func recommendationReconcileChoice(_ choice: ResolveReconcile.Choice) {
+    guard let collision = pendingRecommendationReconcile else { return }
+    let action = collision.action(for: choice)
+    let succeeded = withErrorReporting {
+      try database.write { db in
+        try action.apply(in: db)
+      }
+    }
+    guard succeeded != nil else { return }
+    pendingRecommendationReconcile = nil
+    destination = nil
   }
 }

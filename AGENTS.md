@@ -41,13 +41,10 @@ See `docs/MINING.md` for the per-milestone port/adapt/skip inventory.
   `docs/scraping-enrichment.md`. (`~/code/galavant/galavantex` is the V2-era server;
   no scraping. Neither comes back — V3 enriches on-device.)
 
-## Toolchain (June 2026 — WWDC26 cycle)
+## Toolchain (Xcode 27.0)
 
-- Build with the **Xcode 27 beta** at `/Applications/Xcode-beta.app` via
-  `export DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer` —
-  do not `xcode-select -s`; Xcode 26.5 at `/Applications/Xcode.app` stays the
-  system default fallback (first-beta compilers historically break macro-heavy
-  libs like SQLiteData/StructuredQueries until Point-Free patches).
+- Xcode 27.0 is released at `/Applications/Xcode.app` and is the default build
+  toolchain.
 - iOS 27 simulator runtime is installed (iPhone 17 family). Old iOS 17
   runtimes also present — ignore them.
 - **Deployment target: iOS 27** — bumped in M3a for SwiftUI's native
@@ -56,11 +53,11 @@ See `docs/MINING.md` for the per-milestone port/adapt/skip inventory.
 - Xcode 27 ships Apple-authored agent skills (`swiftui-specialist`,
   `swiftui-whats-new-27`, …). Export via
   `xcrun mcpbridge run-agent skills export --output-dir ~/.claude/skills` —
-  **requires Xcode-beta to be running** (errors otherwise; retry after Jon has
+  **requires Xcode to be running** (errors otherwise; retry after Jon has
   launched it once). New OS-27 APIs are past Claude's training cutoff; prefer
   those skills + current docs over memory.
-- Beta-sensitive bugs (likely Xcode/SDK beta regressions) live in
-  `docs/KNOWN-ISSUES.md` — re-verify them on each new beta before working around.
+- Known issues live in `docs/KNOWN-ISSUES.md`; re-verify observations against the
+  Xcode 27.0 release build before keeping workarounds.
 
 ## Context Management
 - **Start a fresh conversation at commit/milestone boundaries** (not every task —

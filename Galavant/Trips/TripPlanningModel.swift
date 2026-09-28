@@ -50,19 +50,29 @@ final class TripPlanningModel {
   /// Non-blocking heads-up when a paste imported despite a dropped token or an
   /// out-of-date contract marker (warn-not-block, ADR-0036 handoff ergonomics).
   var recommendationHandoffWarning: String?
+  var pendingRecommendationReconcile: ResolveReconcile.Collision?
   var calendarLocalState: CalendarReconciliationLocalState
 
   /// The idea shown in the floating stop detail (nil = no detail). Driven by ID
   /// so it resolves live and stays out of `Hashable`.
   var detailIdeaID: Idea.ID?
+  var detailStopID: TripIdea.ID?
 
   // Canvas state (M3d): the map is the trip's home. `canvasSelectedDay` is the
   // day lens (nil = the whole trip, all days color-coded), while
   // `canvasSelectedStayID` is the mutually-exclusive lodging lens. The selected
   // stop is the one selection the map pins and timeline rows both project.
-  var canvasSelectedDay: Int?
-  var canvasSelectedStayID: TripStay.ID?
-  var canvasSelectedStopID: TripIdea.ID?
+  var canvasSelectedDay: Int? {
+    didSet { if oldValue != canvasSelectedDay { clearCanvasPreview() } }
+  }
+  var canvasSelectedStayID: TripStay.ID? {
+    didSet { if oldValue != canvasSelectedStayID { clearCanvasPreview() } }
+  }
+  var canvasSelectedStopID: TripIdea.ID? {
+    didSet { if canvasSelectedStopID != nil { clearCanvasPreview() } }
+  }
+  var canvasPreviewState = TripCanvasPreviewState()
+  var canvasPreviewStopID: TripIdea.ID? { canvasPreviewState.stopID }
   var expandedAlternativeGroupIDs: Set<UUID> = []
   var editingAlternativeGroupID: UUID?
   var alternativeGroupLabelDraft = ""
@@ -81,7 +91,9 @@ final class TripPlanningModel {
 
   static let autoSwitchThreshold: TimeInterval = 20 * 60  // 20 minutes
   // The two surfaces the bottom sheet hosts (the segment moved into the sheet).
-  var sheetTab: SheetTab = .itinerary
+  var sheetTab: SheetTab = .itinerary {
+    didSet { if oldValue == .ideas && sheetTab != .ideas { clearCanvasPreview() } }
+  }
   private var didPickInitialTab = false
 
   // Pool lens (reused from the Ideas screen, M2c), seeded from the trip's regions.
@@ -125,6 +137,7 @@ final class TripPlanningModel {
     case stopEditor(StopEditorDraft)
     case recommendationHandoff(RecommendationHandoffPresentation)
     case recommendationWorkspace(RecommendationWorkspacePresentation)
+    case recommendationDetail(TripIdea.ID)
     /// A zero-region trip's day header has nothing to assign yet — route the tap
     /// to Edit Trip's Regions picker instead of an empty menu.
     case editTripRegions(Trip.Draft)
@@ -234,13 +247,6 @@ final class TripPlanningModel {
     guard !didPickInitialTab else { return }
     didPickInitialTab = true
     sheetTab = plan.hasScheduledStops || liveDay != nil ? .itinerary : .ideas
-  }
-
-  /// Focus a stop from the map or the timeline — the single shared selection both
-  /// surfaces project. Brings the Itinerary tab forward so the row is visible.
-  func selectStop(_ id: TripIdea.ID?) {
-    canvasSelectedStopID = id
-    if id != nil { sheetTab = .itinerary }
   }
 
   /// Select a day lens, including nil for All. A day lens always clears a stay
@@ -394,8 +400,9 @@ final class TripPlanningModel {
   }
 
   /// Present a pulled idea's read-only detail from the visible planning surface.
-  func showDetail(_ idea: Idea) {
+  func showDetail(_ idea: Idea, stopID: TripIdea.ID? = nil) {
     detailIdeaID = idea.id
+    detailStopID = stopID
   }
 
   /// Edit the pool idea behind an itinerary row. The stop's placement remains
@@ -407,6 +414,11 @@ final class TripPlanningModel {
   /// Resolve the presented detail's idea, or nil if it was deleted while open
   /// (ADR-0007 read-time reconciliation).
   func ideaForDetail(_ id: Idea.ID) -> Idea? { ideaByID[id] }
+
+  func rationaleForDetail() -> String? {
+    guard let detailStopID else { return nil }
+    return entries.first { $0.id == detailStopID }?.inlineNote
+  }
 
   /// This idea's place on the itinerary, *if* it's a scheduled stop on the trip —
   /// drives the detail's "On the Itinerary" section (nil for a plain pool idea, so

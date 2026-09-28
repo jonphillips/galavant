@@ -208,7 +208,7 @@ final class IdeasListModel {
       includeVisited: includeVisited,
       tagIDs: selectedTagIDs,
       ideaTagIDs: ideaTagIDs,
-      pinnedIDs: activeTripIdeaIDs
+      pinnedIDs: selectedSubregionIDs.isEmpty ? activeTripIdeaIDs : []
     )
     let standings = standingByIdea
     let matched = showMatchesOnly ? pooled.filter { standings[$0.id] == .match } : pooled

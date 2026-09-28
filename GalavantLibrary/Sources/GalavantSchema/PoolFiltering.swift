@@ -6,9 +6,9 @@ import Foundation
 /// optional set of kinds, and visited-state. An empty `regions` means no
 /// geographic constraint. Pure so it's the densely-tested core.
 ///
-/// `pinnedIDs` bypass the **region** constraint only: ideas already pulled onto the
-/// active trip must always show in its capsule (the trip's working surface), even if
-/// they fall outside the trip's saved regions — they still respect kind/tag/visited.
+/// `pinnedIDs` bypass the **region** constraint. Callers pass pinned IDs only for
+/// the full trip-region lens; narrowed subregion lenses pass an empty set. Pinned
+/// ideas always respect kind/tag/visited filters.
 public func poolFiltered(
   _ ideas: [Idea],
   regions: [MapRegion] = [],

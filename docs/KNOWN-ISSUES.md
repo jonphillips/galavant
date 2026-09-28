@@ -1,10 +1,10 @@
-# Known issues — beta-sensitive
+# Known issues — release re-verification pending
 
-Bugs we're tolerating for now, especially ones that may be Xcode/SDK **beta**
-regressions worth re-checking as the betas evolve. Re-verify each on every new
-Xcode 27 beta; delete an entry when it's fixed upstream or we work around it.
+Issues observed during the Xcode 27 beta cycle. Re-verify each against the Xcode
+27.0 release build before keeping a workaround; delete an entry when it's fixed
+upstream or we work around it.
 
-## A `Map` steals taps from SwiftUI controls inset/overlaid over it (Xcode 27 beta) — WORKED AROUND
+## A `Map` steals taps from SwiftUI controls inset/overlaid over it (beta observation) — WORKED AROUND
 
 The trip-canvas `DayChipBar` pills went dead: you could drag the pill row
 horizontally, but tapping a pill did nothing (no selection, no map reframe) on
@@ -21,13 +21,13 @@ can't reach past. `Galavant/Trips/TripPlanningView.swift` (`canvas`) +
 `Galavant/Trips/TripCanvasMapView.swift`. Costs the "floating chips over the map"
 look.
 
-**Residual — still broken (PUNTED, re-check next beta):** with the stacked row the
+**Residual — still broken in the beta observation (PUNTED, re-check Xcode 27.0 release):** with the stacked row the
 pills now register taps, but the **hit target is offset** — you must tap slightly
 below-and-left of a pill to select it. A consistent directional offset like this is
 a hit-test *coordinate* mismatch (the `Map` appears to poison safe-area accounting
 for the surrounding views), not our layout — it reads as an SDK regression. It
-worked fine before; likely to shift/resolve on a later beta. Not chasing a fragile
-workaround for now.
+worked fine before; verify whether it persists on the release build. Not chasing a
+fragile workaround for now.
 
 ## `.inspector` swallows a view's `.toolbar` on iPad (Xcode 27 beta 1) — WORKED AROUND
 

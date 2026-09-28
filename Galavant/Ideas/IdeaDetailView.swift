@@ -30,6 +30,8 @@ struct IdeaDetailView: View {
   var evaluations: [IdeaEvaluation] = []
   /// Set when this is a scheduled itinerary stop (vs. a plain pool idea).
   var stopContext: StopDetailContext? = nil
+  /// The rationale attached to this trip stop, independent of the pool idea's notes.
+  var whyOnTrip: String? = nil
   /// The compact header image bytes supplied by the owning presentation model.
   var headerImage: Data? = nil
 
@@ -95,6 +97,13 @@ struct IdeaDetailView: View {
             Text(calendarNotes)
               .textSelection(.enabled)
           }
+        }
+      }
+
+      if let whyOnTrip, !whyOnTrip.isEmpty {
+        Section("Why it's on this trip") {
+          Text(whyOnTrip)
+            .textSelection(.enabled)
         }
       }
 

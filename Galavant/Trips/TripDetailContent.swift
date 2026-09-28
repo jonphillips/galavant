@@ -49,6 +49,9 @@ struct TripDetailContent: View {
     .sheet(item: $model.destination.mapPlaceIdea, id: \.id) { presentation in
       MapPlaceIdeaSheet(model: model, presentation: presentation)
     }
+    .sheet(item: $model.destination.recommendationDetail, id: \.self) { stopID in
+      UnresolvedRecommendationSheet(model: model, stopID: stopID)
+    }
     .sheet(
       item: $model.destination.placeIdea, id: \.id,
       onDismiss: model.placeIdeaSheetDismissed
@@ -96,6 +99,7 @@ struct TripDetailContent: View {
       interests: model.interests(for: idea),
       evaluations: model.evaluations(for: idea),
       stopContext: model.stopContext(for: idea),
+      whyOnTrip: model.rationaleForDetail(),
       headerImage: model.headerThumbnailByIdea[idea.id])
   }
 

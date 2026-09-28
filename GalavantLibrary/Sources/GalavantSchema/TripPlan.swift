@@ -54,6 +54,7 @@ public struct ResolvedStop: Identifiable, Equatable, Sendable {
   public var entry: TripIdea
   public var content: StopContent
   public var id: TripIdea.ID { entry.id }
+  public var coordinate: TripCoordinate? { content.coordinate }
 
   /// The pool idea for idea-backed stops; nil for freeform stops.
   public var idea: Idea? { content.idea }
@@ -172,6 +173,22 @@ public struct TripPlan: Equatable, Sendable {
     for entry in entries where entry.ideaID == nil && (entry.inlineTitle?.isEmpty ?? true) {
       reportIssue("TripIdea \(entry.id) has neither ideaID nor inlineTitle — dropping")
     }
+  }
+
+  /// Resolve one stop by its trip-row identity without rebuilding the planning
+  /// buckets. Used for ephemeral canvas previews.
+  public func stop(id: TripIdea.ID) -> ResolvedStop? {
+    entries.first { $0.id == id }.flatMap(resolve)
+  }
+
+  /// The days visible through the canvas lens: a selected stay takes precedence,
+  /// then a selected day, otherwise the full itinerary.
+  public func visibleDays(day: Int?, stayID: TripStay.ID?) -> [ResolvedDay] {
+    if let stayID, let stay = stays.first(where: { $0.id == stayID }) {
+      return itinerary.filter { stay.stay.covers(day: $0.number) }
+    }
+    if let day { return itinerary.filter { $0.number == day } }
+    return itinerary
   }
 
   func resolve(_ entry: TripIdea) -> ResolvedStop? {

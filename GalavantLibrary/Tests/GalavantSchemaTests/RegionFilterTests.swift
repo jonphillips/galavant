@@ -81,6 +81,25 @@ struct RegionFilterTests {
     #expect(kindFiltered.isEmpty)  // Tivoli has no kind; Alouette is food, not museum
   }
 
+  @Test func pinnedIdeasRespectNarrowedRegionLens() {
+    let inside = idea(name: "Tivoli", lat: 55.67, lon: 12.57)
+    let pulledOutside = idea(name: "Alouette", lat: 40.78, lon: -73.96)
+
+    let fullTripLens = poolFiltered(
+      [inside, pulledOutside],
+      regions: [copenhagen],
+      pinnedIDs: [pulledOutside.id]
+    )
+    let subregionLens = poolFiltered(
+      [inside, pulledOutside],
+      regions: [copenhagen],
+      pinnedIDs: []
+    )
+
+    #expect(fullTripLens.map(\.name) == ["Tivoli", "Alouette"])
+    #expect(subregionLens.map(\.name) == ["Tivoli"])
+  }
+
   private func idea(
     name: String,
     kind: IdeaKind? = nil,

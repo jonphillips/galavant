@@ -1,4 +1,5 @@
 import Foundation
+import SQLiteData
 
 /// Derives the browser's first destination for a recommendation candidate. The
 /// handoff supplies a search hint, never a URL; a confirmed Maps place is the
@@ -38,6 +39,15 @@ public struct ResolveReconcile: Equatable, Sendable {
   public enum Action: Equatable, Sendable {
     case merge(existingID: TripIdea.ID, duplicateID: TripIdea.ID, inlineNote: String?)
     case keepBoth
+
+    /// Apply the user's decision in the caller's transaction.
+    public func apply(in db: Database) throws {
+      guard case let .merge(existingID, duplicateID, inlineNote) = self else { return }
+      try TripIdea.find(existingID)
+        .update { $0.inlineNote = #bind(inlineNote) }
+        .execute(db)
+      try TripIdea.remove(stopID: duplicateID, in: db)
+    }
   }
 
   public struct Collision: Equatable, Sendable {
@@ -123,5 +133,39 @@ public struct ResolveReconcile: Equatable, Sendable {
         if !result.contains(note) { result.append(note) }
       }
     return notes.isEmpty ? nil : notes.joined(separator: "\n\n")
+  }
+}
+
+/// Resolve a confirmed place capture onto its candidate stop and report any other
+/// live placement of the resulting pool idea in the same trip.
+public enum RecommendationResolution {
+  public struct Result: Equatable, Sendable {
+    public let capture: IdeaCaptureResolution
+    public let collision: ResolveReconcile.Collision?
+  }
+
+  public static func confirm(
+    candidateStopID: TripIdea.ID,
+    capture: IdeaCapture,
+    in db: Database
+  ) throws -> Result? {
+    guard let candidate = try TripIdea.find(candidateStopID).fetchOne(db) else { return nil }
+    let party = try TravelParty.ensureDefault(in: db)
+    let captureResolution = try Idea.resolveCapture(
+      capture,
+      travelPartyID: party.id,
+      in: db
+    )
+    guard try TripIdea.attachResolvedIdea(captureResolution.ideaID, to: candidateStopID, in: db) != nil
+    else { return nil }
+    let tripIdeas = try TripIdea.where { $0.tripID.eq(candidate.tripID) }.fetchAll(db)
+    return Result(
+      capture: captureResolution,
+      collision: ResolveReconcile(
+        tripIdeas: tripIdeas,
+        resolvedIdeaID: captureResolution.ideaID,
+        candidateID: candidateStopID
+      ).collision
+    )
   }
 }

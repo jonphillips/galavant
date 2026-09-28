@@ -11,6 +11,48 @@ import Testing
 struct RecommendationHandoffTests {
   @Dependency(\.defaultDatabase) var database
 
+  @Test func recommendationResolutionDetectsCollisionAndActionAppliesBothChoices() async throws {
+    let result = try await database.write { db -> (TripIdea.ID, TripIdea.ID, ResolveReconcile.Collision) in
+      let trip = try Trip.create(name: "South Tyrol", in: db)
+      let party = try TravelParty.ensureDefault(in: db)
+      let placeID = UUID()
+      try Idea.insert {
+        Idea.Draft(Idea(
+          id: placeID,
+          name: "Lumiere Brasserie",
+          mapItemIdentifier: "maps:lumiere",
+          travelPartyID: party.id
+        ))
+      }.execute(db)
+      let existing = try TripIdea.pull(ideaID: placeID, into: trip.id, status: .shortlisted, in: db)
+      try TripIdea.find(existing.id).update { $0.inlineNote = #bind("Keep this note") }.execute(db)
+      let duplicate = try TripIdea.commit(
+        candidate: TripCandidate(name: "Lumiere Brasserie", why: "Try the tasting menu."),
+        into: trip.id,
+        in: db
+      )
+      let resolution = try #require(try RecommendationResolution.confirm(
+        candidateStopID: duplicate.id,
+        capture: Place(
+          id: UUID(), name: "Lumiere Brasserie", latitude: 46.5, longitude: 11.3,
+          mapItemIdentifier: "maps:lumiere"
+        ).ideaCapture(),
+        in: db
+      ))
+      return (existing.id, duplicate.id, try #require(resolution.collision))
+    }
+
+    try await database.write { db in
+      try result.2.action(for: .keepBoth).apply(in: db)
+      #expect(try TripIdea.where { $0.id.eq(result.0) || $0.id.eq(result.1) }.fetchAll(db).count == 2)
+      try result.2.action(for: .merge).apply(in: db)
+      let fetched = try TripIdea.find(result.0).fetchOne(db)
+      let remaining = try #require(fetched)
+      #expect(try TripIdea.find(result.1).fetchOne(db) == nil)
+      #expect(remaining.inlineNote == "Keep this note\n\nTry the tasting menu.")
+    }
+  }
+
   private func session() -> HandoffSession {
     HandoffSession(
       sourceType: "trip",
@@ -298,7 +340,7 @@ struct RecommendationHandoffTests {
 
       let resolution = try RecommendationResolution.confirm(
         candidateStopID: candidate.id,
-        place: Place(
+        capture: Place(
           id: UUID(),
           name: "Lumiere Brasserie",
           latitude: 46.4983,
@@ -308,12 +350,12 @@ struct RecommendationHandoffTests {
           url: "https://lumiere.example",
           address: "Piazza Walther 1, Bolzano",
           mapItemIdentifier: "maps:lumiere-bolzano"
-        ),
+        ).ideaCapture(),
         in: db
       )
       // Reused an existing pool idea via dedup, so it is not freshly minted.
-      #expect(resolution?.ideaID == existingID)
-      #expect(resolution?.isNew == false)
+      #expect(resolution?.capture.ideaID == existingID)
+      #expect(resolution?.capture.isNew == false)
       return (
         try #require(try TripIdea.find(candidate.id).fetchOne(db)),
         try Idea.all.fetchAll(db)
@@ -341,18 +383,18 @@ struct RecommendationHandoffTests {
       )
       let resolution = try #require(try RecommendationResolution.confirm(
         candidateStopID: candidate.id,
-        place: Place(
+        capture: Place(
           id: UUID(),
           name: "Leutasch Gorge",
           latitude: 47.37,
           longitude: 11.23,
           kind: .sight,
           mapItemIdentifier: "maps:leutasch-gorge"
-        ),
+        ).ideaCapture(),
         in: db
       ))
       // A fresh place with no pool match — this resolution minted the idea.
-      #expect(resolution.isNew)
+      #expect(resolution.capture.isNew)
 
       let detached = try TripIdea.detachResolvedIdea(
         from: candidate.id,
@@ -377,19 +419,19 @@ struct RecommendationHandoffTests {
       )
       let resolution = try #require(try RecommendationResolution.confirm(
         candidateStopID: candidate.id,
-        place: Place(
+        capture: Place(
           id: UUID(),
           name: "Leutasch Gorge",
           latitude: 47.37,
           longitude: 11.23,
           kind: .sight,
           mapItemIdentifier: "maps:leutasch-gorge"
-        ),
+        ).ideaCapture(),
         in: db
       ))
       // A photo attached to the resolved idea makes it referenced beyond this stop.
       try ImageAsset.store(
-        ideaID: resolution.ideaID,
+        ideaID: resolution.capture.ideaID,
         display: Data([0x1]),
         thumbnail: Data([0x2]),
         id: UUID(),
@@ -434,10 +476,10 @@ struct RecommendationHandoffTests {
       try TripIdea.scheduleUnplaced(stopID: candidate.id, in: db)
       _ = try RecommendationResolution.confirm(
         candidateStopID: candidate.id,
-        place: Place(
+        capture: Place(
           id: UUID(), name: "Neustift Abbey", latitude: 46.755, longitude: 11.651,
           mapItemIdentifier: "maps:neustift-abbey"
-        ),
+        ).ideaCapture(),
         in: db
       )
       return try #require(try TripIdea.find(candidate.id).fetchOne(db))
