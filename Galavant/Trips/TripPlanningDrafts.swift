@@ -98,6 +98,7 @@ struct StayDraft: Identifiable {
   var checkOutTime: String?
   var plannedCheckInTime: String?
   var plannedCheckOutTime: String?
+  var booking = BookingFieldsDraft(resolvedStatus: .toBook)
 
   /// Backed by a pool hotel (vs. a freeform stay) — the sheet hides the title
   /// field and shows the hotel name instead.
@@ -107,11 +108,50 @@ struct StayDraft: Identifiable {
 /// Entry-scoped reservation fields shared by the idea-backed stop editor and the
 /// freeform stop editor. A pin is optional; blank booking metadata is stored as nil.
 struct BookingFieldsDraft {
+  var explicitStatus: BookingStatus?
+  var resolvedStatus: BookingStatus?
+  var source: ResolvedBooking.Source
+  var statusWasChanged = false
   var isPinned = false
   var date = Date.now
   var confirmationNumber = ""
   var bookingURL = ""
   var partySize = ""
+
+  init(
+    explicitStatus: BookingStatus? = nil,
+    resolvedStatus: BookingStatus? = .notNeeded,
+    source: ResolvedBooking.Source = .inferred,
+    isPinned: Bool = false,
+    date: Date = .now,
+    confirmationNumber: String = "",
+    bookingURL: String = "",
+    partySize: String = ""
+  ) {
+    self.explicitStatus = explicitStatus
+    self.resolvedStatus = resolvedStatus
+    self.source = source
+    self.isPinned = isPinned
+    self.date = date
+    self.confirmationNumber = confirmationNumber
+    self.bookingURL = bookingURL
+    self.partySize = partySize
+  }
+
+  var effectiveStatus: BookingStatus? {
+    source == .evidence ? .booked : explicitStatus ?? resolvedStatus
+  }
+
+  var statusToWrite: BookingStatus? {
+    statusWasChanged ? explicitStatus : nil
+  }
+
+  var footer: String? {
+    if source == .evidence { return "Booked: has a confirmation number or pinned date" }
+    if explicitStatus == nil, resolvedStatus != nil { return "Suggested from the place type" }
+    if effectiveStatus == nil { return "Decide whether this needs booking" }
+    return nil
+  }
 }
 
 /// The entry-scoped editor for an idea-backed itinerary stop. The optional idea is

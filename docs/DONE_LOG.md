@@ -13,6 +13,21 @@
   compile/link of `GalavantUITests` with regular Xcode. The UI test bundle was not
   run and no simulator was booted.
 
+## ADR-0047 Slice 2 — booking editors — IMPLEMENTED
+
+- Added the shared Booking section to idea-backed stops, freeform stops, and stays.
+  The picker displays the resolved status, tracks explicit edits separately, and
+  disables itself when synced booking evidence resolves the row as booked. Stop
+  details appear for booked rows independently of the optional pinned date; stays
+  save status and details without party size or a pin.
+- Kept stop pinning as its own control with the existing Calendar-linked date
+  restriction. Added Mark Booked / Mark To Book to the existing stop menu.
+- Added `BookingEditorMappingTests` for unchanged and explicit choices, unpinned
+  booked details, preserved details after unpinning, and stay booking writes.
+- **Verification.** `scripts/check-drift.sh` passed SwiftLint and the
+  `GalavantLibrary` tests, and compile/linked both app test bundles. No simulator
+  was booted and app tests were not run.
+
 ## Dogfood round 2026-09-28 — Ideas filters, recommendation detail, and map previews — SHIPPED
 
 - **Subregion chips filter pulled ideas.** Pinned ideas bypass the region

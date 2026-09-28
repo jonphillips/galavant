@@ -22,10 +22,12 @@ struct StopEditorSheet: View {
           TextField("Optional details", text: $draft.note, axis: .vertical)
             .lineLimit(1...3)
         }
-        if !draft.calendarLinked {
-          Section("Reservation") {
-            BookingFields(draft: $draft.booking)
-          }
+        Section {
+          BookingFields(draft: $draft.booking, includesPin: true, canEditPin: !draft.calendarLinked)
+        } header: {
+          Text("Booking")
+        } footer: {
+          if let footer = draft.booking.footer { Text(footer) }
         }
         Section {
           AlternativeAddMenu(model: model, targetStopID: draft.stopID)
@@ -64,22 +66,52 @@ struct StopEditorSheet: View {
   }
 }
 
-private struct BookingFields: View {
+struct BookingFields: View {
   @Binding var draft: BookingFieldsDraft
+  var includesPin = false
+  var canEditPin = true
 
   var body: some View {
-    Toggle("Pinned reservation", isOn: $draft.isPinned)
-    if draft.isPinned {
-      DatePicker("Date", selection: $draft.date, displayedComponents: .date)
+    Picker("Status", selection: statusSelection) {
+      ForEach(BookingStatus.allCases, id: \.self) { status in
+        Text(status.label).tag(Optional(status))
+      }
     }
-    TextField("Confirmation number", text: $draft.confirmationNumber)
-    TextField("Booking URL", text: $draft.bookingURL)
-      .keyboardType(.URL)
-      .textInputAutocapitalization(.never)
-      .autocorrectionDisabled()
-    TextField("Party size", text: $draft.partySize)
-      .keyboardType(.numberPad)
+    .pickerStyle(.segmented)
+    .disabled(draft.source == .evidence)
+
+    if draft.effectiveStatus == .booked {
+      TextField("Confirmation number", text: $draft.confirmationNumber)
+      TextField("Booking URL", text: $draft.bookingURL)
+        .keyboardType(.URL)
+        .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+      if includesPin {
+        TextField("Party size", text: $draft.partySize)
+          .keyboardType(.numberPad)
+      }
+    }
+
+    if includesPin {
+      Toggle("Pinned reservation", isOn: $draft.isPinned)
+        .disabled(!canEditPin)
+      if draft.isPinned {
+        DatePicker("Date", selection: $draft.date, displayedComponents: .date)
+          .disabled(!canEditPin)
+      }
+    }
   }
+
+  private var statusSelection: Binding<BookingStatus?> {
+    Binding(
+      get: { draft.effectiveStatus },
+      set: {
+        guard draft.source != .evidence else { return }
+        draft.explicitStatus = $0
+        draft.statusWasChanged = true
+      })
+  }
+
 }
 
 /// Author or edit a freeform itinerary stop — a custom stop with no pool idea
@@ -105,7 +137,7 @@ struct FreeformStopSheet: View {
     !draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
   }
 
-  private var canEditBooking: Bool {
+  private var canEditPin: Bool {
     guard let stopID = draft.stopID else { return true }
     return model.calendarTimeAuthority(for: stopID) == .manual
   }
@@ -121,10 +153,12 @@ struct FreeformStopSheet: View {
           TextField("Optional details", text: $draft.note, axis: .vertical)
             .lineLimit(2...5)
         }
-        if canEditBooking {
-          Section("Reservation") {
-            BookingFields(draft: $draft.booking)
-          }
+        Section {
+          BookingFields(draft: $draft.booking, includesPin: true, canEditPin: canEditPin)
+        } header: {
+          Text("Booking")
+        } footer: {
+          if let footer = draft.booking.footer { Text(footer) }
         }
         if isEditing && !isAlternative, let stopID = draft.stopID {
           Section {
@@ -254,6 +288,13 @@ struct StaySheet: View {
             draft.ideaID == nil ? "Optional details" : "Reservation details, room requests…",
             text: $draft.note, axis: .vertical)
             .lineLimit(2...5)
+        }
+        Section {
+          BookingFields(draft: $draft.booking)
+        } header: {
+          Text("Booking")
+        } footer: {
+          if let footer = draft.booking.footer { Text(footer) }
         }
         Section("Check-in") {
           dayPicker(selection: $draft.checkInDay, range: 1...(tripLength - 1))

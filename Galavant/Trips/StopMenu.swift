@@ -47,6 +47,13 @@ struct StopMenu: View {
       if calendarLinked {
         Label("Time from Shared Calendar", systemImage: "calendar.badge.checkmark")
       }
+      let booking = stop.entry.resolvedBooking(idea: stop.idea)
+      Button(
+        booking.source == .explicit && booking.status == .booked ? "Mark To Book" : "Mark Booked",
+        systemImage: "ticket"
+      ) {
+        model.toggleBookingStatus(for: stop)
+      }
       // Non-drag intra-day reorder (ADR-0033 Slice 4). Only a bare `.day` Anytime
       // stop carries a hand-order (`dayRank`); timed/dayparted stops are pinned by
       // their schedule, so the affordance appears only for those. Drag-to-reorder
