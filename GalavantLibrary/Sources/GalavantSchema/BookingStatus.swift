@@ -26,6 +26,25 @@ public enum BookingStatus: Int, QueryBindable, CaseIterable, Sendable {
     return ResolvedBooking(status: inferred, source: .inferred)
   }
 
+  /// Resolve directly from the synced booking evidence carried by a trip row.
+  public static func resolve(
+    explicit: BookingStatus?,
+    pinnedDate: Date?,
+    confirmationNumber: String?,
+    inferred: BookingStatus?
+  ) -> ResolvedBooking {
+    resolve(
+      explicit: explicit,
+      hasEvidence: pinnedDate != nil || confirmationNumber.hasNonBlankText,
+      inferred: inferred)
+  }
+
+  /// The stop-menu action is unavailable when evidence already says Booked.
+  public static func quickAction(for booking: ResolvedBooking) -> BookingStatus? {
+    guard booking.source != .evidence else { return nil }
+    return booking.status == .booked ? .toBook : .booked
+  }
+
   /// Kind-based guess used only when a stop has no booking evidence or decision.
   public static func inferred(for kind: IdeaKind?) -> BookingStatus? {
     switch kind {
@@ -59,7 +78,8 @@ extension TripIdea {
   public func resolvedBooking(idea: Idea?) -> ResolvedBooking {
     BookingStatus.resolve(
       explicit: bookingStatus,
-      hasEvidence: pinnedDate != nil || confirmationNumber.hasNonBlankText,
+      pinnedDate: pinnedDate,
+      confirmationNumber: confirmationNumber,
       inferred: BookingStatus.inferred(for: idea?.kind))
   }
 }
@@ -68,7 +88,8 @@ extension TripStay {
   public var resolvedBooking: ResolvedBooking {
     BookingStatus.resolve(
       explicit: bookingStatus,
-      hasEvidence: confirmationNumber.hasNonBlankText,
+      pinnedDate: nil,
+      confirmationNumber: confirmationNumber,
       inferred: .toBook)
   }
 }

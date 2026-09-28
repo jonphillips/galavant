@@ -23,7 +23,7 @@ struct StopEditorSheet: View {
             .lineLimit(1...3)
         }
         Section {
-          BookingFields(draft: $draft.booking, includesPin: true, canEditPin: !draft.calendarLinked)
+          BookingFields(draft: $draft.booking)
         } header: {
           Text("Booking")
         } footer: {
@@ -68,50 +68,46 @@ struct StopEditorSheet: View {
 
 struct BookingFields: View {
   @Binding var draft: BookingFieldsDraft
-  var includesPin = false
-  var canEditPin = true
 
   var body: some View {
+    let booking = draft.resolvedBooking
     Picker("Status", selection: statusSelection) {
       ForEach(BookingStatus.allCases, id: \.self) { status in
         Text(status.label).tag(Optional(status))
       }
     }
     .pickerStyle(.segmented)
-    .disabled(draft.source == .evidence)
+    .disabled(booking.source == .evidence)
 
-    if draft.effectiveStatus == .booked {
+    if booking.status == .booked {
       TextField("Confirmation number", text: $draft.confirmationNumber)
+    }
+    if booking.status == .toBook || booking.status == .booked {
       TextField("Booking URL", text: $draft.bookingURL)
         .keyboardType(.URL)
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled()
-      if includesPin {
+      if booking.status == .booked, draft.includesPin {
         TextField("Party size", text: $draft.partySize)
           .keyboardType(.numberPad)
       }
     }
 
-    if includesPin {
+    if draft.includesPin {
       Toggle("Pinned reservation", isOn: $draft.isPinned)
-        .disabled(!canEditPin)
+        .disabled(!draft.canEditPin)
       if draft.isPinned {
         DatePicker("Date", selection: $draft.date, displayedComponents: .date)
-          .disabled(!canEditPin)
+          .disabled(!draft.canEditPin)
       }
     }
   }
 
   private var statusSelection: Binding<BookingStatus?> {
     Binding(
-      get: { draft.effectiveStatus },
-      set: {
-        guard draft.source != .evidence else { return }
-        draft.explicitStatus = $0
-        draft.statusWasChanged = true
-      })
+      get: { draft.resolvedBooking.status },
+      set: { draft.selectStatus($0) })
   }
-
 }
 
 /// Author or edit a freeform itinerary stop — a custom stop with no pool idea
@@ -137,11 +133,6 @@ struct FreeformStopSheet: View {
     !draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
   }
 
-  private var canEditPin: Bool {
-    guard let stopID = draft.stopID else { return true }
-    return model.calendarTimeAuthority(for: stopID) == .manual
-  }
-
   var body: some View {
     NavigationStack {
       Form {
@@ -154,7 +145,7 @@ struct FreeformStopSheet: View {
             .lineLimit(2...5)
         }
         Section {
-          BookingFields(draft: $draft.booking, includesPin: true, canEditPin: canEditPin)
+          BookingFields(draft: $draft.booking)
         } header: {
           Text("Booking")
         } footer: {

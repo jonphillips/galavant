@@ -23,7 +23,7 @@ extension TripPlanningModel {
     let note = trimmedNote.isEmpty ? nil : trimmedNote
     let canEditPin = draft.stopID.map {
       calendarTimeAuthority(for: $0) == .manual
-    } ?? true
+    } ?? draft.booking.canEditPin
     var savedStopID: TripIdea.ID?
     withErrorReporting {
       try database.write { db in
@@ -63,9 +63,9 @@ extension TripPlanningModel {
           }
           if canEditPin {
             try TripIdea.setPinnedReservation(
-              reservationPin(from: draft.booking), stopID: savedStopID, in: db)
+              draft.booking.reservationPin, stopID: savedStopID, in: db)
           }
-          let details = bookingDetails(from: draft.booking)
+          let details = draft.booking.bookingDetails
           try TripIdea.setBookingDetails(
             confirmationNumber: details.confirmationNumber,
             bookingURL: details.bookingURL,

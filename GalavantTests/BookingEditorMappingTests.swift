@@ -49,8 +49,7 @@ struct BookingEditorMappingTests {
       stopTitle: "Dinner",
       idea: nil,
       note: "",
-      booking: BookingFieldsDraft(resolvedStatus: .toBook),
-      calendarLinked: false)
+      booking: BookingFieldsDraft(inferredStatus: .toBook))
 
     try await model(for: tripID).saveStop(draft)
 
@@ -62,16 +61,14 @@ struct BookingEditorMappingTests {
   func changedPickerPersistsTheExplicitChoice() async throws {
     let tripID = try await makeTrip()
     let stopID = try await makeStop(in: tripID)
-    var booking = BookingFieldsDraft(resolvedStatus: .toBook)
-    booking.explicitStatus = .notNeeded
-    booking.statusWasChanged = true
+    var booking = BookingFieldsDraft(inferredStatus: .toBook)
+    booking.selectStatus(.notNeeded)
     let draft = StopEditorDraft(
       stopID: stopID,
       stopTitle: "Dinner",
       idea: nil,
       note: "",
-      booking: booking,
-      calendarLinked: false)
+      booking: booking)
 
     try await model(for: tripID).saveStop(draft)
 
@@ -83,9 +80,8 @@ struct BookingEditorMappingTests {
   func bookedDetailsSaveWithoutPinningTheDate() async throws {
     let tripID = try await makeTrip()
     let stopID = try await makeStop(in: tripID)
-    var booking = BookingFieldsDraft(resolvedStatus: .notNeeded)
-    booking.explicitStatus = .booked
-    booking.statusWasChanged = true
+    var booking = BookingFieldsDraft(inferredStatus: .notNeeded)
+    booking.selectStatus(.booked)
     booking.confirmationNumber = "ABC-123"
     booking.bookingURL = "https://example.com/booking"
     booking.partySize = "2"
@@ -94,8 +90,7 @@ struct BookingEditorMappingTests {
       stopTitle: "Dinner",
       idea: nil,
       note: "",
-      booking: booking,
-      calendarLinked: false)
+      booking: booking)
 
     try await model(for: tripID).saveStop(draft)
 
@@ -123,8 +118,7 @@ struct BookingEditorMappingTests {
         ReservationPin(date: .now), stopID: stopID, in: db)
     }
     let booking = BookingFieldsDraft(
-      resolvedStatus: .booked,
-      source: .evidence,
+      inferredStatus: .notNeeded,
       isPinned: false,
       confirmationNumber: "ABC-123",
       bookingURL: "https://example.com/booking",
@@ -134,8 +128,7 @@ struct BookingEditorMappingTests {
       stopTitle: "Dinner",
       idea: nil,
       note: "",
-      booking: booking,
-      calendarLinked: false)
+      booking: booking)
 
     try await model(for: tripID).saveStop(draft)
 
@@ -158,9 +151,8 @@ struct BookingEditorMappingTests {
         checkOutDay: 2,
         in: db)
     }
-    var booking = BookingFieldsDraft(resolvedStatus: .toBook)
-    booking.explicitStatus = .booked
-    booking.statusWasChanged = true
+    var booking = BookingFieldsDraft(inferredStatus: .toBook)
+    booking.selectStatus(.booked)
     booking.confirmationNumber = "STAY-456"
     booking.bookingURL = "https://example.com/stay"
     let draft = StayDraft(
@@ -176,5 +168,44 @@ struct BookingEditorMappingTests {
     #expect(saved.bookingStatus == .booked)
     #expect(saved.confirmationNumber == "STAY-456")
     #expect(saved.bookingURL == "https://example.com/stay")
+  }
+
+}
+
+struct BookingFieldsDraftTests {
+  @Test
+  func resolutionTracksCurrentPinAndDetails() {
+    var draft = BookingFieldsDraft(inferredStatus: .toBook, isPinned: true)
+    #expect(draft.resolvedBooking == ResolvedBooking(status: .booked, source: .evidence))
+
+    draft.isPinned = false
+    #expect(draft.resolvedBooking == ResolvedBooking(status: .toBook, source: .inferred))
+
+    draft.selectStatus(.booked)
+    draft.confirmationNumber = "CONF-1"
+    #expect(draft.resolvedBooking == ResolvedBooking(status: .booked, source: .evidence))
+    draft.confirmationNumber = ""
+    draft.selectStatus(.toBook)
+    #expect(draft.resolvedBooking == ResolvedBooking(status: .toBook, source: .explicit))
+  }
+
+  @Test
+  func changingFromBookedToToBookClearsConfirmationButKeepsBookLink() {
+    var draft = BookingFieldsDraft(inferredStatus: .notNeeded)
+    draft.selectStatus(.booked)
+    draft.confirmationNumber = "CONF-1"
+    draft.partySize = "2"
+    draft.bookingURL = "https://example.com/book"
+    #expect(draft.resolvedBooking == ResolvedBooking(status: .booked, source: .evidence))
+
+    // Confirmation evidence must be cleared before the explicit To book choice
+    // can take effect; a URL is useful in that state and remains available.
+    draft.confirmationNumber = ""
+    draft.selectStatus(.toBook)
+
+    #expect(draft.resolvedBooking == ResolvedBooking(status: .toBook, source: .explicit))
+    #expect(draft.bookingDetails.confirmationNumber == nil)
+    #expect(draft.bookingDetails.partySize == nil)
+    #expect(draft.bookingDetails.bookingURL == "https://example.com/book")
   }
 }

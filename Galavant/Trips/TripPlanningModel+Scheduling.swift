@@ -79,8 +79,32 @@ extension TripPlanningModel {
         stopTitle: stop.content.title,
         idea: idea,
         note: stop.entry.inlineNote ?? "",
-        booking: bookingFields(for: stop),
-        calendarLinked: calendarTimeAuthority(for: stop.id) == .linked))
+        booking: bookingFields(for: stop)))
+  }
+
+  /// Commit entry fields without assigning the stop's hand-set schedule.
+  func saveStop(_ draft: StopEditorDraft) {
+    let note = draft.note.trimmingCharacters(in: .whitespacesAndNewlines)
+    withErrorReporting {
+      try database.write { db in
+        try TripIdea.setInlineNote(stopID: draft.stopID, note: note, in: db)
+        if let status = draft.booking.statusToWrite {
+          try TripIdea.setBookingStatus(status, stopID: draft.stopID, in: db)
+        }
+        if calendarTimeAuthority(for: draft.stopID) == .manual {
+          try TripIdea.setPinnedReservation(
+            draft.booking.reservationPin, stopID: draft.stopID, in: db)
+        }
+        let details = draft.booking.bookingDetails
+        try TripIdea.setBookingDetails(
+          confirmationNumber: details.confirmationNumber,
+          bookingURL: details.bookingURL,
+          partySize: details.partySize,
+          stopID: draft.stopID,
+          in: db)
+      }
+    }
+    destination = nil
   }
 
   // MARK: - Stays (accommodations, ADR-0011)
@@ -111,6 +135,65 @@ extension TripPlanningModel {
       plannedCheckInTime: stay.plannedCheckInTime,
       plannedCheckOutTime: stay.plannedCheckOutTime,
       booking: bookingFields(for: stay)))
+  }
+
+  /// Commit the lodging editor: create or update the stay. A freeform stay needs a
+  /// non-empty title (the sheet's Save is gated, but guard anyway); the span is
+  /// coerced valid by the write op.
+  func saveStay(_ draft: StayDraft) {
+    guard let tripID = trip?.id else { return }
+    let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
+    let trimmedNote = draft.note.trimmingCharacters(in: .whitespacesAndNewlines)
+    let note = trimmedNote.isEmpty ? nil : trimmedNote
+    withErrorReporting {
+      try database.write { db in
+        var savedStayID: TripStay.ID?
+        if let stayID = draft.stayID {
+          savedStayID = stayID
+          try TripStay.edit(
+            stayID: stayID, ideaID: draft.ideaID,
+            title: title.isEmpty ? nil : title, note: note,
+            checkInDay: draft.checkInDay, checkOutDay: draft.checkOutDay,
+            checkInTime: draft.checkInTime, checkOutTime: draft.checkOutTime,
+            plannedCheckInTime: draft.plannedCheckInTime,
+            plannedCheckOutTime: draft.plannedCheckOutTime, in: db)
+        } else if let ideaID = draft.ideaID {
+          let stayID = try TripStay.create(
+            tripID: tripID, ideaID: ideaID, note: note,
+            checkInDay: draft.checkInDay, checkOutDay: draft.checkOutDay,
+            checkInTime: draft.checkInTime, checkOutTime: draft.checkOutTime,
+            plannedCheckInTime: draft.plannedCheckInTime,
+            plannedCheckOutTime: draft.plannedCheckOutTime, in: db)
+          savedStayID = stayID
+          // A hotel is represented by its stay, not as an extra ordinary stop
+          // in the shortlist/timeline. Keep the reusable pool idea intact.
+          try TripIdea
+            .where { $0.tripID.eq(tripID) && $0.ideaID.eq(ideaID) }
+            .delete()
+            .execute(db)
+        } else {
+          guard !title.isEmpty else { return }
+          savedStayID = try TripStay.createFreeform(
+            tripID: tripID, title: title, note: note,
+            checkInDay: draft.checkInDay, checkOutDay: draft.checkOutDay,
+            checkInTime: draft.checkInTime, checkOutTime: draft.checkOutTime,
+            plannedCheckInTime: draft.plannedCheckInTime,
+            plannedCheckOutTime: draft.plannedCheckOutTime, in: db)
+        }
+        if let stayID = savedStayID {
+          if let status = draft.booking.statusToWrite {
+            try TripStay.setBookingStatus(status, stayID: stayID, in: db)
+          }
+          let details = draft.booking.bookingDetails
+          try TripStay.setBookingDetails(
+            confirmationNumber: details.confirmationNumber,
+            bookingURL: details.bookingURL,
+            stayID: stayID,
+            in: db)
+        }
+      }
+    }
+    destination = nil
   }
 
   /// Delete a stay from the trip.
