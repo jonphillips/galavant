@@ -80,14 +80,20 @@ choice, and a self-contained prompt per slice:
   in the detail, and unresolved candidate rows become tappable, with a "Find on Map"
   resolve. (4) The Ideas-screen subregion chips actually narrow: trip-pulled ideas stop
   bypassing the region filter once any chip is on. Delete this bullet when it lands.
-- **Evaluate matches reverting (item 2) — open, under investigation.** Candidates Jon
-  resolved (cards went green) read grey/Unresolved the next morning, on the same device.
-  Grey means `TripIdea.ideaID == nil`. The only app-code writer that clears it is the
-  Disconnect button (`TripIdea.detachResolvedIdea`), so the suspects are a sync-merge
-  regression, a stale peer device, or the candidate links pointing at duplicate freeform
-  rows. The next step is evidence: a local-only audit trigger that records every
-  non-nil→nil `ideaID` transition with `SyncEngine.isSynchronizingChanges()`. It gives
-  both the culprit and the lost idea IDs for recovery.
+- **Evaluate matches "reverting" (item 2): diagnosed as duplicate candidate sets, fix
+  not built.** Jon pasted a recommendation result twice. `TripCandidate` decoding mints a
+  fresh UUID per candidate on every paste, and
+  `HandoffSession.storeRecommendationCandidates` rebuilds `candidateLinks` from the new
+  set only. So a re-paste silently drops the links to already-committed (and resolved)
+  rows, and committing the re-pasted set creates duplicate freeform `.considering` rows.
+  A new handoff session produces the same duplicates across sessions. Evaluate then shows
+  the grey duplicates, while the resolved originals sit orphaned on the trip. Fix:
+  (a) re-paste merges into the existing set, keeping candidates and links and appending
+  only unmatched candidates (normalized name + locality); (b) commit checks the trip for a
+  live row with the same normalized title and links to it instead of inserting;
+  (c) the paste shows feedback ("N new, M already on this trip"). Recovery needs no code:
+  rematching a grey duplicate to the same place raises the `ResolveReconcile` collision,
+  and choosing **Merge** folds it into the original.
 - **Booking status (item 5) — designed, ADR-0047.** Build order is in the ADR's Scope
   section.
 
