@@ -167,7 +167,7 @@ struct ToBookSheet: View {
     VStack(alignment: .leading, spacing: 8) {
       itemTitle(item)
       HStack {
-        if let url = item.bookingURL.flatMap(URL.init(string:)) {
+        if let url = bookingURL(item.bookingURL) {
           Button("Book") { openURL(url) }
         }
         Button("Mark booked") {
@@ -232,6 +232,14 @@ struct ToBookSheet: View {
     let day = item.day.map { dayLabel($0, trip: model.trip) } ?? "To Be Scheduled"
     guard let time = item.time else { return day }
     return "\(day) · \(time)"
+  }
+
+  private func bookingURL(_ value: String?) -> URL? {
+    guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
+      return nil
+    }
+    let address = URLComponents(string: value)?.scheme == nil ? "https://\(value)" : value
+    return URL(string: address)
   }
 }
 

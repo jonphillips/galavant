@@ -1,6 +1,6 @@
 # ADR-0047: Booking status is a trip-level fact — not needed, to book, booked
 
-*Status: **accepted** — 2026-09-28; Slice 1 core implemented in PR #136. Dogfood 2026-09-28: "I want a
+*Status: **accepted** — 2026-09-28; Slices 1–3 implemented in PRs #136–#138. Dogfood 2026-09-28: "I want a
 better sense of what is Bookable and what has been Booked or, even more importantly, not."
 Gives every trip stop and stay a three-state booking status. You set it by hand; when you
 haven't, it is guessed from the kind of place, and evidence of a real booking wins over
@@ -109,8 +109,9 @@ booking yet.
   2. *Decide*: undecided rows (§2 suggestions) with To book / Not needed buttons. This is
      where "food is a suggestion" lives.
   3. *Booked*, collapsed, with confirmation numbers visible (useful at the door).
-  The pill hides at zero to-book, but the sheet stays reachable from the toolbar while
-  there are undecided rows.
+  The pill hides at zero to-book. A quiet **Bookings** toolbar entry remains whenever
+  there are booked rows (so confirmations stay available at the door), and the sheet
+  remains reachable while there are undecided rows.
 - **Unbooked stays** additionally flag on the lodging capsule bar. An unbooked bed is
   the most expensive thing to discover late.
 

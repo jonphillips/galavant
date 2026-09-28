@@ -214,7 +214,7 @@ struct StopRowAccessory: View {
             .accessibilityLabel("Pinned reservation")
         }
         BookingStatusGlyph(booking: booking)
-        StopMenu(model: model, stop: resolved)
+        StopMenu(model: model, stop: resolved, booking: booking)
       }
       if resolved.idea != nil {
         HStack(spacing: 14) {

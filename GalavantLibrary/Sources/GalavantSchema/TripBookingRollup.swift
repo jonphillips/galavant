@@ -73,7 +73,6 @@ public struct TripBookingRollup: Equatable, Sendable {
     }
 
     for stay in plan.stays {
-      guard currentDay.map({ stay.stay.checkInDay >= $0 }) ?? true else { continue }
       let row = stay.stay
       let item = TripBookingItem(
         row: .stay(row.id),
@@ -85,6 +84,9 @@ public struct TripBookingRollup: Equatable, Sendable {
         confirmationNumber: row.confirmationNumber,
         booking: row.resolvedBooking)
       items.append(item)
+      // A stay remains actionable through its check-out day; only after that day
+      // passes does it leave the to-book, decide, and booked sections.
+      guard currentDay.map({ row.checkOutDay >= $0 }) ?? true else { continue }
       Self.append(item, to: &toBook, decide: &decide, booked: &booked)
     }
 

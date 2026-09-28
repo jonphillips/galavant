@@ -62,9 +62,11 @@ struct TripPlanningView: View {
     @Bindable var model = model
     // `plan` is reconstructed by the model. Build the booking projection once at
     // the planning boundary, then pass its resolved values to every display surface.
-    let bookingRollup = TripBookingRollup(plan: model.plan, currentDay: model.liveDay)
+    let plan = model.plan
+    let bookingRollup = TripBookingRollup(plan: plan, currentDay: model.liveDay)
     let bookingByRow = Dictionary(
-      uniqueKeysWithValues: bookingRollup.items.map { ($0.row, $0.booking) })
+      bookingRollup.items.map { ($0.row, $0.booking) },
+      uniquingKeysWith: { first, _ in first })
     CalendarReconciliationPresentationHost(
       model: model,
       reconciliationModel: calendarReconciliationModel,
@@ -83,7 +85,7 @@ struct TripPlanningView: View {
           // below the toolbar host, as IdeasScreen does, keeps every item.
           // (docs/KNOWN-ISSUES.md)
           layout(bookingByRow: bookingByRow)
-            .chatPanel(isPresented: $showingChat, context: .trip(model.plan))
+            .chatPanel(isPresented: $showingChat, context: .trip(plan))
         }
       .navigationTitle(model.trip?.name ?? "Trip")
       .navigationBarTitleDisplayMode(.inline)
@@ -115,6 +117,11 @@ struct TripPlanningView: View {
               Icon.bookingToBook.label("\(bookingRollup.toBookCount) to book")
             }
             .buttonStyle(.bordered)
+          }
+          if !bookingRollup.booked.isEmpty {
+            Button { model.destination = .booking } label: {
+              Icon.bookingBooked.label("Bookings")
+            }
           } else if !bookingRollup.decide.isEmpty {
             Button { model.destination = .booking } label: {
               Icon.bookingToBook.label("To Book")
