@@ -162,15 +162,14 @@ struct TripPlanningView: View {
     }
   }
 
-  /// Surface the itinerary when a map pin selects a stop. Keeping this out of the
+  /// Nudge the iPhone sheet up from its peek when a selection surfaces the
+  /// itinerary. The tab switch itself belongs to `TripPlanningModel.selectStop`
+  /// (map pins, timeline rows, alternatives): an Ideas-tab row selects a drawn stop
+  /// without leaving Ideas, so this must not force the tab. Keeping this out of the
   /// modifier closure avoids an Xcode 27 type-checker timeout in the large view
   /// builder above.
   private func handleCanvasSelection(_ id: TripIdea.ID?) {
-    guard id != nil else { return }
-    // A selected stop lives on the Itinerary, so surface that tab — otherwise
-    // tapping a pin while on Ideas would scroll a list it isn't in.
-    model.sheetTab = .itinerary
-    // On iPhone, nudge the sheet up from its peek so the timeline shows.
+    guard id != nil, model.sheetTab == .itinerary else { return }
     if !usesColumn, sheetDetent == Self.peek { sheetDetent = .medium }
   }
 
