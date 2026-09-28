@@ -102,7 +102,7 @@ struct TripPlanningView: View {
           // The trip-shaping tools, promoted from the itinerary's "···" menu so
           // they're one tap away; Start Day / Reconcile appear when they apply.
           Button(action: model.sketchTapped) {
-            Label("Shape Trip", systemImage: "calendar.day.timeline.leading")
+            Label("Shape Trip", systemImage: "compass.drawing")
           }
           if !model.startDaySolverStops.isEmpty {
             Button {
