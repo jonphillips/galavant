@@ -72,6 +72,31 @@ choice, and a self-contained prompt per slice:
   the authorization question answered. A surface that needs the *coordinate* — B2's
   union framing — starts its own stream and owns its lifetime.
 
+## Dogfood round 2026-09-28 — trip ideas on the map, lost Evaluate matches, bookings
+
+- **Codex slice (items 1, 3, 4).** (1) Tapping a Consider/Schedule row on the trip's Ideas
+  tab centres the canvas on a temporary preview pin, and a second tap opens the detail.
+  (3) Recommendation reasoning (`TripIdea.inlineNote`) shows on Consider/Schedule rows and
+  in the detail, and unresolved candidate rows become tappable, with a "Find on Map"
+  resolve. (4) The Ideas-screen subregion chips actually narrow: trip-pulled ideas stop
+  bypassing the region filter once any chip is on. Delete this bullet when it lands.
+- **Evaluate matches "reverting" (item 2): diagnosed as duplicate candidate sets, fix
+  not built.** Jon pasted a recommendation result twice. `TripCandidate` decoding mints a
+  fresh UUID per candidate on every paste, and
+  `HandoffSession.storeRecommendationCandidates` rebuilds `candidateLinks` from the new
+  set only. So a re-paste silently drops the links to already-committed (and resolved)
+  rows, and committing the re-pasted set creates duplicate freeform `.considering` rows.
+  A new handoff session produces the same duplicates across sessions. Evaluate then shows
+  the grey duplicates, while the resolved originals sit orphaned on the trip. Fix:
+  (a) re-paste merges into the existing set, keeping candidates and links and appending
+  only unmatched candidates (normalized name + locality); (b) commit checks the trip for a
+  live row with the same normalized title and links to it instead of inserting;
+  (c) the paste shows feedback ("N new, M already on this trip"). Recovery needs no code:
+  rematching a grey duplicate to the same place raises the `ResolveReconcile` collision,
+  and choosing **Merge** folds it into the original.
+- **Booking status (item 5) — designed, ADR-0047.** Build order is in the ADR's Scope
+  section.
+
 ## Blocked (Xcode 27 beta) — cross-day itinerary drag + sectioned inline reorder
 
 Within-day drag-to-reorder ships (#72; `dayRank` for Anytime stops per ADR-0033). Two
