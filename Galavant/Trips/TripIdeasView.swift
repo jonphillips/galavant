@@ -17,6 +17,8 @@ struct TripIdeasView: View {
   var usesColumn = false
 
   var body: some View {
+    let plan = model.plan
+    let visibleStopIDs = visibleStopIDs(in: plan)
     List {
       if showsInlineAdd {
         Section {
@@ -49,17 +51,20 @@ struct TripIdeasView: View {
       // Consider (a maybe), Schedule (committed, awaiting a day — the shortlist,
       // plus anything already sent to be scheduled but still dayless), Scheduled
       // (placed on a day).
-      if !model.plan.considering.isEmpty {
+      if !plan.considering.isEmpty {
         Section("Consider") {
-          ForEach(model.plan.considering) { resolved in
-            PlanningRow(content: resolved.content, subtitle: .category) {
+          ForEach(plan.considering) { resolved in
+            PlanningRow(content: resolved.content, note: resolved.entry.inlineNote, subtitle: .category) {
               // Empty star = considering; tap moves it into Schedule.
               starButton(filled: false) {
                 model.setStatus(.shortlisted, for: resolved.id)
               }
             }
             .contentShape(Rectangle())
-            .onTapGesture { if let idea = resolved.idea { model.showDetail(idea) } }
+            .onTapGesture {
+              model.tripIdeaRowTapped(resolved, isDrawnOnCanvas: visibleStopIDs.contains(resolved.id))
+            }
+            .listRowBackground(rowBackground(for: resolved))
             .swipeActions(edge: .leading) {
               if resolved.idea?.kind == .stay {
                 Button {
@@ -80,10 +85,10 @@ struct TripIdeasView: View {
           }
         }
       }
-      if !model.plan.shortlist.isEmpty || !toBeScheduled.isEmpty {
+      if !plan.shortlist.isEmpty || !plan.toBeScheduled.isEmpty {
         Section("Schedule") {
-          ForEach(model.plan.shortlist) { resolved in
-            PlanningRow(content: resolved.content, subtitle: .category) {
+          ForEach(plan.shortlist) { resolved in
+            PlanningRow(content: resolved.content, note: resolved.entry.inlineNote, subtitle: .category) {
               HStack(spacing: 14) {
                 // Lit star = in Schedule; tap demotes it back to Consider.
                 starButton(filled: true) {
@@ -99,7 +104,10 @@ struct TripIdeasView: View {
               }
             }
             .contentShape(Rectangle())
-            .onTapGesture { if let idea = resolved.idea { model.showDetail(idea) } }
+            .onTapGesture {
+              model.tripIdeaRowTapped(resolved, isDrawnOnCanvas: visibleStopIDs.contains(resolved.id))
+            }
+            .listRowBackground(rowBackground(for: resolved))
             .swipeActions(edge: .leading) {
               Button {
                 model.sendToBeScheduled(resolved.id)
@@ -126,15 +134,16 @@ struct TripIdeasView: View {
           }
           .reorderable()
           // Committed but not yet on a day — waiting to be placed on the itinerary.
-          ForEach(toBeScheduled) { resolved in
-            scheduledIdeaRow(resolved)
+          ForEach(plan.toBeScheduled) { resolved in
+            scheduledIdeaRow(resolved, visibleStopIDs: visibleStopIDs)
           }
         }
       }
+      let placedScheduled = plan.scheduled.filter { $0.entry.dayNumber != nil }
       if !placedScheduled.isEmpty {
         Section {
           ForEach(placedScheduled) { resolved in
-            scheduledIdeaRow(resolved)
+            scheduledIdeaRow(resolved, visibleStopIDs: visibleStopIDs)
           }
         } header: {
           HStack(spacing: 6) {
@@ -152,12 +161,12 @@ struct TripIdeasView: View {
       }
     }
     .reorderContainer(for: ResolvedStop.self) { difference in
-      var entries = model.plan.shortlist
+      var entries = plan.shortlist
       difference.apply(to: &entries)
       model.reorderShortlist(entries.map(\.id))
     }
     .overlay {
-      if model.plan.isEmpty {
+      if plan.isEmpty {
         ContentUnavailableView {
           Icon.emptyPool.label("No ideas yet")
         } description: {
@@ -169,12 +178,27 @@ struct TripIdeasView: View {
     }
   }
 
-  private var toBeScheduled: [ResolvedStop] {
-    model.plan.toBeScheduled
+  private func visibleStopIDs(in plan: TripPlan) -> Set<TripIdea.ID> {
+    let visibleDays: [ResolvedDay]
+    if let stayID = model.canvasSelectedStayID,
+      let stay = plan.stays.first(where: { $0.id == stayID }) {
+      visibleDays = plan.itinerary.filter { stay.stay.covers(day: $0.number) }
+    } else if let day = model.canvasSelectedDay {
+      visibleDays = plan.itinerary.filter { $0.number == day }
+    } else {
+      visibleDays = plan.itinerary
+    }
+    return Set(
+      visibleDays.flatMap(\.stops)
+        .filter { $0.content.latitude != nil && $0.content.longitude != nil }
+        .map(\.id)
+    )
   }
 
-  private var placedScheduled: [ResolvedStop] {
-    model.plan.scheduled.filter { $0.entry.dayNumber != nil }
+  private func rowBackground(for stop: ResolvedStop) -> Color? {
+    model.canvasSelectedStopID == stop.id || model.canvasPreviewStopID == stop.id
+      ? Color.accentColor.opacity(0.12)
+      : nil
   }
 
   /// A lit (shortlisted) or outline (considering) star that flips the row's
@@ -203,10 +227,16 @@ struct TripIdeasView: View {
 
   /// A scheduled row can be returned to the shortlist (or removed when it is a
   /// freeform stop) from either the To-Be-Scheduled or placed Scheduled section.
-  private func scheduledIdeaRow(_ resolved: ResolvedStop) -> some View {
+  private func scheduledIdeaRow(
+    _ resolved: ResolvedStop,
+    visibleStopIDs: Set<TripIdea.ID>
+  ) -> some View {
     scheduledRow(resolved)
       .contentShape(Rectangle())
-      .onTapGesture { if let idea = resolved.idea { model.showDetail(idea) } }
+      .onTapGesture {
+        model.tripIdeaRowTapped(resolved, isDrawnOnCanvas: visibleStopIDs.contains(resolved.id))
+      }
+      .listRowBackground(rowBackground(for: resolved))
       .swipeActions(edge: .trailing) {
         if case .freeform = resolved.content {
           Button(role: .destructive) {
@@ -230,6 +260,7 @@ struct TripIdeasView: View {
     if usesColumn {
       PlanningRow(
         content: resolved.content,
+        note: resolved.entry.inlineNote,
         subtitle: .none,
         marker: .image(resolved.idea.flatMap { model.headerThumbnailByIdea[$0.id] })
       ) {
@@ -239,7 +270,7 @@ struct TripIdeasView: View {
           .accessibilityLabel(resolved.idea?.kind?.label ?? "Place type")
       }
     } else {
-      PlanningRow(content: resolved.content, subtitle: .category) {
+      PlanningRow(content: resolved.content, note: resolved.entry.inlineNote, subtitle: .category) {
         scheduledBadge(resolved.entry.schedule)
       }
     }

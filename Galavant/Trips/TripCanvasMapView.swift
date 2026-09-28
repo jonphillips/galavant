@@ -53,6 +53,7 @@ struct TripCanvasMapView: View {
       dayContent(day)
     }
     baseContent
+    previewContent
     transientFreeformContent
     userLocationContent
   }
@@ -82,6 +83,9 @@ struct TripCanvasMapView: View {
         let selection = id.map(MapSelection.init)
         if mapSelection != selection { mapSelection = selection }
         revealStop(id)
+      }
+      .onChange(of: model.canvasPreviewStopID, initial: true) { _, id in
+        centerPreview(id)
       }
       .task(id: mapSelection) {
         await handleMapSelection()
@@ -131,6 +135,23 @@ struct TripCanvasMapView: View {
         visibleRegion: visibleRegion,
         onSelect: model.mapPlaceTapped
       )
+    }
+  }
+
+  /// A temporary, unnumbered stop from the Ideas tab. The hollow pin separates
+  /// it from the day sequence while keeping the candidate's kind recognizable.
+  @MapContentBuilder
+  private var previewContent: some MapContent {
+    if let stop = model.canvasPreviewStop, let coordinate = stop.coordinate {
+      Annotation(stop.content.title, coordinate: coordinate, anchor: .bottom) {
+        Button {
+          model.canvasPreviewPinTapped(stop.id)
+        } label: {
+          CanvasPreviewPin(systemImage: stop.idea?.kind?.systemImage ?? "mappin")
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Show details for \(stop.content.title)")
+      }
     }
   }
 
@@ -458,6 +479,30 @@ struct TripCanvasMapView: View {
         span: region.span))
   }
 
+  /// Centre the temporary preview without changing the current zoom. On iPhone,
+  /// offset the camera south so the pin sits at the centre of the clear map band.
+  private func centerPreview(_ id: TripIdea.ID?) {
+    guard
+      let id,
+      let stop = model.canvasPreviewStop,
+      stop.id == id,
+      let coordinate = stop.coordinate
+    else { return }
+    let span = visibleRegion?.span ?? MKCoordinateSpan(
+      latitudeDelta: MapFraming.singlePointDelta,
+      longitudeDelta: MapFraming.singlePointDelta
+    )
+    cameraPosition = .region(
+      MKCoordinateRegion(
+        center: CLLocationCoordinate2D(
+          latitude: coordinate.latitude - span.latitudeDelta * bottomInsetFraction / 2,
+          longitude: coordinate.longitude
+        ),
+        span: span
+      )
+    )
+  }
+
   /// A region covering every map region the trip is scoped to (the union of their
   /// extents), or nil if the trip has none.
   private var tripRegionFrame: MKCoordinateRegion? {
@@ -500,6 +545,20 @@ private struct AlternativePin: View {
       .frame(width: 18, height: 18)
       .overlay(Circle().strokeBorder(.white, lineWidth: 2))
       .shadow(radius: 1)
+  }
+}
+
+private struct CanvasPreviewPin: View {
+  let systemImage: String
+
+  var body: some View {
+    Image(systemName: systemImage)
+      .font(.body.weight(.semibold))
+      .foregroundStyle(.tint)
+      .frame(width: 34, height: 34)
+      .background(.regularMaterial, in: Circle())
+      .overlay(Circle().strokeBorder(Color.accentColor, lineWidth: 2.5))
+      .shadow(radius: 3)
   }
 }
 

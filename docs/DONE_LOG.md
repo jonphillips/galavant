@@ -1,5 +1,25 @@
 # Done Log — completed enhancements
 
+## Dogfood round 2026-09-28 — Ideas filters, recommendation detail, and map previews — SHIPPED
+
+- **Subregion chips filter pulled ideas.** Pinned ideas bypass the region
+  constraint on the full trip lens only; selecting one or more subregions applies
+  the region test to pulled ideas too. The rule is part of `poolFiltered` and is
+  covered by `RegionFilterTests`.
+- **Recommendation reasoning stays with the trip stop.** Consider, Schedule, and
+  To-Be-Scheduled rows show the stop's `inlineNote`; idea details include the full
+  “Why it's on this trip” text. Unresolved candidate rows open a detail sheet with
+  region-biased place search, the existing merge/keep-both collision handling, and
+  Remove.
+- **Ideas rows preview on the canvas.** The first tap on a located row highlights
+  it, adds a distinct temporary pin, and centres the map without changing its
+  zoom; a second tap or pin tap opens detail. Visible itinerary stops use their
+  existing selection. Preview state transitions are covered by
+  `TripCanvasPreviewStateTests`.
+- **Verification.** `scripts/check-drift.sh` passed SwiftLint, the
+  `GalavantLibrary` tests, and compile/link of `GalavantUITests`. The test bundle
+  was not run and no simulator was booted.
+
 ## Dogfood round 2026-09-27 — pin → row, lodging in the trip's regions, the day's "+" sheet — SHIPPED (2026-09-27)
 
 - **Ideas map pin → its row.** Tapping a pin on the Ideas screen scrolls the list to

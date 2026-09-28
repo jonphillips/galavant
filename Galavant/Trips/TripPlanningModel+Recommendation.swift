@@ -1,6 +1,7 @@
 import Dependencies
 import Foundation
 import GalavantAI
+import GalavantPlaces
 import GalavantSchema
 import SQLiteData
 
@@ -164,5 +165,46 @@ extension TripPlanningModel {
 
   func recommendationWorkspaceIsAvailable(for sessionID: HandoffSession.ID) -> Bool {
     handoffSessionStore.session(sessionID)?.hasCommittedRecommendationCandidates ?? false
+  }
+
+  func recommendationPlaceSelected(stopID: TripIdea.ID, place: Place) {
+    let result = withErrorReporting {
+      try database.write { db -> (collision: ResolveReconcile.Collision?, confirmed: Bool) in
+        guard let resolution = try RecommendationResolution.confirm(
+          candidateStopID: stopID,
+          place: place,
+          in: db
+        ) else { return (nil, false) }
+        let tripIdeas = try TripIdea.where { $0.tripID.eq(tripID) }.fetchAll(db)
+        return (
+          ResolveReconcile(
+            tripIdeas: tripIdeas,
+            resolvedIdeaID: resolution.ideaID,
+            candidateID: stopID
+          ).collision,
+          true
+        )
+      }
+    }
+    guard let result, result.confirmed else { return }
+    pendingRecommendationReconcile = result.collision
+    if result.collision == nil { destination = nil }
+  }
+
+  func recommendationReconcileChoice(_ choice: ResolveReconcile.Choice) {
+    guard let collision = pendingRecommendationReconcile else { return }
+    let action = collision.action(for: choice)
+    let succeeded = withErrorReporting {
+      try database.write { db in
+        guard case let .merge(existingID, duplicateID, inlineNote) = action else { return }
+        try TripIdea.find(existingID)
+          .update { $0.inlineNote = #bind(inlineNote) }
+          .execute(db)
+        try TripIdea.remove(stopID: duplicateID, in: db)
+      }
+    }
+    guard succeeded != nil else { return }
+    pendingRecommendationReconcile = nil
+    destination = nil
   }
 }

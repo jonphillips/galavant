@@ -174,7 +174,7 @@ struct StopRow: View {
       .onTapGesture {
         model.selectStop(resolved.id)
         if let idea = resolved.idea {
-          model.showDetail(idea)
+          model.showDetail(idea, stopID: resolved.id)
         }
       }
       .accessibilityActions {
