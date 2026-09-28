@@ -322,18 +322,13 @@ final class RecommendationWorkspaceModel {
     guard let activeCandidate else { return }
     withErrorReporting {
       pendingReconcile = try database.write { db in
-        guard let resolution = try RecommendationResolution.confirm(
+        guard let resolution = try GalavantSchema.RecommendationResolution.confirm(
           candidateStopID: activeCandidate.id,
-          place: place,
+          capture: place.ideaCapture(),
           in: db
         ) else { return nil }
-        if resolution.isNew { mintedIdeaIDs.insert(resolution.ideaID) }
-        let tripIdeas = try TripIdea.where { $0.tripID.eq(tripID) }.fetchAll(db)
-        return ResolveReconcile(
-          tripIdeas: tripIdeas,
-          resolvedIdeaID: resolution.ideaID,
-          candidateID: activeCandidate.id
-        ).collision
+        if resolution.capture.isNew { mintedIdeaIDs.insert(resolution.capture.ideaID) }
+        return resolution.collision
       }
       resolveResults = []
     }
@@ -345,11 +340,7 @@ final class RecommendationWorkspaceModel {
     let nextCandidateID = nextCandidateAfterProcessing(collision.duplicateID)
     withErrorReporting {
       try database.write { db in
-        guard case let .merge(existingID, duplicateID, inlineNote) = action else { return }
-        try TripIdea.find(existingID)
-          .update { $0.inlineNote = #bind(inlineNote) }
-          .execute(db)
-        try TripIdea.remove(stopID: duplicateID, in: db)
+        try action.apply(in: db)
       }
       pendingReconcile = nil
       if case .merge = action {

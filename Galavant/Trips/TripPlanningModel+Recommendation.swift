@@ -170,20 +170,12 @@ extension TripPlanningModel {
   func recommendationPlaceSelected(stopID: TripIdea.ID, place: Place) {
     let result = withErrorReporting {
       try database.write { db -> (collision: ResolveReconcile.Collision?, confirmed: Bool) in
-        guard let resolution = try RecommendationResolution.confirm(
+        guard let resolution = try GalavantSchema.RecommendationResolution.confirm(
           candidateStopID: stopID,
-          place: place,
+          capture: place.ideaCapture(),
           in: db
         ) else { return (nil, false) }
-        let tripIdeas = try TripIdea.where { $0.tripID.eq(tripID) }.fetchAll(db)
-        return (
-          ResolveReconcile(
-            tripIdeas: tripIdeas,
-            resolvedIdeaID: resolution.ideaID,
-            candidateID: stopID
-          ).collision,
-          true
-        )
+        return (resolution.collision, true)
       }
     }
     guard let result, result.confirmed else { return }
@@ -196,11 +188,7 @@ extension TripPlanningModel {
     let action = collision.action(for: choice)
     let succeeded = withErrorReporting {
       try database.write { db in
-        guard case let .merge(existingID, duplicateID, inlineNote) = action else { return }
-        try TripIdea.find(existingID)
-          .update { $0.inlineNote = #bind(inlineNote) }
-          .execute(db)
-        try TripIdea.remove(stopID: duplicateID, in: db)
+        try action.apply(in: db)
       }
     }
     guard succeeded != nil else { return }

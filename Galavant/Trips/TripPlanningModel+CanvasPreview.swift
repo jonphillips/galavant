@@ -4,9 +4,8 @@ extension TripPlanningModel {
   /// A single resolved-stop lookup for the ephemeral marker, shared by the map
   /// annotation and its camera target.
   var canvasPreviewStop: ResolvedStop? {
-    let plan = plan
-    return (plan.considering + plan.shortlist + plan.toBeScheduled + plan.scheduled)
-      .first { $0.id == canvasPreviewStopID }
+    guard let canvasPreviewStopID else { return nil }
+    return plan.stop(id: canvasPreviewStopID)
   }
 
   /// Focus a stop from the map or the timeline — the single shared selection both
@@ -25,13 +24,21 @@ extension TripPlanningModel {
   /// Rows already represented by a visible itinerary pin use the shared selection.
   func tripIdeaRowTapped(_ stop: ResolvedStop, isDrawnOnCanvas: Bool) {
     if isDrawnOnCanvas {
-      selectStop(stop.id)
-      if let idea = stop.idea { showDetail(idea, stopID: stop.id) }
-      else { destination = .recommendationDetail(stop.id) }
+      switch TripCanvasPreviewState.drawnRowTapAction(
+        stopID: stop.id,
+        selectedStopID: canvasSelectedStopID
+      ) {
+      case .select:
+        clearCanvasPreview()
+        canvasSelectedStopID = stop.id
+      case .showDetails:
+        if let idea = stop.idea { showDetail(idea, stopID: stop.id) }
+        else { destination = .recommendationDetail(stop.id) }
+      }
       return
     }
 
-    if stop.content.latitude != nil, stop.content.longitude != nil {
+    if stop.coordinate != nil {
       var state = canvasPreviewState
       let action = state.tap(stop.id)
       canvasPreviewState = state
@@ -56,5 +63,19 @@ extension TripPlanningModel {
     clearCanvasPreview()
     if let idea = stop.idea { showDetail(idea, stopID: stop.id) }
     else { destination = .recommendationDetail(stop.id) }
+  }
+}
+
+extension TripCanvasPreviewState {
+  enum DrawnRowTapAction: Equatable {
+    case select
+    case showDetails
+  }
+
+  static func drawnRowTapAction(
+    stopID: TripIdea.ID,
+    selectedStopID: TripIdea.ID?
+  ) -> DrawnRowTapAction {
+    selectedStopID == stopID ? .showDetails : .select
   }
 }

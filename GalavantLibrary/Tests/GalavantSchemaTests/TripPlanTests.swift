@@ -65,6 +65,43 @@ import Testing
     #expect(p.shortlist.map { $0.idea!.id } == [b, a])
   }
 
+  @Test func visibleDaysPreferStayThenDayThenWholeItinerary() {
+    let (dayOne, dayTwo, dayThree) = (UUID(), UUID(), UUID())
+    let tripID = UUID()
+    let stay = TripStay(
+      id: UUID(), tripID: tripID, ideaID: nil, inlineTitle: "Base",
+      checkInDay: 2, checkOutDay: 3)
+    let p = TripPlan(
+      entries: [
+        entry(idea: dayOne, status: .scheduled, schedule: .day(1)),
+        entry(idea: dayTwo, status: .scheduled, schedule: .day(2)),
+        entry(idea: dayThree, status: .scheduled, schedule: .day(3)),
+      ],
+      ideasByID: [dayOne: idea(dayOne), dayTwo: idea(dayTwo), dayThree: idea(dayThree)],
+      lengthInDays: 3,
+      tripStays: [stay]
+    )
+
+    #expect(p.visibleDays(day: 1, stayID: nil).map(\.number) == [1])
+    #expect(p.visibleDays(day: 1, stayID: stay.id).map(\.number) == [2, 3])
+    #expect(p.visibleDays(day: nil, stayID: nil).map(\.number) == [1, 2, 3])
+  }
+
+  @Test func resolvedStopUsesOneCompleteCoordinateAsLocatedPredicate() {
+    let id = UUID()
+    let located = plan(
+      [entry(idea: id, status: .scheduled, schedule: .day(1))],
+      ideas: [idea(id, lat: 1, lon: 2)]
+    ).itinerary[0].stops[0]
+    let partial = plan(
+      [entry(idea: id, status: .scheduled, schedule: .day(1))],
+      ideas: [idea(id, lat: 1, lon: nil)]
+    ).itinerary[0].stops[0]
+
+    #expect(located.coordinate != nil)
+    #expect(partial.coordinate == nil)
+  }
+
   @Test func scheduledOrdersByDayThenTimeOfDay() {
     let (a, b, c) = (UUID(), UUID(), UUID())
     let entries = [

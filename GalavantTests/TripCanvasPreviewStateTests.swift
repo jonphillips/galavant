@@ -4,6 +4,13 @@ import Testing
 @testable import Galavant
 
 struct TripCanvasPreviewStateTests {
+  @Test func drawnRowFirstTapSelectsAndRepeatTapOpensDetails() {
+    let stopID = TripIdea.ID()
+
+    #expect(TripCanvasPreviewState.drawnRowTapAction(stopID: stopID, selectedStopID: nil) == .select)
+    #expect(TripCanvasPreviewState.drawnRowTapAction(stopID: stopID, selectedStopID: stopID) == .showDetails)
+  }
+
   @Test func firstTapSetsPreview() {
     var state = TripCanvasPreviewState()
     let stopID = TripIdea.ID()

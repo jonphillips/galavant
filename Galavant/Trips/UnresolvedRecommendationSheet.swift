@@ -47,7 +47,8 @@ struct UnresolvedRecommendationSheet: View {
           MapPlaceSearchOverlay(
             visibleRegion: nil,
             searchRegions: model.tripRegions,
-            biased: true
+            biased: true,
+            seedQuery: stop?.inlineTitle
           ) { place in
             model.recommendationPlaceSelected(stopID: stopID, place: place)
           }

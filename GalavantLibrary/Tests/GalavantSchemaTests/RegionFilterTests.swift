@@ -88,14 +88,12 @@ struct RegionFilterTests {
     let fullTripLens = poolFiltered(
       [inside, pulledOutside],
       regions: [copenhagen],
-      pinnedIDs: [pulledOutside.id],
-      pinnedIDsBypassRegions: true
+      pinnedIDs: [pulledOutside.id]
     )
     let subregionLens = poolFiltered(
       [inside, pulledOutside],
       regions: [copenhagen],
-      pinnedIDs: [pulledOutside.id],
-      pinnedIDsBypassRegions: false
+      pinnedIDs: []
     )
 
     #expect(fullTripLens.map(\.name) == ["Tivoli", "Alouette"])

@@ -6,10 +6,9 @@ import Foundation
 /// optional set of kinds, and visited-state. An empty `regions` means no
 /// geographic constraint. Pure so it's the densely-tested core.
 ///
-/// `pinnedIDs` bypass the **region** constraint only when
-/// `pinnedIDsBypassRegions` is true. Trip lenses use that for the full union of
-/// their regions; narrowing to subregions filters pulled ideas by location too.
-/// Pinned ideas always respect kind/tag/visited filters.
+/// `pinnedIDs` bypass the **region** constraint. Callers pass pinned IDs only for
+/// the full trip-region lens; narrowed subregion lenses pass an empty set. Pinned
+/// ideas always respect kind/tag/visited filters.
 public func poolFiltered(
   _ ideas: [Idea],
   regions: [MapRegion] = [],
@@ -17,11 +16,10 @@ public func poolFiltered(
   includeVisited: Bool = true,
   tagIDs selectedTagIDs: Set<Tag.ID> = [],
   ideaTagIDs: [Idea.ID: Set<Tag.ID>] = [:],
-  pinnedIDs: Set<Idea.ID> = [],
-  pinnedIDsBypassRegions: Bool = true
+  pinnedIDs: Set<Idea.ID> = []
 ) -> [Idea] {
   ideas.filter { idea in
-    if !regions.isEmpty, !(pinnedIDsBypassRegions && pinnedIDs.contains(idea.id)) {
+    if !regions.isEmpty, !pinnedIDs.contains(idea.id) {
       // A region filter only surfaces located ideas inside at least one region.
       guard
         let latitude = idea.latitude,

@@ -97,7 +97,7 @@ public struct PlaceMatcher: Sendable {
 
   /// Search a candidate's author-provided Apple-Maps hint in the trip's regions.
   /// The result remains a list for human confirmation; no candidate becomes a place
-  /// until `RecommendationResolution.confirm` receives a picked result.
+  /// until `GalavantSchema.RecommendationResolution.confirm` receives a picked result.
   public func matches(
     for candidate: TripCandidate,
     in regions: [MapRegion]

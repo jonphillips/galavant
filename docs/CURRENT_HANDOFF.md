@@ -74,12 +74,6 @@ choice, and a self-contained prompt per slice:
 
 ## Dogfood round 2026-09-28 — trip ideas on the map, lost Evaluate matches, bookings
 
-- **Codex slice (items 1, 3, 4).** (1) Tapping a Consider/Schedule row on the trip's Ideas
-  tab centres the canvas on a temporary preview pin, and a second tap opens the detail.
-  (3) Recommendation reasoning (`TripIdea.inlineNote`) shows on Consider/Schedule rows and
-  in the detail, and unresolved candidate rows become tappable, with a "Find on Map"
-  resolve. (4) The Ideas-screen subregion chips actually narrow: trip-pulled ideas stop
-  bypassing the region filter once any chip is on. Delete this bullet when it lands.
 - **Evaluate matches "reverting" (item 2): diagnosed as duplicate candidate sets, fix
   not built.** Jon pasted a recommendation result twice. `TripCandidate` decoding mints a
   fresh UUID per candidate on every paste, and
@@ -97,10 +91,11 @@ choice, and a self-contained prompt per slice:
 - **Booking status (item 5) — designed, ADR-0047.** Build order is in the ADR's Scope
   section.
 
-## Blocked (Xcode 27 beta) — cross-day itinerary drag + sectioned inline reorder
+## Pending Xcode 27.0 re-verification — cross-day itinerary drag + sectioned inline reorder
 
 Within-day drag-to-reorder ships (#72; `dayRank` for Anytime stops per ADR-0033). Two
-related next steps are blocked on the beta's DnD subsystem:
+related next steps depend on the DnD subsystem; their beta limitations need
+re-verification against the release build:
 
 - **Drag stops across day sections** and **out of the "To Be Scheduled" bucket onto a
   day** — same gesture: drop target → day number → `TripIdea.schedule(.onDay(n))` /
@@ -109,7 +104,7 @@ related next steps are blocked on the beta's DnD subsystem:
   inline at their time position and drag events between days, via the
   `reorderContainer(for:in:)` overload.
 
-Both need the sectioned reorder overload, **recorded dead on beta 5** (#73). Full spec
+Both need the sectioned reorder overload, **recorded dead on beta 5; re-verify on Xcode 27.0 release** (#73). Full spec
 with the two paid-for gotchas (no custom `dragContainer`, no long-press `.contextMenu` in
 a reorderable row) and a spike-first plan:
 `docs/handoff/sectioned-reorder-inline-boundaries.md`. Durable fallback if reorder stays

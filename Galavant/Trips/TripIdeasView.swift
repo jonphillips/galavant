@@ -179,18 +179,10 @@ struct TripIdeasView: View {
   }
 
   private func visibleStopIDs(in plan: TripPlan) -> Set<TripIdea.ID> {
-    let visibleDays: [ResolvedDay]
-    if let stayID = model.canvasSelectedStayID,
-      let stay = plan.stays.first(where: { $0.id == stayID }) {
-      visibleDays = plan.itinerary.filter { stay.stay.covers(day: $0.number) }
-    } else if let day = model.canvasSelectedDay {
-      visibleDays = plan.itinerary.filter { $0.number == day }
-    } else {
-      visibleDays = plan.itinerary
-    }
+    let visibleDays = plan.visibleDays(day: model.canvasSelectedDay, stayID: model.canvasSelectedStayID)
     return Set(
       visibleDays.flatMap(\.stops)
-        .filter { $0.content.latitude != nil && $0.content.longitude != nil }
+        .filter { $0.coordinate != nil }
         .map(\.id)
     )
   }
