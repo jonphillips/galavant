@@ -76,6 +76,19 @@ extension TripStay {
 private extension Optional where Wrapped == String {
   var hasNonBlankText: Bool {
     guard let self else { return false }
-    return !trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    return !self.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+  }
+}
+
+/// Booking data that can be captured or edited independently of a stop's pin.
+public struct BookingDetails: Equatable, Sendable {
+  public var confirmationNumber: String?
+  public var bookingURL: String?
+  public var partySize: Int?
+
+  public init(confirmationNumber: String?, bookingURL: String?, partySize: Int?) {
+    self.confirmationNumber = confirmationNumber
+    self.bookingURL = bookingURL
+    self.partySize = partySize
   }
 }

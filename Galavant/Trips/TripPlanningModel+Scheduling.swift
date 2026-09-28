@@ -122,15 +122,13 @@ extension TripPlanningModel {
     return ReservationPin(date: booking.date)
   }
 
-  func bookingDetails(from booking: BookingFieldsDraft) -> (
-    confirmationNumber: String?, bookingURL: String?, partySize: Int?
-  ) {
+  func bookingDetails(from booking: BookingFieldsDraft) -> BookingDetails {
     let confirmation = booking.confirmationNumber.trimmingCharacters(in: .whitespacesAndNewlines)
     let url = booking.bookingURL.trimmingCharacters(in: .whitespacesAndNewlines)
-    return (
-      confirmation.isEmpty ? nil : confirmation,
-      url.isEmpty ? nil : url,
-      Int(booking.partySize.trimmingCharacters(in: .whitespacesAndNewlines)))
+    return BookingDetails(
+      confirmationNumber: confirmation.isEmpty ? nil : confirmation,
+      bookingURL: url.isEmpty ? nil : url,
+      partySize: Int(booking.partySize.trimmingCharacters(in: .whitespacesAndNewlines)))
   }
 
   // MARK: - Stays (accommodations, ADR-0011)

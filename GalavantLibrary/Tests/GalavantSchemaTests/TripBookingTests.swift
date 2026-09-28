@@ -45,6 +45,7 @@ struct TripBookingTests {
     let food = Idea(id: UUID(), name: "Lunch", kind: .food, url: "https://food.example")
     let theater = Idea(id: UUID(), name: "Theater", kind: .theater)
     let other = Idea(id: UUID(), name: "Walk", kind: .sight)
+    let hotel = Idea(id: UUID(), name: "Harbor Hotel", kind: .stay, url: "https://harbor.example")
     var rows = [
       stop(food, .scheduled, .timed(2, start: "19:00", end: nil)),
       stop(theater, .scheduled, .timed(2, start: "18:00", end: nil), status: .booked),
@@ -52,8 +53,14 @@ struct TripBookingTests {
       stop(food, .scheduled, .timed(3, start: "12:00", end: nil), status: .booked),
       stop(food, .scheduled, .unscheduled, status: .toBook),
       stop(food, .scheduled, .day(2), status: .toBook),
+      stop(theater, .scheduled, .unscheduled),
+      stop(other, .scheduled, .day(2), status: .toBook),
+      stop(other, .scheduled, .timed(3, start: "13:00", end: nil), status: .toBook),
+      stop(food, .scheduled, .day(1), status: .toBook),
     ]
     rows[4].completedAt = Date(timeIntervalSince1970: 1)
+    rows[7].skippedAt = Date(timeIntervalSince1970: 2)
+    rows[8].pinnedDate = Date(timeIntervalSince1970: 3)
     let ringID = UUID()
     rows[2].alternativeGroupID = ringID
     rows[2].isActive = true
@@ -62,23 +69,26 @@ struct TripBookingTests {
     let stays = [
       TripStay(id: UUID(), tripID: UUID(), ideaID: nil, inlineTitle: "Hotel", checkInDay: 2,
         checkOutDay: 4, plannedCheckInTime: "16:00", bookingURL: "https://stay.example"),
+      TripStay(id: UUID(), tripID: UUID(), ideaID: hotel.id, checkInDay: 3, checkOutDay: 4),
       TripStay(id: UUID(), tripID: UUID(), ideaID: nil, inlineTitle: "Past stay", checkInDay: 1,
         checkOutDay: 2),
     ]
     let plan = TripPlan(
       entries: rows,
-      ideasByID: [food.id: food, theater.id: theater, other.id: other],
+      ideasByID: [food.id: food, theater.id: theater, other.id: other, hotel.id: hotel],
       lengthInDays: 4,
       tripStays: stays)
     let result = TripBookingRollup(plan: plan, currentDay: 2)
 
-    #expect(result.toBookCount == 1)
-    #expect(result.toBook.map(\.title) == ["Hotel"])
+    #expect(result.toBookCount == 3)
+    #expect(result.toBook.map(\.title) == ["Hotel", "Harbor Hotel", "Theater"])
     #expect(result.toBook[0].bookingURL == "https://stay.example")
+    #expect(result.toBook[1].bookingURL == "https://harbor.example")
+    #expect(result.toBook[2].day == nil)
     #expect(result.decide.map(\.title) == ["Lunch"])
     #expect(result.decide[0].bookingURL == "https://food.example")
-    #expect(result.booked.map(\.title) == ["Theater", "Lunch"])
-    #expect(result.booked.map(\.sortTime) == [18 * 60, 12 * 60])
+    #expect(result.booked.map(\.title) == ["Theater", "Lunch", "Walk"])
+    #expect(result.booked.map(\.sortTime) == [18 * 60, 12 * 60, 13 * 60])
   }
 
   @Test func bookingColumnsRoundTripAndPinDetailsAreIndependent() async throws {
@@ -98,8 +108,8 @@ struct TripBookingTests {
       try TripStay.setBookingDetails(
         confirmationNumber: "HOTEL-8", bookingURL: "https://hotel.example", stayID: stay, in: db)
       return (
-        try #require(TripIdea.find(idea).fetchOne(db)),
-        try #require(TripStay.find(stay).fetchOne(db)))
+        try #require(try TripIdea.find(idea).fetchOne(db)),
+        try #require(try TripStay.find(stay).fetchOne(db)))
     }
     #expect(values.0.pinnedDate == nil)
     #expect(values.0.confirmationNumber == "CONF-2")

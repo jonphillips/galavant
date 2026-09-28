@@ -8,10 +8,10 @@
 - Split pinned reservation dates from booking details; unpinning preserves the details.
   Added per-row status and stay detail writes, plus resolver, inference, persistence,
   and rollup tests.
-- Verification unavailable. `scripts/check-drift.sh` was attempted with the
-  requested `/Applications/Xcode-beta.app/Contents/Developer`, but that bundle is
-  not installed here (only `/Applications/Xcode.app` is present); SwiftLint stopped
-  before tests or compilation. No simulator was booted.
+- **Verification.** `scripts/check-drift.sh` passed SwiftLint, all 515
+  `GalavantSchemaTests` (7 known issues from older malformed-data tests), and
+  compile/link of `GalavantUITests` with regular Xcode. The UI test bundle was not
+  run and no simulator was booted.
 
 ## Dogfood round 2026-09-28 — Ideas filters, recommendation detail, and map previews — SHIPPED
 

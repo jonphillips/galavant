@@ -71,14 +71,14 @@ private struct BookingFields: View {
     Toggle("Pinned reservation", isOn: $draft.isPinned)
     if draft.isPinned {
       DatePicker("Date", selection: $draft.date, displayedComponents: .date)
-      TextField("Confirmation number", text: $draft.confirmationNumber)
-      TextField("Booking URL", text: $draft.bookingURL)
-        .keyboardType(.URL)
-        .textInputAutocapitalization(.never)
-        .autocorrectionDisabled()
-      TextField("Party size", text: $draft.partySize)
-        .keyboardType(.numberPad)
     }
+    TextField("Confirmation number", text: $draft.confirmationNumber)
+    TextField("Booking URL", text: $draft.bookingURL)
+      .keyboardType(.URL)
+      .textInputAutocapitalization(.never)
+      .autocorrectionDisabled()
+    TextField("Party size", text: $draft.partySize)
+      .keyboardType(.numberPad)
   }
 }
 

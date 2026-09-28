@@ -56,7 +56,7 @@ public struct TripBookingRollup: Equatable, Sendable {
         title: stop.content.title,
         day: entry.dayNumber,
         sortTime: entry.schedule.intraDaySort,
-        bookingURL: effectiveURL(rowURL: entry.bookingURL, ideaURL: stop.idea?.url),
+        bookingURL: Self.effectiveURL(rowURL: entry.bookingURL, ideaURL: stop.idea?.url),
         confirmationNumber: entry.confirmationNumber,
         booking: booking)
       Self.append(item, to: &toBook, decide: &decide, booked: &booked)
@@ -70,7 +70,7 @@ public struct TripBookingRollup: Equatable, Sendable {
         title: stay.content.title,
         day: row.checkInDay,
         sortTime: row.checkInSortMinutes,
-        bookingURL: effectiveURL(rowURL: row.bookingURL, ideaURL: stay.idea?.url),
+        bookingURL: Self.effectiveURL(rowURL: row.bookingURL, ideaURL: stay.idea?.url),
         confirmationNumber: row.confirmationNumber,
         booking: row.resolvedBooking)
       Self.append(item, to: &toBook, decide: &decide, booked: &booked)
