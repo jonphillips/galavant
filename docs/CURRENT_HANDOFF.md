@@ -88,9 +88,6 @@ choice, and a self-contained prompt per slice:
   (c) the paste shows feedback ("N new, M already on this trip"). Recovery needs no code:
   rematching a grey duplicate to the same place raises the `ResolveReconcile` collision,
   and choosing **Merge** folds it into the original.
-- **Booking status (ADR-0047) — Slice 1 core implemented in PR #136.** The pure resolver,
-  additive fields/migration, write split, and trip rollup are done. Editors/row actions
-  and display remain in Scopes 2–3 of the ADR.
 
 ## Pending Xcode 27.0 re-verification — cross-day itinerary drag + sectioned inline reorder
 

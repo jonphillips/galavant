@@ -16,6 +16,7 @@ import SwiftUINavigation
 struct TripDetailContent: View {
   let model: TripPlanningModel
   let reconciliationModel: CalendarReconciliationModel
+  let bookingByRow: [TripBookingRow: ResolvedBooking]
   let usesColumn: Bool
 
   var body: some View {
@@ -111,6 +112,7 @@ struct TripDetailContent: View {
         TripItineraryView(
           model: model,
           reconciliationModel: reconciliationModel,
+          bookingByRow: bookingByRow,
           focusedDay: model.canvasSelectedDay
         )
       case .ideas:

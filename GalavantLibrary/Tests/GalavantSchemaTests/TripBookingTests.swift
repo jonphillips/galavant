@@ -98,6 +98,9 @@ struct TripBookingTests {
     #expect(result.decide[0].bookingURL == "https://food.example")
     #expect(result.booked.map(\.title) == ["Theater", "Lunch", "Walk"])
     #expect(result.booked.map(\.sortTime) == [18 * 60, 12 * 60, 13 * 60])
+    #expect(result.items.count == 11)
+    #expect(result.items.first { $0.row == .stop(rows[0].id) }?.time == "19:00")
+    #expect(result.items.first { $0.row == .stay(stays[0].id) }?.time == "16:00")
   }
 
   @Test func bookingColumnsRoundTripAndPinDetailsAreIndependent() async throws {

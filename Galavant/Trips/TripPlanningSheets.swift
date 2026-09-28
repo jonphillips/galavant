@@ -114,6 +114,127 @@ struct AddIdeasSheet: View {
   }
 }
 
+/// The trip's actionable booking review. Its rows are the one-pass rollup passed
+/// down by `TripPlanningView`; it never resolves booking status itself.
+struct ToBookSheet: View {
+  @Environment(\.dismiss) private var dismiss
+  @Environment(\.openURL) private var openURL
+  let model: TripPlanningModel
+  let rollup: TripBookingRollup
+  @State private var showsBooked = false
+
+  var body: some View {
+    NavigationStack {
+      List {
+        if !rollup.toBook.isEmpty {
+          Section("To Book") {
+            ForEach(rollup.toBook, id: \.row) { item in
+              toBookRow(item)
+            }
+          }
+        }
+
+        if !rollup.decide.isEmpty {
+          Section("Decide") {
+            ForEach(rollup.decide, id: \.row) { item in
+              decideRow(item)
+            }
+          }
+        }
+
+        if !rollup.booked.isEmpty {
+          Section {
+            DisclosureGroup("Booked", isExpanded: $showsBooked) {
+              ForEach(rollup.booked, id: \.row) { item in
+                bookedRow(item)
+              }
+            }
+          }
+        }
+      }
+      .navigationTitle("To Book")
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .confirmationAction) {
+          Button("Done") { dismiss() }
+        }
+      }
+    }
+    .presentationDetents([.medium, .large])
+  }
+
+  private func toBookRow(_ item: TripBookingItem) -> some View {
+    VStack(alignment: .leading, spacing: 8) {
+      itemTitle(item)
+      HStack {
+        if let url = item.bookingURL.flatMap(URL.init(string:)) {
+          Button("Book") { openURL(url) }
+        }
+        Button("Mark booked") {
+          model.setBookingStatus(.booked, for: item.row)
+        }
+        .buttonStyle(.borderedProminent)
+      }
+      .font(.subheadline)
+    }
+    .padding(.vertical, 2)
+  }
+
+  private func decideRow(_ item: TripBookingItem) -> some View {
+    VStack(alignment: .leading, spacing: 8) {
+      itemTitle(item)
+      HStack {
+        Button("To book") {
+          model.setBookingStatus(.toBook, for: item.row)
+        }
+        .buttonStyle(.borderedProminent)
+        Button("Not needed") {
+          model.setBookingStatus(.notNeeded, for: item.row)
+        }
+        .buttonStyle(.bordered)
+      }
+      .font(.subheadline)
+    }
+    .padding(.vertical, 2)
+  }
+
+  private func bookedRow(_ item: TripBookingItem) -> some View {
+    VStack(alignment: .leading, spacing: 6) {
+      itemTitle(item)
+      if let confirmation = item.confirmationNumber,
+        !confirmation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      {
+        LabeledContent("Confirmation") {
+          Text(confirmation).textSelection(.enabled)
+        }
+        .font(.subheadline)
+      }
+    }
+    .padding(.vertical, 2)
+  }
+
+  private func itemTitle(_ item: TripBookingItem) -> some View {
+    Button {
+      model.editBookingItem(item)
+    } label: {
+      VStack(alignment: .leading, spacing: 2) {
+        Text(item.title)
+          .foregroundStyle(.primary)
+        Text(timing(for: item))
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+      }
+    }
+    .buttonStyle(.plain)
+  }
+
+  private func timing(for item: TripBookingItem) -> String {
+    let day = item.day.map { dayLabel($0, trip: model.trip) } ?? "To Be Scheduled"
+    guard let time = item.time else { return day }
+    return "\(day) · \(time)"
+  }
+}
+
 struct AlternativeAddMenu: View {
   let model: TripPlanningModel
   let targetStopID: TripIdea.ID

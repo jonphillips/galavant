@@ -3,6 +3,7 @@ import SwiftUI
 struct HomeBaseRow: View {
   let stay: ResolvedStay
   let isOverlapping: Bool
+  let booking: ResolvedBooking?
   let onEdit: (ResolvedStay) -> Void
 
   var body: some View {
@@ -24,6 +25,7 @@ struct HomeBaseRow: View {
         }
       }
       Spacer()
+      BookingStatusGlyph(booking: booking)
       if isOverlapping {
         Image(systemName: "exclamationmark.triangle.fill")
           .imageScale(.small)
@@ -84,6 +86,7 @@ struct CalendarConstraintRow: View {
 struct CheckRow: View {
   let stay: ResolvedStay
   let isCheckIn: Bool
+  let booking: ResolvedBooking?
   let onEdit: (ResolvedStay) -> Void
 
   var body: some View {
@@ -114,6 +117,7 @@ struct CheckRow: View {
         }
       }
       Spacer()
+      BookingStatusGlyph(booking: booking)
       if let trailing = display.trailing {
         Text(trailing).font(.subheadline.monospaced()).foregroundStyle(.secondary)
       }
@@ -127,6 +131,7 @@ struct CheckRow: View {
 struct StopRow: View {
   let model: TripPlanningModel
   let resolved: ResolvedStop
+  var booking: ResolvedBooking?
   var sequence: [TripIdea.ID: Int] = [:]
   var includesLifecycleSwipeActions = true
   let onRemove: (TripIdea.ID, String) -> Void
@@ -157,7 +162,7 @@ struct StopRow: View {
           subtitle: .none,
           marker: marker
         ) {
-          StopRowAccessory(model: model, resolved: resolved)
+          StopRowAccessory(model: model, resolved: resolved, booking: booking)
         }
         if let ring {
           AlternativeSlotControls(model: model, ring: ring)
@@ -197,6 +202,7 @@ struct StopRow: View {
 struct StopRowAccessory: View {
   let model: TripPlanningModel
   let resolved: ResolvedStop
+  let booking: ResolvedBooking?
 
   var body: some View {
     VStack(alignment: .trailing, spacing: 8) {
@@ -207,6 +213,7 @@ struct StopRowAccessory: View {
             .foregroundStyle(.secondary)
             .accessibilityLabel("Pinned reservation")
         }
+        BookingStatusGlyph(booking: booking)
         StopMenu(model: model, stop: resolved)
       }
       if resolved.idea != nil {
@@ -225,6 +232,26 @@ struct StopRowAccessory: View {
           .buttonStyle(.borderless)
           .accessibilityLabel("Edit custom stop")
         }
+      }
+    }
+  }
+}
+
+/// Booking resolution belongs to the trip rollup; this view only renders the
+/// already-resolved status. Guesses stay visually quiet beside actual decisions.
+struct BookingStatusGlyph: View {
+  let booking: ResolvedBooking?
+
+  var body: some View {
+    if let booking, let status = booking.status {
+      switch status {
+      case .toBook, .booked:
+        (status == .toBook ? Icon.bookingToBook : Icon.bookingBooked).image
+          .font(.caption)
+          .foregroundStyle(booking.source == .inferred ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tint))
+          .accessibilityLabel(status == .toBook ? "Needs booking" : "Booked")
+      case .notNeeded:
+        EmptyView()
       }
     }
   }

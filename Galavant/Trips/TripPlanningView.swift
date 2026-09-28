@@ -60,12 +60,21 @@ struct TripPlanningView: View {
 
   var body: some View {
     @Bindable var model = model
+    // `plan` is reconstructed by the model. Build the booking projection once at
+    // the planning boundary, then pass its resolved values to every display surface.
+    let bookingRollup = TripBookingRollup(plan: model.plan, currentDay: model.liveDay)
+    let bookingByRow = Dictionary(
+      uniqueKeysWithValues: bookingRollup.items.map { ($0.row, $0.booking) })
     CalendarReconciliationPresentationHost(
       model: model,
       reconciliationModel: calendarReconciliationModel,
       isPresented: $showingCalendarReconciliation
     ) {
-      TripPlanningPresentationHost(model: model, showingStartDay: $showingStartDay) {
+      TripPlanningPresentationHost(
+        model: model,
+        bookingRollup: bookingRollup,
+        showingStartDay: $showingStartDay
+      ) {
         VStack(spacing: 0) {
           // The chat inspector attaches *inside* this container, as a child of the
           // toolbar host — not as a sibling modifier on `layout`. An `.inspector`
@@ -73,7 +82,7 @@ struct TripPlanningView: View {
           // iPad (Recommend silently vanished next to Discuss); nesting it strictly
           // below the toolbar host, as IdeasScreen does, keeps every item.
           // (docs/KNOWN-ISSUES.md)
-          layout
+          layout(bookingByRow: bookingByRow)
             .chatPanel(isPresented: $showingChat, context: .trip(model.plan))
         }
       .navigationTitle(model.trip?.name ?? "Trip")
@@ -101,6 +110,16 @@ struct TripPlanningView: View {
           }
           // The trip-shaping tools, promoted from the itinerary's "···" menu so
           // they're one tap away; Start Day / Reconcile appear when they apply.
+          if bookingRollup.toBookCount > 0 {
+            Button { model.destination = .booking } label: {
+              Icon.bookingToBook.label("\(bookingRollup.toBookCount) to book")
+            }
+            .buttonStyle(.bordered)
+          } else if !bookingRollup.decide.isEmpty {
+            Button { model.destination = .booking } label: {
+              Icon.bookingToBook.label("To Book")
+            }
+          }
           Button(action: model.sketchTapped) {
             Label("Shape Trip", systemImage: "compass.drawing")
           }
@@ -195,23 +214,24 @@ struct TripPlanningView: View {
     showDetailSheet = true
   }
 
-  @ViewBuilder private var layout: some View {
+  @ViewBuilder private func layout(bookingByRow: [TripBookingRow: ResolvedBooking]) -> some View {
     if usesColumn {
-      columnLayout
+      columnLayout(bookingByRow: bookingByRow)
     } else {
-      sheetLayout
+      sheetLayout(bookingByRow: bookingByRow)
     }
   }
 
   /// iPad: map on the left, a solid detail column on the right — both live at once,
   /// no translucent overlay.
-  private var columnLayout: some View {
+  private func columnLayout(bookingByRow: [TripBookingRow: ResolvedBooking]) -> some View {
     HStack(spacing: 0) {
-      canvas
+      canvas(bookingByRow: bookingByRow)
       Divider()
       TripDetailContent(
         model: model,
         reconciliationModel: calendarReconciliationModel,
+        bookingByRow: bookingByRow,
         usesColumn: usesColumn
       )
         .frame(width: Self.columnWidth)
@@ -221,14 +241,15 @@ struct TripPlanningView: View {
   }
 
   /// iPhone: full-bleed map under a persistent, Apple-Maps-style bottom sheet.
-  private var sheetLayout: some View {
-    canvas
+  private func sheetLayout(bookingByRow: [TripBookingRow: ResolvedBooking]) -> some View {
+    canvas(bookingByRow: bookingByRow)
       .ignoresSafeArea(.container, edges: .bottom)
       .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { mapHeight = $0 }
       .sheet(isPresented: $showDetailSheet, onDismiss: detailSheetDismissed) {
         TripDetailContent(
           model: model,
           reconciliationModel: calendarReconciliationModel,
+          bookingByRow: bookingByRow,
           usesColumn: usesColumn
         )
           .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { sheetHeight = $0 }
@@ -242,7 +263,7 @@ struct TripPlanningView: View {
 
   /// The map plus its lodging/day lens strips — the left/full-bleed surface in both
   /// layouts.
-  private var canvas: some View {
+  private func canvas(bookingByRow: [TripBookingRow: ResolvedBooking]) -> some View {
     // Day chips sit in a real VStack row ABOVE the map, not a `.safeAreaInset` or
     // `.overlay` over it. MapKit's `Map` ignores a layout inset and draws its
     // interactive surface full-bleed under the chips, and its tap recognizer then
@@ -250,7 +271,7 @@ struct TripPlanningView: View {
     // stacked row gives the map a bounded frame it can't reach past, so the chips
     // stay tappable. (docs/KNOWN-ISSUES.md)
     VStack(spacing: 0) {
-      LodgingCapsuleBar(model: model)
+      LodgingCapsuleBar(model: model, bookingByRow: bookingByRow)
       DayChipBar(model: model)
       TripCanvasMapView(model: model, bottomInsetFraction: bottomInsetFraction)
     }
@@ -285,6 +306,7 @@ private struct CalendarReconciliationPresentationHost<Content: View>: View {
 /// chain, which otherwise exceeds the Xcode 27 beta type checker's practical limit.
 private struct TripPlanningPresentationHost<Content: View>: View {
   let model: TripPlanningModel
+  let bookingRollup: TripBookingRollup
   @Binding var showingStartDay: Bool
   @ViewBuilder let content: Content
 
@@ -298,6 +320,15 @@ private struct TripPlanningPresentationHost<Content: View>: View {
         )
       ) {
         AddIdeasSheet(model: model)
+      }
+      .sheet(
+        isPresented: Binding(
+          get: { model.destination?.is(\.booking) ?? false },
+          set: { model.destination = $0 ? .booking : nil }
+        ),
+        onDismiss: model.bookingSheetDismissed
+      ) {
+        ToBookSheet(model: model, rollup: bookingRollup)
       }
       .sheet(item: $model.destination.recommendationHandoff, id: \.id) { presentation in
         RecommendationHandoffSheet(model: model, session: presentation.session)

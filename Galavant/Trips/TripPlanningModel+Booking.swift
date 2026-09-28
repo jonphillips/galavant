@@ -35,4 +35,45 @@ extension TripPlanningModel {
       }
     }
   }
+
+  /// The To Book sheet's deliberately small writes use the same Slice 1 status
+  /// operations as the editors; resolution remains entirely in `TripBookingRollup`.
+  func setBookingStatus(_ status: BookingStatus, for row: TripBookingRow) {
+    withErrorReporting {
+      try database.write { db in
+        switch row {
+        case let .stop(id):
+          try TripIdea.setBookingStatus(status, stopID: id, in: db)
+        case let .stay(id):
+          try TripStay.setBookingStatus(status, stayID: id, in: db)
+        }
+      }
+    }
+  }
+
+  /// Dismiss the booking review before presenting the selected row's established
+  /// editor — changing two sheet destinations in one transaction is unreliable.
+  func editBookingItem(_ item: TripBookingItem) {
+    switch item.row {
+    case let .stop(id):
+      guard let stop = plan.scheduled.first(where: { $0.id == id }) else { return }
+      if stop.idea == nil {
+        editFreeform(stop)
+      } else {
+        editStop(stop)
+      }
+    case let .stay(id):
+      guard let stay = plan.stays.first(where: { $0.id == id }) else { return }
+      editStay(stay)
+    }
+    queuedDestination = destination
+    destination = nil
+  }
+
+  /// The booking review has fully dismissed, so its selected editor can appear.
+  func bookingSheetDismissed() {
+    guard let next = queuedDestination else { return }
+    queuedDestination = nil
+    destination = next
+  }
 }
