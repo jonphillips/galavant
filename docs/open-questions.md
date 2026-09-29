@@ -67,6 +67,10 @@ broken: render the itinerary as `ScrollView`/`LazyVStack` instead of `List`. See
 
 ## Engineering discipline / small follow-ups
 
+- **Today map reframe after a sync.** `TodayDayMapCard` frames only on appear, on a day change,
+  and at the first device fix. If a sync adds or locates a stop while Today is open, the camera keeps
+  the old box. Wait for dogfood evidence; the fix is to key the reframe on the day's points rather
+  than `day` alone. (From the #145 review.)
 - **UUID dependency-control for new schema ops.** Existing ops call `UUID()` directly
   (`TripOperations`, `PoolOperations`, `Tag`, `TripRegion`, `IdeaTag`). Don't churn
   working code, but *new* vertical slices should accept IDs as args (model supplies a
