@@ -30,56 +30,36 @@ Core loop: shared idea pool → pull onto trip shortlist → schedule into itine
 - Database lives in the app group container (share extension writes to it)
 - Reusable modules go in the local SPM package, with tests
 
-## Prior versions — mine these, don't import wholesale
+## Prior versions
 
-See `docs/MINING.md` for the per-milestone port/adapt/skip inventory.
-
-- V1: `~/code/galavant/galavantios` — full feature vision; share extension +
-  SwiftSoup scraping; boards/social layer is deliberately dead
-- V2: `~/code/galavant/galavant-v2` — better patterns: @Observable models, Destination
-  enums, MapRegions, Schedule enum, GalavantLibrary package
-- V1 server: `~/code/galavant/travelex` (Elixir) — the scraping/enrichment pipeline
-  in `apps/travel/lib/travel/web_scraping/`; design distilled in
-  `docs/scraping-enrichment.md`. (`~/code/galavant/galavantex` is the V2-era server;
-  no scraping. Neither comes back — V3 enriches on-device.)
+V1 (`~/code/galavant/galavantios`), V2 (`~/code/galavant/galavant-v2`), and the V1 Elixir server
+(`~/code/galavant/travelex`) are mined, never imported wholesale — see `docs/MINING.md` and
+`docs/scraping-enrichment.md`. Boards/social and the server are deliberately dead; enrichment is
+on-device.
 
 ## Toolchain (Xcode 27.0)
 
-- Xcode 27.0 is released at `/Applications/Xcode.app` and is the default build
-  toolchain.
-- iOS 27 simulator runtime is installed (iPhone 17 family). Old iOS 17
-  runtimes also present — ignore them.
-- **Deployment target: iOS 27** — bumped in M3a for SwiftUI's native
-  `reorderable()` (the someday-backlog drag-to-reorder). Don't bump further
-  without an API that earns it; wife's devices stay on stable OS.
-- Xcode 27 ships Apple-authored agent skills (`swiftui-specialist`,
-  `swiftui-whats-new-27`, …). Export via
-  `xcrun mcpbridge run-agent skills export --output-dir ~/.claude/skills` —
-  **requires Xcode to be running** (errors otherwise; retry after Jon has
-  launched it once). New OS-27 APIs are past Claude's training cutoff; prefer
-  those skills + current docs over memory.
-- Known issues live in `docs/KNOWN-ISSUES.md`; re-verify observations against the
-  Xcode 27.0 release build before keeping workarounds.
+- Xcode 27.0 at `/Applications/Xcode.app` is the default toolchain; the iOS 27 simulator runtime
+  (iPhone 17 family) is installed.
+- **Deployment target: iOS 27** (for SwiftUI `reorderable()`). Don't bump further without an API
+  that earns it — wife's devices stay on stable OS.
+- OS-27 APIs are past model training cutoffs: prefer Apple's exported agent skills
+  (`swiftui-whats-new-27`, …; refresh per jon-platform `skills/SETUP.md`) and current docs over memory.
+- Known issues live in `docs/KNOWN-ISSUES.md`; re-verify against the release build before keeping
+  a workaround.
 
-## Context Management
-- **Start a fresh conversation at commit/milestone boundaries** (not every task —
-  our exploratory multi-task sessions are fine). The repo (CLAUDE.md, docs/,
-  ADRs, ROADMAP, CURRENT_HANDOFF, DONE_LOG) + auto-memory hold all durable state, so a new session
-  resumes with zero loss. Suggest a fresh start when context is heavy AND the
-  tree is clean (committed).
-- **Don't paste large tool output** (crash reports, full compiler command lines,
-  whole build logs). Save to a file and tell Claude the path, or paste only the
-  error line — Claude greps/tails logs itself.
-- Prefer targeted file reads over re-reading whole files; use subagents for broad
-  codebase searches (they return just the conclusion).
-- `/compact` mid-task if context-heavy but not ready to stop; a fresh session is
-  better when you are.
+## Context management
+
+Follow jon-platform `docs/agent-workflow.md` § Context management and § Token discipline. The
+repo (docs, ADRs, CURRENT_HANDOFF, DONE_LOG) plus auto-memory hold all durable state, so suggest
+a fresh session at commit/milestone boundaries when context is heavy and the tree is clean.
 
 ## Verifying
 
 `scripts/check-drift.sh` is the single entry point: SwiftLint, `swift test
 --package-path GalavantLibrary`, and a `build-for-testing` pass that compiles and
-links `GalavantUITests`. It never boots a simulator — running the UI tests is a
+links `GalavantUITests`. Each stage runs through jon-platform's `quiet-run`,
+so only errors and verdicts print; the full logs stay on disk. It never boots a simulator — running the UI tests is a
 separate, deliberate step.
 
 That last stage exists because `GalavantUITests` is compiled by nothing else here
