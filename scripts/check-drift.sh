@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# The single verification entry point: the triple that docs/M5-EXECUTION.md and
-# docs/M6-EXECUTION.md have always asked for (swiftlint / swift test / app
+# The single verification entry point: the triple that docs/milestones/M5-EXECUTION.md and
+# docs/milestones/M6-EXECUTION.md have always asked for (swiftlint / swift test / app
 # build), plus one guarantee they did not cover — that the test target still
 # compiles and links.
 #
@@ -25,10 +25,17 @@ if [[ -z "${DEVELOPER_DIR:-}" && -d /Applications/Xcode-beta.app/Contents/Develo
   export DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer
 fi
 
-# Same gate as .githooks/pre-commit and ci.yml's lint job.
-swiftlint lint --strict
+# Noisy stages run through jon-platform's quiet-run: full log to a file, only
+# errors and verdicts to the terminal, so an agent's context isn't flooded
+# (jon-platform docs/agent-workflow.md § Token discipline). Without a platform
+# checkout it's empty and the stages run verbose, exactly as before.
+qr="${JON_PLATFORM:-$HOME/code/jon-platform}/scripts/quiet-run"
+[[ -x "$qr" ]] || qr=""
 
-swift test --package-path GalavantLibrary
+# Same gate as .githooks/pre-commit and ci.yml's lint job.
+$qr swiftlint lint --strict
+
+$qr swift test --package-path GalavantLibrary
 
 # ---------------------------------------------------------------------------
 # The test target still compiles and links
@@ -88,7 +95,7 @@ EOF
   # first run. Running UI tests is a separate, deliberate act.
   echo "Building $test_bundle for ${app_destination}..."
   set +e
-  xcodebuild build-for-testing \
+  $qr xcodebuild build-for-testing \
     -scheme "$app_scheme" \
     -destination "$app_destination" \
     -skipMacroValidation \
@@ -112,3 +119,10 @@ $test_bundle was COMPILED AND LINKED, NOT RUN — running UI tests boots a simul
 and is a separate, deliberate step.
 
 EOF
+
+# Handoff hygiene (WARN ONLY): jon-platform's shared check for the ADR-0005
+# document shape. Runs last so its warnings land in the PR's verification output.
+check_handoff="${JON_PLATFORM:-$HOME/code/jon-platform}/scripts/check-handoff"
+if [[ -x "$check_handoff" ]]; then
+  "$check_handoff"
+fi

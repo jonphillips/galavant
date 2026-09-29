@@ -17,7 +17,7 @@ extension Trip {
   /// boundary, later Calendar edits no longer rewrite the trip (ADR-0034 §12). This
   /// deliberately does **not** roll scheduled stops into the pool's visited signal —
   /// that trip-level done→visited rollup is its own lifecycle feature (see
-  /// docs/CURRENT_HANDOFF.md), not a side effect of a Calendar read. Freezing is
+  /// docs/open-questions.md), not a side effect of a Calendar read. Freezing is
   /// idempotent: the first successful post-trip read wins the boundary.
   public static func completeCalendarReconciliation(
     tripID: Trip.ID,

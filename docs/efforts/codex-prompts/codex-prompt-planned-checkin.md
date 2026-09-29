@@ -166,7 +166,7 @@ row's sort position.
 - Amend `docs/decisions/0011-accommodations-as-stays.md`: note the official-vs-planned
   time split (this partially realizes the §4 "booked-vs-planned" seam for times only;
   pinnedDate / confirmation # / booking URL remain future).
-- Add a one-line entry to `docs/DONE_LOG.md` and, if it's tracked as open anywhere,
+- Add a one-line entry to `docs/DONE-LOG.md` and, if it's tracked as open anywhere,
   update `docs/CURRENT_HANDOFF.md`.
 
 ## Acceptance

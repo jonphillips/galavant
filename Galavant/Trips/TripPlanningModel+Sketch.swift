@@ -3,7 +3,7 @@ import GalavantSchema
 import SQLiteData
 
 /// The trip-sketch surface's state and write actions (ADR-0012,
-/// docs/handoff/trip-sketch-design.md): the shape of a trip — how many days, and
+/// docs/efforts/trip-sketch-design.md): the shape of a trip — how many days, and
 /// which region each part sits in — decided before any stop exists.
 ///
 /// The span math is the pure `TripSketch` value type in `GalavantSchema`; what lives

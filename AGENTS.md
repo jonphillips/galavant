@@ -3,6 +3,14 @@
 Private travel-planning app for Jon and his wife (two users, never App Store).
 Core loop: shared idea pool → pull onto trip shortlist → schedule into itinerary.
 
+## Working mode — architect / executor (since 2026-09-29)
+
+Claude = architect (docs, ADRs, milestones, effort briefs, reviews, merges approved
+plan-order PRs; **no feature code**). Codex = executor (builds `docs/NEXT_UP.md`, one
+branch + PR per dispatch). Routing for a bare "go" and "comments posted" is in
+jon-platform `AGENTS.md`; the full loop is `jon-platform/docs/agent-collaboration.md`
+and ADR-0005. Jon approves plans (merges plan PRs) and decides escalations.
+
 ## Read first
 
 - `~/code/jon-platform` — Jon's **cross-app house knowledge base** (general style,
@@ -17,7 +25,11 @@ Core loop: shared idea pool → pull onto trip shortlist → schedule into itine
 - `docs/STYLE.md` — house coding style (structs by default, functional core,
   impossible-states enums, swift-dependencies, no singletons). Consult the
   installed `pfw-*` skills (via `pfw-pfw`) when using Point-Free libraries.
-- `docs/ROADMAP.md` — current milestone
+- `docs/NEXT_UP.md` — the one dispatch; start here (executor: your only planning
+  input — empty → stop and ask). Verification: `docs/verification.md`. The architect
+  also reads `docs/open-questions.md` (candidates; the executor never does).
+  `docs/ROADMAP.md` (44 KB) and `docs/DONE-LOG.md` (75 KB) are grepped for the
+  section you need, never read whole.
 
 ## Stack (see ADR-0001/0002)
 
@@ -28,62 +40,35 @@ Core loop: shared idea pool → pull onto trip shortlist → schedule into itine
 - Database lives in the app group container (share extension writes to it)
 - Reusable modules go in the local SPM package, with tests
 
-## Prior versions — mine these, don't import wholesale
+## Prior versions
 
-See `docs/MINING.md` for the per-milestone port/adapt/skip inventory.
-
-- V1: `~/code/galavant/galavantios` — full feature vision; share extension +
-  SwiftSoup scraping; boards/social layer is deliberately dead
-- V2: `~/code/galavant/galavant-v2` — better patterns: @Observable models, Destination
-  enums, MapRegions, Schedule enum, GalavantLibrary package
-- V1 server: `~/code/galavant/travelex` (Elixir) — the scraping/enrichment pipeline
-  in `apps/travel/lib/travel/web_scraping/`; design distilled in
-  `docs/scraping-enrichment.md`. (`~/code/galavant/galavantex` is the V2-era server;
-  no scraping. Neither comes back — V3 enriches on-device.)
+V1 (`~/code/galavant/galavantios`), V2 (`~/code/galavant/galavant-v2`), and the V1 Elixir server
+(`~/code/galavant/travelex`) are mined, never imported wholesale — see `docs/MINING.md` and
+`docs/scraping-enrichment.md`. Boards/social and the server are deliberately dead; enrichment is
+on-device.
 
 ## Toolchain (Xcode 27.0)
 
-- Xcode 27.0 is released at `/Applications/Xcode.app` and is the default build
-  toolchain.
-- iOS 27 simulator runtime is installed (iPhone 17 family). Old iOS 17
-  runtimes also present — ignore them.
-- **Deployment target: iOS 27** — bumped in M3a for SwiftUI's native
-  `reorderable()` (the someday-backlog drag-to-reorder). Don't bump further
-  without an API that earns it; wife's devices stay on stable OS.
-- Xcode 27 ships Apple-authored agent skills (`swiftui-specialist`,
-  `swiftui-whats-new-27`, …). Export via
-  `xcrun mcpbridge run-agent skills export --output-dir ~/.claude/skills` —
-  **requires Xcode to be running** (errors otherwise; retry after Jon has
-  launched it once). New OS-27 APIs are past Claude's training cutoff; prefer
-  those skills + current docs over memory.
-- Known issues live in `docs/KNOWN-ISSUES.md`; re-verify observations against the
-  Xcode 27.0 release build before keeping workarounds.
+- Xcode 27.0 at `/Applications/Xcode.app` is the default toolchain; the iOS 27 simulator runtime
+  (iPhone 17 family) is installed.
+- **Deployment target: iOS 27** (for SwiftUI `reorderable()`). Don't bump further without an API
+  that earns it — wife's devices stay on stable OS.
+- OS-27 APIs are past model training cutoffs: prefer Apple's exported agent skills
+  (`swiftui-whats-new-27`, …; refresh per jon-platform `skills/SETUP.md`) and current docs over memory.
+- Known issues live in `docs/KNOWN-ISSUES.md`; re-verify against the release build before keeping
+  a workaround.
 
-## Context Management
-- **Start a fresh conversation at commit/milestone boundaries** (not every task —
-  our exploratory multi-task sessions are fine). The repo (CLAUDE.md, docs/,
-  ADRs, ROADMAP, CURRENT_HANDOFF, DONE_LOG) + auto-memory hold all durable state, so a new session
-  resumes with zero loss. Suggest a fresh start when context is heavy AND the
-  tree is clean (committed).
-- **Don't paste large tool output** (crash reports, full compiler command lines,
-  whole build logs). Save to a file and tell Claude the path, or paste only the
-  error line — Claude greps/tails logs itself.
-- Prefer targeted file reads over re-reading whole files; use subagents for broad
-  codebase searches (they return just the conclusion).
-- `/compact` mid-task if context-heavy but not ready to stop; a fresh session is
-  better when you are.
+## Context management
+
+Follow jon-platform `docs/agent-workflow.md` § Context management and § Token discipline. The
+repo (docs, ADRs, NEXT_UP, open-questions, DONE-LOG) plus auto-memory hold all durable state, so suggest
+a fresh session at commit/milestone boundaries when context is heavy and the tree is clean.
 
 ## Verifying
 
-`scripts/check-drift.sh` is the single entry point: SwiftLint, `swift test
---package-path GalavantLibrary`, and a `build-for-testing` pass that compiles and
-links `GalavantUITests`. It never boots a simulator — running the UI tests is a
-separate, deliberate step.
-
-That last stage exists because `GalavantUITests` is compiled by nothing else here
-and run by nothing in CI, which is precisely how a test target rots without
-anyone noticing. `GALAVANT_SKIP_TEST_BUILD=1` skips it and says loudly that it
-did.
+Per [`docs/verification.md`](docs/verification.md): `scripts/check-drift.sh` is the single gate
+(lint, package tests, UI-test build, handoff hygiene), plus headless app-target tests when a
+dispatch touches app models. Compile-only; Jon reviews on device.
 
 - **Declare what you use, even when you got it for free.** `import SQLiteData`
   hands you GRDB's `Database`/`DatabaseWriter` via `@_exported`, but that is a

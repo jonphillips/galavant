@@ -83,7 +83,7 @@ existing link path.* Almost everything else already exists:
 
 ## Prompt 0 — Extract a reusable POI-selection map
 
-> Read the Shared Context in `docs/handoff/calendar-constraint-to-linked-stop.md`
+> Read the Shared Context in `docs/efforts/calendar-constraint-to-linked-stop.md`
 > first. **Refactor only — behavior-preserving.**
 >
 > Today the "tap a real Apple Maps place → resolve to a `Place` with a
@@ -238,7 +238,7 @@ existing link path.* Almost everything else already exists:
 >   Calendar-originated constraint may be promoted by assigning a place, which flips
 >   it into a Galavant-originated plan + linked commitment (§6) under `.linked` time
 >   authority (§9). One or two paragraphs; reference this handoff doc.
-> - Update `docs/CURRENT_HANDOFF.md` status pointer and `docs/DONE_LOG.md` per repo
+> - Update `docs/CURRENT_HANDOFF.md` status pointer and `docs/DONE-LOG.md` per repo
 >   convention once the PR is green.
 > - Flip this file's Status line to Shipped with the branch/PR.
 

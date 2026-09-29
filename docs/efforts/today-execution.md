@@ -14,7 +14,7 @@ Implements: ADR-0039 (`docs/decisions/0039-today-execution-completion-skip-defer
 Read it first — it carries the *why* and the decisions; this brief is the *how*.
 Supersedes ADR-0038's read-only restraint for Today (Journey stays read-only).
 
-Depends on: the day-preview slice (`docs/handoff/today-day-preview.md`). This brief
+Depends on: the day-preview slice (`docs/efforts/today-day-preview.md`). This brief
 assumes `TodayView` already has the `isPreviewing` / `currentDay` / `renderNow`
 machinery from that work. If that hasn't landed yet, land it first.
 

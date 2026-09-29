@@ -126,7 +126,7 @@ booking yet.
   reservation holds its real date if the trip slides").
 - **Row action "Mark booked"** through the existing stop menu (`StopMenu`), not a
   long-press `.contextMenu` on the reorderable row (the paid-for gotcha in
-  `docs/handoff/sectioned-reorder-inline-boundaries.md`).
+  `docs/efforts/sectioned-reorder-inline-boundaries.md`).
 - Setting a confirmation number or pinning a date doesn't write `bookingStatus`; the
   evidence rule (§2.1) already makes it read as booked. Clearing the evidence falls back
   to whatever was stored.

@@ -97,7 +97,7 @@ extension Trip {
   }
 
   /// Set the trip's duration in days (clamped to `>= 1`) — the trip sketch's
-  /// duration control (docs/handoff/trip-sketch-design.md). Same fact the new-trip
+  /// duration control (docs/efforts/trip-sketch-design.md). Same fact the new-trip
   /// form's Duration stepper writes; a focused op so the sketch can change length
   /// without folding a whole `Trip.Draft` and its certainty back through `update`.
   /// The itinerary is day-relative (docs/trip-time-model.md), so shortening simply

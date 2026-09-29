@@ -1,7 +1,7 @@
 import CloudSyncKit
 import SwiftUI
 
-/// The sync-health row at the top of Settings (docs/M5-EXECUTION.md → M5-sync, slice
+/// The sync-health row at the top of Settings (docs/milestones/M5-EXECUTION.md → M5-sync, slice
 /// 3): a colored dot + one line saying whether CloudKit sync is live, local-only, or
 /// broken — tappable to a small detail with the reason, pending count, and a "Try
 /// again". When the gate is off, the row is the enable affordance.

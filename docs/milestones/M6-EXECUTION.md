@@ -7,7 +7,7 @@ to completing the old M6 sequence as written. Finish M5's two-device/TestFlight 
 then use real planning behavior to decide the smallest next product change.
 
 **Related:** `ROADMAP.md` (current milestone framing) · ADR-0014 through ADR-0031
-(historical decisions and shipped constraints) · `CURRENT_HANDOFF.md` (current queue).
+(historical decisions and shipped constraints) · `../open-questions.md` (candidates) and `../NEXT_UP.md` (the dispatch).
 
 ## What exists now
 

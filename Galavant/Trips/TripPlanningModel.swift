@@ -147,7 +147,7 @@ final class TripPlanningModel {
     /// to Edit Trip's Regions picker instead of an empty menu.
     case editTripRegions(Trip.Draft)
     /// Sketch the trip's shape — days × regions — before any stop exists
-    /// (docs/handoff/trip-sketch-design.md).
+    /// (docs/efforts/trip-sketch-design.md).
     case sketch(TripSketchPresentation)
     /// Review the trip-wide, projection-backed list of booking decisions.
     case booking

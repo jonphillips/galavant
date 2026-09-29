@@ -4,7 +4,7 @@ Status: **In progress** — 2026-09-12. Seven slices, one new ADR. **Slices A, F
 0, D and E shipped** (a sense of *now* on the planning surface, PR #115; Today's non-stop
 events, ADR-0038 §10; device location and the blue dot, ADR-0046; heterogeneous connectors
 + the ADR-0046 §5 recentre-on-me gesture; the day-header region chip #119; stay notes #120;
-the trip sketch — days × regions, `docs/handoff/trip-sketch-design.md`) and are retired
+the trip sketch — days × regions, `docs/efforts/trip-sketch-design.md`) and are retired
 from this brief; the only remaining open slice is **B2** (daily map on Today). All
 Claude-executed (Codex is on the separate "cockpit" app — unrelated to this repo's iPhone
 cockpit, which is **Today**).
@@ -24,7 +24,7 @@ the *why*; this brief is the *how*.
 ## Terminology
 
 "Cockpit" now means three things. In **this repo** it only ever means the *iPhone
-cockpit* = **Today** (ADR-0038/0039, `docs/M10-EXECUTION.md`) or the *evaluation
+cockpit* = **Today** (ADR-0038/0039, `docs/milestones/M10-EXECUTION.md`) or the *evaluation
 cockpit* = **Evaluate**/`RecommendationWorkspace` (ADR-0037). Jon's separate
 **"cockpit" app** is a different codebase entirely and has nothing to do with any
 slice here. Everything in this brief is Galavant, and all of it is Claude's.
@@ -265,7 +265,7 @@ Read first: AGENTS.md, docs/STYLE.md, the ADRs named in the prompt.
 > **Verify:** `scripts/check-drift.sh`, plus unit tests for the live-day derivation
 > and the seeding rule (including: undated trip, trip in the past, trip in the
 > future, day 1 and day N boundaries). Branch `feat/planning-sense-of-now`, land via
-> PR. Update `docs/CURRENT_HANDOFF.md` / `docs/DONE_LOG.md` per house rule.
+> PR. Update `docs/CURRENT_HANDOFF.md` / `docs/DONE-LOG.md` per house rule.
 
 ---
 
@@ -273,7 +273,7 @@ Read first: AGENTS.md, docs/STYLE.md, the ADRs named in the prompt.
 
 The ADR the prompt asked for is
 [`docs/decisions/0046-device-location-ephemeral-when-in-use.md`](../decisions/0046-device-location-ephemeral-when-in-use.md);
-what was built is in `docs/DONE_LOG.md`. Two notes for B2, the dependent slice:
+what was built is in `docs/DONE-LOG.md`. Two notes for B2, the dependent slice:
 
 - The seam it consumes is `LocationClient.updates` (`Galavant/LocationClient.swift`) — an
   `AsyncStream<LocationReading>`. The Info.plist key is already in `project.yml`.
@@ -294,7 +294,7 @@ what was built is in `docs/DONE_LOG.md`. Two notes for B2, the dependent slice:
 >
 > **Read first:** `AGENTS.md`, `docs/decisions/0038-journey-today-projections-and-weather.md`,
 > `docs/decisions/0039-today-execution-completion-skip-defer.md`,
-> `docs/M10-EXECUTION.md`, and `Galavant/Trips/TripCanvasMapView.swift` (the idioms
+> `docs/milestones/M10-EXECUTION.md`, and `Galavant/Trips/TripCanvasMapView.swift` (the idioms
 > to mirror, not to copy wholesale).
 >
 > **Problem.** Today is a `ScrollView` of cards with no spatial view at all. On the
@@ -341,7 +341,7 @@ endpoints, not a gate on whether it exists; the weave's insertion bookkeeping an
 constraint's transparency, checkout-with-no-arrival, stop-before-mid-day-check-in,
 unlocated stays) each landed with a named test in
 `GalavantSchemaTests/HeterogeneousConnectorTests.swift`. The **recentre-on-me** gesture
-(ADR-0046 §5) shipped alongside. What's built is in `docs/DONE_LOG.md`.
+(ADR-0046 §5) shipped alongside. What's built is in `docs/DONE-LOG.md`.
 
 ---
 
@@ -406,7 +406,7 @@ table, ADR-0012) — shipped. Pure `TripSketch`/`DaySpan` span core in `Galavant
 `TripSketchSheet` reachable from the trip settings menu and the empty-itinerary CTA;
 per-span "Add lodging" reuses `StaySheet`; regions are attached (not created) inline via
 Edit Trip's Regions picker. Design + Jon's Q1–Q3 sign-off:
-`docs/handoff/trip-sketch-design.md`. What's built is in `docs/DONE_LOG.md`.
+`docs/efforts/trip-sketch-design.md`. What's built is in `docs/DONE-LOG.md`.
 
 ---
 
@@ -414,4 +414,4 @@ Edit Trip's Regions picker. Design + Jon's Q1–Q3 sign-off:
 
 Retire slices from this brief as they ship (per the `CURRENT_HANDOFF.md` rule — an
 entry that is done gets deleted, not annotated). When the last slice lands, mark this
-brief **Done** in `docs/handoff/README.md` and move the summary to `docs/DONE_LOG.md`.
+brief **Done** in `docs/efforts/README.md` and move the summary to `docs/DONE-LOG.md`.

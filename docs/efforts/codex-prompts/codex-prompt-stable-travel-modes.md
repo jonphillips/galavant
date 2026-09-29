@@ -176,7 +176,7 @@ before the reorder write, perform the write, recompute `plan.legIdentities`, the
 - Add a short decision note under `docs/decisions/` (next ADR number) — "travel-mode
   overrides keyed by stable slot identity" — recording the identity rule, the ETA-cache
   stays coordinate-keyed, the migration reset, and the carry-outgoing move heuristic.
-- One line in `docs/DONE_LOG.md`; update `docs/CURRENT_HANDOFF.md` if tracked there.
+- One line in `docs/DONE-LOG.md`; update `docs/CURRENT_HANDOFF.md` if tracked there.
 
 ## Acceptance
 

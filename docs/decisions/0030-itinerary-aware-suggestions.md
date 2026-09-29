@@ -136,4 +136,4 @@ places the stop and it flows into the itinerary live via `@FetchAll`.
   in-memory DB tests.
 - **Slice 3 — the UI:** suggestion cards in the Trip inspector + "Suggest for <day>";
   `swiftui-specialist` checkpoint.
-- **Slice 4 — docs:** flip to accepted; ROADMAP / BACKLOG / `docs/M6-EXECUTION.md`.
+- **Slice 4 — docs:** flip to accepted; ROADMAP / BACKLOG / `docs/milestones/M6-EXECUTION.md`.

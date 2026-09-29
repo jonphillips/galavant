@@ -148,7 +148,7 @@ failed:
 - **Cross-repo:** `yes-chef/docs/decisions/ADR-0055-drag-and-drop-on-the-sanctioned-reorder-path.md`
   carries the full analysis and the rebuild plan (sectioned `.reorderable(collectionID:)` +
   `.reorderContainer(for:in:)` for a day-sectioned list — directly applicable to
-  `fullItinerary`). Also tracked in docs/CURRENT_HANDOFF.md.
+  `fullItinerary`). Also tracked in docs/open-questions.md.
 - **Beta-5 update (2026-08-19) — the *single-collection* reorder path is unblocked; the
   itinerary is being rebuilt on it in slices.** The park above bundled two things this
   entry can now separate:

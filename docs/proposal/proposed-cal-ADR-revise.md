@@ -528,7 +528,7 @@ Deterministic structured reconciliation should be preferred wherever possible. M
 
 ## Supersedes / amends
 
-This ADR **supersedes the M5-calendar design** in `docs/M5-EXECUTION.md`, specifically:
+This ADR **supersedes the M5-calendar design** in `docs/milestones/M5-EXECUTION.md`, specifically:
 
 - the dedicated local `Galavant Travel` calendar;
 - the “project, never ingest” principle;
@@ -545,7 +545,7 @@ This ADR **preserves but amends M5-pinned**:
 - absolute commitments remain outside the `Schedule` facade;
 - but a Calendar-linked commitment derives its live authoritative state from Calendar rather than from an independently authoritative Galavant copy.
 
-`docs/CURRENT_HANDOFF.md`, `docs/ROADMAP.md`, `docs/M5-EXECUTION.md`, and `docs/trip-time-model.md` should be updated when this ADR is accepted so that they no longer point future work toward the superseded mirror design.
+`docs/CURRENT_HANDOFF.md`, `docs/ROADMAP.md`, `docs/milestones/M5-EXECUTION.md`, and `docs/trip-time-model.md` should be updated when this ADR is accepted so that they no longer point future work toward the superseded mirror design.
 
 ## Consequences
 
