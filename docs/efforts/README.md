@@ -23,6 +23,7 @@ backfilled **on touch**; the table below is the current index.
 | [evaluate-duplicate-candidate-sets.md](evaluate-duplicate-candidate-sets.md) | Dogfood 2026-09-28 item 2: re-paste duplicates candidates and orphans resolved rows | Done |
 | [booking-scope-4-hint-and-today.md](booking-scope-4-hint-and-today.md) | ADR-0047 Scope 4 — handoff "book ahead" hint seeds To book; Today "Still to book" card | Done (2026-09-29) |
 | [today-day-map.md](today-day-map.md) | Dogfood B2 — a glanceable day map on Today (route, base, next, device in the union frame; ADR-0046 §5) | Done (2026-09-29) |
+| [today-polish.md](today-polish.md) | Review follow-ups from #145/#143 — live-day map keeps the device across a day rollover; `bookingsDue` doc comment | Dispatched (2026-09-29) |
 | [codex-recommendation-brief-stops.md](codex-recommendation-brief-stops.md) | Recommendation brief stops (moved from `docs/handoffs/`) | See doc |
 
 **Authoring a brief:** add its entry here in the same change (index at creation), give it a
