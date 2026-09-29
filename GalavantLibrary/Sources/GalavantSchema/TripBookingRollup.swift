@@ -1,7 +1,7 @@
 import Foundation
 
 /// A trip-row identity, keeping booking decisions scoped to individual ring members.
-public enum TripBookingRow: Equatable, Sendable {
+public enum TripBookingRow: Hashable, Sendable {
   case stop(TripIdea.ID)
   case stay(TripStay.ID)
 }
@@ -11,6 +11,8 @@ public struct TripBookingItem: Equatable, Sendable {
   public let title: String
   public let day: Int?
   public let sortTime: Int
+  /// An exact local time when this item has one; nil for daypart and all-day rows.
+  public let time: String?
   public let bookingURL: String?
   public let confirmationNumber: String?
   public let booking: ResolvedBooking
@@ -20,6 +22,7 @@ public struct TripBookingItem: Equatable, Sendable {
     title: String,
     day: Int?,
     sortTime: Int,
+    time: String?,
     bookingURL: String?,
     confirmationNumber: String?,
     booking: ResolvedBooking
@@ -28,6 +31,7 @@ public struct TripBookingItem: Equatable, Sendable {
     self.title = title
     self.day = day
     self.sortTime = sortTime
+    self.time = time
     self.bookingURL = bookingURL
     self.confirmationNumber = confirmationNumber
     self.booking = booking
@@ -39,46 +43,57 @@ public struct TripBookingRollup: Equatable, Sendable {
   public let toBook: [TripBookingItem]
   public let decide: [TripBookingItem]
   public let booked: [TripBookingItem]
+  /// Every scheduled stop and stay's resolved booking, including rows that the
+  /// actionable sections omit because they are past, complete, or skipped.
+  public let items: [TripBookingItem]
   public var toBookCount: Int { toBook.count }
 
   public init(plan: TripPlan, currentDay: Int?) {
     var toBook: [TripBookingItem] = []
     var decide: [TripBookingItem] = []
     var booked: [TripBookingItem] = []
+    var items: [TripBookingItem] = []
 
     for stop in plan.scheduled {
       let entry = stop.entry
-      guard entry.completedAt == nil, entry.skippedAt == nil else { continue }
-      if let currentDay, let day = entry.dayNumber, day < currentDay { continue }
       let booking = entry.resolvedBooking(idea: stop.idea)
       let item = TripBookingItem(
         row: .stop(entry.id),
         title: stop.content.title,
         day: entry.dayNumber,
         sortTime: entry.schedule.intraDaySort,
+        time: entry.schedule.bookingTime,
         bookingURL: Self.effectiveURL(rowURL: entry.bookingURL, ideaURL: stop.idea?.url),
         confirmationNumber: entry.confirmationNumber,
         booking: booking)
+      items.append(item)
+      guard entry.completedAt == nil, entry.skippedAt == nil else { continue }
+      if let currentDay, let day = entry.dayNumber, day < currentDay { continue }
       Self.append(item, to: &toBook, decide: &decide, booked: &booked)
     }
 
     for stay in plan.stays {
-      guard currentDay.map({ stay.stay.checkInDay >= $0 }) ?? true else { continue }
       let row = stay.stay
       let item = TripBookingItem(
         row: .stay(row.id),
         title: stay.content.title,
         day: row.checkInDay,
         sortTime: row.checkInSortMinutes,
+        time: row.plannedCheckInTime ?? row.checkInTime,
         bookingURL: Self.effectiveURL(rowURL: row.bookingURL, ideaURL: stay.idea?.url),
         confirmationNumber: row.confirmationNumber,
         booking: row.resolvedBooking)
+      items.append(item)
+      // A stay remains actionable while it has a night remaining; on check-out day
+      // it leaves the to-book, decide, and booked sections.
+      guard currentDay.map({ row.checkOutDay > $0 }) ?? true else { continue }
       Self.append(item, to: &toBook, decide: &decide, booked: &booked)
     }
 
     self.toBook = Self.sorted(toBook)
     self.decide = Self.sorted(decide)
     self.booked = Self.sorted(booked)
+    self.items = items
   }
 
   private static func append(
@@ -112,5 +127,12 @@ public struct TripBookingRollup: Equatable, Sendable {
       return nil
     }
     return ideaURL
+  }
+}
+
+private extension Schedule {
+  var bookingTime: String? {
+    guard case let .timed(_, start, _) = self else { return nil }
+    return start
   }
 }

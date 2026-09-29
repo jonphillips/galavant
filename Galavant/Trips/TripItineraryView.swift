@@ -9,6 +9,7 @@ import SwiftUI
 struct TripItineraryView: View {
   let model: TripPlanningModel
   let reconciliationModel: CalendarReconciliationModel
+  let bookingByRow: [TripBookingRow: ResolvedBooking]
   /// When set, render only this day's stops (the canvas day lens). Nil = the
   /// whole trip.
   var focusedDay: Int?
@@ -217,6 +218,7 @@ struct TripItineraryView: View {
         StopRow(
           model: model,
           resolved: stop,
+          booking: bookingByRow[.stop(stop.id)],
           sequence: sequence,
           includesLifecycleSwipeActions: false,
           onRemove: requestStopRemoval)
@@ -248,7 +250,11 @@ struct TripItineraryView: View {
       if !bucket.isEmpty {
         Section {
           ForEach(bucket) { resolved in
-            StopRow(model: model, resolved: resolved, onRemove: requestStopRemoval)
+            StopRow(
+              model: model,
+              resolved: resolved,
+              booking: bookingByRow[.stop(resolved.id)],
+              onRemove: requestStopRemoval)
           }
         } header: {
           SectionHeader(label: "To Be Scheduled", day: nil, model: model)
@@ -309,7 +315,12 @@ struct TripItineraryView: View {
   ) -> some View {
     switch item {
     case .stop(let resolved):
-      StopRow(model: model, resolved: resolved, sequence: sequence, onRemove: requestStopRemoval)
+      StopRow(
+        model: model,
+        resolved: resolved,
+        booking: bookingByRow[.stop(resolved.id)],
+        sequence: sequence,
+        onRemove: requestStopRemoval)
     case .calendarConstraint(let constraint):
       CalendarConstraintRow(constraint: constraint) { selectedCalendarConstraint = $0 }
     case .connector(let connector):
@@ -317,13 +328,22 @@ struct TripItineraryView: View {
     case .nowMarker:
       NowMarkerRow()
     case .checkIn(let stay):
-      CheckRow(stay: stay, isCheckIn: true, onEdit: model.editStay)
+      CheckRow(
+        stay: stay,
+        isCheckIn: true,
+        booking: bookingByRow[.stay(stay.id)],
+        onEdit: model.editStay)
     case .checkOut(let stay):
-      CheckRow(stay: stay, isCheckIn: false, onEdit: model.editStay)
+      CheckRow(
+        stay: stay,
+        isCheckIn: false,
+        booking: bookingByRow[.stay(stay.id)],
+        onEdit: model.editStay)
     case .homeBase(let stay):
       HomeBaseRow(
         stay: stay,
         isOverlapping: model.plan.overlappingStayIDs.contains(stay.id),
+        booking: bookingByRow[.stay(stay.id)],
         onEdit: model.editStay)
     }
   }

@@ -79,7 +79,7 @@ struct TripBookingTests {
       TripStay(id: UUID(), tripID: UUID(), ideaID: nil, inlineTitle: "Hotel", checkInDay: 2,
         checkOutDay: 4, plannedCheckInTime: "16:00", bookingURL: "https://stay.example"),
       TripStay(id: UUID(), tripID: UUID(), ideaID: hotel.id, checkInDay: 3, checkOutDay: 4),
-      TripStay(id: UUID(), tripID: UUID(), ideaID: nil, inlineTitle: "Past stay", checkInDay: 1,
+      TripStay(id: UUID(), tripID: UUID(), ideaID: nil, inlineTitle: "Checkout today", checkInDay: 1,
         checkOutDay: 2),
     ]
     let plan = TripPlan(
@@ -98,6 +98,24 @@ struct TripBookingTests {
     #expect(result.decide[0].bookingURL == "https://food.example")
     #expect(result.booked.map(\.title) == ["Theater", "Lunch", "Walk"])
     #expect(result.booked.map(\.sortTime) == [18 * 60, 12 * 60, 13 * 60])
+    #expect(result.items.count == 12)
+    #expect(result.items.first { $0.row == .stop(rows[0].id) }?.time == "19:00")
+    #expect(result.items.first { $0.row == .stay(stays[0].id) }?.time == "16:00")
+  }
+
+  @Test func rollupKeepsPastStaysForDisplayButOnlyCountsCurrentOrFutureStays() {
+    let currentStay = TripStay(
+      id: UUID(), tripID: UUID(), ideaID: nil, inlineTitle: "Current stay",
+      checkInDay: 1, checkOutDay: 4)
+    let pastStay = TripStay(
+      id: UUID(), tripID: UUID(), ideaID: nil, inlineTitle: "Checked-out stay",
+      checkInDay: 1, checkOutDay: 2)
+    let plan = TripPlan(entries: [], ideasByID: [:], lengthInDays: 4, tripStays: [currentStay, pastStay])
+    let result = TripBookingRollup(plan: plan, currentDay: 3)
+
+    #expect(result.items.contains { $0.row == .stay(currentStay.id) })
+    #expect(result.items.contains { $0.row == .stay(pastStay.id) })
+    #expect(result.toBook.map(\.title) == ["Current stay"])
   }
 
   @Test func bookingColumnsRoundTripAndPinDetailsAreIndependent() async throws {

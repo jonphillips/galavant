@@ -5,6 +5,7 @@ import SwiftUI
 /// chips. Stays are independent chips rather than a span aligned to the day grid.
 struct LodgingCapsuleBar: View {
   let model: TripPlanningModel
+  let bookingByRow: [TripBookingRow: ResolvedBooking]
 
   var body: some View {
     let stays = model.plan.stays
@@ -25,6 +26,7 @@ struct LodgingCapsuleBar: View {
 
   private func capsule(for stay: ResolvedStay) -> some View {
     let selected = model.canvasSelectedStayID == stay.id
+    let booking = bookingByRow[.stay(stay.id)]
     return Button {
       model.toggleCanvasStay(stay.id)
     } label: {
@@ -33,6 +35,9 @@ struct LodgingCapsuleBar: View {
         Text(stay.content.title)
           .lineLimit(1)
           .fixedSize(horizontal: true, vertical: false)
+        if booking?.status == .toBook {
+          BookingStatusGlyph(booking: booking)
+        }
       }
       .font(.subheadline.weight(selected ? .semibold : .regular))
       .padding(.horizontal, 10)

@@ -31,6 +31,24 @@
   iPhone 17 Pro run passed all seven `GalavantTests` in the mapping and draft suites;
   UI tests were not run.
 
+## ADR-0047 Slice 3 — booking-status display — IMPLEMENTED
+
+- Added the shared ticket vocabulary: outline for a booking still needed and filled
+  for booked. It appears on itinerary stop and stay rows and on lodging capsules;
+  inferred values use the secondary tint, while evidence and explicit choices use
+  the normal tint and VoiceOver labels.
+- The trip toolbar shows a bordered “N to book” action when work remains; a quiet
+  Bookings entry keeps confirmations reachable once it does not. The sheet also stays
+  reachable while a decision is pending. It is driven by one `TripBookingRollup` built
+  per planning render: To Book offers Book links and Mark booked, Decide records To
+  book / Not needed, and Booked stays collapsed with selectable confirmation numbers.
+  Row titles reopen their existing editors.
+- The rollup now also exposes its resolved display items so rows and capsules use
+  the same batch calculation without invoking booking resolution individually.
+- **Verification.** `TripBookingTests` passed, including the rollup display-item
+  coverage. `xcodebuild -scheme Galavant -destination 'platform=iOS Simulator,name=iPhone
+  17 Pro' -skipMacroValidation build` passed with Xcode 27; no simulator was booted.
+
 ## Dogfood round 2026-09-28 — Ideas filters, recommendation detail, and map previews — SHIPPED
 
 - **Subregion chips filter pulled ideas.** Pinned ideas bypass the region

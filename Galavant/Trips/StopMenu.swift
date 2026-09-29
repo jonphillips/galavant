@@ -6,6 +6,8 @@ import SwiftUI
 struct StopMenu: View {
   let model: TripPlanningModel
   let stop: ResolvedStop
+  /// Resolved in the one-pass trip rollup that drives the row glyph.
+  let booking: ResolvedBooking?
 
   private var schedule: Schedule { stop.entry.schedule }
   private var isTimed: Bool {
@@ -47,8 +49,7 @@ struct StopMenu: View {
       if calendarLinked {
         Label("Time from Shared Calendar", systemImage: "calendar.badge.checkmark")
       }
-      let booking = stop.entry.resolvedBooking(idea: stop.idea)
-      if let nextBookingStatus = BookingStatus.quickAction(for: booking) {
+      if let booking, let nextBookingStatus = BookingStatus.quickAction(for: booking) {
         Button(nextBookingStatus == .booked ? "Mark Booked" : "Mark To Book", systemImage: "ticket") {
           model.toggleBookingStatus(for: stop)
         }

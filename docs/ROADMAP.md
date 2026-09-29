@@ -556,3 +556,10 @@ framework-free `WeatherClient` (WeatherKit, device-verified). Shipped:
 
 Deferred per ADR-0038 §8 (someday, not blocking): AI themes, severe-weather/minute
 advisory, device-GPS "you are here", climatology, auto-entry into Today.
+
+## Booking-status follow-up ⏳ *(ADR-0047 Scope 4)*
+
+- ⏳ Add an optional `booking` hint ("book ahead") to the Evaluate/handoff contract,
+  seeding `.toBook` when the recommendation is committed; add a Today warning for a
+  to-book stop on today or tomorrow. Scope is deliberately downstream of the shipped
+  booking status core, editors, and display.
