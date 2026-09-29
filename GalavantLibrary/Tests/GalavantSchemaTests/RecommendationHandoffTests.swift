@@ -218,6 +218,32 @@ struct RecommendationHandoffTests {
     #expect(candidate.placementAfter == "Forestis")
   }
 
+  @Test func bookAheadAcceptsBooleansAndKnownStringsWithoutRejectingDrift() throws {
+    let cases: [(String, Bool?)] = [
+      (#"{"book_ahead":true}"#, true),
+      (#"{"book_ahead":false}"#, false),
+      (#"{"book_ahead":"true"}"#, true),
+      (#"{"book_ahead":"YeS"}"#, true),
+      (#"{"book_ahead":"FALSE"}"#, false),
+      (#"{"book_ahead":"no"}"#, false),
+      (#"{"book_ahead":"maybe"}"#, nil),
+      (#"{"book_ahead":1}"#, nil),
+      (#"{"book_ahead":null}"#, nil),
+      ("{}", nil),
+    ]
+
+    for (object, expected) in cases {
+      let candidate = try #require(TripCandidate.decodeReturn("[\(object)]").only)
+      #expect(candidate.bookAhead == expected)
+    }
+  }
+
+  @Test func projectInstructionsDocumentTheAdditiveBookAheadHint() {
+    #expect(RecommendationHandoffContract.projectInstructions.contains("GV-CONTRACT: v1"))
+    #expect(RecommendationHandoffContract.projectInstructions.contains("book_ahead"))
+    #expect(RecommendationHandoffContract.projectInstructions.contains("timed entry, popular restaurant, show"))
+  }
+
   @Test func malformedReturnFailsLoudly() {
     #expect(throws: TripCandidateDecodeError.malformedJSON) {
       try TripCandidate.decodeReturn("[{\"name\": }]")
@@ -268,6 +294,42 @@ struct RecommendationHandoffTests {
     #expect(committed.inlineNote == "A relaxed dinner after the museum.\n\nWalkable from the old town.")
     #expect(committed.status == .considering)
     #expect(committed.shortlistRank == 4)
+  }
+
+  @Test func bookAheadSeedsOnlyANewCandidateMarkedTrue() async throws {
+    let committed = try await database.write { db -> [TripIdea] in
+      let trip = try Trip.create(name: "South Tyrol", in: db)
+      return try [true, false, nil].map { hint in
+        try TripIdea.commit(
+          candidate: TripCandidate(name: "Place \(String(describing: hint))", bookAhead: hint),
+          into: trip.id,
+          in: db)
+      }
+    }
+
+    #expect(committed.map(\.bookingStatus) == [.toBook, nil, nil])
+  }
+
+  @Test func bookAheadFillsAnUndecidedMatchedRowButNeverOverridesAChoice() async throws {
+    let statuses = try await database.write { db -> [BookingStatus?] in
+      let trip = try Trip.create(name: "South Tyrol", in: db)
+      let undecided = try TripIdea.commit(
+        candidate: TripCandidate(name: "Alpine Museum"), into: trip.id, in: db)
+      let chosen = try TripIdea.commit(
+        candidate: TripCandidate(name: "Mountain Theater"), into: trip.id, in: db)
+      try TripIdea.setBookingStatus(.notNeeded, stopID: chosen.id, in: db)
+
+      _ = try TripIdea.commit(
+        candidate: TripCandidate(name: "Alpine Museum", bookAhead: true), into: trip.id, in: db)
+      _ = try TripIdea.commit(
+        candidate: TripCandidate(name: "Mountain Theater", bookAhead: true), into: trip.id, in: db)
+
+      return try [undecided.id, chosen.id].map {
+        try TripIdea.find($0).fetchOne(db)?.bookingStatus
+      }
+    }
+
+    #expect(statuses == [.toBook, .notNeeded])
   }
 
   @Test func sessionRetainsTheCandidateSetAndItsCommittedStopLinksLocally() throws {

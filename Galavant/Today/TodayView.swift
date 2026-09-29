@@ -232,6 +232,13 @@ struct TodayView: View {
           TodayNoNextCard()
         }
 
+        if !projection.bookingsDue.isEmpty {
+          TodayBookingsDueCard(
+            items: projection.bookingsDue,
+            today: projection.dayContext.dayNumber,
+            planningModel: planningModel)
+        }
+
         let timeline = isPreviewing
           ? projection.remaining.filter {
               if case .item(.nowMarker) = $0 { return false }

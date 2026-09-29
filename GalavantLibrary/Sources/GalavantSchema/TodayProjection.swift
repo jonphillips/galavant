@@ -82,6 +82,8 @@ public struct TodayProjection: Equatable, Sendable {
   public var doneStops: [ResolvedStop]
   /// Stops represented by the collapsed `.skipped(count:)` summary.
   public var skippedStops: [ResolvedStop]
+  /// Booked work due today or on the next trip day, in trip-rollup order.
+  public var bookingsDue: [TripBookingItem]
   public var tonight: Tonight?
   public var tomorrow: Tomorrow?
 
@@ -92,6 +94,7 @@ public struct TodayProjection: Equatable, Sendable {
     remaining: [RemainingItem],
     doneStops: [ResolvedStop] = [],
     skippedStops: [ResolvedStop] = [],
+    bookingsDue: [TripBookingItem] = [],
     tonight: Tonight?,
     tomorrow: Tomorrow?
   ) {
@@ -101,6 +104,7 @@ public struct TodayProjection: Equatable, Sendable {
     self.remaining = remaining
     self.doneStops = doneStops
     self.skippedStops = skippedStops
+    self.bookingsDue = bookingsDue
     self.tonight = tonight
     self.tomorrow = tomorrow
   }
@@ -145,6 +149,18 @@ public struct TodayProjection: Equatable, Sendable {
     let progress = makeProgress(in: items)
 
     let timeline = remainingTimeline(items: items, timing: timing, now: now)
+    let tomorrow = Self.tomorrow(
+      after: dayNumber,
+      tripPlan: tripPlan,
+      tripStartDate: tripStartDate,
+      travelTimes: travelTimes,
+      effectiveModes: effectiveModes,
+      calendar: calendar)
+    let dueDays = Set([dayNumber, tomorrow?.dayContext.dayNumber].compactMap { $0 })
+    let bookingsDue = TripBookingRollup(plan: tripPlan, currentDay: dayNumber).toBook.filter {
+      guard let day = $0.day else { return false }
+      return dueDays.contains(day)
+    }
 
     return Self(
       dayContext: dayContext(for: dayNumber, date: date, tripPlan: tripPlan),
@@ -153,14 +169,9 @@ public struct TodayProjection: Equatable, Sendable {
       remaining: timeline.remaining,
       doneStops: timeline.doneStops,
       skippedStops: timeline.skippedStops,
+      bookingsDue: bookingsDue,
       tonight: tonight(forDay: dayNumber, in: tripPlan),
-      tomorrow: tomorrow(
-        after: dayNumber,
-        tripPlan: tripPlan,
-        tripStartDate: tripStartDate,
-        travelTimes: travelTimes,
-        effectiveModes: effectiveModes,
-        calendar: calendar))
+      tomorrow: tomorrow)
   }
 
   /// The 1-based trip day that `now` falls on, or `nil` when `now` is outside the
@@ -669,4 +680,3 @@ public struct WeatherAnchor: Equatable, Sendable {
     }
   }
 }
-

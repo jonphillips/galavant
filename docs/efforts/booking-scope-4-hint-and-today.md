@@ -1,6 +1,6 @@
 # Effort — booking status Scope 4: handoff "book ahead" hint + Today warning
 
-**Status:** Dispatched (2026-09-29) · **Summary:** let a recommendation say "book ahead" so committing
+**Status:** Done (2026-09-29) · **Summary:** let a recommendation say "book ahead" so committing
 it seeds `.toBook`, and warn on Today about anything still to book today or tomorrow. Implements
 [ADR-0047](../decisions/0047-trip-booking-status.md) § Scope 4, on top of the shipped core, editors, and
 display (#136–#138). One dispatch, two parts, one PR (they're small, and batching saves a dispatch).

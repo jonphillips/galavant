@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## ADR-0047 Scope 4 — book-ahead handoff hint + Today warning (`effort/booking-scope-4-hint-and-today`) — 2026-09-29
+
+- Added the optional `book_ahead` recommendation hint without changing the v1 contract marker. The tolerant decoder accepts booleans and case-insensitive `true`/`yes` and `false`/`no` strings; malformed advisory values do not reject a paste. Committing seeds `.toBook` on a new stop or an undecided matching live stop, while preserving any stored decision. Candidate cards show “Book ahead” before commit.
+- Added `TodayProjection.bookingsDue` from `TripBookingRollup` and a “Still to book” Today card for stops and stays due today or tomorrow. The card offers the effective booking link and uses the existing status write path to mark an item booked.
+- **Verification.** `scripts/check-drift.sh` passed SwiftLint, all GalavantLibrary tests (735 tests across suites, with 7 known issues), and compile/link of `GalavantUITests`. Device follow-up: re-copy the recommendation project instructions, confirm the hint seeds To book, and check the Today card.
+
 ## Evaluate candidate re-paste reconciliation (`effort/evaluate-duplicate-candidate-sets`) — 2026-09-29
 
 - Re-pasting a recommendation set now keeps the original candidates and their committed-row links,

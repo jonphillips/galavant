@@ -60,12 +60,12 @@ public enum RecommendationHandoffContract {
 
     GV-CONTRACT: v1
 
-    Candidate JSON fields are optional: name, locality, search_hint, why, fit, kind, visit, priority, day_ref, placement_after. Use name for the place name, locality for its town or neighborhood, search_hint for an Apple Maps-style query, and why/fit for the trip-specific rationale. priority is an integer when you can rank it. day_ref and placement_after are advisory only.
+    Candidate JSON fields are optional: name, locality, search_hint, why, fit, kind, visit, priority, day_ref, placement_after, book_ahead. Use name for the place name, locality for its town or neighborhood, search_hint for an Apple Maps-style query, and why/fit for the trip-specific rationale. priority is an integer when you can rank it. day_ref and placement_after are advisory only. book_ahead is true when the place needs a reservation or ticket bought in advance (timed entry, popular restaurant, show); omit it otherwise.
 
     Return shape:
     GV-HANDOFF: <token from the brief>
     GV-CONTRACT: v1
-    [{"name":"…","locality":"…","search_hint":"…","why":"…","fit":"…","kind":"…","visit":"…","priority":0,"day_ref":"…","placement_after":"…"}]
+    [{"name":"…","locality":"…","search_hint":"…","why":"…","fit":"…","kind":"…","visit":"…","priority":0,"day_ref":"…","placement_after":"…","book_ahead":true}]
     """
 
   public static func brief(
@@ -136,6 +136,7 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
   public var priority: Int?
   public var dayRef: String?
   public var placementAfter: String?
+  public var bookAhead: Bool?
 
   public init(
     id: UUID = UUID(),
@@ -148,7 +149,8 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
     visit: String? = nil,
     priority: Int? = nil,
     dayRef: String? = nil,
-    placementAfter: String? = nil
+    placementAfter: String? = nil,
+    bookAhead: Bool? = nil
   ) {
     self.id = id
     self.name = name?.nonEmpty
@@ -161,6 +163,7 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
     self.priority = priority
     self.dayRef = dayRef?.nonEmpty
     self.placementAfter = placementAfter?.nonEmpty
+    self.bookAhead = bookAhead
   }
 
   public var rationale: String? {
@@ -175,6 +178,7 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
     case id, name, locality, searchHint = "search_hint", why, fit, kind, visit, priority
     case dayRef = "day_ref"
     case placementAfter = "placement_after"
+    case bookAhead = "book_ahead"
   }
 
   public init(from decoder: any Decoder) throws {
@@ -190,7 +194,8 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
       visit: try values.decodeIfPresent(String.self, forKey: .visit),
       priority: try values.decodeIfPresent(Int.self, forKey: .priority),
       dayRef: try values.decodeIfPresent(String.self, forKey: .dayRef),
-      placementAfter: try values.decodeIfPresent(String.self, forKey: .placementAfter)
+      placementAfter: try values.decodeIfPresent(String.self, forKey: .placementAfter),
+      bookAhead: Self.decodeBookAhead(from: values, forKey: .bookAhead)
     )
   }
 
@@ -207,6 +212,19 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
     try values.encodeIfPresent(priority, forKey: .priority)
     try values.encodeIfPresent(dayRef, forKey: .dayRef)
     try values.encodeIfPresent(placementAfter, forKey: .placementAfter)
+    try values.encodeIfPresent(bookAhead, forKey: .bookAhead)
+  }
+
+  private static func decodeBookAhead(
+    from values: KeyedDecodingContainer<CodingKeys>, forKey key: CodingKeys
+  ) -> Bool? {
+    if let value = try? values.decode(Bool.self, forKey: key) { return value }
+    guard let value = try? values.decode(String.self, forKey: key) else { return nil }
+    return switch value.lowercased() {
+    case "true", "yes": true
+    case "false", "no": false
+    default: nil
+    }
   }
 
   /// Lossless-or-loud boundary: only a complete JSON array enters the review flow.
@@ -307,6 +325,10 @@ extension TripIdea {
     if let existing = RecommendationCandidateSet.liveTripIdea(
       matching: candidate, in: context.tripIdeas, ideasByID: context.ideasByID
     ) {
+      if existing.bookingStatus == nil, candidate.bookAhead == true {
+        try TripIdea.find(existing.id).update { $0.bookingStatus = #bind(BookingStatus.toBook) }.execute(db)
+        return try TripIdea.find(existing.id).fetchOne(db) ?? existing
+      }
       return existing
     }
     let id = UUID()
@@ -317,7 +339,8 @@ extension TripIdea {
       inlineTitle: candidate.name,
       inlineNote: candidate.rationale,
       status: .considering,
-      shortlistRank: candidate.priority ?? 0
+      shortlistRank: candidate.priority ?? 0,
+      bookingStatus: candidate.bookAhead == true ? .toBook : nil
     )
     try TripIdea.insert { TripIdea.Draft(tripIdea) }.execute(db)
     guard let committed = try TripIdea.find(id).fetchOne(db) else { throw TripError.creationFailed }
