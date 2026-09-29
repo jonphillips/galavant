@@ -7,10 +7,6 @@ retired `CURRENT_HANDOFF.md` and `ROADMAP.md`'s open items.
 
 ## Candidates
 
-- **Booking-status Scope 4 (ADR-0047).** Add an optional `booking` hint ("book ahead") to the
-  Evaluate/handoff contract, seeding `.toBook` when the recommendation is committed, plus a Today
-  warning for a to-book stop today or tomorrow. Deliberately downstream of the shipped core, editors,
-  and display (#136–#138).
 - **B2 — daily map on Today**, the last open slice of
   [the 2026-09-11 dogfood brief](efforts/dogfood-now-and-sketch.md). One thing B1 deliberately left
   for B2: the canvas holds no live location session. `UserAnnotation` draws the dot from MapKit's own
