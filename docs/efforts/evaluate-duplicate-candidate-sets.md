@@ -1,6 +1,6 @@
 # Effort — Evaluate duplicate candidate sets
 
-**Status:** Dispatched (2026-09-29) · **Summary:** re-pasting a recommendation result (or a new handoff
+**Status:** Done → DONE-LOG (2026-09-29) · **Summary:** re-pasting a recommendation result (or a new handoff
 session) duplicates candidates and orphans resolved rows; merge on re-paste, link on commit, and say
 what happened. Found in the 2026-09-28 dogfood round (item 2). Implements ADR-0036/0037 behavior.
 

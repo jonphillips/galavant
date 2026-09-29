@@ -124,14 +124,12 @@ extension TripPlanningModel {
       var updatedSession = handoffSessionStore.session(session.id) ?? session
       let merge = try updatedSession.storeRecommendationCandidates(candidates)
       try handoffSessionStore.save(updatedSession)
-      let (tripIdeas, ideasByID) = try database.read { db in
-        let tripIdeas = try TripIdea.where { $0.tripID.eq(tripID) }.fetchAll(db)
-        let ideasByID = Dictionary(uniqueKeysWithValues: try Idea.all.fetchAll(db).map { ($0.id, $0) })
-        return (tripIdeas, ideasByID)
+      let context = try database.read { db in
+        try TripIdea.recommendationMatchingContext(for: tripID, in: db)
       }
       let alreadyOnTrip = candidates.filter {
         RecommendationCandidateSet.liveTripIdea(
-          matching: $0, in: tripIdeas, ideasByID: ideasByID
+          matching: $0, in: context.tripIdeas, ideasByID: context.ideasByID
         ) != nil
       }.count
       let linkedCandidateIDs = Set(

@@ -372,6 +372,38 @@ struct RecommendationHandoffTests {
     expectNoDifference(result, 2)
   }
 
+  @Test func candidateLocalityDistinguishesSameNamedResolvedPlaces() async throws {
+    let counts = try await database.write { db -> (Int, Int) in
+      let trip = try Trip.create(name: "European capitals", in: db)
+      let party = try TravelParty.ensureDefault(in: db)
+      let vienna = Idea(
+        id: UUID(),
+        name: "Café Central",
+        address: "Herrengasse 14, Vienna, Austria",
+        travelPartyID: party.id
+      )
+      try Idea.insert { Idea.Draft(vienna) }.execute(db)
+      let original = try TripIdea.commit(
+        candidate: TripCandidate(name: "Café Central", locality: "Vienna"), into: trip.id, in: db
+      )
+      _ = try TripIdea.attachResolvedIdea(vienna.id, to: original.id, in: db)
+
+      _ = try TripIdea.commit(
+        candidate: TripCandidate(name: "Cafe Central", locality: "Vienna"), into: trip.id, in: db
+      )
+      let afterMatchingLocality = try TripIdea.where { $0.tripID.eq(trip.id) }.fetchCount(db)
+
+      _ = try TripIdea.commit(
+        candidate: TripCandidate(name: "Cafe Central", locality: "Madrid"), into: trip.id, in: db
+      )
+      let afterDifferentLocality = try TripIdea.where { $0.tripID.eq(trip.id) }.fetchCount(db)
+      return (afterDifferentLocality, afterMatchingLocality)
+    }
+
+    expectNoDifference(counts.0, 2)
+    expectNoDifference(counts.1, 1)
+  }
+
   @Test func sessionIsNotEvaluatableUntilAReviewedCandidateIsCommitted() throws {
     let candidate = TripCandidate(name: "Lumiere Brasserie")
     var session = HandoffSession(
