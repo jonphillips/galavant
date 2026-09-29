@@ -1,6 +1,6 @@
 # Effort — a daily map on Today (dogfood B2)
 
-**Status:** Dispatched (2026-09-29) · **Summary:** add a glanceable map card to Today showing the
+**Status:** Done (2026-09-29) · **Summary:** add a glanceable map card to Today showing the
 shown day's numbered route, its lodging base, the next event highlighted, and, on the live day, the
 device's position in the frame. This is the last open slice of
 [the 2026-09-11 dogfood brief](dogfood-now-and-sketch.md) (complaint 1b) and replaces that brief's

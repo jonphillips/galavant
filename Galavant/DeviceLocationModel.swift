@@ -18,6 +18,11 @@ enum DeviceLocationState: Equatable, Sendable {
   case withheld
 }
 
+struct DeviceCoordinate: Equatable, Sendable {
+  let latitude: Double
+  let longitude: Double
+}
+
 /// View-scoped owner of a map's device-location state. Held in a map view's
 /// `@State`, it lives exactly as long as that view does — which is the whole
 /// persistence story for location in this app (ADR-0046 §2): nothing here is
@@ -30,6 +35,7 @@ enum DeviceLocationState: Equatable, Sendable {
 @Observable
 final class DeviceLocationModel {
   private(set) var state: DeviceLocationState
+  private(set) var coordinate: DeviceCoordinate?
 
   @ObservationIgnored @Dependency(\.locationClient) private var locationClient
 
@@ -61,6 +67,20 @@ final class DeviceLocationModel {
       break
     }
     state = Self.state(for: locationClient.authorization())
+  }
+
+  /// Consume ephemeral coordinates for a surface that needs to frame the device
+  /// explicitly. The map view owns this task and starts it only while live and
+  /// authorized. Leaving that lifetime clears the last fix.
+  func followCoordinate() async {
+    guard state == .tracking else { return }
+    defer { coordinate = nil }
+    for await reading in locationClient.updates() {
+      guard !Task.isCancelled else { return }
+      if case let .located(latitude, longitude) = reading {
+        coordinate = DeviceCoordinate(latitude: latitude, longitude: longitude)
+      }
+    }
   }
 
   private static func state(for authorization: LocationAuthorization) -> DeviceLocationState {

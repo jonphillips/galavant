@@ -3,6 +3,18 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## Daily map on Today (`effort/today-day-map`) — 2026-09-29
+
+- Added the Today day map with the day's numbered route, located lodging base, next endpoint highlight,
+  settled-stop dimming, and idea pin taps. The camera frames the day and includes a live device fix
+  only when it is within 20 km of a day point; later fixes move the dot without moving the camera.
+- Extended `DeviceLocationModel` with a view-scoped coordinate stream that only runs while tracking
+  on the live day and clears its ephemeral coordinate when cancelled. Moved `BasePin` into a shared
+  file and reused the haversine distance through `MapFraming`.
+- **Verification.** `scripts/check-drift.sh` passed lint, all GalavantLibrary test suites (including
+  7 previously known issues), and the `GalavantUITests` build. Headless `GalavantTests` passed 35 tests.
+  Device follow-up: check live-day framing with and without location, preview framing, and pin taps.
+
 ## ADR-0047 Scope 4 — book-ahead handoff hint + Today warning (`effort/booking-scope-4-hint-and-today`) — 2026-09-29
 
 - Added the optional `book_ahead` recommendation hint without changing the v1 contract marker. The tolerant decoder accepts booleans and case-insensitive `true`/`yes` and `false`/`no` strings; malformed advisory values do not reject a paste. Committing seeds `.toBook` on a new stop or an undecided matching live stop, while preserving any stored decision. Candidate cards show “Book ahead” before commit.

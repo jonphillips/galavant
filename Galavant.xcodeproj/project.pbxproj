@@ -33,6 +33,7 @@
 		31E7698A7F0335B2B8A738B6 /* TripPlanningStaySheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD6CFE9865ECF5709A038E9C /* TripPlanningStaySheets.swift */; };
 		35E279FA22C85810158AF02C /* DayPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95C568B98EA55277C2DDA065 /* DayPalette.swift */; };
 		365D517B3DC4A900CBF71816 /* LodgingCapsuleBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 850E3CBFE12A2DC66E37F4EB /* LodgingCapsuleBar.swift */; };
+		366D19EF02AE32CB24718C39 /* TodayDayMapCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 699708F3FBBF7D348DBDAD3A /* TodayDayMapCard.swift */; };
 		3B4EC7EE202BCED566C99202 /* LLMHandoffKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4496C6F1494049E3B555A463 /* LLMHandoffKit */; };
 		3DF889FDCBE7A7C979E41F13 /* IdeasScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E13450922E6B719B55DC57BC /* IdeasScreen.swift */; };
 		3E3D5D4D88C8064A2EBEDD04 /* WeatherKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D40170C4D56FC7F76E1992FF /* WeatherKit.framework */; };
@@ -46,6 +47,7 @@
 		466236484A344B3C7C6F3823 /* DirectionsClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 386282278C0DEBD19BF1925E /* DirectionsClient.swift */; };
 		474250E4E109ADF7680100C1 /* IdentityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E049286F9F226AF86DA12541 /* IdentityView.swift */; };
 		47F681EE50E7C8E6AF3C22D3 /* BookingEditorMappingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6A44988F7D404979433FB37 /* BookingEditorMappingTests.swift */; };
+		494449035152F399554A9D57 /* BasePin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24B994A2DC3347E99111DE8F /* BasePin.swift */; };
 		4A303DECCB8DFE842751E12F /* PoolFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 895F90CCD6B6EE453DBD785D /* PoolFlowUITests.swift */; };
 		4B11AB7DFD828A1F103EB408 /* WeatherClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 530B9A2871DE84E2724A58E7 /* WeatherClient.swift */; };
 		4C528609E50B3202B6BB33E7 /* TripCanvasPreviewStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58114810B86AFEBF95E05C07 /* TripCanvasPreviewStateTests.swift */; };
@@ -239,6 +241,7 @@
 		1FDEEFB9B00C30C4D7DE3CBE /* RegionPhotoPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegionPhotoPickerSheet.swift; sourceTree = "<group>"; };
 		201134A6F0FAB081A677EB63 /* AISettingsSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AISettingsSections.swift; sourceTree = "<group>"; };
 		208207E0BC551E1C0AA0E597 /* MapPlaceResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapPlaceResolver.swift; sourceTree = "<group>"; };
+		24B994A2DC3347E99111DE8F /* BasePin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BasePin.swift; sourceTree = "<group>"; };
 		24FAAF80343489A5540F82DF /* WeatherDebugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherDebugView.swift; sourceTree = "<group>"; };
 		292BC932AEA1B53EB11DA125 /* InterestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterestView.swift; sourceTree = "<group>"; };
 		2B2DC50A26F7695EC3EC536A /* StartDayPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartDayPanel.swift; sourceTree = "<group>"; };
@@ -276,6 +279,7 @@
 		62969DCE60557E7FE251E473 /* TripPlanningModel+AlternativeGroups.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripPlanningModel+AlternativeGroups.swift"; sourceTree = "<group>"; };
 		63AC8A1BBF043DAD05084616 /* TripCanvasPreviewState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripCanvasPreviewState.swift; sourceTree = "<group>"; };
 		6839D17655A85296477C1D5D /* TripItineraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripItineraryView.swift; sourceTree = "<group>"; };
+		699708F3FBBF7D348DBDAD3A /* TodayDayMapCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayDayMapCard.swift; sourceTree = "<group>"; };
 		6B2BFEB336259112123DDB21 /* WeatherDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherDetailView.swift; sourceTree = "<group>"; };
 		6B4DF9617E38B656B5A0094F /* LocationClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationClient.swift; sourceTree = "<group>"; };
 		6B9FE29B0BE3BE657414B717 /* PlaceSelectionMap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceSelectionMap.swift; sourceTree = "<group>"; };
@@ -480,6 +484,7 @@
 		1D327EC924239E80FD30ED50 /* Trips */ = {
 			isa = PBXGroup;
 			children = (
+				24B994A2DC3347E99111DE8F /* BasePin.swift */,
 				BAA9983C3B6D9D9B731F96F9 /* DayChipBar.swift */,
 				95C568B98EA55277C2DDA065 /* DayPalette.swift */,
 				386282278C0DEBD19BF1925E /* DirectionsClient.swift */,
@@ -549,6 +554,7 @@
 			isa = PBXGroup;
 			children = (
 				37F4E09F3887184711F38E41 /* TodayCards.swift */,
+				699708F3FBBF7D348DBDAD3A /* TodayDayMapCard.swift */,
 				74A40B8122D91A39A5AB2309 /* TodayModel.swift */,
 				CC88DBCF4AB9A9D219BFDFAD /* TodaySupportingViews.swift */,
 				FE86BAB449019EA409EB6C42 /* TodayView.swift */,
@@ -961,6 +967,7 @@
 				686D8E04502200DBC618B751 /* AppRouter.swift in Sources */,
 				4FA9D5986A89B2B51B88F5C2 /* AppScreen.swift in Sources */,
 				772E0AEEC6BAA440D6D9FD4E /* AssignConstraintLocationSheet.swift in Sources */,
+				494449035152F399554A9D57 /* BasePin.swift in Sources */,
 				52FDF2960D787D40108B3780 /* Binding+Present.swift in Sources */,
 				1284CC7780258FD4F4425010 /* BrowserScreen.swift in Sources */,
 				1BA8684F8293D1EBB16FB70C /* BrowserScreenModel.swift in Sources */,
@@ -1036,6 +1043,7 @@
 				17B078D23DE21D8057EEAD7B /* TagManagerView.swift in Sources */,
 				AE8E879DAE606B08A60BC6D7 /* TagPickerView.swift in Sources */,
 				72EA08F83741EC06BE7CEF25 /* TodayCards.swift in Sources */,
+				366D19EF02AE32CB24718C39 /* TodayDayMapCard.swift in Sources */,
 				76E9D46A29DE8080E15D9DC8 /* TodayModel.swift in Sources */,
 				7C0852DE598E12CE4596E8B3 /* TodaySupportingViews.swift in Sources */,
 				42B830C11BA948FC11994428 /* TodayView.swift in Sources */,

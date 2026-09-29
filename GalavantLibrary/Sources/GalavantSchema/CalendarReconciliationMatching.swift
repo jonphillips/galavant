@@ -48,11 +48,10 @@ extension CalendarReconciliation {
     latitude2: Double,
     longitude2: Double
   ) -> Double {
-    let latitudeDelta = (latitude2 - latitude1) * .pi / 180
-    let longitudeDelta = (longitude2 - longitude1) * .pi / 180
-    let haversine = sin(latitudeDelta / 2) * sin(latitudeDelta / 2)
-      + cos(latitude1 * .pi / 180) * cos(latitude2 * .pi / 180)
-      * sin(longitudeDelta / 2) * sin(longitudeDelta / 2)
-    return 6_371_000 * 2 * atan2(sqrt(haversine), sqrt(1 - haversine))
+    MapFraming.distanceInMeters(
+      latitude1: latitude1,
+      longitude1: longitude1,
+      latitude2: latitude2,
+      longitude2: longitude2)
   }
 }

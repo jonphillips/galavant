@@ -1,7 +1,7 @@
 # Handoff: Dogfood round — a sense of *now*, lodging notes, heterogeneous directions, trip sketching
 
-Status: **In progress** — 2026-09-12. Seven slices, one new ADR. **Slices A, F, B1, C,
-0, D and E shipped** (a sense of *now* on the planning surface, PR #115; Today's non-stop
+Status: **Done** — all planned slices shipped; B2 delivered by [`today-day-map.md`](today-day-map.md)
+on 2026-09-29. **Slices A, F, B, C, 0, D and E shipped** (a sense of *now* on the planning surface, PR #115; Today's non-stop
 events, ADR-0038 §10; device location and the blue dot, ADR-0046; heterogeneous connectors
 + the ADR-0046 §5 recentre-on-me gesture; the day-header region chip #119; stay notes #120;
 the trip sketch — days × regions, `docs/efforts/trip-sketch-design.md`) and are retired
