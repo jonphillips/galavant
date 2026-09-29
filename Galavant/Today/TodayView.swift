@@ -232,6 +232,8 @@ struct TodayView: View {
           TodayNoNextCard()
         }
 
+        dayMap(for: projection)
+
         if !projection.bookingsDue.isEmpty {
           TodayBookingsDueCard(
             items: projection.bookingsDue,
@@ -267,5 +269,24 @@ struct TodayView: View {
       .padding(20)
     }
     .background(Color(.systemGroupedBackground))
+  }
+
+  @ViewBuilder
+  private func dayMap(for projection: TodayProjection) -> some View {
+    let plan = planningModel.plan
+    let day = projection.dayContext.dayNumber
+    let stops = plan.locatedStops(forDay: day)
+    let baseStays = plan.baseStays(forDay: day)
+    if !stops.isEmpty || !baseStays.isEmpty {
+      TodayDayMapCard(
+        day: day,
+        stops: stops,
+        route: plan.routeEndpoints(forDay: day),
+        baseStays: baseStays,
+        nextEndpointID: projection.next?.item.travelEndpointID,
+        settledStopIDs: Set((projection.doneStops + projection.skippedStops).map(\.id)),
+        isLiveDay: !isPreviewing,
+        onSelectIdea: { detailIdea = $0 })
+    }
   }
 }

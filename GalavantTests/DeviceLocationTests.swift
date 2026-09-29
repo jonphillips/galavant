@@ -144,6 +144,48 @@ struct DeviceLocationModelTests {
     #expect(model.state == .tracking)
   }
 
+  @Test func followCoordinateDoesNotStartUnlessTracking() async {
+    let started = Box(0)
+    let client = LocationClient(
+      authorization: { .notDetermined },
+      updates: {
+        started.value += 1
+        return AsyncStream { $0.finish() }
+      })
+    let model = withDependencies { $0.locationClient = client } operation: {
+      DeviceLocationModel()
+    }
+    await model.followCoordinate()
+    #expect(started.value == 0)
+  }
+
+  @Test func followCoordinateRecordsFixesAndKeepsTheLastFixForOtherReadings() async {
+    let continuation = Box<AsyncStream<LocationReading>.Continuation?>(nil)
+    let client = LocationClient(
+      authorization: { .authorized },
+      updates: {
+        AsyncStream { continuation.value = $0 }
+      })
+    let model = withDependencies { $0.locationClient = client } operation: {
+      DeviceLocationModel()
+    }
+    let task = Task { await model.followCoordinate() }
+    while continuation.value == nil { await Task.yield() }
+
+    continuation.value?.yield(.located(latitude: 46.5751, longitude: 11.6749))
+    let firstFix = DeviceCoordinate(latitude: 46.5751, longitude: 11.6749)
+    while model.coordinate != firstFix { await Task.yield() }
+    continuation.value?.yield(.unavailable)
+    continuation.value?.yield(.awaitingAuthorization)
+    continuation.value?.yield(.located(latitude: 46.5752, longitude: 11.6750))
+    let latestFix = DeviceCoordinate(latitude: 46.5752, longitude: 11.6750)
+    while model.coordinate != latestFix { await Task.yield() }
+    #expect(model.coordinate == latestFix)
+    task.cancel()
+    await task.value
+    #expect(model.coordinate == nil)
+  }
+
   /// A user who flips the switch in Settings while the app is away is picked up
   /// on the way back in, without a prompt.
   @Test func refreshPicksUpAuthorizationGrantedInSettings() {

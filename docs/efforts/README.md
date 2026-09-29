@@ -18,11 +18,11 @@ backfilled **on touch**; the table below is the current index.
 | [today-day-preview.md](today-day-preview.md) | ADR-0038 — preview any trip day in Today (start-of-day) | Done(shipped) |
 | [today-execution.md](today-execution.md) | ADR-0039 — Today execution: complete/skip/defer + tap-to-detail | Dispatched |
 | [evaluate-geographic-model.md](evaluate-geographic-model.md) | ADR-0045 — Evaluate geography: biased search, candidate anchors, shared map | WS1 shipped (#93); WS2–3 open |
-| [dogfood-now-and-sketch.md](dogfood-now-and-sketch.md) | Dogfood 2026-09-11 — sense of *now*, device location, stay notes, general connectors, Today non-stop events, trip sketch | Six of seven slices shipped; only B2 (Today day map) open |
+| [dogfood-now-and-sketch.md](dogfood-now-and-sketch.md) | Dogfood 2026-09-11 — sense of *now*, device location, stay notes, general connectors, Today non-stop events, trip sketch | Done (all seven slices shipped) |
 | [trip-sketch-design.md](trip-sketch-design.md) | ADR-0012 — trip sketch (days × regions), Slice E of the dogfood brief | Done (shipped) |
 | [evaluate-duplicate-candidate-sets.md](evaluate-duplicate-candidate-sets.md) | Dogfood 2026-09-28 item 2: re-paste duplicates candidates and orphans resolved rows | Done |
 | [booking-scope-4-hint-and-today.md](booking-scope-4-hint-and-today.md) | ADR-0047 Scope 4 — handoff "book ahead" hint seeds To book; Today "Still to book" card | Done (2026-09-29) |
-| [today-day-map.md](today-day-map.md) | Dogfood B2 — a glanceable day map on Today (route, base, next, device in the union frame; ADR-0046 §5) | Dispatched (2026-09-29) |
+| [today-day-map.md](today-day-map.md) | Dogfood B2 — a glanceable day map on Today (route, base, next, device in the union frame; ADR-0046 §5) | Done (2026-09-29) |
 | [codex-recommendation-brief-stops.md](codex-recommendation-brief-stops.md) | Recommendation brief stops (moved from `docs/handoffs/`) | See doc |
 
 **Authoring a brief:** add its entry here in the same change (index at creation), give it a

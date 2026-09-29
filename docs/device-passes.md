@@ -6,6 +6,7 @@ reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT
 
 ## Verification gates (decision gates, not a build queue)
 
+- On a live trip day, check the Today map card's framing with and without location; confirm a preview day doesn't frame your position and that pin taps open the idea.
 - Re-copy the recommendation project instructions from Settings, confirm a "book ahead" hint seeds To book, and check the Today card on device.
 - **Evaluate re-paste flow.** Confirm the paste-confirmation wording and re-paste flow on device.
 - **M5 real-device gate.** TestFlight on both phones: travel-party share acceptance,

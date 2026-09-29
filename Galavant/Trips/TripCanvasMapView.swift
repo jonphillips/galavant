@@ -522,28 +522,6 @@ struct TripCanvasMapView: View {
 /// deliberately *unlike* the numbered route pins so it reads as "the place you
 /// return to," not a step on the day's route. (Final styling is Jon's to tune
 /// against the live map.)
-private struct BasePin: View {
-  let selected: Bool
-
-  private static let unselectedDiameter: CGFloat = 28
-  // The selected SequencePin is 26pt × 1.35 ≈ 35pt; this leaves the selected
-  // lodging marker visibly larger when the two annotations overlap.
-  private static let selectedDiameter: CGFloat = 44
-
-  var body: some View {
-    Image(systemName: Icon.stay.systemName)
-      .font((selected ? Font.body : .caption).bold())
-      .foregroundStyle(.white)
-      .frame(
-        width: selected ? Self.selectedDiameter : Self.unselectedDiameter,
-        height: selected ? Self.selectedDiameter : Self.unselectedDiameter
-      )
-      .background(Circle().fill(selected ? .blue : .gray))
-      .overlay(Circle().strokeBorder(.white, lineWidth: 2))
-      .shadow(radius: selected ? 6 : 1)
-  }
-}
-
 private struct AlternativePin: View {
   let color: Color
 

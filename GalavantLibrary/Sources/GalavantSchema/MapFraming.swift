@@ -45,6 +45,45 @@ public enum MapFraming {
   /// Floor on a multi-point span so two near-identical points don't frame so
   /// tightly the map zooms to street level.
   public static let minimumDelta = 0.005
+  /// Nearby-device cutoff used by Today's day map before including the device
+  /// in the initial camera frame.
+  public static let todayDeviceRadius: Double = 20_000
+
+  /// Bounding box for the day's points, optionally widened to include a nearby
+  /// device fix. A device far from every day point is ignored; empty day points
+  /// still produce no frame.
+  public static func box(
+    for points: [(latitude: Double, longitude: Double)],
+    including device: (latitude: Double, longitude: Double)?,
+    within radius: Double = todayDeviceRadius
+  ) -> Box? {
+    guard !points.isEmpty else { return nil }
+    guard let device else { return box(for: points) }
+    let nearestDistance = points.map { point in
+      distanceInMeters(
+        latitude1: point.latitude,
+        longitude1: point.longitude,
+        latitude2: device.latitude,
+        longitude2: device.longitude)
+    }.min() ?? .infinity
+    guard nearestDistance <= radius else { return box(for: points) }
+    return box(for: points + [device])
+  }
+
+  /// Great-circle distance between two coordinates using the haversine formula.
+  public static func distanceInMeters(
+    latitude1: Double,
+    longitude1: Double,
+    latitude2: Double,
+    longitude2: Double
+  ) -> Double {
+    let latitudeDelta = (latitude2 - latitude1) * .pi / 180
+    let longitudeDelta = (longitude2 - longitude1) * .pi / 180
+    let haversine = sin(latitudeDelta / 2) * sin(latitudeDelta / 2)
+      + cos(latitude1 * .pi / 180) * cos(latitude2 * .pi / 180)
+      * sin(longitudeDelta / 2) * sin(longitudeDelta / 2)
+    return 6_371_000 * 2 * atan2(sqrt(haversine), sqrt(1 - haversine))
+  }
 
   /// Bounding box for `coordinates`, or `nil` when empty. A single point → a
   /// default span centred on it; multiple points → the lat/lon extent grown by

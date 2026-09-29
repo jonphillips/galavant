@@ -7,6 +7,44 @@ import Testing
     #expect(MapFraming.box(for: []) == nil)
   }
 
+  @Test func todayFrameIncludesANearbyDeviceFix() throws {
+    let points = [(latitude: 46.0, longitude: 11.0)]
+    let dayBox = try #require(MapFraming.box(for: points))
+    let withDevice = try #require(
+      MapFraming.box(for: points, including: (latitude: 46.1, longitude: 11.0)))
+    #expect(withDevice.centerLatitude > dayBox.centerLatitude)
+    #expect(withDevice.latitudeDelta > dayBox.latitudeDelta)
+  }
+
+  @Test func todayFrameIgnoresADeviceOutsideTheRadius() throws {
+    let points = [(latitude: 46.0, longitude: 11.0)]
+    let dayBox = try #require(MapFraming.box(for: points))
+    let withFarDevice = MapFraming.box(
+      for: points,
+      including: (latitude: 47.0, longitude: 11.0))
+    #expect(withFarDevice == dayBox)
+  }
+
+  @Test func todayFrameWithoutDeviceMatchesTheDayFrame() throws {
+    let points = [(latitude: 46.0, longitude: 11.0), (latitude: 46.1, longitude: 11.1)]
+    #expect(MapFraming.box(for: points, including: nil) == MapFraming.box(for: points))
+  }
+
+  @Test func todayFrameUsesTheNearestDayPoint() throws {
+    let points = [(latitude: 0.0, longitude: 0.0), (latitude: 45.0, longitude: 45.0)]
+    let withDevice = try #require(
+      MapFraming.box(
+        for: points,
+        including: (latitude: 45.05, longitude: 45.05),
+        within: 8_000))
+    #expect(withDevice.centerLatitude > 22.5)
+    #expect(withDevice.centerLongitude > 22.5)
+  }
+
+  @Test func todayFrameRequiresDayPointsEvenWhenDeviceExists() {
+    #expect(MapFraming.box(for: [], including: (latitude: 46.0, longitude: 11.0)) == nil)
+  }
+
   @Test func boundingBoxOfRegionsUnionsTheirExtents() throws {
     // Two 1°-square regions; the union box should span both centres' extent.
     let a = MapRegion(
