@@ -121,11 +121,31 @@ extension TripPlanningModel {
       let contract = try RecommendationHandoffContract.marker.strippingMarker(from: bodyText)
       if let warning = contract.warning { warnings.append(warning) }
       let candidates = try TripCandidate.decodeReturn(contract.text)
-      var updatedSession = session
-      try updatedSession.storeRecommendationCandidates(candidates)
+      var updatedSession = handoffSessionStore.session(session.id) ?? session
+      let merge = try updatedSession.storeRecommendationCandidates(candidates)
       try handoffSessionStore.save(updatedSession)
-      recommendationReview = candidates.map(RecommendationCandidateDraft.init(candidate:))
-      recommendationHandoffWarning = warnings.isEmpty ? nil : warnings.joined(separator: "\n\n")
+      let (tripIdeas, ideasByID) = try database.read { db in
+        let tripIdeas = try TripIdea.where { $0.tripID.eq(tripID) }.fetchAll(db)
+        let ideasByID = Dictionary(uniqueKeysWithValues: try Idea.all.fetchAll(db).map { ($0.id, $0) })
+        return (tripIdeas, ideasByID)
+      }
+      let alreadyOnTrip = candidates.filter {
+        RecommendationCandidateSet.liveTripIdea(
+          matching: $0, in: tripIdeas, ideasByID: ideasByID
+        ) != nil
+      }.count
+      let linkedCandidateIDs = Set(
+        updatedSession.candidateLinks.compactMap { link in
+          link.tripIdeaID == nil ? nil : link.candidateID
+        }
+      )
+      recommendationReview = try updatedSession.recommendationCandidates()
+        .filter { !linkedCandidateIDs.contains($0.id) }
+        .map(RecommendationCandidateDraft.init(candidate:))
+      warnings.insert(
+        "\(merge.addedCandidates.count) new, \(alreadyOnTrip) already on this trip.", at: 0
+      )
+      recommendationHandoffWarning = warnings.joined(separator: "\n\n")
     } catch {
       recommendationHandoffError = error.localizedDescription
     }

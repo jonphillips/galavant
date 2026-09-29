@@ -83,14 +83,12 @@ final class RecommendationWorkspaceModel {
         try TripIdea.commit(candidate: candidate, into: tripID, in: db)
       }
       guard var session = handoffSessionStore.session(sessionID) else { return }
-      var stored = (try? session.recommendationCandidates()) ?? []
-      stored.append(candidate)
-      try session.storeRecommendationCandidates(stored)
+      try session.appendRecommendationCandidate(candidate)
       session.link(candidateID: candidate.id, to: committed.id)
       session.importedAt = .now
       session.status = .imported
       try handoffSessionStore.save(session)
-      handoffCandidates = stored
+      handoffCandidates = try session.recommendationCandidates()
       candidateLinks = session.candidateLinks
       activeCandidateID = committed.id
       resolveResults = []

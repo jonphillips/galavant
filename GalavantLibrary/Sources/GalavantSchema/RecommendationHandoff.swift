@@ -280,6 +280,84 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
   }
 }
 
+/// The stable identity of an LLM-proposed place within one recommendation set.
+/// Candidate UUIDs are transport-local, so re-pastes compare the human-facing
+/// name and locality instead.
+public struct RecommendationCandidateIdentity: Hashable, Sendable {
+  public let name: String
+  public let locality: String?
+
+  public init?(candidate: TripCandidate) {
+    guard let name = Self.normalized(candidate.name) else { return nil }
+    self.name = name
+    self.locality = Self.normalized(candidate.locality)
+  }
+
+  static func normalized(_ text: String?) -> String? {
+    guard let text else { return nil }
+    let folded = text.folding(
+      options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: nil
+    )
+    let alphanumeric = folded.components(separatedBy: CharacterSet.alphanumerics.inverted).joined()
+    return alphanumeric.nonEmpty
+  }
+}
+
+/// Pure set reconciliation for a handoff's device-local candidates. Keeping this
+/// independent of storage means a re-paste cannot discard links to rows already
+/// committed from the first paste.
+public enum RecommendationCandidateSet {
+  public struct Merge: Equatable, Sendable {
+    public let candidates: [TripCandidate]
+    public let addedCandidates: [TripCandidate]
+  }
+
+  public static func merging(
+    existing: [TripCandidate],
+    incoming: [TripCandidate]
+  ) -> Merge {
+    var identities = Set(existing.compactMap(RecommendationCandidateIdentity.init(candidate:)))
+    var addedCandidates: [TripCandidate] = []
+
+    for candidate in incoming {
+      guard let identity = RecommendationCandidateIdentity(candidate: candidate) else {
+        addedCandidates.append(candidate)
+        continue
+      }
+      if identities.insert(identity).inserted {
+        addedCandidates.append(candidate)
+      }
+    }
+
+    return Merge(candidates: existing + addedCandidates, addedCandidates: addedCandidates)
+  }
+
+  /// Finds the deterministic live trip row that a reviewed candidate should link
+  /// to. Terminal rows are historical, not current trip membership, so they do
+  /// not suppress a new candidate.
+  public static func liveTripIdea(
+    matching candidate: TripCandidate,
+    in tripIdeas: [TripIdea],
+    ideasByID: [Idea.ID: Idea]
+  ) -> TripIdea? {
+    guard let title = RecommendationCandidateIdentity.normalized(candidate.name) else { return nil }
+    return tripIdeas
+      .filter { tripIdea in
+        guard isLive(tripIdea.status) else { return false }
+        let visibleTitle = tripIdea.inlineTitle ?? tripIdea.ideaID.flatMap { ideasByID[$0]?.name }
+        return RecommendationCandidateIdentity.normalized(visibleTitle) == title
+      }
+      .min { $0.id.uuidString < $1.id.uuidString }
+  }
+
+  private static func isLive(_ status: TripIdeaStatus) -> Bool {
+    switch status {
+    case .considering, .shortlisted, .scheduled: true
+    case .done, .skipped: false
+    }
+  }
+}
+
 public enum TripCandidateDecodeError: Error, Equatable, LocalizedError, Sendable {
   case missingJSONArray
   case malformedJSON
@@ -303,6 +381,15 @@ extension TripIdea {
     into tripID: Trip.ID,
     in db: Database
   ) throws -> TripIdea {
+    let tripIdeas = try TripIdea.where { $0.tripID.eq(tripID) }.fetchAll(db)
+    let ideasByID = Dictionary(
+      uniqueKeysWithValues: try Idea.all.fetchAll(db).map { ($0.id, $0) }
+    )
+    if let existing = RecommendationCandidateSet.liveTripIdea(
+      matching: candidate, in: tripIdeas, ideasByID: ideasByID
+    ) {
+      return existing
+    }
     let id = UUID()
     let tripIdea = TripIdea(
       id: id,
@@ -393,7 +480,26 @@ extension HandoffSession {
     return try JSONDecoder().decode([TripCandidate].self, from: Data(candidatePayload.utf8))
   }
 
-  public mutating func storeRecommendationCandidates(_ candidates: [TripCandidate]) throws {
+  @discardableResult
+  public mutating func storeRecommendationCandidates(
+    _ incomingCandidates: [TripCandidate]
+  ) throws -> RecommendationCandidateSet.Merge {
+    let merge = RecommendationCandidateSet.merging(
+      existing: try recommendationCandidates(), incoming: incomingCandidates
+    )
+    try setRecommendationCandidates(merge.candidates)
+    return merge
+  }
+
+  /// Adds a human-entered candidate without applying the LLM re-paste merge rule.
+  /// A deliberate manual addition may legitimately share a title with a suggestion.
+  public mutating func appendRecommendationCandidate(_ candidate: TripCandidate) throws {
+    var candidates = try recommendationCandidates()
+    candidates.append(candidate)
+    try setRecommendationCandidates(candidates)
+  }
+
+  private mutating func setRecommendationCandidates(_ candidates: [TripCandidate]) throws {
     candidatePayload = String(decoding: try JSONEncoder().encode(candidates), as: UTF8.self)
     let linkedTripIdeaIDs = Dictionary(uniqueKeysWithValues: candidateLinks.map { ($0.candidateID, $0.tripIdeaID) })
     candidateLinks = candidates.map {
@@ -410,7 +516,7 @@ extension HandoffSession {
     var candidates = try recommendationCandidates()
     guard let index = candidates.firstIndex(where: { $0.id == candidate.id }) else { return }
     candidates[index] = candidate
-    try storeRecommendationCandidates(candidates)
+    try setRecommendationCandidates(candidates)
   }
 }
 

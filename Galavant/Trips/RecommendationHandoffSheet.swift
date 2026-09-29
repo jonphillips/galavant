@@ -55,7 +55,7 @@ struct RecommendationHandoffSheet: View {
       Text(model.recommendationHandoffError ?? "")
     }
     .alert(
-      "Imported with a note",
+      "Recommendations imported",
       isPresented: Binding(
         get: { model.recommendationHandoffWarning != nil },
         set: { if !$0 { model.recommendationHandoffWarning = nil } }
