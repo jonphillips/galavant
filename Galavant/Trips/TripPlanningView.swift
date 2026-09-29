@@ -117,14 +117,9 @@ struct TripPlanningView: View {
               Icon.bookingToBook.label("\(bookingRollup.toBookCount) to book")
             }
             .buttonStyle(.bordered)
-          }
-          if !bookingRollup.booked.isEmpty {
+          } else if !bookingRollup.booked.isEmpty || !bookingRollup.decide.isEmpty {
             Button { model.destination = .booking } label: {
               Icon.bookingBooked.label("Bookings")
-            }
-          } else if !bookingRollup.decide.isEmpty {
-            Button { model.destination = .booking } label: {
-              Icon.bookingToBook.label("To Book")
             }
           }
           Button(action: model.sketchTapped) {
@@ -177,7 +172,7 @@ struct TripPlanningView: View {
         if !usesColumn { showDetailSheet = true }
         await model.fetchMissingETAs()
       }
-      .onChange(of: model.plan.allLegs) { _, _ in
+      .onChange(of: plan.allLegs) { _, _ in
         Task { await model.fetchMissingETAs() }
       }
       .onChange(of: model.tripRegionIDs) { _, _ in model.reseedLens() }

@@ -109,9 +109,9 @@ booking yet.
   2. *Decide*: undecided rows (§2 suggestions) with To book / Not needed buttons. This is
      where "food is a suggestion" lives.
   3. *Booked*, collapsed, with confirmation numbers visible (useful at the door).
-  The pill hides at zero to-book. A quiet **Bookings** toolbar entry remains whenever
-  there are booked rows (so confirmations stay available at the door), and the sheet
-  remains reachable while there are undecided rows.
+  The pill hides at zero to-book. Once nothing is to book, a quiet **Bookings** toolbar
+  entry remains while there are booked or undecided rows (so confirmations stay
+  available at the door).
 - **Unbooked stays** additionally flag on the lodging capsule bar. An unbooked bed is
   the most expensive thing to discover late.
 

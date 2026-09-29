@@ -79,7 +79,7 @@ struct TripBookingTests {
       TripStay(id: UUID(), tripID: UUID(), ideaID: nil, inlineTitle: "Hotel", checkInDay: 2,
         checkOutDay: 4, plannedCheckInTime: "16:00", bookingURL: "https://stay.example"),
       TripStay(id: UUID(), tripID: UUID(), ideaID: hotel.id, checkInDay: 3, checkOutDay: 4),
-      TripStay(id: UUID(), tripID: UUID(), ideaID: nil, inlineTitle: "Past stay", checkInDay: 1,
+      TripStay(id: UUID(), tripID: UUID(), ideaID: nil, inlineTitle: "Checkout today", checkInDay: 1,
         checkOutDay: 2),
     ]
     let plan = TripPlan(
@@ -89,11 +89,11 @@ struct TripBookingTests {
       tripStays: stays)
     let result = TripBookingRollup(plan: plan, currentDay: 2)
 
-    #expect(result.toBookCount == 4)
-    #expect(result.toBook.map(\.title) == ["Past stay", "Hotel", "Harbor Hotel", "Theater"])
-    #expect(result.toBook[1].bookingURL == "https://stay.example")
-    #expect(result.toBook[2].bookingURL == "https://harbor.example")
-    #expect(result.toBook[3].day == nil)
+    #expect(result.toBookCount == 3)
+    #expect(result.toBook.map(\.title) == ["Hotel", "Harbor Hotel", "Theater"])
+    #expect(result.toBook[0].bookingURL == "https://stay.example")
+    #expect(result.toBook[1].bookingURL == "https://harbor.example")
+    #expect(result.toBook[2].day == nil)
     #expect(result.decide.map(\.title) == ["Lunch"])
     #expect(result.decide[0].bookingURL == "https://food.example")
     #expect(result.booked.map(\.title) == ["Theater", "Lunch", "Walk"])
@@ -108,7 +108,7 @@ struct TripBookingTests {
       id: UUID(), tripID: UUID(), ideaID: nil, inlineTitle: "Current stay",
       checkInDay: 1, checkOutDay: 4)
     let pastStay = TripStay(
-      id: UUID(), tripID: UUID(), ideaID: nil, inlineTitle: "Past stay",
+      id: UUID(), tripID: UUID(), ideaID: nil, inlineTitle: "Checked-out stay",
       checkInDay: 1, checkOutDay: 2)
     let plan = TripPlan(entries: [], ideasByID: [:], lengthInDays: 4, tripStays: [currentStay, pastStay])
     let result = TripBookingRollup(plan: plan, currentDay: 3)
