@@ -17,7 +17,9 @@ Core loop: shared idea pool → pull onto trip shortlist → schedule into itine
 - `docs/STYLE.md` — house coding style (structs by default, functional core,
   impossible-states enums, swift-dependencies, no singletons). Consult the
   installed `pfw-*` skills (via `pfw-pfw`) when using Point-Free libraries.
-- `docs/ROADMAP.md` — current milestone
+- `docs/CURRENT_HANDOFF.md` — what's active now; start here. `docs/ROADMAP.md`
+  (44 KB) and `docs/DONE_LOG.md` (75 KB) are grepped for the section you need,
+  never read whole.
 
 ## Stack (see ADR-0001/0002)
 

@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "{ echo \"=== jon-platform house knowledge (auto-loaded each session — review before proposing architecture/style or writing code) ===\"; cat ~/code/jon-platform/AGENTS.md; echo; cat ~/code/jon-platform/docs/agent-workflow.md; } 2>/dev/null",
+            "command": "{ echo \"=== jon-platform house knowledge (auto-loaded each session — review before proposing architecture/style or writing code) ===\"; cat ~/code/jon-platform/AGENTS.md; } 2>/dev/null",
             "statusMessage": "Loading jon-platform house knowledge"
           }
         ]
