@@ -17,8 +17,17 @@ struct TripIdeasView: View {
   var usesColumn = false
 
   var body: some View {
+    @Bindable var model = model
     let plan = model.plan
     let visibleStopIDs = visibleStopIDs(in: plan)
+    // The map-area lens narrows every stage at once; nil means "show everything"
+    // (toggle off, or the canvas hasn't settled a camera yet).
+    let areaBox = model.limitsIdeasToMapArea ? model.canvasVisibleBox : nil
+    let allPlaced = plan.scheduled.filter { $0.entry.dayNumber != nil }
+    let considering = inMapArea(plan.considering, box: areaBox)
+    let shortlist = inMapArea(plan.shortlist, box: areaBox)
+    let toBeScheduled = inMapArea(plan.toBeScheduled, box: areaBox)
+    let placedScheduled = inMapArea(allPlaced, box: areaBox)
     List {
       if showsInlineAdd {
         Section {
@@ -36,6 +45,21 @@ struct TripIdeasView: View {
           .foregroundStyle(.secondary)
         }
       }
+      if !plan.isEmpty {
+        Section {
+          Toggle(isOn: $model.limitsIdeasToMapArea) {
+            Icon.map.label("Only Ideas in Map Area")
+          }
+        } footer: {
+          if model.limitsIdeasToMapArea {
+            let total = plan.considering.count + plan.shortlist.count
+              + plan.toBeScheduled.count + allPlaced.count
+            let shown = considering.count + shortlist.count
+              + toBeScheduled.count + placedScheduled.count
+            Text("Showing \(shown) of ^[\(total) idea](inflect: true). Pan or zoom the map to change the area.")
+          }
+        }
+      }
       if let session = model.mostRecentRecommendationWorkspaceSession {
         Section {
           Button {
@@ -51,9 +75,9 @@ struct TripIdeasView: View {
       // Consider (a maybe), Schedule (committed, awaiting a day — the shortlist,
       // plus anything already sent to be scheduled but still dayless), Scheduled
       // (placed on a day).
-      if !plan.considering.isEmpty {
+      if !considering.isEmpty {
         Section("Consider") {
-          ForEach(plan.considering) { resolved in
+          ForEach(considering) { resolved in
             PlanningRow(content: resolved.content, note: resolved.entry.inlineNote, subtitle: .category) {
               // Empty star = considering; tap moves it into Schedule.
               starButton(filled: false) {
@@ -85,9 +109,9 @@ struct TripIdeasView: View {
           }
         }
       }
-      if !plan.shortlist.isEmpty || !plan.toBeScheduled.isEmpty {
+      if !shortlist.isEmpty || !toBeScheduled.isEmpty {
         Section("Schedule") {
-          ForEach(plan.shortlist) { resolved in
+          ForEach(shortlist) { resolved in
             PlanningRow(content: resolved.content, note: resolved.entry.inlineNote, subtitle: .category) {
               HStack(spacing: 14) {
                 // Lit star = in Schedule; tap demotes it back to Consider.
@@ -134,12 +158,11 @@ struct TripIdeasView: View {
           }
           .reorderable()
           // Committed but not yet on a day — waiting to be placed on the itinerary.
-          ForEach(plan.toBeScheduled) { resolved in
+          ForEach(toBeScheduled) { resolved in
             scheduledIdeaRow(resolved, visibleStopIDs: visibleStopIDs)
           }
         }
       }
-      let placedScheduled = plan.scheduled.filter { $0.entry.dayNumber != nil }
       if !placedScheduled.isEmpty {
         Section {
           ForEach(placedScheduled) { resolved in
@@ -161,6 +184,9 @@ struct TripIdeasView: View {
       }
     }
     .reorderContainer(for: ResolvedStop.self) { difference in
+      // Applied to the *whole* shortlist even when the map-area lens hides some rows:
+      // a move is "these rows, before that visible row (or last)", so hidden rows
+      // keep their relative order.
       var entries = plan.shortlist
       difference.apply(to: &entries)
       model.reorderShortlist(entries.map(\.id))
@@ -176,6 +202,11 @@ struct TripIdeasView: View {
         }
       }
     }
+  }
+
+  private func inMapArea(_ stops: [ResolvedStop], box: MapFraming.Box?) -> [ResolvedStop] {
+    guard let box else { return stops }
+    return stops.filter { $0.isInside(box) }
   }
 
   private func visibleStopIDs(in plan: TripPlan) -> Set<TripIdea.ID> {

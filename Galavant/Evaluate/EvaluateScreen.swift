@@ -65,8 +65,32 @@ struct EvaluateScreen: View {
             EvaluateQueueRow(entry: entry)
           }
           .buttonStyle(.plain)
+          // No immediate delete: the swipe only asks, and the dialog does the work.
+          .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button(role: .destructive) {
+              model.deleteSetSwiped(entry)
+            } label: {
+              Icon.delete.label("Delete")
+            }
+          }
         }
       }
+    }
+    .confirmationDialog(
+      "Delete this recommendation set?",
+      isPresented: Binding(
+        get: { model.pendingDeletion != nil },
+        set: { if !$0 { model.pendingDeletion = nil } }
+      ),
+      titleVisibility: .visible,
+      presenting: model.pendingDeletion
+    ) { entry in
+      Button("Delete Set", role: .destructive) {
+        model.deleteSetConfirmed(entry)
+        if router.openEvaluateEntry?.id == entry.id { router.openEvaluateEntry = nil }
+      }
+    } message: { entry in
+      Text("The set leaves Evaluate. Its ^[\(entry.remainingCount) candidate](inflect: true) stay on \(entry.tripName) under Consider, where you can remove them individually.")
     }
   }
 }
@@ -117,9 +141,26 @@ final class EvaluateQueueModel {
   @ObservationIgnored @FetchAll(Trip.all) private var trips
   @ObservationIgnored @FetchAll(TripIdea.all) private var allTripIdeas
   private(set) var sessions: [HandoffSession] = []
+  /// The set a swipe asked to delete, awaiting the confirmation dialog.
+  var pendingDeletion: EvaluateQueueEntry?
 
   func reload() {
     sessions = handoffSessionStore.sessions()
+  }
+
+  func deleteSetSwiped(_ entry: EvaluateQueueEntry) {
+    pendingDeletion = entry
+  }
+
+  /// Forgets the device-local session only. The candidates it committed are ordinary
+  /// trip rows by now, so they stay on the trip — deleting the set is "stop showing me
+  /// this batch", not "undo what I pulled in".
+  func deleteSetConfirmed(_ entry: EvaluateQueueEntry) {
+    pendingDeletion = nil
+    withErrorReporting {
+      try handoffSessionStore.delete(entry.sessionID)
+    }
+    reload()
   }
 
   var entries: [EvaluateQueueEntry] {

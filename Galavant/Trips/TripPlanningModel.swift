@@ -72,6 +72,11 @@ final class TripPlanningModel {
     didSet { if canvasSelectedStopID != nil { clearCanvasPreview() } }
   }
   var canvasPreviewState = TripCanvasPreviewState()
+  /// The canvas camera's settled extent, published so the Ideas tab can narrow its
+  /// rows to what's on the map. Nil until the map first settles.
+  var canvasVisibleBox: MapFraming.Box?
+  /// The Ideas tab's "only what's in the map area" toggle. Off shows every idea.
+  var limitsIdeasToMapArea = false
   var canvasPreviewStopID: TripIdea.ID? { canvasPreviewState.stopID }
   var expandedAlternativeGroupIDs: Set<UUID> = []
   var editingAlternativeGroupID: UUID?

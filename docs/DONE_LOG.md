@@ -49,6 +49,21 @@
   coverage. `xcodebuild -scheme Galavant -destination 'platform=iOS Simulator,name=iPhone
   17 Pro' -skipMacroValidation build` passed with Xcode 27; no simulator was booted.
 
+## Dogfood round 2026-09-28 (pm) — delete an Evaluate set, Ideas limited to the map area — SHIPPED
+
+- **Evaluate sets can be deleted.** Swiping a set in the Evaluate queue offers Delete
+  (no full-swipe); a confirmation dialog does the work. Deleting forgets the
+  device-local `HandoffSession` only — needs `HandoffSessionStore.delete`, added to
+  jon-platform's LLMHandoffKit — and the set's candidates stay on the trip under
+  Consider.
+- **Trip Ideas: "Only Ideas in Map Area."** A toggle on the trip's Ideas tab narrows
+  Consider / Schedule / Scheduled to rows located inside the canvas camera's settled
+  extent (`TripPlanningModel.canvasVisibleBox`, pure `MapFraming.Box.contains`,
+  tested). Unlocated rows hide while it's on; the footer shows "N of M". It uses
+  the whole camera extent, including any part the iPhone sheet covers. Shortlist
+  reorder still applies to the full shortlist, so hidden rows keep their order.
+- **Verification.** `scripts/check-drift.sh` passed (compile-only; no simulator).
+
 ## Dogfood round 2026-09-28 — Ideas filters, recommendation detail, and map previews — SHIPPED
 
 - **Subregion chips filter pulled ideas.** Pinned ideas bypass the region
