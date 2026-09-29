@@ -5,7 +5,7 @@ import GalavantSchema
 import SQLiteData
 import Testing
 
-/// The trip sketch (docs/handoff/trip-sketch-design.md): the pure span projection
+/// The trip sketch (docs/efforts/trip-sketch-design.md): the pure span projection
 /// over per-day region assignments, plus the two write ops that persist a sketch.
 @Suite struct TripSketchTests {
   private func row(_ tripID: Trip.ID = UUID(), day: Int, region: MapRegion.ID) -> TripDayRegion {

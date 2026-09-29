@@ -102,4 +102,4 @@ synthesized locality box; after part 2, pins come from real anchors.
   confirmation.
 - **Sequencing matters.** Part 1 is a contained, independently shippable fix (it
   restores the reported behavior on its own); parts 2 and 3 land on top of it. The
-  execution stack is in `docs/handoff/evaluate-geographic-model.md`.
+  execution stack is in `docs/efforts/evaluate-geographic-model.md`.

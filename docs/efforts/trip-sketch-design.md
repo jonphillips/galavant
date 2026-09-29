@@ -1,7 +1,7 @@
 # Design note: Sketch a trip — days × regions as a first-class planning pass
 
 Status: **Done — shipped** (2026-09-12; Jon approved Q1–Q3, see below). What was built
-is in `docs/DONE_LOG.md`. Implements the first half of
+is in `docs/DONE-LOG.md`. Implements the first half of
 Slice E of `dogfood-now-and-sketch.md`; the second half (day header shows only time
 zones) shipped as Slice 0 (#119). This note is the shape decision the Slice E prompt
 asks be signed off before any UI is built.

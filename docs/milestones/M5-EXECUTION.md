@@ -47,5 +47,5 @@ under the M7 slices instead.)*
 Do not create an M5½ feature batch. Optional polish—weather, platform refinements,
 or further trip-header work—remains normal backlog. The next product decisions after
 the verification spine are the small, evidenced M6 questions in
-`docs/M6-EXECUTION.md`, beginning with wiring the existing `TravelProfile` or
+`docs/milestones/M6-EXECUTION.md`, beginning with wiring the existing `TravelProfile` or
 reviewing chat's direct durable-write authority.

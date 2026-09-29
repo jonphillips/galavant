@@ -5,7 +5,7 @@ import SwiftUI
 /// region each part of the trip sits in ("four nights Loire, three nights Paris,
 /// fly home day 8"). A view + editor over `TripDayRegion` + `Trip.lengthInDays`
 /// (ADR-0012), never a new table; the span math is the pure `TripSketch` value type
-/// (docs/handoff/trip-sketch-design.md).
+/// (docs/efforts/trip-sketch-design.md).
 ///
 /// Edits persist live through the model, so a per-span "Add lodging" or the
 /// "Attach regions…" hand-off can leave for another editor without losing the

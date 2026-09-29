@@ -6,7 +6,7 @@ import Observation
 import SQLiteData
 
 /// The thin observable shell that feeds the pure `SyncHealth` reducer live signals
-/// (docs/M5-EXECUTION.md → M5-sync, slice 2). It reads the gate, the iCloud account
+/// (docs/milestones/M5-EXECUTION.md → M5-sync, slice 2). It reads the gate, the iCloud account
 /// status, the `SyncEngine`'s observable running state, and the pending-change count,
 /// folds them into a `SyncHealth`, and exposes the folded `displayStatus` for the
 /// Settings row. All the decision logic lives in the tested value type; this only

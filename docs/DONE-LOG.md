@@ -1,5 +1,19 @@
 # Done Log — completed enhancements
 
+History, newest first. The PR that completes a dispatch adds its entry naming its branch
+(jon-platform ADR-0005 D5). No dispatch reads this file.
+
+## Token discipline + ADR-0005 architect/executor shape (`chore/token-discipline`) — 2026-09-29
+
+- `check-drift.sh` runs its stages through jon-platform's `quiet-run` (~320 KB of raw output →
+  ~20 lines) and ends with the shared `check-handoff`. `AGENTS.md` 5.6 KB → ~4.8 KB; the
+  SessionStart hook no longer injects `agent-workflow.md`.
+- Galavant moves to architect/executor. `CURRENT_HANDOFF.md` retired and split: `NEXT_UP.md`
+  (Evaluate duplicate candidate sets), `open-questions.md` (candidates, designed/deferred,
+  follow-ups), `device-passes.md` (real-device gates), `verification.md`. `docs/handoff/` →
+  `docs/efforts/`, the `M*-EXECUTION`/`M7-DOGFOOD` briefs → `docs/milestones/`,
+  `DONE_LOG.md` → `DONE-LOG.md`, `BACKLOG.md` removed; every relative link re-resolved.
+
 ## ADR-0047 Slice 1 — booking status core — IMPLEMENTED
 
 - Added nullable per-stop/per-stay booking status, stay booking details, evidence →
@@ -113,7 +127,7 @@ The shape of a trip — "four nights Loire, three nights Paris, fly home day 8" 
 decided before any stop exists, and Galavant had no surface for it: the only way to
 record a day's region was one menu tap at a time in each day-section header. Slice E
 adds the sketch, a **view + editor over `TripDayRegion` + `Trip.lengthInDays`**
-(ADR-0012) — no new table. Design + sign-off: `docs/handoff/trip-sketch-design.md`.
+(ADR-0012) — no new table. Design + sign-off: `docs/efforts/trip-sketch-design.md`.
 
 - **Pure core.** `TripSketch` (`GalavantSchema`) holds the per-day region array and
   projects contiguous **`DaySpan`s** — adjacent same-region days (and unassigned runs)
@@ -315,7 +329,7 @@ helpers, `legModes`, #83) — shipped and captured nearly all the measured win. 
 declined**: dogfooding a large trip on device was not sluggish, so the cache isn't needed,
 and it would cost a second GRDB observation, duplicate reads, extra post-write
 invalidations, and an accepted one-frame consistency window. The design stays on the shelf
-in [`docs/handoff/plan-memoization.md`](handoff/plan-memoization.md) if a real trip ever
+in [`docs/efforts/plan-memoization.md`](efforts/plan-memoization.md) if a real trip ever
 drags on device — pull it off then, not speculatively.
 
 ## Evaluation cockpit polish — dossier flyover + iPhone parity (ADR-0037) — SHIPPED (2026-08-23)
@@ -351,7 +365,7 @@ written; Jon to release to Codex.
 
 ## Evaluate workspace geographic model (ADR-0045) — SHIPPED (2026-08-23)
 
-All three stacked workstreams from `docs/handoff/evaluate-geographic-model.md` landed,
+All three stacked workstreams from `docs/efforts/evaluate-geographic-model.md` landed,
 fixing the coupled Evaluate-cockpit geography defects in
 [ADR-0045](decisions/0045-evaluate-workspace-geographic-model.md):
 
@@ -388,7 +402,7 @@ Constraint reaping, Calendar commitment timing, the shared ledger, and idempoten
 reconciliation remain centralized in the existing core. Confirmed deletion of a
 promoted event removes Calendar authority but keeps the Galavant stop as an
 unbooked plan, clearing Calendar-derived timing and notes and recording `.unlinked`
-history. See `docs/handoff/calendar-constraint-to-linked-stop.md` and the ADR-0034
+history. See `docs/efforts/calendar-constraint-to-linked-stop.md` and the ADR-0034
 amendment.
 
 Verification: Xcode 27 app build succeeded on iPhone 17 Pro / iOS 27; the filtered
@@ -446,7 +460,7 @@ A follow-up commit stabilized the repair path and cut the reconcile cost:
 Note: EventKit exposes a single time zone per event (departure); a flight's *arrival*
 zone is not in the public API, so a MUC→CLT flight displays instant-correct times in its
 departure zone rather than Apple Calendar's dual GMT+2/EDT labels. Not pursued.
-See `docs/M7-DOGFOOD.md` Part 3 for the device pass.
+See `docs/milestones/M7-DOGFOOD.md` Part 3 for the device pass.
 
 Granular enhancement notes that have **fully shipped**, kept for history/context
 (not milestone-scoped — see `ROADMAP.md` for those). Companion to

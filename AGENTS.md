@@ -3,6 +3,14 @@
 Private travel-planning app for Jon and his wife (two users, never App Store).
 Core loop: shared idea pool → pull onto trip shortlist → schedule into itinerary.
 
+## Working mode — architect / executor (since 2026-09-29)
+
+Claude = architect (docs, ADRs, milestones, effort briefs, reviews, merges approved
+plan-order PRs; **no feature code**). Codex = executor (builds `docs/NEXT_UP.md`, one
+branch + PR per dispatch). Routing for a bare "go" and "comments posted" is in
+jon-platform `AGENTS.md`; the full loop is `jon-platform/docs/agent-collaboration.md`
+and ADR-0005. Jon approves plans (merges plan PRs) and decides escalations.
+
 ## Read first
 
 - `~/code/jon-platform` — Jon's **cross-app house knowledge base** (general style,
@@ -17,9 +25,11 @@ Core loop: shared idea pool → pull onto trip shortlist → schedule into itine
 - `docs/STYLE.md` — house coding style (structs by default, functional core,
   impossible-states enums, swift-dependencies, no singletons). Consult the
   installed `pfw-*` skills (via `pfw-pfw`) when using Point-Free libraries.
-- `docs/CURRENT_HANDOFF.md` — what's active now; start here. `docs/ROADMAP.md`
-  (44 KB) and `docs/DONE_LOG.md` (75 KB) are grepped for the section you need,
-  never read whole.
+- `docs/NEXT_UP.md` — the one dispatch; start here (executor: your only planning
+  input — empty → stop and ask). Verification: `docs/verification.md`. The architect
+  also reads `docs/open-questions.md` (candidates; the executor never does).
+  `docs/ROADMAP.md` (44 KB) and `docs/DONE-LOG.md` (75 KB) are grepped for the
+  section you need, never read whole.
 
 ## Stack (see ADR-0001/0002)
 
@@ -51,21 +61,14 @@ on-device.
 ## Context management
 
 Follow jon-platform `docs/agent-workflow.md` § Context management and § Token discipline. The
-repo (docs, ADRs, CURRENT_HANDOFF, DONE_LOG) plus auto-memory hold all durable state, so suggest
+repo (docs, ADRs, NEXT_UP, open-questions, DONE-LOG) plus auto-memory hold all durable state, so suggest
 a fresh session at commit/milestone boundaries when context is heavy and the tree is clean.
 
 ## Verifying
 
-`scripts/check-drift.sh` is the single entry point: SwiftLint, `swift test
---package-path GalavantLibrary`, and a `build-for-testing` pass that compiles and
-links `GalavantUITests`. Each stage runs through jon-platform's `quiet-run`,
-so only errors and verdicts print; the full logs stay on disk. It never boots a simulator — running the UI tests is a
-separate, deliberate step.
-
-That last stage exists because `GalavantUITests` is compiled by nothing else here
-and run by nothing in CI, which is precisely how a test target rots without
-anyone noticing. `GALAVANT_SKIP_TEST_BUILD=1` skips it and says loudly that it
-did.
+Per [`docs/verification.md`](docs/verification.md): `scripts/check-drift.sh` is the single gate
+(lint, package tests, UI-test build, handoff hygiene), plus headless app-target tests when a
+dispatch touches app models. Compile-only; Jon reviews on device.
 
 - **Declare what you use, even when you got it for free.** `import SQLiteData`
   hands you GRDB's `Database`/`DatabaseWriter` via `@_exported`, but that is a

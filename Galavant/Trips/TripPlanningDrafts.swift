@@ -19,7 +19,7 @@ struct FreeformStopDraft: Identifiable {
   var booking = BookingFieldsDraft()
 }
 
-/// Presents the trip-sketch sheet (docs/handoff/trip-sketch-design.md). The sheet
+/// Presents the trip-sketch sheet (docs/efforts/trip-sketch-design.md). The sheet
 /// reads the current sketch live from the model, so the presentation only needs an
 /// identity to drive `.sheet(item:)`.
 struct TripSketchPresentation: Identifiable {

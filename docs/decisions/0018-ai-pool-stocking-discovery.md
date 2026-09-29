@@ -127,7 +127,7 @@ throwaway debug view. Easy to delete once the spike has served its purpose.
 - **Open / risks:** `web_search` cost + latency (bounded by `max_uses`); MapKit
   resolution misses for obscure places (pin-less candidate — acceptable); ATS.
 
-## Slices (operational detail in `docs/M6-EXECUTION.md`)
+## Slices (operational detail in `docs/milestones/M6-EXECUTION.md`)
 
 - **Slice 0 — the spike:** the `web_search` wire change + a `PlaceDiscoveryClient`
   doing the grounded `complete()` + JSON parse; a dev-only Ideas-toolbar entry that

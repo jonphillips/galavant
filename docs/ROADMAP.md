@@ -28,8 +28,8 @@ opening a fresh Opus session is worth it.
 - ✅ M2a: TravelParty/Planner/IdeaInterest schema, kinds, per-planner first-run identity, his/hers interest UI
 - ✅ M2b: MapKit location search in the form (idea gets coordinates) + pool map with pins + list/map toggle
 - ✅ M2c: first-class MapRegion (containment-based), pool filter (region/kind/visited), filter UI + define-region-from-map, filter-summary bar
-- ✅ Capture polish: **search-first form** — place search leads, auto-populates name/kind/link/address/phone from MapKit (`MKMapItem` + pure `IdeaKind` POI mapping); ⏳ Tags (first-class?); ✅ location-search robustness (worldwide `MKLocalSearch` natural-language query — DONE 2026-06-16, docs/DONE_LOG.md)
-- ✅ Second-device identity hardening (ADR-0008): bind-or-create planner picker, stray-party cleanup, IdeaInterest dedup-on-read — convergence + dedup-on-read shipped 2026-08-12 (PR #20, docs/DONE_LOG.md); follow-ups: device-verify the party merge + `Planner.create` planner-level dedup
+- ✅ Capture polish: **search-first form** — place search leads, auto-populates name/kind/link/address/phone from MapKit (`MKMapItem` + pure `IdeaKind` POI mapping); ⏳ Tags (first-class?); ✅ location-search robustness (worldwide `MKLocalSearch` natural-language query — DONE 2026-06-16, docs/DONE-LOG.md)
+- ✅ Second-device identity hardening (ADR-0008): bind-or-create planner picker, stray-party cleanup, IdeaInterest dedup-on-read — convergence + dedup-on-read shipped 2026-08-12 (PR #20, docs/DONE-LOG.md); follow-ups: device-verify the party merge + `Planner.create` planner-level dedup
 - Full Idea model: kinds, visited state, tags, URLs, images, opening days/hours and reservable-from (manual entry)
   - **Image storage strategy** (cross-cutting; inherited by M4 scraped images + M5
     Unsplash headers) — now settled in **ADR-0009**: CloudKit-native (no S3),
@@ -68,7 +68,7 @@ opening a fresh Opus session is worth it.
   sections, one-tap state icons, and swipe Remove/Unschedule. 11 new tests (43 total). **Done is intentionally not a
   per-stop action** (Jon: completion is assumed once the trip passes) — the
   `markDone`→`visited` op stays as the mechanism for a future trip-level rollup
-  (docs/CURRENT_HANDOFF.md) + a "now" marker (shipped since — docs/DONE_LOG.md).
+  (docs/open-questions.md) + a "now" marker (shipped since — docs/DONE-LOG.md).
   Deferred: clock-time *entry* UI, drag stops
   between days, per-day region stops (`.timed` + schema already support the first;
   freeform stops shipped M3g, accommodations M3h, the now marker M3f). `TripRegion` join (single-FK→Trip ON DELETE CASCADE, loose regionID per ADR-0007) with `setRegions` reconcile + `regionIDs(forTrip:)`. `poolFiltered` now takes a region **union** (`regions: [MapRegion]`, empty = no constraint, match any); IdeasListModel + tests updated. Multi-region picker in the trip form; the Add lens (`Set<MapRegion.ID>`) **pre-seeds from the trip's regions** on appear. Demo trips pre-associated with regions. 32 tests green. (Reorder-on-fast-nav race parked as a beta-watch item — docs/KNOWN-ISSUES.md.)
@@ -125,7 +125,7 @@ opening a fresh Opus session is worth it.
   per-day-region driving, stays summary band + spanning banner, hotel-anchored
   routing. **Next: numbered itinerary rows (located-only, matching map pins), then
   per-day regions.**
-- ✅ **Floating untimed stops (ADR-0033, core 2026-07-10):** an "Anytime" stop is a positioned citizen of its day — a per-stop intra-day `dayRank`, anchored interleave between timed stops, and a pure `Schedule.suggestedTime`. Functional core shipped + unit-tested; the UI (stop time editor + non-drag intra-day reorder) shipped as a follow-up — see docs/DONE_LOG.md.
+- ✅ **Floating untimed stops (ADR-0033, core 2026-07-10):** an "Anytime" stop is a positioned citizen of its day — a per-stop intra-day `dayRank`, anchored interleave between timed stops, and a pure `Schedule.suggestedTime`. Functional core shipped + unit-tested; the UI (stop time editor + non-drag intra-day reorder) shipped as a follow-up — see docs/DONE-LOG.md.
 - Trip model: **certainty lifecycle** someday(rank) → targeted(year, quarter) → dated (docs/trip-time-model.md); duration in days; **day-number-relative itinerary** + **TripIdea join with status lifecycle** (ADR-0004)
 - Trips list grouped by certainty; drag-rank the someday backlog; trip link bookmarks (label+URL)
 - Planning view: pool filtered by trip lens → pull to shortlist
@@ -133,14 +133,14 @@ opening a fresh Opus session is worth it.
 - Itinerary: days, per-day regions (with percentDay splits), stops with the V2 Schedule enum; "bookable now / opens in N days" section on dated trips
 - Post-trip: done/skipped feedback to pool
 - Map-as-canvas trip view: day chips, numbered sequence pins, bottom-sheet timeline (docs/trip-canvas.md)
-- ✅ Travel-time connectors between a day's stops (MKDirections ETAs + transport-mode auto-detect/per-leg override; `TravelConnector`/`DirectionsClient`, 2026-06-20) + open-in-Maps handoff (M3d). The "now" you-are-here marker on active dated trips also shipped (2026-06-20; docs/DONE_LOG.md "now marker" item).
+- ✅ Travel-time connectors between a day's stops (MKDirections ETAs + transport-mode auto-detect/per-leg override; `TravelConnector`/`DirectionsClient`, 2026-06-20) + open-in-Maps handoff (M3d). The "now" you-are-here marker on active dated trips also shipped (2026-06-20; docs/DONE-LOG.md "now marker" item).
 - Stretch: start-day solver (slide start date → check key stops' open days; docs/trip-time-model.md)
 - ✅ Done when: the Copenhagen scenario works end to end
 
 ## M4 — Capture from anywhere ✅ (done 2026-06-18 — M4a–M4h; CloudKit BLOB sync still to verify on two real devices, ADR-0009 §4)
 - ✅ M4a (2026-06-16): **the pure parser engine** — new isolated SPM target
   `GalavantCapture` (SwiftSoup + Foundation only; **no** SwiftUI/CloudKit, never
-  sees `Idea`/`Trip` — the portfolio-extraction seam, docs/CURRENT_HANDOFF.md/ADR-0009). `HTML →
+  sees `Idea`/`Trip` — the portfolio-extraction seam, docs/open-questions.md/ADR-0009). `HTML →
   ParsedPage` (a domain-free value type: title/summary/phone/email/`websiteURL`/
   coordinate/address/images/socials/`schemaTypes`/`openingHours`/`capturedAt`).
   Layers run least→most structured into one **value vote** (V1's
@@ -263,7 +263,7 @@ The daily-use implementation band is shipped: **sync health** and **pinned
 reservations**. The one-way **calendar export** also shipped, but its boundary is
 **superseded by ADR-0034** — the calendar story is now *ingest and reconcile* (M7),
 not *mirror out*; the shipped export is demoted to a possible future deliberate
-"Add to Shared Calendar" action, not a milestone gate. See `docs/M5-EXECUTION.md`
+"Add to Shared Calendar" action, not a milestone gate. See `docs/milestones/M5-EXECUTION.md`
 for the remaining real-device/distribution verification spine.
 
 - ✅ Sync health clearly distinguishes active, local-only, syncing, and error states.
@@ -286,7 +286,7 @@ M6 is no longer a presumed linear build sequence. Its durable posture remains:
 intelligence may capture, refine, and explain, but it does not silently become the
 authority or decide a pull/route (ADR-0004); it remains no-server (ADR-0001). The
 older ADRs record decisions and hypotheses, not a commitment to implement every
-remaining slice unchanged. `docs/M6-EXECUTION.md` is the current inventory and
+remaining slice unchanged. `docs/milestones/M6-EXECUTION.md` is the current inventory and
 decision-gate brief.
 
 **Current classes of intelligence:**
@@ -318,7 +318,7 @@ Galavant dogfooding earns it.
 
 The entries retained below are an audit trail of the former planned sequence. Their
 old completion markers and suggested build order are not current status or approval
-to implement them. Use the rebaseline above and `docs/M6-EXECUTION.md` to select any
+to implement them. Use the rebaseline above and `docs/milestones/M6-EXECUTION.md` to select any
 future work; first establish the M5 real-device evidence, then take one decision-gated
 slice only.
 
@@ -368,7 +368,7 @@ slice only.
   the pool; it never pulls onto a trip** (ADR-0004). **Slice 0 is a throwaway spike**
   (behind a small, deletable Ideas-toolbar entry — Jon's call) that gates the rest on
   discovery quality for "all 2–3★ Michelin in the Loire." Brief in
-  `docs/M6-EXECUTION.md`. **Suggested executor: Opus** — the `web_search` wire change
+  `docs/milestones/M6-EXECUTION.md`. **Suggested executor: Opus** — the `web_search` wire change
   (`AnthropicWire`) is past-cutoff (needs `claude-api`) and the discovery-quality call
   is judgment-heavy.
 - ✅ **M6f — structured weekday hours + the start-day solver (ADR-0029, shipped
@@ -409,7 +409,7 @@ slice only.
 (ADR-0041 — raw-title exact-name promotion + manual link/unlink, trip-scoped synced
 ignores, own-zone absolute display + per-day time-zone overrides, and iCal-notes
 tap-through) landed on `feat/m7-dogfood-followups`. Device/calendar dogfooding is
-ongoing. See `docs/DONE_LOG.md` and `docs/M7-DOGFOOD.md`.
+ongoing. See `docs/DONE-LOG.md` and `docs/milestones/M7-DOGFOOD.md`.
 
 
 Reverses the shipped M5 calendar boundary: the couple's **existing shared Apple
@@ -426,7 +426,7 @@ are proven locally. Full rationale + acceptance criteria in ADR-0034.
 **ADR-0041 dogfood amendments are implemented on `feat/m7-dogfood-followups`**
 (pending PR/device verification): raw-title exact-name promotion plus manual
 link/unlink, trip-scoped ignored events with conservative reap evidence, and
-own-zone/per-day time-zone display and resolution. Use `docs/M7-DOGFOOD.md`
+own-zone/per-day time-zone display and resolution. Use `docs/milestones/M7-DOGFOOD.md`
 Part 3 for the focused follow-up pass; the device pass remains Jon's.
 
 - ✅ **Slice 0 — spike (throwaway, gate).** Observed the shared calendar in a dated
@@ -459,7 +459,7 @@ Part 3 for the focused follow-up pass; the device pass remains Jon's.
   commitments; feed anchors into `StartDaySolver` (ADR-0029); past-trip freeze on the
   completion lifecycle. **Opus.**
 - ⏳ **Slice 7 — docs.** Flip ADR-0034 to accepted; final reconcile of ROADMAP /
-  M5-EXECUTION / trip-time-model / CURRENT_HANDOFF.
+  M5-EXECUTION / trip-time-model / open-questions.
 - ⏳ Done when: a reservation booked in OpenTable (never entered in Galavant) appears
   on the trip, its later time change auto-applies with a durable record, a
   moved-outside-trip reservation is reported as moved (not deleted), a permission
@@ -497,7 +497,7 @@ storage. Slot edits propagate across the ring so changing its day/time/order can
 evaluation cockpit (Slices 1–3), and the LLMHandoffKit lift all landed and are dogfooded.
 Remaining are polish/enhancement follow-ups (Choose One day-anchoring, dossier flyover,
 iPhone cockpit layout) and the cross-repo yes-chef adoption of LLMHandoffKit — tracked in
-`docs/CURRENT_HANDOFF.md`. See `docs/DONE_LOG.md`.
+`docs/open-questions.md`. See `docs/DONE-LOG.md`.
 
 
 Galavant's instance of yes-chef's external-LLM handoff, specialized to place candidates. A
@@ -532,7 +532,7 @@ the itinerary. The handoff core lifts to a shared jon-platform package (Galavant
   search-resolve, toolbar **Connect**, a **Site** badge, Google search, opt-in consent
   auto-accept, and ⌘-number section shortcuts. Dogfooded. Deferred polish: **Choose One
   day-anchoring**, **dossier flyover** (cover siblings), **iPhone map-first layout** — in
-  `CURRENT_HANDOFF.md`. The pure model/traversal core is settled (ADR-0037 D7 — layout only).
+  `open-questions.md`. The pure model/traversal core is settled (ADR-0037 D7 — layout only).
 - ✅ **The lift (ADR-0036 S3) — shipped, PR #35.** Handoff spine extracted to
   `jon-platform/packages/LLMHandoffKit`; Galavant consumes it via an `@_exported` shim
   (behavior-neutral). **yes-chef adoption** (consumer #1) is the open cross-repo follow-up.

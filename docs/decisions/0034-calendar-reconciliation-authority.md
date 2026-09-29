@@ -8,7 +8,7 @@ couple's **existing shared Apple Calendar** becomes authoritative for real-world
 commitments, and Galavant ingests those commitments in trip scope and reconciles
 them against the itinerary. This ADR decides the **authority boundary** only; the
 reconciliation engine is carved into the M7 slice sequence below. Supersedes the
-"project, never ingest" principle in docs/M5-EXECUTION.md; amends docs/trip-time-model.md §4
+"project, never ingest" principle in docs/milestones/M5-EXECUTION.md; amends docs/trip-time-model.md §4
 (the `.linked`/`.manual` time-authority enum). Preserves ADR-0004 (model proposes,
 human decides), ADR-0001 (no server), ADR-0003 (CloudKit-shared domain state).*
 
@@ -28,7 +28,7 @@ suggestions, invitations, and direct entry — none of which route through Galav
 The shipped M5 slice took the **opposite** boundary: Galavant created a device-local
 `Galavant: <trip>` EventKit calendar, projected scheduled stops into it on demand,
 never read Calendar back, and would overwrite a Calendar.app edit on the next export
-(docs/M5-EXECUTION.md). That model can only ever publish a projection; it cannot see
+(docs/milestones/M5-EXECUTION.md). That model can only ever publish a projection; it cannot see
 the reservation the wife booked in OpenTable this morning. For a two-planner
 household app, **ingesting reality is the valuable direction; publishing a mirror is
 not.** Jon's call (2026-08-10): the shipped export code does not gate this, and the
@@ -193,7 +193,7 @@ is the **semantics**: exactly one authority, never a silent third truth.
 
 ### Amendment — reverse handoff from constraint to linked stop (2026-08-18)
 
-The flow in [the calendar-constraint-to-linked-stop handoff](../handoff/calendar-constraint-to-linked-stop.md)
+The flow in [the calendar-constraint-to-linked-stop handoff](../efforts/calendar-constraint-to-linked-stop.md)
 adds the approved reverse handoff: a Calendar-originated `CalendarTripConstraint`
 may be promoted after a planner assigns an Apple Maps place identity. Promotion
 creates an idea-backed itinerary stop and routes it through the existing `.linked`
@@ -296,7 +296,7 @@ completion definition — do not invent a second one.
   the M5-pinned principle (a confirmed booking keeps its real date when the trip
   slides) stays valid; a *linked* booking derives that date from Calendar rather than
   from an independently-editable Galavant copy.
-- **M5 calendar slice / docs/M5-EXECUTION.md "project, never ingest":** superseded.
+- **M5 calendar slice / docs/milestones/M5-EXECUTION.md "project, never ingest":** superseded.
   The two-device CloudKit + image/BLOB verification in that gate is independent and
   still valid; only the calendar line is retired.
 

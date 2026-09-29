@@ -12,7 +12,7 @@ rides SQLite→CloudKit like everything else), ADR-0004 (the pull lifecycle), an
 
 ## Context
 
-Dogfooding the Today preview (the `docs/handoff/today-day-preview.md` slice) surfaced a
+Dogfooding the Today preview (the `docs/efforts/today-day-preview.md` slice) surfaced a
 concrete gap on an **Anytime day** — e.g. a Munich old-town walking tour where every stop
 is a bare `.day` ("Anytime") schedule with a manual `dayRank` order (ADR-0033).
 
@@ -142,7 +142,7 @@ a sheet avoids nested-navigation issues). Available in both live and preview.
 
 ## Scope
 
-First slice (see `docs/handoff/today-execution.md`): completion + progress, collapse by
+First slice (see `docs/efforts/today-execution.md`): completion + progress, collapse by
 outcome, skip + defer, and tap-to-detail. Live-gated writes; preview stays read-only.
 Later: drag-to-reorder in Today, surfacing execution state in the planning tab, and the
 end-of-trip roll-up of completed stops into the `.done` status for pool feedback.

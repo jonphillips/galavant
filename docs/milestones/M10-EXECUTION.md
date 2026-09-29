@@ -4,7 +4,7 @@ Implementation plan for the **Today** surface — the on-the-ground iPhone cockp
 the **shared weather foundation** it introduces. Journey follows in a later slice sequence
 and is out of scope here (Today first, dogfood, then Journey — ADR-0038 §8).
 
-Authority: [ADR-0038](decisions/0038-journey-today-projections-and-weather.md). Read it
+Authority: [ADR-0038](../decisions/0038-journey-today-projections-and-weather.md). Read it
 first. The governing restraint: **Today is a read-only projection of `TripPlan`; no new
 persisted trip concepts.** All logic that can be pure is pure and lives in `GalavantSchema`;
 SwiftUI stays thin; WeatherKit is the only new dependency and is device-only verified.
@@ -157,7 +157,7 @@ prompts for them.
 > via PR to `main` (no worktrees; one editor at a time; serialize with other agents).
 >
 > Read `docs/decisions/0038-journey-today-projections-and-weather.md` and
-> `docs/M10-EXECUTION.md` (Ground truth + Slice 1) first. Add pure value types +
+> `docs/milestones/M10-EXECUTION.md` (Ground truth + Slice 1) first. Add pure value types +
 > derivations to `GalavantLibrary/Sources/GalavantSchema/` — `TodayProjection`, `LeaveBy`,
 > `WeatherAnchor` — each a function of an already-built `TripPlan` plus injected
 > `now: Date` and `tripStartDate: Date` and the existing `travelTimes: [LegKey: [TransportMode: TravelTime]]`.

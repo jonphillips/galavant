@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# The single verification entry point: the triple that docs/M5-EXECUTION.md and
-# docs/M6-EXECUTION.md have always asked for (swiftlint / swift test / app
+# The single verification entry point: the triple that docs/milestones/M5-EXECUTION.md and
+# docs/milestones/M6-EXECUTION.md have always asked for (swiftlint / swift test / app
 # build), plus one guarantee they did not cover — that the test target still
 # compiles and links.
 #
@@ -119,3 +119,10 @@ $test_bundle was COMPILED AND LINKED, NOT RUN — running UI tests boots a simul
 and is a separate, deliberate step.
 
 EOF
+
+# Handoff hygiene (WARN ONLY): jon-platform's shared check for the ADR-0005
+# document shape. Runs last so its warnings land in the PR's verification output.
+check_handoff="${JON_PLATFORM:-$HOME/code/jon-platform}/scripts/check-handoff"
+if [[ -x "$check_handoff" ]]; then
+  "$check_handoff"
+fi
