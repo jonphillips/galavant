@@ -21,6 +21,7 @@ backfilled **on touch**; the table below is the current index.
 | [dogfood-now-and-sketch.md](dogfood-now-and-sketch.md) | Dogfood 2026-09-11 — sense of *now*, device location, stay notes, general connectors, Today non-stop events, trip sketch | Six of seven slices shipped; only B2 (Today day map) open |
 | [trip-sketch-design.md](trip-sketch-design.md) | ADR-0012 — trip sketch (days × regions), Slice E of the dogfood brief | Done (shipped) |
 | [evaluate-duplicate-candidate-sets.md](evaluate-duplicate-candidate-sets.md) | Dogfood 2026-09-28 item 2: re-paste duplicates candidates and orphans resolved rows | Done |
+| [booking-scope-4-hint-and-today.md](booking-scope-4-hint-and-today.md) | ADR-0047 Scope 4 — handoff "book ahead" hint seeds To book; Today "Still to book" card | Dispatched (2026-09-29) |
 | [codex-recommendation-brief-stops.md](codex-recommendation-brief-stops.md) | Recommendation brief stops (moved from `docs/handoffs/`) | See doc |
 
 **Authoring a brief:** add its entry here in the same change (index at creation), give it a
