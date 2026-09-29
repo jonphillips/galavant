@@ -36,7 +36,9 @@ import Testing
     schedule: Schedule,
     rank: Int = 0,
     completedAt: Date? = nil,
-    skippedAt: Date? = nil
+    skippedAt: Date? = nil,
+    bookingStatus: BookingStatus? = nil,
+    pinnedDate: Date? = nil
   ) -> TripIdea {
     var entry = TripIdea(
       id: UUID(),
@@ -44,14 +46,27 @@ import Testing
       ideaID: ideaID,
       status: .scheduled,
       dayRank: Double(rank),
+      pinnedDate: pinnedDate,
+      bookingStatus: bookingStatus,
       completedAt: completedAt,
       skippedAt: skippedAt)
     entry.apply(schedule)
     return entry
   }
 
-  private func stay(_ ideaID: UUID, checkIn: Int, checkOut: Int) -> TripStay {
-    TripStay(id: UUID(), tripID: tripID, ideaID: ideaID, checkInDay: checkIn, checkOutDay: checkOut)
+  private func stay(
+    _ ideaID: UUID,
+    checkIn: Int,
+    checkOut: Int,
+    bookingStatus: BookingStatus? = nil
+  ) -> TripStay {
+    TripStay(
+      id: UUID(),
+      tripID: tripID,
+      ideaID: ideaID,
+      checkInDay: checkIn,
+      checkOutDay: checkOut,
+      bookingStatus: bookingStatus)
   }
 
   private func plan(
@@ -90,6 +105,43 @@ import Testing
     #expect(TodayProjection.tripDay(containing: date(day: 2, hour: 10), tripStartDate: startDate, in: tripPlan) == 2)
     #expect(TodayProjection.tripDay(containing: date(day: 1, hour: 0).addingTimeInterval(-1), tripStartDate: startDate, in: tripPlan) == nil)
     #expect(TodayProjection.tripDay(containing: date(day: 4, hour: 0), tripStartDate: startDate, in: tripPlan) == nil)
+    #expect(TodayProjection.resolve(
+      from: tripPlan,
+      now: date(day: 4, hour: 0),
+      tripStartDate: startDate,
+      travelTimes: [:],
+      leaveByBuffer: 0) == nil)
+  }
+
+  @Test func bookingsDueIncludesTodayAndTomorrowStopsAndStaysInRollupOrder() {
+    let (earlyID, lateID, tomorrowID, dayAfterID, bookedID, pinnedID, undecidedID, hotelID) =
+      (UUID(), UUID(), UUID(), UUID(), UUID(), UUID(), UUID(), UUID())
+    let tripPlan = plan(
+      entries: [
+        stop(earlyID, schedule: .timed(1, start: "09:00", end: nil), bookingStatus: .toBook),
+        stop(lateID, schedule: .timed(1, start: "18:00", end: nil), bookingStatus: .toBook),
+        stop(tomorrowID, schedule: .timed(2, start: "10:00", end: nil), bookingStatus: .toBook),
+        stop(dayAfterID, schedule: .timed(3, start: "10:00", end: nil), bookingStatus: .toBook),
+        stop(bookedID, schedule: .day(1), bookingStatus: .booked),
+        stop(pinnedID, schedule: .day(1), bookingStatus: .toBook, pinnedDate: date(day: 1, hour: 9)),
+        stop(undecidedID, schedule: .day(1)),
+      ],
+      ideas: [
+        idea(earlyID, name: "Breakfast"),
+        idea(lateID, name: "Dinner"),
+        idea(tomorrowID, name: "Museum"),
+        idea(dayAfterID, name: "Day Three"),
+        idea(bookedID, name: "Booked"),
+        idea(pinnedID, name: "Pinned"),
+        idea(undecidedID, name: "Lunch", kind: .food),
+        idea(hotelID, name: "Tomorrow Hotel"),
+      ],
+      stays: [stay(hotelID, checkIn: 2, checkOut: 4, bookingStatus: .toBook)])
+
+    let today = projection(tripPlan, now: date(hour: 8))
+
+    #expect(today.bookingsDue.map(\.title) == ["Breakfast", "Dinner", "Museum", "Tomorrow Hotel"])
+    #expect(today.bookingsDue.map(\.time) == ["09:00", "18:00", "10:00", nil])
   }
 
   @Test func startOfTripDayResolvesCalendarMidnights() {
@@ -457,15 +509,24 @@ import Testing
   }
 
   @Test func lastTripDayHasNoTomorrowOrientation() {
-    let id = UUID()
+    let (id, dueTodayID, outsideTripID) = (UUID(), UUID(), UUID())
     let tripPlan = plan(
-      entries: [stop(id, schedule: .timed(2, start: "12:00", end: nil))],
-      ideas: [idea(id, name: "Final lunch")],
+      entries: [
+        stop(id, schedule: .timed(2, start: "12:00", end: nil)),
+        stop(dueTodayID, schedule: .day(2), bookingStatus: .toBook),
+        stop(outsideTripID, schedule: .day(3), bookingStatus: .toBook),
+      ],
+      ideas: [
+        idea(id, name: "Final lunch"),
+        idea(dueTodayID, name: "Last Day Booking"),
+        idea(outsideTripID, name: "Outside Trip"),
+      ],
       length: 2)
     let today = projection(tripPlan, now: date(day: 2, hour: 9))
 
     #expect(today.dayContext.dayNumber == 2)
     #expect(today.tomorrow == nil)
+    #expect(today.bookingsDue.map(\.title) == ["Last Day Booking"])
   }
 
   @Test func explicitlyLeadingAnytimeStopStaysAheadOfALaterTimedStop() {

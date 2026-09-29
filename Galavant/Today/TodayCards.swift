@@ -2,6 +2,63 @@ import Foundation
 import GalavantSchema
 import SwiftUI
 
+struct TodayBookingsDueCard: View {
+  @Environment(\.openURL) private var openURL
+
+  let items: [TripBookingItem]
+  let today: Int
+  let planningModel: TripPlanningModel
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      Text("STILL TO BOOK")
+        .font(.caption.weight(.bold))
+        .foregroundStyle(.secondary)
+        .tracking(1.1)
+
+      ForEach(items, id: \.row) { item in
+        VStack(alignment: .leading, spacing: 8) {
+          Text(item.title)
+            .font(.headline)
+          Text(timing(for: item))
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+          HStack(spacing: 10) {
+            if let url = bookingURL(item.bookingURL) {
+              Button("Book") { openURL(url) }
+                .buttonStyle(.bordered)
+            }
+            Button("Mark booked") {
+              planningModel.setBookingStatus(.booked, for: item.row)
+            }
+            .buttonStyle(.borderedProminent)
+          }
+          .font(.subheadline)
+        }
+        if item.row != items.last?.row {
+          Divider()
+        }
+      }
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .padding(18)
+    .background(.background, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+  }
+
+  private func timing(for item: TripBookingItem) -> String {
+    let day = item.day == today ? "Today" : "Tomorrow"
+    return [day, item.time].compactMap { $0 }.joined(separator: " · ")
+  }
+
+  private func bookingURL(_ value: String?) -> URL? {
+    guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
+      return nil
+    }
+    let address = URLComponents(string: value)?.scheme == nil ? "https://\(value)" : value
+    return URL(string: address)
+  }
+}
+
 struct TodayTonightCard: View {
   let tonight: TodayProjection.Tonight
 

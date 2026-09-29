@@ -227,6 +227,10 @@ struct RecommendationCandidateCardPresentation<BottomContent: View>: View {
       Label("Site", systemImage: "link")
         .foregroundStyle(hasWebsite ? Color.blue : Color.gray)
         .symbolEffect(.bounce, value: hasWebsite)
+      if candidate.candidate.bookAhead == true {
+        Label("Book ahead", systemImage: Icon.bookingToBook.systemName)
+          .foregroundStyle(.secondary)
+      }
     }
     .font(.caption)
   }
