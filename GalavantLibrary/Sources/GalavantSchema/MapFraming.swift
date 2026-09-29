@@ -24,6 +24,14 @@ public enum MapFraming {
       self.latitudeDelta = latitudeDelta
       self.longitudeDelta = longitudeDelta
     }
+
+    /// Whether a point lies within the box — the "only what's in
+    /// the map area" test. Like the rest of `MapFraming`, antimeridian wrap is
+    /// ignored.
+    public func contains(latitude: Double, longitude: Double) -> Bool {
+      abs(latitude - centerLatitude) <= latitudeDelta / 2
+        && abs(longitude - centerLongitude) <= longitudeDelta / 2
+    }
   }
 
   /// The span applied to a single point (which has no extent of its own) — a
@@ -112,5 +120,14 @@ public enum MapFraming {
       return nil
     }
     return (latitude: centerLat, longitude: centerLon)
+  }
+}
+
+extension ResolvedStop {
+  /// Whether this stop has a location inside `box`. An unlocated stop is never
+  /// "in the map area" — it has nowhere on the map to be.
+  public func isInside(_ box: MapFraming.Box) -> Bool {
+    guard let coordinate else { return false }
+    return box.contains(latitude: coordinate.latitude, longitude: coordinate.longitude)
   }
 }

@@ -20,6 +20,17 @@ import Testing
     #expect(MapRegion.boundingBox(of: []) == nil)
   }
 
+  @Test func boxContainsPointsWithinItsSpan() {
+    let box = MapFraming.Box(
+      centerLatitude: 41.9, centerLongitude: 12.5, latitudeDelta: 0.2, longitudeDelta: 0.4)
+    #expect(box.contains(latitude: 41.9, longitude: 12.5))    // centre
+    #expect(box.contains(latitude: 41.99, longitude: 12.69))  // near the NE corner
+    #expect(box.contains(latitude: 41.85, longitude: 12.35))
+    #expect(!box.contains(latitude: 42.01, longitude: 12.5))  // just north
+    #expect(!box.contains(latitude: 41.9, longitude: 12.71))  // just east
+    #expect(!box.contains(latitude: 43.77, longitude: 11.25)) // Florence, off-map
+  }
+
   @Test func singlePointCentersWithDefaultSpan() {
     let box = MapFraming.box(for: [(latitude: 55.67, longitude: 12.57)])
     #expect(box?.centerLatitude == 55.67)

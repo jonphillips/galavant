@@ -72,6 +72,12 @@ struct TripCanvasMapView: View {
       .sensoryFeedback(.impact(weight: .light), trigger: dropFeedback)
       .onMapCameraChange(frequency: .onEnd) { context in
         visibleRegion = context.region
+        let box = MapFraming.Box(
+          centerLatitude: context.region.center.latitude,
+          centerLongitude: context.region.center.longitude,
+          latitudeDelta: context.region.span.latitudeDelta,
+          longitudeDelta: context.region.span.longitudeDelta)
+        if model.canvasVisibleBox != box { model.canvasVisibleBox = box }
       }
       // Keep the existing itinerary selection in sync when it originated from the
       // timeline rather than a pin tap.
