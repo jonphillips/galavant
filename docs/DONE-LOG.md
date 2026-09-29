@@ -3,6 +3,17 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## Evaluate candidate re-paste reconciliation (`effort/evaluate-duplicate-candidate-sets`) — 2026-09-29
+
+- Re-pasting a recommendation set now keeps the original candidates and their committed-row links,
+  adding only new normalized name-and-locality matches. The paste reports its new candidates and
+  candidates already represented on the trip.
+- Candidate commit reuses a live matching trip row across handoff sessions. Resolved place rows use
+  locality against the stored address to distinguish same-named places in different cities; rows
+  without locality data retain the title-only fallback.
+- **Verification.** `scripts/check-drift.sh` passed, and the headless `GalavantTests` run passed
+  33 tests. Device follow-up: confirm the paste wording and re-paste flow.
+
 ## Token discipline + ADR-0005 architect/executor shape (`chore/token-discipline`) — 2026-09-29
 
 - `check-drift.sh` runs its stages through jon-platform's `quiet-run` (~320 KB of raw output →

@@ -6,6 +6,7 @@ reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT
 
 ## Verification gates (decision gates, not a build queue)
 
+- **Evaluate re-paste flow.** Confirm the paste-confirmation wording and re-paste flow on device.
 - **M5 real-device gate.** TestFlight on both phones: travel-party share acceptance,
   two-way CloudKit changes, image/BLOB round-trips, pinned-reservation behavior.
   Checklist: `docs/milestones/M5-EXECUTION.md`. (The old "manual Calendar export on both devices"

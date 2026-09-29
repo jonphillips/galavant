@@ -1,3 +1,4 @@
+import CustomDump
 import Dependencies
 import DependenciesTestSupport
 import Foundation
@@ -26,11 +27,15 @@ struct RecommendationHandoffTests {
       }.execute(db)
       let existing = try TripIdea.pull(ideaID: placeID, into: trip.id, status: .shortlisted, in: db)
       try TripIdea.find(existing.id).update { $0.inlineNote = #bind("Keep this note") }.execute(db)
-      let duplicate = try TripIdea.commit(
-        candidate: TripCandidate(name: "Lumiere Brasserie", why: "Try the tasting menu."),
-        into: trip.id,
-        in: db
+      let duplicate = TripIdea(
+        id: UUID(),
+        tripID: trip.id,
+        ideaID: nil,
+        inlineTitle: "Lumiere Brasserie",
+        inlineNote: "Try the tasting menu.",
+        status: .considering
       )
+      try TripIdea.insert { TripIdea.Draft(duplicate) }.execute(db)
       let resolution = try #require(try RecommendationResolution.confirm(
         candidateStopID: duplicate.id,
         capture: Place(
@@ -284,6 +289,119 @@ struct RecommendationHandoffTests {
     #expect(session.candidateLinks.count == 2)
     #expect(session.candidateLinks.first(where: { $0.candidateID == candidate.id })?.tripIdeaID == linkedStopID)
     #expect(session.hasCommittedRecommendationCandidates)
+  }
+
+  @Test func repastingMergesByNormalizedNameAndLocalityWithoutLosingCommittedLinks() throws {
+    let original = TripCandidate(
+      id: UUID(-20), name: "Lumière Brasserie", locality: "Bolzano"
+    )
+    let newCandidate = TripCandidate(id: UUID(-21), name: "Plose", locality: "Brixen")
+    let linkedStopID = UUID(-22)
+    var session = HandoffSession(
+      sourceType: "trip",
+      sourceID: UUID(),
+      taskType: RecommendationHandoffTask.candidatePlaces,
+      exportedPrompt: "Prompt"
+    )
+
+    try session.storeRecommendationCandidates([original])
+    session.link(candidateID: original.id, to: linkedStopID)
+    let merge = try session.storeRecommendationCandidates([
+      TripCandidate(name: "lumiere brasserie", locality: "BOLZANO"),
+      newCandidate,
+    ])
+
+    expectNoDifference(merge.addedCandidates, [newCandidate])
+    expectNoDifference(try session.recommendationCandidates(), [original, newCandidate])
+    expectNoDifference(
+      session.candidateLinks.first(where: { $0.candidateID == original.id })?.tripIdeaID,
+      linkedStopID
+    )
+  }
+
+  @Test func committingAcrossSessionsLinksTheExistingLiveRowInsteadOfInserting() async throws {
+    let result = try await database.write { db -> (TripIdea.ID, HandoffCandidateLink?, Int) in
+      let trip = try Trip.create(name: "South Tyrol", in: db)
+      let party = try TravelParty.ensureDefault(in: db)
+      let resolvedIdea = Idea(
+        id: UUID(), name: "Lumière Brasserie", travelPartyID: party.id
+      )
+      try Idea.insert { Idea.Draft(resolvedIdea) }.execute(db)
+      let firstCandidate = TripCandidate(name: "Lumière Brasserie", locality: "Bolzano")
+      var firstSession = HandoffSession(
+        sourceType: "trip", sourceID: trip.id,
+        taskType: RecommendationHandoffTask.candidatePlaces, exportedPrompt: "Prompt"
+      )
+      try firstSession.storeRecommendationCandidates([firstCandidate])
+      let original = try TripIdea.commit(
+        candidate: firstCandidate, into: trip.id, in: db
+      )
+      _ = try TripIdea.attachResolvedIdea(resolvedIdea.id, to: original.id, in: db)
+      firstSession.link(candidateID: firstCandidate.id, to: original.id)
+      let returningCandidate = TripCandidate(name: "lumiere brasserie", locality: "BOLZANO")
+      var returningSession = HandoffSession(
+        sourceType: "trip", sourceID: trip.id,
+        taskType: RecommendationHandoffTask.candidatePlaces, exportedPrompt: "Prompt"
+      )
+      try returningSession.storeRecommendationCandidates([returningCandidate])
+      let committed = try TripIdea.commit(
+        candidate: returningCandidate, into: trip.id, in: db
+      )
+      returningSession.link(candidateID: returningCandidate.id, to: committed.id)
+      let count = try TripIdea.where { $0.tripID.eq(trip.id) }.fetchCount(db)
+      return (original.id, returningSession.candidateLinks.only, count)
+    }
+
+    expectNoDifference(result.1?.tripIdeaID, result.0)
+    expectNoDifference(result.2, 1)
+  }
+
+  @Test func terminalRowsDoNotSuppressANewCandidate() async throws {
+    let result = try await database.write { db -> Int in
+      let trip = try Trip.create(name: "South Tyrol", in: db)
+      let original = try TripIdea.commit(
+        candidate: TripCandidate(name: "Lumière Brasserie"), into: trip.id, in: db
+      )
+      try TripIdea.setStatus(.skipped, stopID: original.id, in: db)
+      _ = try TripIdea.commit(
+        candidate: TripCandidate(name: "lumiere brasserie"), into: trip.id, in: db
+      )
+      return try TripIdea.where { $0.tripID.eq(trip.id) }.fetchCount(db)
+    }
+
+    expectNoDifference(result, 2)
+  }
+
+  @Test func candidateLocalityDistinguishesSameNamedResolvedPlaces() async throws {
+    let counts = try await database.write { db -> (Int, Int) in
+      let trip = try Trip.create(name: "European capitals", in: db)
+      let party = try TravelParty.ensureDefault(in: db)
+      let vienna = Idea(
+        id: UUID(),
+        name: "Café Central",
+        address: "Herrengasse 14, Vienna, Austria",
+        travelPartyID: party.id
+      )
+      try Idea.insert { Idea.Draft(vienna) }.execute(db)
+      let original = try TripIdea.commit(
+        candidate: TripCandidate(name: "Café Central", locality: "Vienna"), into: trip.id, in: db
+      )
+      _ = try TripIdea.attachResolvedIdea(vienna.id, to: original.id, in: db)
+
+      _ = try TripIdea.commit(
+        candidate: TripCandidate(name: "Cafe Central", locality: "Vienna"), into: trip.id, in: db
+      )
+      let afterMatchingLocality = try TripIdea.where { $0.tripID.eq(trip.id) }.fetchCount(db)
+
+      _ = try TripIdea.commit(
+        candidate: TripCandidate(name: "Cafe Central", locality: "Madrid"), into: trip.id, in: db
+      )
+      let afterDifferentLocality = try TripIdea.where { $0.tripID.eq(trip.id) }.fetchCount(db)
+      return (afterDifferentLocality, afterMatchingLocality)
+    }
+
+    expectNoDifference(counts.0, 2)
+    expectNoDifference(counts.1, 1)
   }
 
   @Test func sessionIsNotEvaluatableUntilAReviewedCandidateIsCommitted() throws {

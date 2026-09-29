@@ -303,6 +303,12 @@ extension TripIdea {
     into tripID: Trip.ID,
     in db: Database
   ) throws -> TripIdea {
+    let context = try recommendationMatchingContext(for: tripID, in: db)
+    if let existing = RecommendationCandidateSet.liveTripIdea(
+      matching: candidate, in: context.tripIdeas, ideasByID: context.ideasByID
+    ) {
+      return existing
+    }
     let id = UUID()
     let tripIdea = TripIdea(
       id: id,
@@ -393,7 +399,26 @@ extension HandoffSession {
     return try JSONDecoder().decode([TripCandidate].self, from: Data(candidatePayload.utf8))
   }
 
-  public mutating func storeRecommendationCandidates(_ candidates: [TripCandidate]) throws {
+  @discardableResult
+  public mutating func storeRecommendationCandidates(
+    _ incomingCandidates: [TripCandidate]
+  ) throws -> RecommendationCandidateSet.Merge {
+    let merge = RecommendationCandidateSet.merging(
+      existing: try recommendationCandidates(), incoming: incomingCandidates
+    )
+    try setRecommendationCandidates(merge.candidates)
+    return merge
+  }
+
+  /// Adds a human-entered candidate without applying the LLM re-paste merge rule.
+  /// A deliberate manual addition may legitimately share a title with a suggestion.
+  public mutating func appendRecommendationCandidate(_ candidate: TripCandidate) throws {
+    var candidates = try recommendationCandidates()
+    candidates.append(candidate)
+    try setRecommendationCandidates(candidates)
+  }
+
+  private mutating func setRecommendationCandidates(_ candidates: [TripCandidate]) throws {
     candidatePayload = String(decoding: try JSONEncoder().encode(candidates), as: UTF8.self)
     let linkedTripIdeaIDs = Dictionary(uniqueKeysWithValues: candidateLinks.map { ($0.candidateID, $0.tripIdeaID) })
     candidateLinks = candidates.map {
@@ -410,7 +435,7 @@ extension HandoffSession {
     var candidates = try recommendationCandidates()
     guard let index = candidates.firstIndex(where: { $0.id == candidate.id }) else { return }
     candidates[index] = candidate
-    try storeRecommendationCandidates(candidates)
+    try setRecommendationCandidates(candidates)
   }
 }
 
