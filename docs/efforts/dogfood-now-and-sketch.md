@@ -284,49 +284,11 @@ what was built is in `docs/DONE-LOG.md`. Two notes for B2, the dependent slice:
 
 ---
 
-## Prompt B2 — A daily map on the Today cockpit (Sonnet 5, or hand to Codex)
+## Prompt B2 — A daily map on the Today cockpit — DISPATCHED
 
-> **Dependency: Slice B1 must be merged first** (this consumes its `LocationClient`
-> and its Info.plist key).
->
-> In `~/code/galavant/galavant`, add a map of the current day to the **Today** view —
-> the on-the-ground iPhone cockpit, `Galavant/Today/TodayView.swift`.
->
-> **Read first:** `AGENTS.md`, `docs/decisions/0038-journey-today-projections-and-weather.md`,
-> `docs/decisions/0039-today-execution-completion-skip-defer.md`,
-> `docs/milestones/M10-EXECUTION.md`, and `Galavant/Trips/TripCanvasMapView.swift` (the idioms
-> to mirror, not to copy wholesale).
->
-> **Problem.** Today is a `ScrollView` of cards with no spatial view at all. On the
-> ground, the one thing you want alongside "what's next" is *where that is relative
-> to where I am*.
->
-> **Build.** A day-map card in the Today stack showing:
-> - today's located stops in itinerary order, numbered, in that day's `DayPalette`
->   colour, with the day's polyline — reuse `plan.locatedStops(forDay:)` and
->   `plan.routeEndpoints(forDay:)`; do not derive a second route,
-> - the day's lodging base pin, matching the canvas's `BasePin` treatment,
-> - the user's location (`UserAnnotation`, from Slice B1),
-> - the **next** stop visually distinguished — Today's whole job is "what's next",
->   and the map should answer it without reading the cards.
->
-> Frame the camera on the union of today's stops plus the user's location when it's
-> available and nearby; fall back to the existing `MapFraming` helpers otherwise.
-> Tapping the card's next-stop pin should select the same idea the cards select
-> (`onSelectIdea`), so the map and the cards stay one surface.
->
-> **Respect the preview mode.** `TodayView` renders any trip day via its day stepper;
-> when `isPreviewing` is true the map shows that day's route but **not** a live
-> "you are here" framing — previewing day 5 from day 2 shouldn't fly the camera to
-> Jon's kitchen.
->
-> **Constraints.** No new projection type and no persistence — Today is a read-only
-> projection over `TripPlan` (ADR-0038) and this card must stay that way. No second
-> Directions polling loop; `TodayModel` deliberately avoids one. Keep `TodayView`
-> from growing — it's already 263 lines and the repo has been actively splitting
-> these files (PRs #104–110); put the card in `TodayCards.swift` or its own file.
->
-> **Verify:** `scripts/check-drift.sh`. Branch `feat/today-day-map`, land via PR.
+Superseded by its own brief, [`today-day-map.md`](today-day-map.md), which re-checks this draft
+against the shipped B1 code and ADR-0046. Among other changes, it doesn't start the location stream
+without authorization, and it frames the camera once rather than on every reading.
 
 ---
 
