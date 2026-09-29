@@ -7,12 +7,10 @@ retired `CURRENT_HANDOFF.md` and `ROADMAP.md`'s open items.
 
 ## Candidates
 
-- **B2 — daily map on Today**, the last open slice of
-  [the 2026-09-11 dogfood brief](efforts/dogfood-now-and-sketch.md). One thing B1 deliberately left
-  for B2: the canvas holds no live location session. `UserAnnotation` draws the dot from MapKit's own
-  updates, and `DeviceLocationModel` consumes the stream only long enough to get authorization
-  answered. A surface that needs the *coordinate* (B2's union framing) starts its own stream and owns
-  its lifetime.
+- **Full-screen day map from Today.** The Today map card (effort `today-day-map`) is deliberately
+  non-interactive, so it doesn't fight the scroll view, and has no follow-mode control. If Jon wants to
+  pan or zoom on the ground, a tap on the card opening a full-screen interactive day map (with
+  `MapUserLocationButton`) is the natural next step. Wait for dogfood evidence before adding it.
 
 ### M9 cockpit polish (post-ship follow-ups)
 
