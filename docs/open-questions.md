@@ -21,6 +21,12 @@ hand-run the Appendix A clause in the Denmark conversation and compare against
 `docs/fixtures/seed-denmark.txt` before Slice 2 is dispatched. Slice 1 (`.declined` + `TripDocument`)
 is dispatchable on ratification and doesn't depend on Slice 0. ADR OQ1–OQ4 stay in the ADR.
 
+- **v1 candidate decode silently drops prose around the array.** `TripCandidate.decodeReturn` slices
+  the first `[{…}]` array, so a `{"summary": …, "places": [ … ]}` reply imports the places and drops
+  `summary` without a word. In ADR-0048 Slice 0 run 1, that summary was the only place the deferred
+  northern-trip places appeared. Options: show the non-array text in the review ("Chat also said: …"),
+  or append it to the handoff record. Small; semantic-fidelity "review-dependent" class.
+
 ### M9 cockpit polish (post-ship follow-ups)
 
 M9 (recommendation handoff + evaluation cockpit) and the LLMHandoffKit lift shipped and

@@ -105,8 +105,11 @@ GV-SEED
   (warn and proceed; only a contract marker *newer* than the build stops). A missing `GV-SEED` line or
   a JSON object that fails to decode **stops the whole paste and writes nothing**, narrative
   included. Half a seed is worse than none.
-- An empty narrative is allowed (no founding document is created). Empty `bases` and `places` together
-  is an error (`emptySeed`), matching `TripCandidateDecodeError.emptyCandidates`.
+- **An empty narrative falls back to the JSON `summary`.** Left to itself, Chat writes a one-paragraph
+  `summary` string rather than a document (Slice 0, run 1). When the narrative is empty, a top-level
+  `summary` (or `trip.summary`) becomes the founding document body instead. If both are empty, no
+  document is created. Empty `bases` and `places` together is an error (`emptySeed`), matching
+  `TripCandidateDecodeError.emptyCandidates`.
 
 ### D3 — The seed JSON, v1
 
@@ -115,11 +118,12 @@ unknown fields are ignored.
 
 ```jsonc
 {
+  "summary": "…",               // founding-document fallback when the narrative is empty (D2)
   "trip": {
     "length_days": 13,          // proposed Trip.lengthInDays
     "year": 2027,               // proposed Trip.targetYear
     "quarter": 3,               // proposed Trip.targetQuarter (1–4)
-    "summary": "…"              // one line; shown in the review, not stored
+    "summary": "…"              // shown in the review; also accepted as the fallback
   },
   "bases": [{                   // lodging, in order
     "name": "Falsled Kro",      // required
@@ -136,8 +140,10 @@ unknown fields are ignored.
     "name": "Norðdisk",
     "locality": "Faaborg",
     "search_hint": "Norðdisk Faaborg",
-    "kind": "food",
+    "kind": "food",             // normalized in Galavant (D4), not trusted verbatim
     "why": "…",                 // fit with THIS trip → TripIdea.inlineNote
+    "fit": "…",                 // also trip-specific → inlineNote (Chat fills it unprompted)
+    "visit": "…",               // how to use it on this trip → inlineNote
     "verdict": "core",          // core | considering | declined | deferred
     "reason": "…",              // required for declined/deferred
     "future_trip": "…",         // deferred only: a label, e.g. "Northern Denmark"
@@ -171,7 +177,8 @@ can see them.
 | `verdict: declined` | `TripIdea` `.declined` (D5) | `reason` goes in `inlineNote` |
 | `verdict: deferred` | `TripIdea` `.declined` (D5) | `inlineNote` = "Deferred — *future_trip*: *reason*". Reaches the pool on resolution (D5) |
 | unknown verdict | `.considering` | The review row shows the original verdict text, so the downgrade is visible |
-| `why` | `TripIdea.inlineNote` / `TripStay.inlineNote` | Joined to `reason` when both are present |
+| `why`, `fit`, `visit` | `TripIdea.inlineNote` / `TripStay.inlineNote` | Joined in that order, then `reason`, blank-line separated; empty parts skipped |
+| `kind` | `IdeaKind` via a synonym table | Chat ignores the listed vocabulary (run 1 used `hotel`, `restaurant`, `town`, `base`), so Galavant normalizes instead of relying on the instructions: exact case names first, then synonyms (`hotel`/`inn`/`lodging` → `.stay`, `restaurant`/`dining`/`cafe` → `.food`, `bar`/`winery` → `.drink`, `town`/`village`/`landmark` → `.sight`, `hike`/`walk`/`trail` → `.outdoorTrail`, `ferry`/`train` → `.transit`). Anything else → `nil`, shown in the review with the original text. The table is pure, tested, and grows from dogfooding |
 | `place_notes` | `IdeaEvaluation` on the resolved `Idea` | `sourceName: "Trip research"`, `kind: .text`, `confidence: .inferred`, `staleness: .current`, `evaluationDate` = import date, `summary` = the text. If the row is unresolved at commit, the text is appended to `inlineNote` under an "About the place:" line instead. Nothing is dropped |
 | `group` | `alternativeGroupID` ring (ADR-0035) | Members share one new UUID; at least two members, otherwise the group is ignored and the review notes it |
 
@@ -331,10 +338,14 @@ the shared kit. Verb text and payloads stay per-app (ADR-0036 §The lift).
 
 ## Slices
 
-- **Slice 0 — hand-run the contract (Jon, no code).** Paste the appendix clause into the Denmark
-  bearings conversation followed by "Seed this trip from our conversation." Check the return against
-  [the fixture](../fixtures/seed-denmark.txt): did it separate `why` from `place_notes`, use verdicts,
-  and form groups? Adjust the clause before Slice 2. This follows yes-chef's method and ADR-0036 OQ4.
+- **Slice 0 — hand-run the contract (Jon, no code).** Paste the appendix clause **directly into the
+  message** in the Denmark bearings conversation, followed by "Seed this trip from our conversation.
+  These seed instructions override the candidate-places format for this reply." (Until v2 ships, the
+  project instructions are still v1 and ask for a bare array; run 1 shows they win if the clause
+  isn't in the message.) Check the return against [the fixture](../fixtures/seed-denmark.txt): ruled-out
+  places present, `bases` with day numbers, `why` separate from `place_notes`, verdicts, groups, and a full
+  narrative. Adjust the clause before Slice 2. This follows yes-chef's method and ADR-0036 OQ4. Results
+  are recorded in Appendix C.
 - **Slice 1 — `.declined` and `TripDocument`.** Status case and its semantics; the Ruled out section;
   the document table, list, and read-only viewer; "Add document" (paste). Useful immediately: Jon can
   attach the existing Denmark files.
@@ -366,33 +377,68 @@ the shared kit. Verb text and payloads stay per-app (ADR-0036 §The lift).
 
 ```
 When asked to seed a Galavant trip, summarize our conversation so far as a Galavant seed.
+This format replaces the candidate-places format for that reply.
+
 Reply with: the GV-HANDOFF line from the brief, then "GV-CONTRACT: v2", then a narrative,
 then a line containing only "GV-SEED", then one JSON object. Do not wrap the JSON in Markdown.
 
-The narrative is Markdown for us to reread later: the trip's shape and the reasoning behind
-it, comparisons, open questions, things to recheck before booking. Keep it complete; it is
-stored as written.
+The narrative is Markdown for us to reread later, and it is stored exactly as written. Make it
+complete, not a summary: the trip's shape and the reasoning behind it, the comparisons we made
+(tables are fine), what we ruled out and why, open questions, and things to recheck before
+booking.
 
 The JSON object has three keys:
 - "trip": length_days (number of days, counting arrival and departure days), year, quarter (1-4).
-- "bases": lodging in order. name, locality, search_hint, region (the area's common name),
-  check_in_day, check_out_day (day numbers, day 1 = first day), why, place_notes, book_ahead.
-- "places": everything else we discussed, including places we ruled out. name, locality,
-  search_hint (an Apple Maps query), kind (sight, food, drink, stay, tour, activity, beach, park,
-  outdoorTrail, museum, theater, nightlife, shop, market, transit), why, verdict, reason,
-  future_trip, place_notes, group, day_ref, book_ahead.
+- "bases": every place we will sleep, in order, including a city stay whose hotel isn't chosen
+  yet (name it like "Copenhagen hotel — to choose"). name, locality, search_hint, region (the
+  area's common name), check_in_day, check_out_day (day numbers, day 1 = first day), why,
+  place_notes, book_ahead. Put nights in check_in_day/check_out_day, not in prose.
+- "places": everything else we discussed. name, locality, search_hint (an Apple Maps query),
+  kind, why, fit, visit, verdict, reason, future_trip, place_notes, group, day_ref, book_ahead.
+
+Include EVERY place we discussed, especially the ones we ruled out or deferred. A ruled-out
+place and its reason matter as much as the places we chose; that is how we avoid reopening
+settled questions. A place that appears only in the narrative is lost.
 
 verdict is "core" (we plan to do it), "considering" (undecided), "declined" (ruled out for this
 trip), or "deferred" (saved for a future trip; name it in future_trip). Give a reason for
 declined and deferred.
 
-Keep two kinds of notes apart: "why" is about how the place fits THIS trip; "place_notes" are
-facts or advice true on any visit (which rooms to ask for, how long a meal runs, opening quirks).
+Keep two kinds of notes apart. "why", "fit" and "visit" are about THIS trip: how the place fits
+and how we'd use it. "place_notes" are facts or advice true on any visit: which rooms to ask
+for, how long a meal runs, opening quirks, recent reviews.
+
+kind is one of: sight, food, drink, stay, tour, activity, beach, park, outdoorTrail, museum,
+theater, nightlife, shop, market, transit.
 
 Places that are alternatives for the same slot ("Norðdisk or Vester Skerninge Kro") share the
-same "group" string. book_ahead is true when it needs a reservation or ticket in advance.
-Include only places we actually discussed. Omit a field rather than guess.
+same "group" string; don't just say "alternative" in prose. book_ahead is true when it needs a
+reservation or ticket in advance. Include only places we actually discussed. Omit a field
+rather than guess.
 ```
+
+## Appendix C — Slice 0 evidence
+
+**Run 1 (2026-10-04): Denmark conversation, Appendix A not in the message.** Chat replied with a
+single JSON object, `{"summary": "…", "places": [14 items]}`, using the v1 candidate fields (`why`,
+`fit`, `visit`, `priority`, `search_hint`). That is what the v1 project instructions ask for, so the
+seed clause was not tested. It still shows what the clause has to overcome:
+
+| Observed | Consequence for the contract |
+| --- | --- |
+| Ruled-out places dropped. Of seven, only Dragsholm survived (still in play for lunch). Skagen and Henne appeared only as one sentence in `summary` | Appendix A now insists on every place, ruled-out ones especially. `.declined` (D5) exists for exactly this |
+| Stays as places: Falsled `kind: "hotel"` with "Stay 3 nights" in `visit`; Copenhagen as `kind: "base"` | `bases` with day numbers stays required; Appendix A says to put nights there, including an unchosen city hotel |
+| A place fact in `visit` ("choose one of the better private-bath room categories") | The `why`/`fit`/`visit` vs. `place_notes` instruction is now spelled out |
+| Choose-one slots as prose ("alternative dinner"); Bryghuset Møn missing | Appendix A asks for `group` explicitly |
+| `kind` outside the vocabulary: `hotel`, `restaurant`, `town`, `base` | Galavant normalizes `kind` (D4) instead of trusting the list |
+| The narrative compressed to a one-paragraph `summary` | Appendix A asks for a complete narrative; `summary` is accepted as the fallback (D2) |
+| `fit` and `visit` filled with useful trip-specific detail | Kept on seed places (D3), mapped to `inlineNote` |
+| Valid JSON, good `search_hint`s | The strict-JSON path holds |
+
+Side finding about the **shipped v1 path**: pasting run 1 into today's candidate paste would import the
+14 places through the inner `places` array and **silently drop `summary`**, the only place the
+Skagen/Henne deferral appears. This is a small semantic-fidelity gap in ADR-0036's decoder, recorded in
+`open-questions.md`. It is not fixed by this ADR.
 
 ## Appendix B — the Denmark conversation, mapped
 
