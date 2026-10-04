@@ -62,7 +62,7 @@ struct TodayDayMapCard: View {
       deviceLocation.refresh()
       frameCamera()
     }
-    .onChange(of: day) { _, _ in frameCamera() }
+    .onChange(of: day) { _, _ in frameCamera(including: deviceLocation.coordinate) }
     .onChange(of: deviceLocation.coordinate) { oldCoordinate, newCoordinate in
       guard isLiveDay, oldCoordinate == nil, let newCoordinate else { return }
       frameCamera(including: newCoordinate)

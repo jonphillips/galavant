@@ -1,8 +1,9 @@
-# Next Up — Today polish (live-day map rollover + bookings doc comment)
+# Next Up — ADR-0048 Slice 1: `.declined` status + trip documents
 
-**Slices:** effort `today-polish` (one PR, branch `effort/today-polish`)
-**Briefs:** `docs/efforts/today-polish.md`
+**Slices:** effort `adr-0048-slice-1` (one PR, branch `effort/adr-0048-slice-1`)
+**Briefs:** `docs/efforts/adr-0048-slice-1-declined-and-documents.md`
 **Done when:** per the brief's "Done when"; verification per `docs/verification.md`.
-**Owed:** Jon's device gates in `docs/device-passes.md` (not executor work).
-**Notes:** Two small fixes, no new seams. Don't change the map card's framing rules beyond the
-one-line `day` handler fix. No schema, sync, or Directions change. Start from a fresh `main`.
+**Owed:** schema + sync change: the architect escalates the PR to Jon before merge. Jon's device
+gates and the CloudKit production promotion in `docs/device-passes.md` (not executor work).
+**Notes:** New status case 5 (never renumber) and one new synced table. No seed verb, no
+contract change, no Markdown dependency. Start from a fresh `main`.

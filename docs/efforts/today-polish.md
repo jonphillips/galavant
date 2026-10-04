@@ -1,6 +1,6 @@
 # Effort — Today polish: live-day map rollover + bookings doc comment
 
-**Status:** Dispatched (2026-09-29) · **Summary:** two small fixes from the reviews of #145 and #143.
+**Status:** Done (2026-10-04) · **Summary:** two small fixes from the reviews of #145 and #143.
 Both were left as merged-PR review nits, and nobody reads those afterwards. This brief makes them
 real work. One is a bug in the Today day map; the other is a wrong doc comment.
 
