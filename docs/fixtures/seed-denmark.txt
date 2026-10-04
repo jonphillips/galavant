@@ -1,0 +1,202 @@
+GV-HANDOFF: 00000000-0000-0000-0000-000000000048
+GV-CONTRACT: v2
+# Denmark — founding conversation
+
+**Shape:** six rural nights, then six nights in Copenhagen. Rural: **South Funen (Falsled Kro) 3 nights → southern island route by ferry → Møn (Ellevilde) 3 nights → drive into Copenhagen.**
+
+## What we are optimizing for
+
+- Rural Denmark that complements Copenhagen rather than duplicating it.
+- Countryside and coast with 2–4 mile walks, not all-day hikes.
+- Small, personal hotels with a sense of place over large corporate luxury.
+- Food matters, but flavor-first and warm hospitality over long concept-heavy tasting menus.
+- Easy transfer days; four- to five-hour transfers are a real negative.
+- A base should justify its nights without leaning on one flagship dinner.
+
+## Why 3 + 3 instead of 2 + 2 + 2
+
+Three two-night stops mean more packing, two internal transfer days, one full stationary day per base, and pressure to eat the flagship dinner everywhere. Three nights each gives four full days without a hotel move, more weather flexibility, and time to inhabit the places. No third southern stop is strong enough to break that.
+
+## Candidate board
+
+| Base | Destination | Hotel | Food fit | Routing | Status |
+|---|---|---|---|---|---|
+| South Funen / Falsled Kro | Very strong | Excellent | Very strong | Excellent | Core |
+| Møn / Ellevilde | Exceptional landscape | Personal, not resort | Good, varied | Excellent into Copenhagen | Core |
+| Dragsholm / Odsherred | Very good | Very good | Mixed | Near Copenhagen | Lunch candidate |
+| Skagen / Ruths | Outstanding | Excellent | Strong, Okê format risk | Poor for southern route | Deferred north |
+| Henne Kirkeby Kro | Very good | Excellent small inn | Potentially excellent | Awkward | Deferred north |
+| Mols / Molskroen | Very good | Improving | Promising | Northern bridge | Deferred north |
+| Præstø / Frederiksminde | Pleasant | Good | Strong | Good | Below cut |
+| Als / Dyvig Badehotel | Pleasant | Strong | Good | Weak | Below cut |
+| Sønderborg / Alsik | Good | Polished modern | Strong | Fine | Cut |
+
+## The transfer
+
+Falsled → Svendborg → Tåsinge → Langeland → Spodsbjerg–Tårs ferry → Lolland/Falster → Møn. Avoids the motorway backtrack over the Great Belt; the 45-minute ferry becomes part of the day. Book a departure, don't over-engineer the day.
+
+## The northern trip, later
+
+Skagen, Henne and Mols are not rejected; they belong to a trip where the north is the point: Germany → Henne → Skagen → Gothenburg.
+
+## Recheck before booking
+
+- Restaurant opening days for the travel dates (Falsled, Norðdisk, Ellevilde, ND122, Egn).
+- Best room categories at Falsled and Ellevilde.
+- Whether a Dragsholm lunch fits the route without a silly detour; if not, skip it.
+- First reviews of Henne under Alan Bates.
+- Ferry timing and booking.
+- The Copenhagen hotel and dining plan.
+GV-SEED
+{
+  "trip": { "length_days": 13, "year": 2027, "summary": "Falsled 3 → ferry → Møn 3 → Copenhagen 6" },
+  "bases": [
+    {
+      "name": "Falsled Kro", "locality": "Millinge, Funen", "search_hint": "Falsled Kro",
+      "region": "South Funen", "check_in_day": 1, "check_out_day": 4,
+      "why": "A hotel to inhabit, not just sleep in; enough landscape and dining variety that a third night isn't padding.",
+      "place_notes": "Recent service reports are mixed (fragmented service, billing mistakes, upselling) alongside excellent ones; recheck reviews before booking dinner packages. Choose the room carefully; some locations are less private.",
+      "book_ahead": true
+    },
+    {
+      "name": "Ellevilde Boutique Hotel", "locality": "Møn", "search_hint": "Ellevilde Møn",
+      "region": "Møn", "check_in_day": 4, "check_out_day": 7,
+      "why": "Personal, owner-run hotel next to the strongest landscape on the trip; leads straight into Copenhagen.",
+      "place_notes": "Prefer one of the larger rooms with private bath; avoid older shared-bathroom categories. Some rooms carry sound. Changing daily dinner, excellent breakfast, notable sauna.",
+      "book_ahead": true
+    },
+    {
+      "name": "Copenhagen hotel — to choose", "locality": "Copenhagen",
+      "region": "Copenhagen", "check_in_day": 7, "check_out_day": 13,
+      "book_ahead": true
+    }
+  ],
+  "places": [
+    {
+      "name": "Norðdisk", "locality": "Faaborg", "search_hint": "Norðdisk Faaborg", "kind": "food",
+      "why": "Lighter, seafood-focused second dinner after an elaborate Falsled meal.",
+      "verdict": "core", "group": "funen-outside-dinner", "book_ahead": true
+    },
+    {
+      "name": "Vester Skerninge Kro", "locality": "Vester Skerninge", "search_hint": "Vester Skerninge Kro", "kind": "food",
+      "why": "Traditional, relaxed historic inn — useful precisely because it isn't another destination tasting menu.",
+      "verdict": "core", "group": "funen-outside-dinner", "book_ahead": true
+    },
+    {
+      "name": "Svanninge Bakker", "locality": "South Funen", "search_hint": "Svanninge Bakker", "kind": "outdoorTrail",
+      "why": "Manageable walking in the 2–4 mile range near Falsled.",
+      "verdict": "core"
+    },
+    {
+      "name": "Faaborg", "locality": "Funen", "search_hint": "Faaborg", "kind": "sight",
+      "why": "Harbor town near Falsled.", "verdict": "core"
+    },
+    {
+      "name": "South Funen Archipelago", "locality": "South Funen", "kind": "sight",
+      "why": "The organizing geography of the region; scenery rather than a stop.",
+      "verdict": "core"
+    },
+    {
+      "name": "Spodsbjerg–Tårs ferry", "locality": "Langeland", "search_hint": "Spodsbjerg Færgehavn", "kind": "transit",
+      "why": "Southern island route from Falsled to Møn; avoids the Great Belt backtrack.",
+      "verdict": "core", "day_ref": "4", "book_ahead": true
+    },
+    {
+      "name": "Møns Klint", "locality": "Møn", "search_hint": "Møns Klint", "kind": "park",
+      "why": "Chalk cliffs and beech forest — probably the strongest landscape experience on the trip.",
+      "verdict": "core"
+    },
+    {
+      "name": "Camøno", "locality": "Møn", "kind": "outdoorTrail",
+      "why": "Pick moderate sections rather than a through-hike.",
+      "verdict": "core"
+    },
+    {
+      "name": "Restaurant ND122", "locality": "Klintholm Havn", "search_hint": "ND122 Klintholm Havn", "kind": "food",
+      "why": "The obvious serious outside dinner on Møn: seasonal, seafood, relaxed.",
+      "verdict": "core", "book_ahead": true
+    },
+    {
+      "name": "Restaurant Egn", "locality": "Møn", "search_hint": "Restaurant Egn Møn", "kind": "food",
+      "why": "Restrained Nordic cooking with French references; a third-night option.",
+      "place_notes": "Opening days can be quirky; check for the travel dates.",
+      "verdict": "core", "group": "mon-third-dinner", "book_ahead": true
+    },
+    {
+      "name": "Bryghuset Møn", "locality": "Stege", "search_hint": "Bryghuset Møn Stege", "kind": "food",
+      "why": "A deliberately casual evening — beer and smørrebrød instead of another event meal.",
+      "verdict": "core", "group": "mon-third-dinner"
+    },
+    {
+      "name": "Stege", "locality": "Møn", "search_hint": "Stege", "kind": "sight",
+      "verdict": "core"
+    },
+    {
+      "name": "Nyord", "locality": "Møn", "search_hint": "Nyord", "kind": "sight",
+      "verdict": "core"
+    },
+    {
+      "name": "Dark Sky evening", "locality": "Møn", "kind": "activity",
+      "why": "If the weather cooperates.", "verdict": "considering"
+    },
+    {
+      "name": "Dragsholm Slot Bistro", "locality": "Odsherred", "search_hint": "Dragsholm Slot", "kind": "food",
+      "why": "Lunch captures most of the castle and Odsherred without an overnight — only if it fits the route cleanly.",
+      "place_notes": "The Gourmet restaurant's long 'Time & Place' tasting format is a poor fit for us; the Bistro serves lunch. Hotel execution reported as variable.",
+      "verdict": "considering"
+    },
+    {
+      "name": "Alsik", "locality": "Sønderborg", "search_hint": "Alsik Hotel Sønderborg", "kind": "stay",
+      "verdict": "declined",
+      "reason": "Large, contemporary and corporate-feeling; not a distinctive use of limited rural nights.",
+      "place_notes": "Polished, serious spa, strong restaurant program. Could be a recovery night on another route."
+    },
+    {
+      "name": "Hotel Frederiksminde", "locality": "Præstø", "search_hint": "Hotel Frederiksminde Præstø", "kind": "stay",
+      "verdict": "declined",
+      "reason": "A strong one-night stop, not worth two of six rural nights.",
+      "place_notes": "Restaurant style (classical French technique, Nordic restraint) may suit us better than Dragsholm Gourmet."
+    },
+    {
+      "name": "Dyvig Badehotel", "locality": "Als", "search_hint": "Dyvig Badehotel", "kind": "stay",
+      "verdict": "declined",
+      "reason": "Doesn't beat Falsled or Møn on destination or routing.",
+      "place_notes": "Small, waterfront, Relais & Châteaux; worth remembering for a trip entering Denmark from northern Germany by car."
+    },
+    {
+      "name": "Ruths Hotel", "locality": "Skagen", "search_hint": "Ruths Hotel Skagen", "kind": "stay",
+      "verdict": "deferred", "future_trip": "Northern Denmark (Germany → Henne → Skagen → Gothenburg)",
+      "reason": "Skagen dictates the whole route; it deserves a trip where the north is the point.",
+      "place_notes": "Room choice matters across its buildings; favor a main-building room or suite."
+    },
+    {
+      "name": "Okê", "locality": "Skagen", "search_hint": "Okê Skagen", "kind": "food",
+      "verdict": "deferred", "future_trip": "Northern Denmark (Germany → Henne → Skagen → Gothenburg)",
+      "reason": "Goes with Skagen.",
+      "place_notes": "Michelin star 2026. Very many servings; dinner can run extremely long and is the whole evening. Skagen is still worth it without Okê."
+    },
+    {
+      "name": "Råbjerg Mile", "locality": "Skagen", "search_hint": "Råbjerg Mile", "kind": "sight",
+      "verdict": "deferred", "future_trip": "Northern Denmark (Germany → Henne → Skagen → Gothenburg)",
+      "reason": "Goes with Skagen."
+    },
+    {
+      "name": "Henne Kirkeby Kro", "locality": "Henne", "search_hint": "Henne Kirkeby Kro", "kind": "stay",
+      "verdict": "deferred", "future_trip": "Northern Denmark (Germany → Henne → Skagen → Gothenburg)",
+      "reason": "Not strong enough to justify bad geography on this route; first full post-Cunningham season.",
+      "place_notes": "Two Michelin stars retained in 2026 under Alan Bates. Shorter three- and four-course formats have been offered. Very deep wine program. Check first-season reviews before prioritizing."
+    },
+    {
+      "name": "Molskroen", "locality": "Mols", "search_hint": "Molskroen", "kind": "stay",
+      "verdict": "deferred", "future_trip": "Northern Denmark (Germany → Henne → Skagen → Gothenburg)",
+      "reason": "An excellent bridge on a northern route; no reason to pull this route north for it.",
+      "place_notes": "New ownership, recent renovation, new chef with serious credentials; trending up."
+    },
+    {
+      "name": "Mols Bjerge National Park", "locality": "Mols", "search_hint": "Mols Bjerge Nationalpark", "kind": "park",
+      "verdict": "deferred", "future_trip": "Northern Denmark (Germany → Henne → Skagen → Gothenburg)",
+      "reason": "Goes with Molskroen.",
+      "place_notes": "Several scenic routes around 4 miles."
+    }
+  ]
+}

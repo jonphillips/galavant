@@ -12,6 +12,15 @@ retired `CURRENT_HANDOFF.md` and `ROADMAP.md`'s open items.
   pan or zoom on the ground, a tap on the card opening a full-screen interactive day map (with
   `MapUserLocationButton`) is the natural next step. Wait for dogfood evidence before adding it.
 
+### Trip seed handoff (ADR-0048, proposed 2026-10-04)
+
+Bridges an open-ended Chat "bearings" conversation into a Galavant trip: a `seedTrip` verb, a
+narrative + JSON return, `.declined` status, a `TripDocument` founding document, and a bulk review that
+matches saved ideas before searching the map. Awaiting Jon's ratification. **Slice 0 is Jon's:**
+hand-run the Appendix A clause in the Denmark conversation and compare against
+`docs/fixtures/seed-denmark.txt` before Slice 2 is dispatched. Slice 1 (`.declined` + `TripDocument`)
+is dispatchable on ratification and doesn't depend on Slice 0. ADR OQ1–OQ4 stay in the ADR.
+
 ### M9 cockpit polish (post-ship follow-ups)
 
 M9 (recommendation handoff + evaluation cockpit) and the LLMHandoffKit lift shipped and

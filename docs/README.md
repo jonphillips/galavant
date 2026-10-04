@@ -37,7 +37,7 @@ Memory (`~/.claude`) never tracks status; it defers here. **GitHub PR state is t
 | **[STYLE.md](STYLE.md)** | App-specific style, on top of `jon-platform/docs/ios/swift-style.md` | — |
 | Design/topic notes: [trip-canvas.md](trip-canvas.md), [trip-time-model.md](trip-time-model.md), [MINING.md](MINING.md), [scraping-enrichment.md](scraping-enrichment.md), [recovered-requirements.md](recovered-requirements.md), [browser-capture-feedback.md](browser-capture-feedback.md) | Deep-dives on a subsystem or feature | *(to get `Status:`/`Summary:` headers on-touch)* |
 | Per-milestone execution briefs: [M5-EXECUTION.md](milestones/M5-EXECUTION.md), [M6-EXECUTION.md](milestones/M6-EXECUTION.md), [M7-DOGFOOD.md](milestones/M7-DOGFOOD.md) | The working plan for a milestone while it's active | *(archive/mark Done when the milestone closes)* |
-| Subdirs: [mockups/](mockups), [proposal/](proposal), [reviews/](reviews) | Visual mockups, proposals, review notes | — |
+| Subdirs: [mockups/](mockups), [proposal/](proposal), [reviews/](reviews), [fixtures/](fixtures) | Visual mockups, proposals, review notes, design fixtures (sample handoff returns an ADR is checked against) | — |
 
 ## Surfaces outside `docs/`
 
