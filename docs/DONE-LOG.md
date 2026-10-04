@@ -3,6 +3,14 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## Today polish (`effort/today-polish`) — 2026-10-04
+
+- Preserved a live device fix when the Today map advances to a new day, keeping it in the camera
+  frame when it is still within the existing radius. Corrected `bookingsDue` documentation to say
+  the items are still to book.
+- **Verification.** `scripts/check-drift.sh` passed and headless `GalavantTests` passed. Device
+  follow-up: confirm the map keeps the position in frame across midnight or a clock change.
+
 ## Daily map on Today (`effort/today-day-map`) — 2026-09-29
 
 - Added the Today day map with the day's numbered route, located lodging base, next endpoint highlight,

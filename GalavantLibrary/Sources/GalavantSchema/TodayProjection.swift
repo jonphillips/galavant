@@ -82,7 +82,7 @@ public struct TodayProjection: Equatable, Sendable {
   public var doneStops: [ResolvedStop]
   /// Stops represented by the collapsed `.skipped(count:)` summary.
   public var skippedStops: [ResolvedStop]
-  /// Booked work due today or on the next trip day, in trip-rollup order.
+  /// Bookings still to make for today or the next trip day, in trip-rollup order.
   public var bookingsDue: [TripBookingItem]
   public var tonight: Tonight?
   public var tomorrow: Tomorrow?
