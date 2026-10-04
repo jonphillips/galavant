@@ -50,7 +50,20 @@ example: *"Bookings still to make for today or the next trip day, in trip-rollup
   this touches an app view.
 - The completing PR:
   - adds a DONE-LOG entry;
-  - sets `docs/NEXT_UP.md` to `Nothing dispatched.`;
+  - sets `docs/NEXT_UP.md` to the next dispatch in plan order, exactly this block:
+
+    ```
+    # Next Up — ADR-0048 Slice 1: `.declined` status + trip documents
+
+    **Slices:** effort `adr-0048-slice-1` (one PR, branch `effort/adr-0048-slice-1`)
+    **Briefs:** `docs/efforts/adr-0048-slice-1-declined-and-documents.md`
+    **Done when:** per the brief's "Done when"; verification per `docs/verification.md`.
+    **Owed:** schema + sync change: the architect escalates the PR to Jon before merge. Jon's device
+    gates and the CloudKit production promotion in `docs/device-passes.md` (not executor work).
+    **Notes:** New status case 5 (never renumber) and one new synced table. No seed verb, no
+    contract change, no Markdown dependency. Start from a fresh `main`.
+    ```
+
   - marks this brief Done in `docs/efforts/README.md`;
   - adds one line to `docs/device-passes.md`: *with Today open on a live day across midnight (or a
     clock change), confirm the map keeps your position in frame on the new day.*

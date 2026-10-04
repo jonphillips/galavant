@@ -1,6 +1,6 @@
 # ADR-0048: Trip seed handoff — one crossing from an open-ended Chat conversation into a Galavant trip
 
-*Status: **proposed** — 2026-10-04 (drafted by the architect from a design conversation with Jon;
+*Status: **accepted** — 2026-10-04, ratified by Jon merging #147. Slice 1 brief: [`adr-0048-slice-1-declined-and-documents`](../efforts/adr-0048-slice-1-declined-and-documents.md). (Drafted by the architect from a design conversation with Jon;
 Jon accepted the two defaults below: the seed lands on a trip created first, and deferred places
 go to the pool only). Origin: two documents ChatGPT produced for a real trip after an unformatted
 "getting my bearings" conversation (a research dossier and a current-plan summary for Denmark).

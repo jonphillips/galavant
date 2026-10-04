@@ -57,4 +57,4 @@ at creation). See `docs/README.md` (the atlas) and `jon-platform/docs/agent-work
 | [0045](0045-evaluate-workspace-geographic-model.md) | Evaluate workspace geographic model — human searches bias not fence, candidate display anchors, shared `PlaceSelectionMap` |
 | [0046](0046-device-location-ephemeral-when-in-use.md) | Device location is ephemeral, when-in-use, and asked for on use |
 | [0047](0047-trip-booking-status.md) | Booking status is a trip-level fact — not needed, to book, booked |
-| [0048](0048-trip-seed-handoff.md) | Trip seed handoff — one crossing from an open-ended Chat conversation into a Galavant trip *(proposed)* |
+| [0048](0048-trip-seed-handoff.md) | Trip seed handoff — one crossing from an open-ended Chat conversation into a Galavant trip |
