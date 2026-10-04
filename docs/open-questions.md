@@ -12,6 +12,21 @@ retired `CURRENT_HANDOFF.md` and `ROADMAP.md`'s open items.
   pan or zoom on the ground, a tap on the card opening a full-screen interactive day map (with
   `MapUserLocationButton`) is the natural next step. Wait for dogfood evidence before adding it.
 
+### Trip seed handoff (ADR-0048, accepted 2026-10-04)
+
+Bridges an open-ended Chat "bearings" conversation into a Galavant trip: a `seedTrip` verb, a
+narrative + JSON return, `.declined` status, a `TripDocument` founding document, and a bulk review that
+matches saved ideas before searching the map. **Slice 0 passed
+2026-10-04** (run 2 of the hand-run; `docs/fixtures/seed-denmark.txt` is now that real return). Slice 1
+(`.declined` + `TripDocument`) is queued behind `today-polish` (its completing PR dispatches it).
+Slices 2–3 wait for a plan PR after Slice 1 lands. ADR OQ1–OQ5 stay in the ADR.
+
+- **v1 candidate decode silently drops prose around the array.** `TripCandidate.decodeReturn` slices
+  the first `[{…}]` array, so a `{"summary": …, "places": [ … ]}` reply imports the places and drops
+  `summary` without a word. In ADR-0048 Slice 0 run 1, that summary was the only place the deferred
+  northern-trip places appeared. Options: show the non-array text in the review ("Chat also said: …"),
+  or append it to the handoff record. Small; semantic-fidelity "review-dependent" class.
+
 ### M9 cockpit polish (post-ship follow-ups)
 
 M9 (recommendation handoff + evaluation cockpit) and the LLMHandoffKit lift shipped and
