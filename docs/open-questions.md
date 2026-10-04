@@ -16,10 +16,9 @@ retired `CURRENT_HANDOFF.md` and `ROADMAP.md`'s open items.
 
 Bridges an open-ended Chat "bearings" conversation into a Galavant trip: a `seedTrip` verb, a
 narrative + JSON return, `.declined` status, a `TripDocument` founding document, and a bulk review that
-matches saved ideas before searching the map. Awaiting Jon's ratification. **Slice 0 is Jon's:**
-hand-run the Appendix A clause in the Denmark conversation and compare against
-`docs/fixtures/seed-denmark.txt` before Slice 2 is dispatched. Slice 1 (`.declined` + `TripDocument`)
-is dispatchable on ratification and doesn't depend on Slice 0. ADR OQ1–OQ4 stay in the ADR.
+matches saved ideas before searching the map. Awaiting Jon's ratification. **Slice 0 passed
+2026-10-04** (run 2 of the hand-run; `docs/fixtures/seed-denmark.txt` is now that real return). Slice 1
+(`.declined` + `TripDocument`) is dispatchable on ratification. ADR OQ1–OQ5 stay in the ADR.
 
 - **v1 candidate decode silently drops prose around the array.** `TripCandidate.decodeReturn` slices
   the first `[{…}]` array, so a `{"summary": …, "places": [ … ]}` reply imports the places and drops

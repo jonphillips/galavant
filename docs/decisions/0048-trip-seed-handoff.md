@@ -8,7 +8,8 @@ A new **verb** on the ADR-0036 recommendation handoff. Rides ADR-0004 (explicit 
 (single FK), ADR-0010 (freeform stops), ADR-0011 (stays), ADR-0012 + the trip sketch (per-day
 regions), ADR-0015 (`IdeaEvaluation`), ADR-0019 (capture dedup), ADR-0035 (alternatives rings),
 ADR-0037 (evaluation workspace), ADR-0047 (booking status). Adds one `TripIdeaStatus` case and
-one synced table, so it is a schema/sync decision Jon ratifies.*
+one synced table, so it is a schema/sync decision Jon ratifies. **Slice 0 passed 2026-10-04**: the
+contract carried the real Denmark conversation on the second run (Appendix C).*
 
 > **Vocabulary.** **Bearings** is the open-ended Chat conversation that decides a trip's shape
 > before Galavant is involved: which regions, in what order, for how many nights, and why. The
@@ -149,7 +150,7 @@ unknown fields are ignored.
     "future_trip": "…",         // deferred only: a label, e.g. "Northern Denmark"
     "place_notes": "…",         // true of the place on any trip → IdeaEvaluation
     "group": "funen-dinner-2",  // places sharing a group are a choose-one ring
-    "day_ref": "4",             // advisory only, shown in the review (ADR-0036 D6)
+    "day_ref": "Falsled stay",  // free text in practice; advisory, shown verbatim (ADR-0036 D6)
     "book_ahead": true
   }]
 }
@@ -171,7 +172,7 @@ can see them.
 | `trip.length_days` / `year` / `quarter` | Proposed edits to `Trip` | A review row showing old → new values. Default on only when the trip still has the new-trip defaults |
 | `bases[]` | `TripStay` with `checkInDay`/`checkOutDay` | Freeform (`inlineTitle`) until resolved; `ideaID` is set on resolution (D7). Creating it is allowed under the "new records carry no identity" exception (ADR-0036 D6; yes-chef `workbenchDraft`) |
 | `bases[].region` | `TripDayRegion` rows for the stay's nights | **Only** when the name matches a MapRegion already attached to the trip, or else exactly one MapRegion in the party. Otherwise nights stay unassigned: the trip sketch's Q1 rule (regions are made on the Ideas map, never inline) holds. OQ2 |
-| `bases[].book_ahead`, `places[].book_ahead` | `bookingStatus: .toBook` | ADR-0047's explicit value |
+| `bases[].book_ahead`, `places[].book_ahead` | `bookingStatus: .toBook` | ADR-0047's explicit value. **Bases and `core`/`considering` rows only**; ignored on `declined`/`deferred` rows, which aren't being booked on this trip (run 2 set it on Okê and Ruths Brasserie) |
 | `verdict: core` | `TripIdea` `.shortlisted` | Unscheduled. `day_ref` is shown as a hint, not applied |
 | `verdict: considering` | `TripIdea` `.considering` | |
 | `verdict: declined` | `TripIdea` `.declined` (D5) | `reason` goes in `inlineNote` |
@@ -180,7 +181,7 @@ can see them.
 | `why`, `fit`, `visit` | `TripIdea.inlineNote` / `TripStay.inlineNote` | Joined in that order, then `reason`, blank-line separated; empty parts skipped |
 | `kind` | `IdeaKind` via a synonym table | Chat ignores the listed vocabulary (run 1 used `hotel`, `restaurant`, `town`, `base`), so Galavant normalizes instead of relying on the instructions: exact case names first, then synonyms (`hotel`/`inn`/`lodging` → `.stay`, `restaurant`/`dining`/`cafe` → `.food`, `bar`/`winery` → `.drink`, `town`/`village`/`landmark` → `.sight`, `hike`/`walk`/`trail` → `.outdoorTrail`, `ferry`/`train` → `.transit`). Anything else → `nil`, shown in the review with the original text. The table is pure, tested, and grows from dogfooding |
 | `place_notes` | `IdeaEvaluation` on the resolved `Idea` | `sourceName: "Trip research"`, `kind: .text`, `confidence: .inferred`, `staleness: .current`, `evaluationDate` = import date, `summary` = the text. If the row is unresolved at commit, the text is appended to `inlineNote` under an "About the place:" line instead. Nothing is dropped |
-| `group` | `alternativeGroupID` ring (ADR-0035) | Members share one new UUID; at least two members, otherwise the group is ignored and the review notes it |
+| `group` | `alternativeGroupID` ring (ADR-0035) | **Only `core`/`considering` members form the ring.** `declined`/`deferred` members keep their status and get no `alternativeGroupID`. A group with fewer than two live members is ignored, and the review says so. Run 2 produced both cases: "Dragsholm meal" (Bistro considering + Gourmet declined) and "South Funen walk" (one member) |
 
 No `open_questions` or "things to recheck" field. Those are prose, they stay in the founding document,
 and anything bookable is already covered by `book_ahead`. Taste-profile suggestions are deferred (see
@@ -204,7 +205,10 @@ the pool.
   **pool**. Resolving a declined row (D7) mints or links its pool `Idea` through the capture merge, so
   Skagen, Ruths, and Henne appear on the Ideas map for any future trip in that region. That is
   PRODUCT.md's canonical case. Routing deferred places onto a second someday trip is deferred (Jon's
-  default).
+  default). When it is built, it needs label clean-up first: run 2 gave one future trip three
+  `future_trip` spellings ("Germany → Henne → Skagen → Gothenburg", "Northern Denmark / Skagen
+  route", and a third for Dyvig). In v1 the label is only text in the reason, so the spelling
+  doesn't matter yet.
 - **Not visited.** `.declined` says nothing about having been there and does not feed visited state.
 - **ADR-0037 D6 is unchanged for now.** Dismiss in the evaluation workspace still deletes. Whether the
   workspace should also offer "Decline with reason" is OQ4.
@@ -251,7 +255,12 @@ reviews:
 
 1. **Saved ideas first.** Normalized name (plus locality when given) against the party's pool `Idea`s,
    reusing `RecommendationCandidateIdentity.normalized` and logical uniqueness (ADR-0008/0019). A hit
-   shows **"Saved idea"**. This is the "Chat suggests something I already have" case.
+   shows **"Saved idea"**. This is the "Chat suggests something I already have" case. Names from a
+   conversation are messy, so try **two keys**: `name`, and the first part of `search_hint` (before the
+   first comma). Strip trailing company suffixes (`ApS`, `A/S`, `I/S`, `GmbH`, `Ltd`) before normalizing.
+   Run 2 returned "DYVIG BADEHOTEL ApS", apparently a business-listing name from the old map pins, which
+   is exactly where a saved idea would already exist. Punctuation variants such as "Ruth's" vs. "Ruths"
+   already normalize the same way.
 2. **Then the map.** A region-biased `MKLocalSearch` from `search_hint` + `locality` through the
    capture matcher (ADR-0016; bias, not fence, per ADR-0045). Exactly one confident result shows
    **"Map match"**. Searches run with limited concurrency through the injected client, since a seed can
@@ -345,7 +354,7 @@ the shared kit. Verb text and payloads stay per-app (ADR-0036 §The lift).
   isn't in the message.) Check the return against [the fixture](../fixtures/seed-denmark.txt): ruled-out
   places present, `bases` with day numbers, `why` separate from `place_notes`, verdicts, groups, and a full
   narrative. Adjust the clause before Slice 2. This follows yes-chef's method and ADR-0036 OQ4. Results
-  are recorded in Appendix C.
+  are recorded in Appendix C. **Passed on run 2 (2026-10-04).**
 - **Slice 1 — `.declined` and `TripDocument`.** Status case and its semantics; the Ruled out section;
   the document table, list, and read-only viewer; "Add document" (paste). Useful immediately: Jon can
   attach the existing Denmark files.
@@ -372,8 +381,12 @@ the shared kit. Verb text and payloads stay per-app (ADR-0036 §The lift).
   context. Later.
 - **OQ4 — Decline in the evaluation workspace.** Should ADR-0037 offer "Decline with reason" alongside
   delete-on-dismiss, now that `.declined` exists?
+- **OQ5 — Matching `day_ref` to stays.** In run 2, `day_ref` named a stay ("Falsled stay", "Møn
+  stay") or a moment ("Day 4 transfer") rather than giving a day number. The review could show a
+  `day_ref` that matches a base's name as that stay's nights ("nights 1–3"). It would stay advisory and
+  never schedule anything. Cheap, but not needed for v1.
 
-## Appendix A — the seed clause for the project instructions (draft; Slice 0 tests it)
+## Appendix A — the seed clause for the project instructions (passed Slice 0 on run 2)
 
 ```
 When asked to seed a Galavant trip, summarize our conversation so far as a Galavant seed.
@@ -417,6 +430,30 @@ reservation or ticket in advance. Include only places we actually discussed. Omi
 rather than guess.
 ```
 
+## Appendix B — the Denmark conversation, mapped
+
+[`docs/fixtures/seed-denmark.txt`](../fixtures/seed-denmark.txt) is the test fixture for Slices 2–3.
+Its JSON is Chat's **real run 2 return** (Appendix C), with two edits for this public repo: `quarter`
+removed, and one seasonal phrase in Ellevilde's notes reworded. Its narrative is a shorter, undated
+stand-in for the real one, which includes the travel dates. The routing token is a placeholder (a
+mismatched token is a warning, per ADR-0036 Amendment 1).
+
+Expected import (good assertions for the Slice 2 tests):
+
+| From the conversation | In Galavant |
+| --- | --- |
+| 13 days, 2027 | Proposed `Trip` edits |
+| Falsled Kro nights 1–3, Ellevilde nights 4–6, "Copenhagen hotel — to choose" nights 7–12 | Three `TripStay`s, all `.toBook`; region days only where a MapRegion already matches |
+| 4 core: Svanninge Bakker, the ferry, Møns Klint, ND122 | `.shortlisted`; the ferry and ND122 `.toBook` |
+| 12 considering, including Søllerød Kro (moved into the Copenhagen leg) | `.considering` |
+| "South Funen outside dinner" (Norðdisk, Vester Skerninge Kro); "Møn third dinner" (Egn, Bryghuset Møn) | **Two rings** |
+| "Dragsholm meal" (Bistro considering + Gourmet declined); "South Funen walk" (one member) | **No ring**, noted in the review; the Gourmet stays `.declined` |
+| 5 declined: Dragsholm Gourmet, Frederiksminde, Præstø, Alsik, LYST | `.declined`, with the reason in `inlineNote` |
+| 16 deferred: the Skagen, Henne and Mols places, plus Dyvig | `.declined` "Deferred — …"; `book_ahead` ignored; in the pool once resolved |
+| "DYVIG BADEHOTEL ApS", "Ruth's Hotel" | Saved-idea matching through the second key or the suffix strip, and punctuation folding |
+| Rooms 9/10 at Falsled, Ellevilde's room and dinner caveats, Okê's 16–19 servings | `IdeaEvaluation`s on the resolved places |
+| Why 3+3, Skagen vs. Møn, the open questions | The founding document |
+
 ## Appendix C — Slice 0 evidence
 
 **Run 1 (2026-10-04): Denmark conversation, Appendix A not in the message.** Chat replied with a
@@ -440,21 +477,23 @@ Side finding about the **shipped v1 path**: pasting run 1 into today's candidate
 Skagen/Henne deferral appears. This is a small semantic-fidelity gap in ADR-0036's decoder, recorded in
 `open-questions.md`. It is not fixed by this ADR.
 
-## Appendix B — the Denmark conversation, mapped
+**Run 2 (2026-10-04): Appendix A pasted into the message, with the override line. Passed.** Chat
+returned the full two-part shape: header lines, `GV-CONTRACT: v2`, a complete Markdown narrative
+(trip shape, a Skagen-vs-Møn comparison table, Dragsholm's six reasons for demotion, 14 open
+questions), `GV-SEED`, and one valid JSON object.
 
-[`docs/fixtures/seed-denmark.txt`](../fixtures/seed-denmark.txt) is the Denmark bearings outcome,
-hand-converted into a v2 seed return. It shows the contract can carry a real conversation, and it is
-the test fixture for Slices 2–3. Leaving dates out is deliberate (Consequences). What it becomes:
-
-| From the conversation | In Galavant |
+| Check | Result |
 | --- | --- |
-| 6 rural + 6 Copenhagen nights | Trip length 13 days, year 2027 |
-| Falsled Kro, nights 1–3; Ellevilde, nights 4–6; Copenhagen hotel, nights 7–12 | Three `TripStay`s; the Copenhagen one freeform ("Copenhagen hotel — to choose"), all `.toBook` |
-| Norðdisk **or** Vester Skerninge Kro; Egn **or** Bryghuset Møn | Two choose-one rings |
-| Svanninge Bakker, Faaborg, Møns Klint, Camøno, Stege, Nyord, ND122, the ferry | `.shortlisted`; the ferry `.toBook` with day hint 4 |
-| Dragsholm Slot Bistro lunch, a Dark Sky evening | `.considering` |
-| Alsik, Frederiksminde, Dyvig Badehotel | `.declined` with reasons |
-| Ruths, Okê, Råbjerg Mile, Henne Kirkeby Kro, Molskroen, Mols Bjerge | `.declined` "Deferred — Northern Denmark: …"; in the pool once resolved |
-| "Prefer the larger private-bath rooms", "Okê runs very long", "2026 service reports mixed" | `IdeaEvaluation`s on the resolved places |
-| Why 3+3; the candidate comparison table; the things to recheck | The founding document |
-| "What we are optimizing for" | The founding document now; a `TravelProfile` suggestion once that is built (deferred) |
+| Trip | 13 days, 2027, Q3 |
+| Bases | 3, nights correct, including "Copenhagen hotel — to choose" |
+| Places | **37** (the hand-made fixture had 24): 4 core, 12 considering, 5 declined, 16 deferred. About a dozen were not in Jon's two documents at all (Grenen, Skagens Museum, Ruths Brasserie, the Henne-area nature sites, Søllerød Kro, LYST, …). **Seeding from the conversation beats converting its documents** |
+| Ruled out kept | 21, each with a reason |
+| `kind` | All in the vocabulary (normalization kept as a safety net) |
+| `why`/`fit`/`visit` vs. `place_notes` | Separated well |
+| Groups | Two correct rings; one single-member group and one mixed-verdict group → the ring rule in D4 |
+| `book_ahead` | Also set on deferred rows → ignored there (D4) |
+| `day_ref` | Free text ("Falsled stay", "Day 4 transfer") → shown as written; OQ5 |
+| Names | "DYVIG BADEHOTEL ApS", "Ruth's Hotel" → second matching key and suffix stripping (D7) |
+| `future_trip` | Three spellings for one future trip → noted in D5 for when routing is built |
+| Verdicts | Chat marks few places core (choose-one members came back considering), and Dyvig moved from declined to deferred. Not a contract problem: verdicts are editable in the review |
+| Routing token | Reused or made up; under Amendment 1 a warning, not a block |
