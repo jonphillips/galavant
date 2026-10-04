@@ -105,7 +105,7 @@ public struct ResolveReconcile: Equatable, Sendable {
   private static func isLiveTripPlacement(_ status: TripIdeaStatus) -> Bool {
     switch status {
     case .considering, .shortlisted, .scheduled: true
-    case .done, .skipped: false
+    case .declined, .done, .skipped: false
     }
   }
 
@@ -119,7 +119,7 @@ public struct ResolveReconcile: Equatable, Sendable {
     case .scheduled: 0
     case .shortlisted: 1
     case .considering: 2
-    case .done, .skipped: 3
+    case .declined, .done, .skipped: 3
     }
   }
 

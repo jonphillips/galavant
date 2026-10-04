@@ -53,7 +53,7 @@ extension IdeaTripBadge {
         case .dated, .targeted: return (.upcoming(trip: trip.name), trip)
         case .someday: return (.someday(trip: trip.name), trip)
         }
-      case .done, .skipped:
+      case .done, .skipped, .declined:
         return nil
       }
     }

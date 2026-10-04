@@ -126,6 +126,7 @@ public enum GalavantCloudSync {
         ImageAsset.self,
         RegionImage.self,
         TripStay.self,
+        TripDocument.self,
         TripDayRegion.self,
         TripDayTimeZone.self,
         TripDayNote.self,

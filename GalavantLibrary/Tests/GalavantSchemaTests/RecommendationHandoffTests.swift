@@ -79,6 +79,32 @@ struct RecommendationHandoffTests {
       tripStays: stays)
   }
 
+  @Test func briefListsRuledOutStopsAndTruncatesTheirNotes() throws {
+    let tripID = UUID()
+    let longNote = "Ruled out: " + String(repeating: "reason ", count: 30)
+    let rows = [
+      TripIdea(id: UUID(), tripID: tripID, ideaID: UUID(), inlineNote: longNote, status: .declined),
+      TripIdea(id: UUID(), tripID: tripID, ideaID: UUID(), status: .declined),
+    ]
+    let ideas = [
+      Idea(id: rows[0].ideaID!, name: "Alsik", regionName: "Sønderborg"),
+      Idea(id: rows[1].ideaID!, name: "Bistro", regionName: "Aarhus"),
+    ]
+    let text = RecommendationHandoffContract.brief(
+      session: session(), tripName: "Denmark", tripNotes: "", plan: plan(entries: rows, ideas: ideas))
+    #expect(text.contains("Already ruled out (don't suggest again):"))
+    #expect(text.contains("Alsik (Sønderborg) — Ruled out:"))
+    #expect(text.contains("- Bistro (Aarhus)"))
+    #expect(text.contains("…"))
+    #expect(!text.contains("reason reason reason reason reason reason reason reason reason reason reason reason reason reason reason reason reason reason reason reason reason reason reason reason reason reason reason reason reason reason"))
+  }
+
+  @Test func briefOmitsRuledOutSectionWhenEmpty() throws {
+    let text = RecommendationHandoffContract.brief(
+      session: session(), tripName: "Denmark", tripNotes: "", plan: plan())
+    #expect(!text.contains("Already ruled out"))
+  }
+
   private func ideaStop(
     tripID: Trip.ID,
     ideaID: Idea.ID,

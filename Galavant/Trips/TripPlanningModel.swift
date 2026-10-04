@@ -151,6 +151,8 @@ final class TripPlanningModel {
     case sketch(TripSketchPresentation)
     /// Review the trip-wide, projection-backed list of booking decisions.
     case booking
+    /// Read and manage trip-attached research documents.
+    case documents
   }
 
   init(tripID: Trip.ID) {
@@ -509,6 +511,14 @@ final class TripPlanningModel {
     }
   }
 
+  func decline(_ stopID: TripIdea.ID, reason: String?) {
+    withErrorReporting {
+      try database.write { db in
+        try TripIdea.decline(stopID: stopID, reason: reason, in: db)
+      }
+    }
+  }
+
   /// Toggle an idea's "considering" state from the Add Ideas sheet's bubble
   /// icon: pull it as considering if it's off the trip, demote a shortlisted one
   /// back to considering, or remove it if it's already considering. Scheduled
@@ -521,6 +531,7 @@ final class TripPlanningModel {
     case .shortlisted:
       if let id = entryID(for: idea) { setStatus(.considering, for: id) }
     case .scheduled, .done, .skipped: break
+    case .declined: pull(idea)
     }
   }
 
@@ -536,6 +547,7 @@ final class TripPlanningModel {
     case .shortlisted:
       if let id = entryID(for: idea) { remove(id) }
     case .scheduled, .done, .skipped: break
+    case .declined: pullToShortlist(idea)
     }
   }
 

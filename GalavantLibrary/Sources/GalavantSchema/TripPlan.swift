@@ -321,9 +321,14 @@ public struct TripPlan: Equatable, Sendable {
     TripIdea.considering(entries).compactMap(resolve)
   }
 
+  /// Places explicitly ruled out for this trip, alphabetized by display title.
+  public var ruledOut: [ResolvedStop] {
+    TripIdea.ruledOut(entries, ideasByID: ideasByID).compactMap(resolve)
+  }
+
   /// Nothing pulled onto the trip at all — drives the Ideas page empty state.
   public var isEmpty: Bool {
-    shortlist.isEmpty && scheduled.isEmpty && considering.isEmpty
+    shortlist.isEmpty && scheduled.isEmpty && considering.isEmpty && ruledOut.isEmpty
   }
 
   // MARK: - Itinerary (scheduled stops laid out by day)

@@ -82,7 +82,7 @@ public enum RecommendationCandidateSet {
 
   private static func isLive(_ status: TripIdeaStatus) -> Bool {
     switch status {
-    case .considering, .shortlisted, .scheduled: true
+    case .considering, .shortlisted, .scheduled, .declined: true
     case .done, .skipped: false
     }
   }

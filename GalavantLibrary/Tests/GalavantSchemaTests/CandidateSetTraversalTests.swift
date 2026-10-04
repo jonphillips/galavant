@@ -138,4 +138,18 @@ import Testing
 
     #expect(collision?.action(for: .keepBoth) == .keepBoth)
   }
+
+  @Test func ruledOutIdeaMatchesRePastedRecommendation() {
+    let ideaID = UUID()
+    let tripID = UUID()
+    let ruledOut = TripIdea(
+      id: UUID(), tripID: tripID, ideaID: ideaID, inlineNote: "Too far", status: .declined)
+    let idea = Idea(id: ideaID, name: "Harbor Cafe")
+    let match = RecommendationCandidateSet.liveTripIdea(
+      matching: TripCandidate(name: "Harbor Cafe"),
+      in: [ruledOut],
+      ideasByID: [ideaID: idea])
+    #expect(match?.id == ruledOut.id)
+    #expect(match?.status == .declined)
+  }
 }

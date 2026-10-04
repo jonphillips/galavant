@@ -122,25 +122,36 @@ struct TripPlanningView: View {
               Icon.bookingBooked.label("Bookings")
             }
           }
-          Button(action: model.sketchTapped) {
-            Label("Shape Trip", systemImage: "compass.drawing")
-          }
-          if !model.startDaySolverStops.isEmpty {
-            Button {
-              showingStartDay = true
-            } label: {
-              Label("Start Day", systemImage: "calendar.day")
+          Menu {
+            Button(action: model.sketchTapped) {
+              Label("Shape Trip", systemImage: "compass.drawing")
             }
-          }
-          if model.trip?.certainty.stage == .dated {
             Button {
-              showingCalendarReconciliation = true
+              model.destination = .documents
             } label: {
-              Label(
-                "Reconcile Calendar",
-                systemImage: "clock.arrow.trianglehead.2.counterclockwise.rotate.90")
+              Label("Documents", systemImage: "doc.text")
             }
+            if !model.startDaySolverStops.isEmpty {
+              Button {
+                showingStartDay = true
+              } label: {
+                Label("Start Day", systemImage: "calendar.day")
+              }
+            }
+            if model.trip?.certainty.stage == .dated {
+              Button {
+                showingCalendarReconciliation = true
+              } label: {
+                Label(
+                  "Reconcile Calendar",
+                  systemImage: "clock.arrow.trianglehead.2.counterclockwise.rotate.90")
+              }
+            }
+          } label: {
+            Image(systemName: "ellipsis")
+              .frame(minWidth: 44, minHeight: 44)
           }
+          .accessibilityLabel("Trip tools")
           Button {
             model.startRecommendationHandoff()
           } label: {
@@ -331,6 +342,14 @@ private struct TripPlanningPresentationHost<Content: View>: View {
         onDismiss: model.bookingSheetDismissed
       ) {
         ToBookSheet(model: model, rollup: bookingRollup)
+      }
+      .sheet(
+        isPresented: Binding(
+          get: { model.destination?.is(\.documents) ?? false },
+          set: { model.destination = $0 ? .documents : nil }
+        )
+      ) {
+        TripDocumentsSheet(tripID: model.tripID)
       }
       .sheet(item: $model.destination.recommendationHandoff, id: \.id) { presentation in
         RecommendationHandoffSheet(model: model, session: presentation.session)
