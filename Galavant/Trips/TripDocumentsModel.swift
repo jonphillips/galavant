@@ -1,4 +1,5 @@
 import Dependencies
+import CasePaths
 import GalavantSchema
 import Observation
 import SQLiteData
@@ -7,17 +8,28 @@ import SQLiteData
 @Observable
 final class TripDocumentsModel {
   @ObservationIgnored @Dependency(\.defaultDatabase) private var database
-  @ObservationIgnored @FetchAll(TripDocument.all) private var allDocuments
+  @ObservationIgnored @FetchAll private var fetchedDocuments: [TripDocument]
 
   let tripID: Trip.ID
+  var destination: Destination?
+  var errorMessage: String?
+
+  @CasePathable
+  enum Destination {
+    case add
+    case rename(TripDocument)
+    case confirmDelete(TripDocument)
+  }
 
   init(tripID: Trip.ID) {
     self.tripID = tripID
+    _fetchedDocuments = FetchAll(
+      TripDocument.where { $0.tripID.eq(tripID) }
+        .order { ($0.createdAt.desc(), $0.id) }
+    )
   }
 
-  var documents: [TripDocument] {
-    TripDocument.newestFirst(allDocuments.filter { $0.tripID == tripID })
-  }
+  var documents: [TripDocument] { fetchedDocuments }
 
   func add(title: String, body: String) throws {
     _ = try database.write { db in

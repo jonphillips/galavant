@@ -73,6 +73,20 @@ struct TripIdeasView: View {
           Text("Open the most recent recommendation set for this trip.")
         }
       }
+      Section {
+        Button {
+          model.destination = .documents
+        } label: {
+          HStack {
+            Label("Documents", systemImage: "doc.text")
+            Spacer()
+            if model.tripDocumentCount > 0 {
+              Text(model.tripDocumentCount, format: .number)
+                .foregroundStyle(.secondary)
+            }
+          }
+        }
+      }
       // The three plain-language stages the planner thinks in (dogfood):
       // Consider (a maybe), Schedule (committed, awaiting a day — the shortlist,
       // plus anything already sent to be scheduled but still dayless), Scheduled

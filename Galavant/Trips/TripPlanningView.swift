@@ -122,36 +122,25 @@ struct TripPlanningView: View {
               Icon.bookingBooked.label("Bookings")
             }
           }
-          Menu {
-            Button(action: model.sketchTapped) {
-              Label("Shape Trip", systemImage: "compass.drawing")
-            }
-            Button {
-              model.destination = .documents
-            } label: {
-              Label("Documents", systemImage: "doc.text")
-            }
-            if !model.startDaySolverStops.isEmpty {
-              Button {
-                showingStartDay = true
-              } label: {
-                Label("Start Day", systemImage: "calendar.day")
-              }
-            }
-            if model.trip?.certainty.stage == .dated {
-              Button {
-                showingCalendarReconciliation = true
-              } label: {
-                Label(
-                  "Reconcile Calendar",
-                  systemImage: "clock.arrow.trianglehead.2.counterclockwise.rotate.90")
-              }
-            }
-          } label: {
-            Image(systemName: "ellipsis")
-              .frame(minWidth: 44, minHeight: 44)
+          Button(action: model.sketchTapped) {
+            Label("Shape Trip", systemImage: "compass.drawing")
           }
-          .accessibilityLabel("Trip tools")
+          if !model.startDaySolverStops.isEmpty {
+            Button {
+              showingStartDay = true
+            } label: {
+              Label("Start Day", systemImage: "calendar.day")
+            }
+          }
+          if model.trip?.certainty.stage == .dated {
+            Button {
+              showingCalendarReconciliation = true
+            } label: {
+              Label(
+                "Reconcile Calendar",
+                systemImage: "clock.arrow.trianglehead.2.counterclockwise.rotate.90")
+            }
+          }
           Button {
             model.startRecommendationHandoff()
           } label: {

@@ -22,8 +22,11 @@ struct TripDocumentTests {
       let secondID = try TripDocument.add(
         tripID: trip.id, title: "Later", body: "second", origin: .pasted,
         now: Date(timeIntervalSince1970: 1_700_000_100), in: db)
-      #expect(try TripDocument.all.order { $0.createdAt.desc() }.fetchAll(db).map(\.id)
-        .prefix(2) == [secondID, firstID])
+      #expect(
+        try TripDocument.where { $0.tripID.eq(trip.id) }
+          .order { ($0.createdAt.desc(), $0.id) }
+          .fetchAll(db).map(\.id) == [secondID, firstID]
+      )
       #expect(try TripDocument.find(firstID).fetchOne(db)?.title.hasPrefix("Document — ") == true)
       try TripDocument.rename(secondID, title: "Renamed", in: db)
       #expect(try TripDocument.find(secondID).fetchOne(db)?.title == "Renamed")

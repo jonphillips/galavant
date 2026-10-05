@@ -8,14 +8,6 @@ public enum TripDocumentError: Error, Equatable, Sendable {
 }
 
 extension TripDocument {
-  /// Newest documents first, with stable UUID ordering when timestamps tie.
-  public static func newestFirst(_ documents: [TripDocument]) -> [TripDocument] {
-    documents.sorted {
-      if $0.createdAt != $1.createdAt { return $0.createdAt > $1.createdAt }
-      return $0.id.uuidString < $1.id.uuidString
-    }
-  }
-
   /// Add a trip document. Bodies are capped well below CloudKit's record limit.
   @discardableResult
   public static func add(

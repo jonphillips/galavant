@@ -6,17 +6,14 @@ import UniformTypeIdentifiers
 struct TripDocumentsSheet: View {
   @Environment(\.dismiss) private var dismiss
   @State private var model: TripDocumentsModel
-  @State private var addingDocument = false
-  @State private var documentToRename: TripDocument?
-  @State private var documentToDelete: TripDocument?
   @State private var renameTitle = ""
-  @State private var errorMessage: String?
 
   init(tripID: Trip.ID) {
     _model = State(initialValue: TripDocumentsModel(tripID: tripID))
   }
 
   var body: some View {
+    @Bindable var model = model
     NavigationStack {
       Group {
         if model.documents.isEmpty {
@@ -40,16 +37,16 @@ struct TripDocumentsSheet: View {
               }
               .contextMenu {
                 Button("Rename…", systemImage: "pencil") {
-                  documentToRename = document
+                  model.destination = .rename(document)
                   renameTitle = document.title
                 }
                 Button("Delete…", systemImage: "trash", role: .destructive) {
-                  documentToDelete = document
+                  model.destination = .confirmDelete(document)
                 }
               }
               .swipeActions(edge: .trailing) {
                 Button("Delete", systemImage: "trash", role: .destructive) {
-                  documentToDelete = document
+                  model.destination = .confirmDelete(document)
                 }
               }
             }
@@ -62,48 +59,51 @@ struct TripDocumentsSheet: View {
           Button("Done") { dismiss() }
         }
         ToolbarItem(placement: .primaryAction) {
-          Button("Add", systemImage: "plus") { addingDocument = true }
+          Button("Add", systemImage: "plus") { model.destination = .add }
         }
       }
-      .sheet(isPresented: $addingDocument) {
+      .sheet(isPresented: Binding(
+        get: { model.destination?.is(\.add) ?? false },
+        set: { if !$0 { model.destination = nil } }
+      )) {
         TripDocumentEditorSheet(model: model)
       }
       .alert("Rename Document", isPresented: Binding(
-        get: { documentToRename != nil },
-        set: { if !$0 { documentToRename = nil } }
+        get: { model.destination?.is(\.rename) ?? false },
+        set: { if !$0 { model.destination = nil } }
       )) {
         TextField("Title", text: $renameTitle)
         Button("Save") {
-          if let documentToRename {
-            do { try model.rename(documentToRename.id, title: renameTitle) }
-            catch { errorMessage = error.localizedDescription }
+          if case let .rename(document) = model.destination {
+            do { try model.rename(document.id, title: renameTitle) }
+            catch { model.errorMessage = error.localizedDescription }
           }
-          documentToRename = nil
+          model.destination = nil
         }
-        Button("Cancel", role: .cancel) { documentToRename = nil }
+        Button("Cancel", role: .cancel) { model.destination = nil }
       }
       .confirmationDialog(
         "Delete this document?", isPresented: Binding(
-          get: { documentToDelete != nil },
-          set: { if !$0 { documentToDelete = nil } }
+          get: { model.destination?.is(\.confirmDelete) ?? false },
+          set: { if !$0 { model.destination = nil } }
         ), titleVisibility: .visible
       ) {
         Button("Delete", role: .destructive) {
-          if let documentToDelete {
-            do { try model.delete(documentToDelete.id) }
-            catch { errorMessage = error.localizedDescription }
+          if case let .confirmDelete(document) = model.destination {
+            do { try model.delete(document.id) }
+            catch { model.errorMessage = error.localizedDescription }
           }
-          documentToDelete = nil
+          model.destination = nil
         }
-        Button("Cancel", role: .cancel) { documentToDelete = nil }
+        Button("Cancel", role: .cancel) { model.destination = nil }
       }
       .alert("Couldn’t Save Document", isPresented: Binding(
-        get: { errorMessage != nil },
-        set: { if !$0 { errorMessage = nil } }
+        get: { model.errorMessage != nil },
+        set: { if !$0 { model.errorMessage = nil } }
       )) {
-        Button("OK", role: .cancel) { errorMessage = nil }
+        Button("OK", role: .cancel) { model.errorMessage = nil }
       } message: {
-        Text(errorMessage ?? "Please try again.")
+        Text(model.errorMessage ?? "Please try again.")
       }
     }
   }
@@ -140,14 +140,15 @@ private struct TripDocumentEditorSheet: View {
           Button("Save") {
             do {
               try model.add(title: title, body: bodyText)
+              model.destination = nil
               dismiss()
             } catch let error as TripDocumentError {
-              errorMessage = switch error {
+              model.errorMessage = switch error {
               case .emptyBody: "Add some text before saving."
               case .tooLarge: "This document is too large. Keep it under 500 KB."
               }
             } catch {
-              errorMessage = error.localizedDescription
+              model.errorMessage = error.localizedDescription
             }
           }
           .disabled(bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -164,16 +165,16 @@ private struct TripDocumentEditorSheet: View {
           bodyText = try String(contentsOf: url, encoding: .utf8)
           title = url.deletingPathExtension().lastPathComponent
         } catch {
-          errorMessage = error.localizedDescription
+          model.errorMessage = error.localizedDescription
         }
       }
       .alert("Can’t Add Document", isPresented: Binding(
-        get: { errorMessage != nil },
-        set: { if !$0 { errorMessage = nil } }
+        get: { model.errorMessage != nil },
+        set: { if !$0 { model.errorMessage = nil } }
       )) {
-        Button("OK", role: .cancel) { errorMessage = nil }
+        Button("OK", role: .cancel) { model.errorMessage = nil }
       } message: {
-        Text(errorMessage ?? "Please try again.")
+        Text(model.errorMessage ?? "Please try again.")
       }
     }
   }
