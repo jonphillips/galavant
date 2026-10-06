@@ -3,6 +3,20 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## iPhone trip presentations + Ideas empty state (`effort/iphone-trip-presentations`) — 2026-10-06
+
+- Moved Add Ideas, booking, documents, recommendation, Start Day, and Calendar Reconciliation
+  sheets into `TripDetailContent`; compact Discuss now presents from that sheet as well. Start Day
+  and Calendar Reconciliation are `Destination` cases. Today and Journey retain their existing
+  full-screen presentation paths.
+- Replaced the Ideas empty-state overlay with an in-list section after Documents. The iPhone keeps
+  its inline Add row; the iPad empty state provides its Add Ideas action. Added the presentation
+  host rule and iPhone/iPad device passes.
+- **Verification.** `scripts/check-drift.sh` passed lint, all GalavantLibrary suites (750 tests,
+  7 known issues), and the GalavantUITests build. Headless `GalavantTests` passed 35 tests.
+  Device follow-up: exercise the trip presentations on iPhone and iPad and confirm the empty-trip
+  rows remain visible and tappable.
+
 ## ADR-0048 Slice 1 — `.declined` + trip documents (`effort/adr-0048-slice-1`) — 2026-10-04
 
 - Added the trip-scoped Ruled out list with additive rationale, reconsider and pull-to-reuse

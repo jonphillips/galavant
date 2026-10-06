@@ -4,6 +4,9 @@ Issues observed during the Xcode 27 beta cycle. Re-verify each against the Xcode
 27.0 release build before keeping a workaround; delete an entry when it's fixed
 upstream or we work around it.
 
+Every trip-screen sheet is presented from `TripDetailContent`, because on iPhone
+the outer view is already presenting it.
+
 ## A `Map` steals taps from SwiftUI controls inset/overlaid over it (beta observation) — WORKED AROUND
 
 The trip-canvas `DayChipBar` pills went dead: you could drag the pill row
