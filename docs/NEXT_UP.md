@@ -1,10 +1,9 @@
-# Next Up — ADR-0048 Slice 2: the seed verb
+# Next Up — ADR-0048 Slice 3: seed matching (saved ideas, then the map)
 
-**Slices:** effort `adr-0048-slice-2` (one PR, branch `effort/adr-0048-slice-2`)
-**Briefs:** `docs/efforts/adr-0048-slice-2-seed-verb.md`
+**Slices:** effort `adr-0048-slice-3` (one PR, branch `effort/adr-0048-slice-3`)
+**Briefs:** `docs/efforts/adr-0048-slice-3-seed-matching.md`
 **Done when:** per the brief's "Done when"; verification per `docs/verification.md`.
 **Owed:** Jon's device pass in `docs/device-passes.md` (not executor work).
-**Notes:** Contract v2 + `SeedReturn` decode + `SeedPlan` + bulk review + one-transaction commit;
-every row lands freeform (matching is Slice 3, queued behind this). No schema change. New
-presentations go in `TripDetailPresentationHost` (KNOWN-ISSUES standing rule). Start from a fresh
-`main`.
+**Notes:** Matching runs inside the seed review before commit; the human's tap still selects.
+No new ingestion path: resolution goes through `RecommendationResolution.confirm`. No schema
+change. Start from a fresh `main`.

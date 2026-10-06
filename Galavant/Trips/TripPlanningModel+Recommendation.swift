@@ -67,6 +67,31 @@ struct RecommendationCandidateDraft: Identifiable {
 }
 
 extension TripPlanningModel {
+  func startSeedHandoff() {
+    guard let trip else { return }
+    let scope = RecommendationHandoffScope.trip
+    let promptSession = HandoffSession(
+      sourceType: scope.sourceType, sourceID: trip.id,
+      taskType: RecommendationHandoffTask.seedTrip, scopeKey: scope.scopeKey, exportedPrompt: ""
+    )
+    let session = HandoffSession(
+      id: promptSession.id, sourceType: promptSession.sourceType,
+      sourceID: promptSession.sourceID, taskType: promptSession.taskType,
+      scopeKey: promptSession.scopeKey, createdAt: promptSession.createdAt,
+      exportedPrompt: RecommendationHandoffContract.seedBrief(
+        session: promptSession, tripName: trip.name, plan: plan
+      )
+    )
+    do {
+      try handoffSessionStore.save(session)
+      recommendationHandoffWarning = nil
+      recommendationHandoffError = nil
+      destination = .recommendationHandoff(RecommendationHandoffPresentation(session: session))
+    } catch {
+      recommendationHandoffError = error.localizedDescription
+    }
+  }
+
   func startRecommendationHandoff() {
     guard let trip else { return }
     let scope = RecommendationHandoffScope.trip
@@ -101,8 +126,14 @@ extension TripPlanningModel {
     }
   }
 
-  func pasteRecommendationResult(_ strings: [String], for session: HandoffSession) {
+  func pasteRecommendationResult(
+    _ strings: [String], for session: HandoffSession, seedReviewModel: SeedReviewModel? = nil
+  ) {
     guard let pasted = strings.first else { return }
+    if session.taskType == RecommendationHandoffTask.seedTrip {
+      seedReviewModel?.paste(strings, for: session, context: seedPlanContextSnapshot)
+      return
+    }
     do {
       var warnings: [String] = []
 
@@ -152,6 +183,18 @@ extension TripPlanningModel {
     }
   }
 
+  var seedPlanContextSnapshot: SeedPlanContext? {
+    guard let trip else { return nil }
+    return SeedPlanContext(
+      trip: trip,
+      tripIdeas: allTripIdeas.filter { $0.tripID == tripID },
+      ideasByID: Dictionary(ideas.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }),
+      stays: allTripStays.filter { $0.tripID == tripID },
+      tripRegions: tripRegions,
+      partyRegions: regions.filter { $0.travelPartyID == trip.travelPartyID }
+    )
+  }
+
   func commitRecommendationCandidate(_ candidate: RecommendationCandidateDraft, from session: HandoffSession) {
     guard candidate.canCommit else { return }
     withErrorReporting {
@@ -173,8 +216,8 @@ extension TripPlanningModel {
   var mostRecentRecommendationWorkspaceSession: HandoffSession? {
     handoffSessionStore.sessions()
       .filter {
-          $0.sourceID == tripID
-          && $0.taskType == RecommendationHandoffTask.candidatePlaces
+        $0.sourceID == tripID
+          && ($0.taskType == RecommendationHandoffTask.candidatePlaces || $0.taskType == RecommendationHandoffTask.seedTrip)
           && $0.hasCommittedRecommendationCandidates
       }
       .max { $0.createdAt < $1.createdAt }

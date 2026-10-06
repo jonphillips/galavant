@@ -1,6 +1,6 @@
 # Effort — ADR-0048 Slice 2: the seed verb (contract v2, decode, plan, bulk review, commit)
 
-**Status:** Dispatched (2026-10-06) · **Summary:** the `seedTrip` handoff from
+**Status:** Done (2026-10-06) · **Summary:** the `seedTrip` handoff from
 [ADR-0048](../decisions/0048-trip-seed-handoff.md): Galavant sends a seed brief, Jon pastes it into
 the existing Chat conversation about the trip, and the narrative + `GV-SEED` + JSON reply becomes a
 founding document plus a trip skeleton in **one reviewed tap**. **Every row lands freeform

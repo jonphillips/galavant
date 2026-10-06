@@ -86,6 +86,11 @@ struct TripIdeasView: View {
             }
           }
         }
+        Button {
+          model.startSeedHandoff()
+        } label: {
+          Label("Seed from Conversation", systemImage: "sparkles")
+        }
       }
       if plan.isEmpty {
         Section {

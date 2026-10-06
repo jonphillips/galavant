@@ -20,6 +20,25 @@ public enum IdeaKind: String, QueryBindable, CaseIterable, Sendable {
   case market
   case transit
 
+  public init?(seedKind: String?) {
+    guard let value = seedKind?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
+      return nil
+    }
+    if let exact = Self(rawValue: value) {
+      self = exact
+      return
+    }
+    switch value.lowercased() {
+    case "hotel", "inn", "lodging": self = .stay
+    case "restaurant", "dining", "cafe": self = .food
+    case "bar", "winery": self = .drink
+    case "town", "village", "landmark": self = .sight
+    case "hike", "walk", "trail": self = .outdoorTrail
+    case "ferry", "train": self = .transit
+    default: return nil
+    }
+  }
+
   public var label: String {
     switch self {
     case .sight: "Sight"

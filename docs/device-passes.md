@@ -20,6 +20,10 @@ reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT
 - On a live trip day, check the Today map card's framing with and without location; confirm a preview day doesn't frame your position and that pin taps open the idea.
 - Re-copy the recommendation project instructions from Settings, confirm a "book ahead" hint seeds To book, and check the Today card on device.
 - **Evaluate re-paste flow.** Confirm the paste-confirmation wording and re-paste flow on device.
+- Re-copy the project instructions (now v2) into the ChatGPT project.
+- On a trip, Seed from Conversation → paste the brief into the Denmark conversation → paste the
+  reply back → review → Import; check the founding document, stays, rings and Ruled out on iPhone
+  and iPad.
 - **M5 real-device gate.** TestFlight on both phones: travel-party share acceptance,
   two-way CloudKit changes, image/BLOB round-trips, pinned-reservation behavior.
   Checklist: `docs/milestones/M5-EXECUTION.md`. (The old "manual Calendar export on both devices"

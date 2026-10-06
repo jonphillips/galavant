@@ -11,7 +11,7 @@ extension Trip {
   public static func create(
     name: String,
     certainty: Certainty = .someday(rank: 0),
-    lengthInDays: Int = 7,
+    lengthInDays: Int = Trip.defaultLengthInDays,
     notes: String = "",
     mainTransportMode: TransportMode? = nil,
     in db: Database

@@ -3,6 +3,18 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## ADR-0048 Slice 2 — seed verb (`effort/adr-0048-slice-2`) — 2026-10-06
+
+- Added the v2 seed instructions and trip brief, lossless `GV-SEED` decoder, pure `SeedPlan`,
+  bulk review, and transactional import of trip edits, freeform stays and verdict-bearing places.
+  Grouped choices become considering rings; the narrative is saved as a founding document, and
+  committed places are linked into the local handoff session. Candidate places stamped v1 still
+  decode with the older-marker warning. No schema or migration change.
+- **Verification.** `scripts/check-drift.sh` passed SwiftLint, all GalavantLibrary suites (758
+  tests, 7 known issues), and the GalavantUITests build. Headless `GalavantTests` passed 35 tests.
+  Device follow-up: re-copy the project instructions and exercise seed/review/import on iPhone and
+  iPad, checking the founding document, stays, rings and Ruled out.
+
 ## iPhone trip presentations + Ideas empty state (`effort/iphone-trip-presentations`) — 2026-10-06
 
 - Moved Add Ideas, booking, documents, recommendation, Start Day, and Calendar Reconciliation

@@ -9,6 +9,10 @@ import SQLiteData
 /// FK to TravelParty so it rides the share (ADR-0007).
 @Table
 public struct Trip: Identifiable, Equatable, Hashable, Sendable {
+  /// New trips start at one week; seed imports default the length edit on only
+  /// while the trip still has this untouched new-trip value.
+  public static let defaultLengthInDays = 7
+
   public let id: UUID
   public var name = ""
   public var notes = ""
@@ -19,7 +23,7 @@ public struct Trip: Identifiable, Equatable, Hashable, Sendable {
   public var targetYear: Int?
   public var targetQuarter: Quarter?
   public var startDate: Date?
-  public var lengthInDays = 7
+  public var lengthInDays: Int = Trip.defaultLengthInDays
   /// The trip-wide transport preference for itinerary directions. `nil` keeps
   /// the automatic walking/transit choice used by older trips.
   public var mainTransportMode: String?
@@ -55,7 +59,7 @@ public struct Trip: Identifiable, Equatable, Hashable, Sendable {
     targetYear: Int? = nil,
     targetQuarter: Quarter? = nil,
     startDate: Date? = nil,
-    lengthInDays: Int = 7,
+    lengthInDays: Int = Trip.defaultLengthInDays,
     mainTransportMode: TransportMode? = nil,
     calendarReconciliationFrozenAt: Date? = nil,
     travelPartyID: TravelParty.ID? = nil,
