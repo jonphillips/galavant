@@ -18,8 +18,8 @@ Bridges an open-ended Chat "bearings" conversation into a Galavant trip: a `seed
 narrative + JSON return, `.declined` status, a `TripDocument` founding document, and a bulk review that
 matches saved ideas before searching the map. **Slice 0 passed
 2026-10-04** (run 2 of the hand-run; `docs/fixtures/seed-denmark.txt` is now that real return). Slice 1
-(`.declined` + `TripDocument`) is queued behind `today-polish` (its completing PR dispatches it).
-Slices 2–3 wait for a plan PR after Slice 1 lands. ADR OQ1–OQ5 stay in the ADR.
+(`.declined` + `TripDocument`) shipped in #149. Slice 2 (seed verb) is dispatched; Slice 3 (matching) is
+queued behind it. ADR OQ1–OQ5 stay in the ADR.
 
 - **v1 candidate decode silently drops prose around the array.** `TripCandidate.decodeReturn` slices
   the first `[{…}]` array, so a `{"summary": …, "places": [ … ]}` reply imports the places and drops

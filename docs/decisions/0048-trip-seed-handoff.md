@@ -181,7 +181,7 @@ can see them.
 | `why`, `fit`, `visit` | `TripIdea.inlineNote` / `TripStay.inlineNote` | Joined in that order, then `reason`, blank-line separated; empty parts skipped |
 | `kind` | `IdeaKind` via a synonym table | Chat ignores the listed vocabulary (run 1 used `hotel`, `restaurant`, `town`, `base`), so Galavant normalizes instead of relying on the instructions: exact case names first, then synonyms (`hotel`/`inn`/`lodging` → `.stay`, `restaurant`/`dining`/`cafe` → `.food`, `bar`/`winery` → `.drink`, `town`/`village`/`landmark` → `.sight`, `hike`/`walk`/`trail` → `.outdoorTrail`, `ferry`/`train` → `.transit`). Anything else → `nil`, shown in the review with the original text. The table is pure, tested, and grows from dogfooding |
 | `place_notes` | `IdeaEvaluation` on the resolved `Idea` | `sourceName: "Trip research"`, `kind: .text`, `confidence: .inferred`, `staleness: .current`, `evaluationDate` = import date, `summary` = the text. If the row is unresolved at commit, the text is appended to `inlineNote` under an "About the place:" line instead. Nothing is dropped |
-| `group` | `alternativeGroupID` ring (ADR-0035) | **Only `core`/`considering` members form the ring.** `declined`/`deferred` members keep their status and get no `alternativeGroupID`. A group with fewer than two live members is ignored, and the review says so. Run 2 produced both cases: "Dragsholm meal" (Bistro considering + Gourmet declined) and "South Funen walk" (one member) |
+| `group` | `alternativeGroupID` ring (ADR-0035) | **Only `core`/`considering` members form the ring, and they land `.considering` (Amendment 1).** `declined`/`deferred` members keep their status and get no `alternativeGroupID`. A group with fewer than two live members is ignored, and the review says so. Run 2 produced both cases: "Dragsholm meal" (Bistro considering + Gourmet declined) and "South Funen walk" (one member) |
 
 No `open_questions` or "things to recheck" field. Those are prose, they stay in the founding document,
 and anything bookable is already covered by `book_ahead`. Taste-profile suggestions are deferred (see
@@ -385,6 +385,23 @@ the shared kit. Verb text and payloads stay per-app (ADR-0036 §The lift).
   stay") or a moment ("Day 4 transfer") rather than giving a day number. The review could show a
   `day_ref` that matches a base's name as that stay's nights ("nights 1–3"). It would stay advisory and
   never schedule anything. Cheap, but not needed for v1.
+
+## Amendment 1 — rings form from considering stops; `kind` is display-only until resolution (2026-10-06)
+
+Found while briefing Slices 2–3 against the code:
+
+- **Choose-one members land as `.considering`, even when their verdict is `core`.** ADR-0035 rings
+  are formed by `TripIdea.chooseOne`, which accepts only `.considering` stops (the same path
+  ADR-0036 D3's "choose one" uses). A group is a slot that hasn't been decided yet, so `.considering`
+  is also the honest status. D4's `core → .shortlisted` applies to ungrouped rows. Promoting a ring
+  stays the existing ADR-0035 UI. Run 2 already returned its group members as `considering`, so the
+  Denmark fixture is unaffected.
+- **`kind` has no home on a freeform `TripIdea`.** Freeform rows carry no kind column, and this ADR
+  adds none. The normalized kind (D4's synonym table) is shown in the review and, in Slice 3, passed
+  as the capture's kind **only when the map result has none**. A resolved place takes its kind from
+  the `Idea`.
+- Slice briefs: [Slice 2](../efforts/adr-0048-slice-2-seed-verb.md),
+  [Slice 3](../efforts/adr-0048-slice-3-seed-matching.md).
 
 ## Appendix A — the seed clause for the project instructions (passed Slice 0 on run 2)
 
