@@ -1,4 +1,5 @@
 import CloudSyncKit
+import GalavantSchema
 import SwiftUI
 
 /// The sync-health row at the top of Settings (docs/milestones/M5-EXECUTION.md → M5-sync, slice
@@ -61,6 +62,7 @@ private struct SyncStatusDot: View {
 struct SyncStatusDetailView: View {
   let model: SyncHealthModel
   @Environment(\.dismiss) private var dismiss
+  @State private var isConfirmingRestoreSyncEnablement = false
 
   var body: some View {
     NavigationStack {
@@ -95,6 +97,12 @@ struct SyncStatusDetailView: View {
         ToolbarItem(placement: .confirmationAction) {
           Button("Done") { dismiss() }
         }
+      }
+      .alert("Turn On iCloud Sync?", isPresented: $isConfirmingRestoreSyncEnablement) {
+        Button("Turn On Sync") { Task { await model.enableSyncButtonTapped() } }
+        Button("Cancel", role: .cancel) {}
+      } message: {
+        Text("This device was restored from a backup. Turning sync on uploads that restored library to iCloud and to everyone you share with, overwriting what is there, and anything deleted since the backup comes back.\n\nIf you only wanted this device restored, keep sync off.")
       }
     }
   }
@@ -136,7 +144,12 @@ struct SyncStatusDetailView: View {
 
   private func primaryAction() async {
     switch model.displayStatus {
-    case .disabled: await model.enableSyncButtonTapped()
+    case .disabled:
+      if GalavantCloudSync.isDisabledByRestore() {
+        isConfirmingRestoreSyncEnablement = true
+      } else {
+        await model.enableSyncButtonTapped()
+      }
     default: await model.tryAgainButtonTapped()
     }
   }

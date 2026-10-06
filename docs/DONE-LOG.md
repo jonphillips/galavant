@@ -3,6 +3,18 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## ADR-0049 S1 — backup & restore (`effort/adr-0049-s1-backup-restore`) — 2026-10-06
+
+- Adopted CloudSyncKit backup and restore with Galavant's app-group store configuration, restore
+  sync hold, and explicit-path migration entry point. Added owner-only Settings export, restore,
+  undo, participant guidance, and separately confirmed sync re-enable.
+- Moved the existing migration registrations into a shared ordered registry without changing their
+  bodies. Added package coverage for Galavant backup identification, schema-version parity, image
+  and document byte preservation through restore, and forward migration from the previous prefix.
+- **Verification.** `scripts/check-drift.sh` passed SwiftLint, all GalavantLibrary tests, and the
+  GalavantUITests build. Device follow-up: export from iPhone to Files, restore on iPad, verify
+  contents, the sync hold and confirmation, and Undo Last Restore.
+
 ## ADR-0048 Slice 2 — seed verb (`effort/adr-0048-slice-2`) — 2026-10-06
 
 - Added the v2 seed instructions and trip brief, lossless `GV-SEED` decoder, pure `SeedPlan`,

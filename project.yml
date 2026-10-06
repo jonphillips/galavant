@@ -76,6 +76,12 @@ targets:
         CFBundleDisplayName: Galavant
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UTExportedTypeDeclarations:
+          - UTTypeConformsTo: [public.data]
+            UTTypeDescription: Galavant Backup
+            UTTypeIdentifier: com.jonphillips.galavant.database-backup
+            UTTypeTagSpecification:
+              public.filename-extension: [sqlite]
         # The machine-local `Config/Secrets.xcconfig` supplies this build setting;
         # GalavantPlaces reads the resolved value via `\.unsplashAccessKey`.
         UNSPLASH_ACCESS_KEY: $(UNSPLASH_ACCESS_KEY)
