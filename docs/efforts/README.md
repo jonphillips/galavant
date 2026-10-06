@@ -25,6 +25,7 @@ backfilled **on touch**; the table below is the current index.
 | [today-day-map.md](today-day-map.md) | Dogfood B2 — a glanceable day map on Today (route, base, next, device in the union frame; ADR-0046 §5) | Done (2026-09-29) |
 | [today-polish.md](today-polish.md) | Review follow-ups from #145/#143 — live-day map keeps the device across a day rollover; `bookingsDue` doc comment | Done (2026-10-04) |
 | [adr-0048-slice-1-declined-and-documents.md](adr-0048-slice-1-declined-and-documents.md) | ADR-0048 Slice 1 — `.declined` status (ruled out, with reason) + synced read-only trip documents | Done (2026-10-04) |
+| [iphone-trip-presentations.md](iphone-trip-presentations.md) | Dogfood 2026-10-06 — trip sheets dropped on iPhone (outer host already presenting); Ideas empty-state overlay covers rows | Dispatched (2026-10-06) |
 | [codex-recommendation-brief-stops.md](codex-recommendation-brief-stops.md) | Recommendation brief stops (moved from `docs/handoffs/`) | See doc |
 
 **Authoring a brief:** add its entry here in the same change (index at creation), give it a
