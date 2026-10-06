@@ -73,98 +73,98 @@ struct TripPlanningView: View {
       // below the toolbar host, as IdeasScreen does, keeps every item.
       // (docs/KNOWN-ISSUES.md)
       tripLayout(bookingRollup: bookingRollup, bookingByRow: bookingByRow, plan: plan)
-      .navigationTitle(model.trip?.name ?? "Trip")
-      .navigationBarTitleDisplayMode(.inline)
-      // One ToolbarItemGroup, not two ToolbarItems: buried under the presentation
-      // hosts' `.sheet` wrappers, the chat `.inspector` merges the trip's toolbar and
-      // keeps only a single *item* — a second `ToolbarItem` (Recommend) silently
-      // vanished. A group is one contribution carrying both buttons, so both survive.
-      // (docs/KNOWN-ISSUES.md)
-      .toolbar {
-        ToolbarItemGroup(placement: .topBarTrailing) {
-          if usesColumn {
-            Button {
-              showingJourney = true
-            } label: {
-              Icon.journey.label("Journey")
-            }
-          }
-          if !usesColumn, model.trip?.startDate != nil {
-            Button {
-              showToday()
-            } label: {
-              Label("Today", systemImage: "sun.max")
-            }
-          }
-          // The trip-shaping tools, promoted from the itinerary's "···" menu so
-          // they're one tap away; Start Day / Reconcile appear when they apply.
-          if bookingRollup.toBookCount > 0 {
-            Button { model.destination = .booking } label: {
-              Icon.bookingToBook.label("\(bookingRollup.toBookCount) to book")
-            }
-            .buttonStyle(.bordered)
-          } else if !bookingRollup.booked.isEmpty || !bookingRollup.decide.isEmpty {
-            Button { model.destination = .booking } label: {
-              Icon.bookingBooked.label("Bookings")
-            }
-          }
-          Button(action: model.sketchTapped) {
-            Label("Shape Trip", systemImage: "compass.drawing")
-          }
-          if !model.startDaySolverStops.isEmpty {
-            Button {
-              model.destination = .startDay
-            } label: {
-              Label("Start Day", systemImage: "calendar.day")
-            }
-          }
-          if model.trip?.certainty.stage == .dated {
-            Button {
-              model.destination = .calendarReconciliation
-            } label: {
-              Label(
-                "Reconcile Calendar",
-                systemImage: "clock.arrow.trianglehead.2.counterclockwise.rotate.90")
-            }
-          }
+    }
+    .navigationTitle(model.trip?.name ?? "Trip")
+    .navigationBarTitleDisplayMode(.inline)
+    // One ToolbarItemGroup, not two ToolbarItems: buried under the presentation
+    // hosts' `.sheet` wrappers, the chat `.inspector` merges the trip's toolbar and
+    // keeps only a single *item* — a second `ToolbarItem` (Recommend) silently
+    // vanished. A group is one contribution carrying both buttons, so both survive.
+    // (docs/KNOWN-ISSUES.md)
+    .toolbar {
+      ToolbarItemGroup(placement: .topBarTrailing) {
+        if usesColumn {
           Button {
-            model.startRecommendationHandoff()
+            showingJourney = true
           } label: {
-            Icon.recommend.label("Recommend")
-          }
-          // Discuss this trip's itinerary with the model (ADR-0017).
-          Button {
-            showingChat = true
-          } label: {
-            Icon.chat.label("Discuss")
+            Icon.journey.label("Journey")
           }
         }
-      }
-      .fullScreenCover(isPresented: $showingToday, onDismiss: restoreDetailSheetAfterToday) {
-        TodayView(planningModel: model)
-      }
-      .fullScreenCover(isPresented: $showingJourney) {
-        NavigationStack {
-          JourneyView(planningModel: model)
+        if !usesColumn, model.trip?.startDate != nil {
+          Button {
+            showToday()
+          } label: {
+            Label("Today", systemImage: "sun.max")
+          }
+        }
+        // The trip-shaping tools, promoted from the itinerary's "···" menu so
+        // they're one tap away; Start Day / Reconcile appear when they apply.
+        if bookingRollup.toBookCount > 0 {
+          Button { model.destination = .booking } label: {
+            Icon.bookingToBook.label("\(bookingRollup.toBookCount) to book")
+          }
+          .buttonStyle(.bordered)
+        } else if !bookingRollup.booked.isEmpty || !bookingRollup.decide.isEmpty {
+          Button { model.destination = .booking } label: {
+            Icon.bookingBooked.label("Bookings")
+          }
+        }
+        Button(action: model.sketchTapped) {
+          Label("Shape Trip", systemImage: "compass.drawing")
+        }
+        if !model.startDaySolverStops.isEmpty {
+          Button {
+            model.destination = .startDay
+          } label: {
+            Label("Start Day", systemImage: "calendar.day")
+          }
+        }
+        if model.trip?.certainty.stage == .dated {
+          Button {
+            model.destination = .calendarReconciliation
+          } label: {
+            Label(
+              "Reconcile Calendar",
+              systemImage: "clock.arrow.trianglehead.2.counterclockwise.rotate.90")
+          }
+        }
+        Button {
+          model.startRecommendationHandoff()
+        } label: {
+          Icon.recommend.label("Recommend")
+        }
+        // Discuss this trip's itinerary with the model (ADR-0017).
+        Button {
+          showingChat = true
+        } label: {
+          Icon.chat.label("Discuss")
         }
       }
-      .task {
-        model.pickInitialSheetTabIfNeeded()
-        model.seedLensIfNeeded()
-        // A trip that is on opens on today rather than the whole-trip lens.
-        model.seedDayLensIfNeeded()
-        // Present the persistent sheet on appear (compact only) — `.constant(true)`
-        // is unreliable on a NavigationStack push.
-        if !usesColumn { showDetailSheet = true }
-        await model.fetchMissingETAs()
+    }
+    .fullScreenCover(isPresented: $showingToday, onDismiss: restoreDetailSheetAfterToday) {
+      TodayView(planningModel: model)
+    }
+    .fullScreenCover(isPresented: $showingJourney) {
+      NavigationStack {
+        JourneyView(planningModel: model)
       }
-      .onChange(of: plan.allLegs) { _, _ in
-        Task { await model.fetchMissingETAs() }
-      }
-      .onChange(of: model.tripRegionIDs) { _, _ in model.reseedLens() }
-      .onChange(of: model.canvasSelectedStopID) { _, id in
-        handleCanvasSelection(id)
-      }
+    }
+    .task {
+      model.pickInitialSheetTabIfNeeded()
+      model.seedLensIfNeeded()
+      // A trip that is on opens on today rather than the whole-trip lens.
+      model.seedDayLensIfNeeded()
+      // Present the persistent sheet on appear (compact only) — `.constant(true)`
+      // is unreliable on a NavigationStack push.
+      if !usesColumn { showDetailSheet = true }
+      await model.fetchMissingETAs()
+    }
+    .onChange(of: plan.allLegs) { _, _ in
+      Task { await model.fetchMissingETAs() }
+    }
+    .onChange(of: model.tripRegionIDs) { _, _ in model.reseedLens() }
+    .onChange(of: model.canvasSelectedStopID) { _, id in
+      handleCanvasSelection(id)
     }
   }
 
