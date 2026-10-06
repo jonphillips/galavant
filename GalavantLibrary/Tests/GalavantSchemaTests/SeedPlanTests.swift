@@ -119,4 +119,75 @@ struct SeedPlanTests {
       #expect(try TripDocument.where { $0.tripID.eq(trip.id) }.fetchCount(db) == 0)
     }
   }
+
+  @Test func verdictEditsOnExistingRowsAreComparedWithTheOriginalStatusAtCommit() async throws {
+    try await database.write { db in
+      let trip = try Trip.create(name: "Existing stop", in: db)
+      let existing = TripIdea(
+        id: UUID(), tripID: trip.id, ideaID: nil, inlineTitle: "Already here", status: .considering
+      )
+      try TripIdea.insert { TripIdea.Draft(existing) }.execute(db)
+      let seed = try SeedReturn.decode("GV-SEED\n{\"places\":[{\"name\":\"Already here\",\"verdict\":\"considering\"}]}")
+      var plan = SeedPlan.make(from: seed, trip: trip, context: SeedPlanContext(
+        trip: trip, tripIdeas: [existing], ideasByID: [:], stays: [], tripRegions: [], partyRegions: []
+      ))
+      plan.places[0].include = true
+      plan.places[0].place.verdict = .declined
+      #expect(plan.places[0].statusUpdate)
+      let session = HandoffSession(
+        sourceType: "trip", sourceID: trip.id, taskType: RecommendationHandoffTask.seedTrip,
+        scopeKey: nil, exportedPrompt: ""
+      )
+      try SeedPlan.commit(plan, tripID: trip.id, session: session, now: date.now, in: db)
+      #expect(try TripIdea.find(existing.id).fetchOne(db)?.status == .declined)
+    }
+  }
+
+  @Test func ringEligibilityRecomputesAfterAnOptionIsTurnedOff() throws {
+    let trip = Trip(
+      id: UUID(), name: "Alternatives", certaintyStage: .someday, lengthInDays: Trip.defaultLengthInDays
+    )
+    let seed = try SeedReturn.decode("""
+      GV-SEED
+      {"places":[{"name":"One","verdict":"core","group":"dinner"},{"name":"Two","verdict":"core","group":"dinner"}]}
+      """)
+    var plan = SeedPlan.make(from: seed, trip: trip, context: SeedPlanContext(
+      trip: trip, tripIdeas: [], ideasByID: [:], stays: [], tripRegions: [], partyRegions: []
+    ))
+    #expect(plan.formsRing(at: 0))
+    #expect(plan.effectiveStatus(ofPlaceAt: 0) == .considering)
+    plan.places[1].include = false
+    #expect(!plan.formsRing(at: 0))
+    #expect(plan.effectiveStatus(ofPlaceAt: 0) == .shortlisted)
+  }
+
+  @Test func includedStayExtendsASevenDayTripEvenWithoutASeedLength() async throws {
+    try await database.write { db in
+      let trip = try Trip.create(name: "Long stay", in: db)
+      let seed = try SeedReturn.decode("GV-SEED\n{\"bases\":[{\"name\":\"Long base\",\"check_in_day\":11,\"check_out_day\":13}],\"places\":[{}]}")
+      let plan = SeedPlan.make(from: seed, trip: trip, context: SeedPlanContext(
+        trip: trip, tripIdeas: [], ideasByID: [:], stays: [], tripRegions: [], partyRegions: []
+      ))
+      #expect(seed.trip.lengthDays == nil)
+      #expect(plan.forcedLengthDays == 13)
+      #expect(plan.shouldIncludeLength)
+      #expect(plan.effectiveLengthDays == 13)
+      let session = HandoffSession(
+        sourceType: "trip", sourceID: trip.id, taskType: RecommendationHandoffTask.seedTrip,
+        scopeKey: nil, exportedPrompt: ""
+      )
+      try SeedPlan.commit(plan, tripID: trip.id, session: session, now: date.now, in: db)
+      #expect(try Trip.find(trip.id).fetchOne(db)?.lengthInDays == 13)
+    }
+  }
+
+  @Test func quarterWithoutAnyKnownYearDoesNotEnableCertaintyImport() throws {
+    let trip = Trip(id: UUID(), name: "Quarter only")
+    let seed = try SeedReturn.decode("GV-SEED\n{\"trip\":{\"quarter\":2},\"places\":[{}]}")
+    let plan = SeedPlan.make(from: seed, trip: trip, context: SeedPlanContext(
+      trip: trip, tripIdeas: [], ideasByID: [:], stays: [], tripRegions: [], partyRegions: []
+    ))
+    #expect(!plan.tripEdit.includeCertainty)
+    #expect(plan.tripEdit.year == nil)
+  }
 }

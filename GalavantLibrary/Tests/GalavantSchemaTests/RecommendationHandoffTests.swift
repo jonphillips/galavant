@@ -264,7 +264,7 @@ struct RecommendationHandoffTests {
     #expect(brief.contains("using the seed format in the project instructions"))
     #expect(!brief.contains("Trip notes:"))
     #expect(RecommendationHandoffContract.marker.version == "v2")
-    #expect(RecommendationHandoffContract.projectInstructions.contains("GV-CONTRACT: v1\n[{"))
+    #expect(RecommendationHandoffContract.projectInstructions.contains("GV-CONTRACT: v2\n[{"))
     #expect(RecommendationHandoffContract.projectInstructions.contains("GV-CONTRACT: v2\", then a narrative"))
   }
 
@@ -289,7 +289,7 @@ struct RecommendationHandoffTests {
   }
 
   @Test func projectInstructionsDocumentTheAdditiveBookAheadHint() {
-    #expect(RecommendationHandoffContract.projectInstructions.contains("GV-CONTRACT: v1"))
+    #expect(RecommendationHandoffContract.projectInstructions.contains("GV-CONTRACT: v2"))
     #expect(RecommendationHandoffContract.projectInstructions.contains("book_ahead"))
     #expect(RecommendationHandoffContract.projectInstructions.contains("timed entry, popular restaurant, show"))
   }

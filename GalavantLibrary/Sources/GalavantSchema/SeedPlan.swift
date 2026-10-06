@@ -28,6 +28,7 @@ public struct SeedTripEdit: Equatable, Sendable {
   public var lengthDays: Int?
   public var includeLength: Bool
   public var year: Int?
+  public var knownYear: Int?
   public var quarter: Int?
   public var includeCertainty: Bool
   public var certaintyDisabled: Bool
@@ -46,7 +47,7 @@ public struct SeedPlacePlan: Equatable, Identifiable, Sendable {
   public var place: SeedPlace
   public var include: Bool
   public var existingTripIdeaID: TripIdea.ID?
-  public var statusUpdate: Bool
+  public var existingStatus: TripIdeaStatus?
   public var alreadyOnTrip: Bool { existingTripIdeaID != nil }
   public var id: UUID { place.id }
   public var title: String { place.candidate.suggestedTitle }
@@ -57,6 +58,7 @@ public struct SeedPlacePlan: Equatable, Identifiable, Sendable {
     case .declined, .deferred: .declined
     }
   }
+  public var statusUpdate: Bool { existingStatus.map { $0 != status } ?? false }
   public var note: String? {
     let deferred: String? = if case .deferred = place.verdict {
       SeedPlan.note([place.futureTrip.map { "Deferred — \($0): \(place.reason ?? "")" }])
@@ -80,6 +82,36 @@ public struct SeedPlan: Equatable, Sendable {
   public var stays: [SeedStayPlan]
   public var places: [SeedPlacePlan]
   public var warnings: [String]
+  public var currentLengthDays: Int
+
+  public var requiredStayLengthDays: Int {
+    stays.filter(\.include).map(\.base.checkOutDay).max() ?? currentLengthDays
+  }
+
+  public var forcedLengthDays: Int? {
+    requiredStayLengthDays > currentLengthDays ? requiredStayLengthDays : nil
+  }
+
+  public var effectiveLengthDays: Int {
+    let selectedLength = tripEdit.includeLength ? (tripEdit.lengthDays ?? currentLengthDays) : currentLengthDays
+    return max(selectedLength, requiredStayLengthDays)
+  }
+
+  public var shouldIncludeLength: Bool { effectiveLengthDays > currentLengthDays }
+
+  public func formsRing(at index: Int) -> Bool {
+    let row = places[index]
+    guard row.include, row.isRingEligible, let group = row.place.group else { return false }
+    return formsRing(group: group)
+  }
+
+  public func formsRing(group: String) -> Bool {
+    places.filter { $0.include && $0.isRingEligible && $0.place.group == group }.count >= 2
+  }
+
+  public func effectiveStatus(ofPlaceAt index: Int) -> TripIdeaStatus {
+    formsRing(at: index) ? .considering : places[index].status
+  }
 
   public static func make(from seed: SeedReturn, trip: Trip, context: SeedPlanContext) -> SeedPlan {
     let dated = trip.certaintyStage == .dated
@@ -105,27 +137,29 @@ public struct SeedPlan: Equatable, Sendable {
         place: place,
         include: !already,
         existingTripIdeaID: matched?.id,
-        statusUpdate: matched.map { $0.status != status(for: place.verdict) } ?? false
+        existingStatus: already ? matched?.status : nil
       )
     }
+    let requiredStayLength = stays.filter(\.include).map(\.base.checkOutDay).max() ?? trip.lengthInDays
+    let lengthDays = max(proposedLength ?? trip.lengthInDays, requiredStayLength)
+    let hasYear = seed.trip.year != nil || trip.targetYear != nil
     return SeedPlan(
       seed: seed,
       tripEdit: SeedTripEdit(
-        lengthDays: proposedLength,
-        includeLength: proposedLength != nil && trip.lengthInDays == Trip.defaultLengthInDays,
-        year: proposedYear, quarter: proposedQuarter,
-        includeCertainty: !dated && (proposedYear != nil || proposedQuarter != nil) && bothUnspecified,
+        lengthDays: lengthDays == trip.lengthInDays ? nil : lengthDays,
+        includeLength: lengthDays != trip.lengthInDays
+          && ((proposedLength != nil && trip.lengthInDays == Trip.defaultLengthInDays) || requiredStayLength > trip.lengthInDays),
+        year: proposedYear, knownYear: seed.trip.year ?? trip.targetYear, quarter: proposedQuarter,
+        includeCertainty: !dated && hasYear && (proposedYear != nil || proposedQuarter != nil) && bothUnspecified,
         certaintyDisabled: dated
       ),
-      stays: stays, places: places, warnings: seed.warnings
+      stays: stays, places: places, warnings: seed.warnings, currentLengthDays: trip.lengthInDays
     )
   }
 
   public var ignoredGroups: [String] {
-    let groups = Dictionary(grouping: places.filter { $0.isRingEligible }, by: { $0.place.group! })
-    return groups.keys.sorted().filter { group in
-      groups[group, default: []].filter(\.include).count < 2
-    }
+    let groups = Set(places.compactMap { $0.isRingEligible ? $0.place.group : nil })
+    return groups.sorted().filter { !formsRing(group: $0) }
   }
 
   /// Import the reviewed plan into the caller's active database transaction.
@@ -144,22 +178,23 @@ public struct SeedPlan: Equatable, Sendable {
       // Match TripDocument.add's existing 512 KB cap before beginning this transaction.
       throw TripDocumentError.tooLarge
     }
-    try applyTripEdits(plan.tripEdit, tripID: tripID, now: now, in: db)
+    try applyTripEdits(plan, tripID: tripID, in: db)
     try commitStays(plan.stays, tripID: tripID, in: db)
-    var session = try commitPlaces(plan.places, tripID: tripID, session: suppliedSession, now: now, in: db)
+    var session = try commitPlaces(plan, tripID: tripID, session: suppliedSession, now: now, in: db)
     try addDocument(plan.seed.narrative, tripID: tripID, now: now, in: db)
     session.importedAt = now
     session.status = .imported
     return session
   }
 
-  private static func applyTripEdits(_ edit: SeedTripEdit, tripID: Trip.ID, now: Date, in db: Database) throws {
-    if edit.includeLength, let length = edit.lengthDays {
-      try Trip.setLength(length, tripID: tripID, in: db)
+  private static func applyTripEdits(_ plan: SeedPlan, tripID: Trip.ID, in db: Database) throws {
+    if plan.shouldIncludeLength {
+      try Trip.setLength(plan.effectiveLengthDays, tripID: tripID, in: db)
     }
+    let edit = plan.tripEdit
     guard edit.includeCertainty, !edit.certaintyDisabled else { return }
     guard let trip = try Trip.find(tripID).fetchOne(db) else { throw TripError.creationFailed }
-    let year = edit.year ?? trip.targetYear ?? now.calendarYear
+    guard let year = edit.year ?? trip.targetYear else { return }
     let quarter = edit.quarter.flatMap(Quarter.init(rawValue:)) ?? trip.targetQuarter
     try Trip.update(Trip.Draft(trip), certainty: .targeted(year: year, quarter: quarter), in: db)
   }
@@ -181,31 +216,27 @@ public struct SeedPlan: Equatable, Sendable {
   }
 
   private static func commitPlaces(
-    _ rows: [SeedPlacePlan], tripID: Trip.ID, session suppliedSession: HandoffSession,
+    _ plan: SeedPlan, tripID: Trip.ID, session suppliedSession: HandoffSession,
     now: Date, in db: Database
   ) throws -> HandoffSession {
-    let includedPlaces = rows.filter(\.include)
+    let includedPlaces = plan.places.filter(\.include)
     let candidates = includedPlaces.map { $0.place.candidate }
     var session = suppliedSession
     _ = try session.storeRecommendationCandidates(candidates)
     var importedIDs: [String: TripIdea.ID] = [:]
     var ringMembers: [String: [TripIdea.ID]] = [:]
-    let eligibleCounts = Dictionary(grouping: includedPlaces.filter(\.isRingEligible), by: { $0.place.group! })
-      .mapValues(\.count)
     var shortlistRank = try TripIdea.nextShortlistRank(tripID: tripID, in: db)
-    for row in includedPlaces {
+    for (index, row) in plan.places.enumerated() where row.include {
       if let id = row.existingTripIdeaID {
         if row.statusUpdate { try TripIdea.setStatus(row.status, stopID: id, in: db) }
-        let formsRing = row.isRingEligible && eligibleCounts[row.place.group ?? "", default: 0] >= 2
-        if formsRing, let group = row.place.group {
+        if plan.formsRing(at: index), let group = row.place.group {
           try TripIdea.setStatus(.considering, stopID: id, in: db)
           ringMembers[group, default: []].append(id)
         }
         importedIDs[row.place.candidate.id.uuidString] = id
         continue
       }
-      let formsRing = row.isRingEligible && eligibleCounts[row.place.group ?? "", default: 0] >= 2
-      let status = formsRing ? TripIdeaStatus.considering : row.status
+      let status = plan.effectiveStatus(ofPlaceAt: index)
       let rank = status == .shortlisted ? shortlistRank : try TripIdea.nextStopRank(tripID: tripID, in: db)
       if status == .shortlisted { shortlistRank += 1 }
       let stop = try TripIdea.commitSeedRow(
@@ -214,7 +245,7 @@ public struct SeedPlan: Equatable, Sendable {
         shortlistRank: rank, into: tripID, in: db
       )
       importedIDs[row.place.candidate.id.uuidString] = stop.id
-      if row.isRingEligible, let group = row.place.group { ringMembers[group, default: []].append(stop.id) }
+      if plan.formsRing(at: index), let group = row.place.group { ringMembers[group, default: []].append(stop.id) }
     }
     for memberIDs in ringMembers.values where memberIDs.count >= 2 {
       _ = try TripIdea.chooseOne(among: memberIDs, in: db)
@@ -251,13 +282,6 @@ public struct SeedPlan: Equatable, Sendable {
     return partyMatches.count == 1 ? partyMatches[0].id : nil
   }
 
-  private static func status(for verdict: SeedVerdict) -> TripIdeaStatus {
-    switch verdict {
-    case .core: .shortlisted
-    case .considering, .unrecognized: .considering
-    case .declined, .deferred: .declined
-    }
-  }
 }
 
 extension TripIdea {

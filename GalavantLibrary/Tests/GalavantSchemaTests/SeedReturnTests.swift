@@ -43,6 +43,25 @@ struct SeedReturnTests {
     #expect(tripSummary.narrative == "Trip fallback")
   }
 
+  @Test func keepsCRLFPastesAndWarnsForNonObjectArrayElements() throws {
+    let seed = try SeedReturn.decode(
+      "Notes\r\nGV-SEED\r\n{\"bases\":[{\"name\":\"Base\",\"check_in_day\":1,\"check_out_day\":2},7],\"places\":[{\"name\":\"Place\"},false]}"
+    )
+    #expect(seed.narrative == "Notes")
+    #expect(seed.bases.count == 1)
+    #expect(seed.places.count == 1)
+    #expect(seed.warnings == ["Base 2 was omitted: not an object.", "Place 2 was omitted: not an object."])
+  }
+
+  @Test func rejectsPresentBaseOrPlaceKeysThatAreNotArrays() {
+    #expect(throws: SeedReturnDecodeError.malformedJSON) {
+      try SeedReturn.decode("GV-SEED\n{\"bases\":{},\"places\":[{}]}")
+    }
+    #expect(throws: SeedReturnDecodeError.malformedJSON) {
+      try SeedReturn.decode("GV-SEED\n{\"bases\":[{}],\"places\":null}")
+    }
+  }
+
   @Test func normalizesSeedKindSynonymsAndUnrecognizedKindsStayNil() {
     #expect(IdeaKind(seedKind: "hotel") == .stay)
     #expect(IdeaKind(seedKind: "restaurant") == .food)

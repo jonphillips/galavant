@@ -87,11 +87,11 @@ public struct SeedReturn: Equatable, Sendable {
   public var warnings: [String]
 
   public static func decode(_ text: String) throws -> SeedReturn {
-    guard let marker = text.split(separator: "\n", omittingEmptySubsequences: false)
+    let lines = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
+    guard let marker = lines
       .lastIndex(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines) == "GV-SEED" })
     else { throw SeedReturnDecodeError.missingSeedMarker }
 
-    let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
     let narrative = lines[..<marker].joined(separator: "\n")
       .trimmingCharacters(in: .whitespacesAndNewlines)
     let tail = lines[(marker + 1)...].joined(separator: "\n")
@@ -109,10 +109,19 @@ public struct SeedReturn: Equatable, Sendable {
     let seedTrip = decodeTrip(root)
     let fallback = root.string("summary") ?? seedTrip.summary
     let finalNarrative = narrative.isEmpty ? (fallback ?? "") : narrative
-    let (bases, warnings) = decodeBases(root["bases"] as? [[String: Any]] ?? [], lengthDays: seedTrip.lengthDays)
-    let places = decodePlaces(root["places"] as? [[String: Any]] ?? [])
+    let rawBases = try objectArray(root, key: "bases")
+    let rawPlaces = try objectArray(root, key: "places")
+    let (bases, baseWarnings) = decodeBases(rawBases, lengthDays: seedTrip.lengthDays)
+    let (places, placeWarnings) = decodePlaces(rawPlaces)
+    let warnings = baseWarnings + placeWarnings
     guard !bases.isEmpty || !places.isEmpty else { throw SeedReturnDecodeError.emptySeed }
     return SeedReturn(narrative: finalNarrative, trip: seedTrip, bases: bases, places: places, warnings: warnings)
+  }
+
+  private static func objectArray(_ root: [String: Any], key: String) throws -> [Any] {
+    guard let value = root[key] else { return [] }
+    guard let values = value as? [Any] else { throw SeedReturnDecodeError.malformedJSON }
+    return values
   }
 
   private static func decodeTrip(_ root: [String: Any]) -> SeedTrip {
@@ -123,9 +132,13 @@ public struct SeedReturn: Equatable, Sendable {
     )
   }
 
-  private static func decodeBases(_ rawBases: [[String: Any]], lengthDays: Int?) -> ([SeedBase], [String]) {
+  private static func decodeBases(_ rawBases: [Any], lengthDays: Int?) -> ([SeedBase], [String]) {
     var warnings: [String] = []
-    let bases = rawBases.enumerated().compactMap { index, object -> SeedBase? in
+    let bases = rawBases.enumerated().compactMap { index, rawObject -> SeedBase? in
+      guard let object = rawObject as? [String: Any] else {
+        warnings.append("Base \(index + 1) was omitted: not an object.")
+        return nil
+      }
       guard
         let name = object.string("name"),
         let checkIn = object.integer("check_in_day"),
@@ -146,8 +159,13 @@ public struct SeedReturn: Equatable, Sendable {
     return (bases, warnings)
   }
 
-  private static func decodePlaces(_ rawPlaces: [[String: Any]]) -> [SeedPlace] {
-    rawPlaces.map { object in
+  private static func decodePlaces(_ rawPlaces: [Any]) -> ([SeedPlace], [String]) {
+    var warnings: [String] = []
+    let places = rawPlaces.enumerated().compactMap { index, rawObject -> SeedPlace? in
+      guard let object = rawObject as? [String: Any] else {
+        warnings.append("Place \(index + 1) was omitted: not an object.")
+        return nil
+      }
       let candidate = TripCandidate(
         name: object.string("name"), locality: object.string("locality"),
         searchHint: object.string("search_hint"), why: object.string("why"),
@@ -162,6 +180,7 @@ public struct SeedReturn: Equatable, Sendable {
         placeNotes: object.string("place_notes"), group: object.string("group")
       )
     }
+    return (places, warnings)
   }
 
   private static func jsonObjectSlice(in text: String) -> String? {

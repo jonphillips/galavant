@@ -62,13 +62,7 @@ public enum RecommendationHandoffContract {
       lines.append("Stops so far:")
       lines.append(contentsOf: stops)
     }
-    if !plan.ruledOut.isEmpty {
-      lines.append("Already ruled out (don't suggest again):")
-      lines.append(contentsOf: plan.ruledOut.map { stop in
-        let note = stop.entry.inlineNote.map(Self.oneLineRuledOutNote) ?? ""
-        return note.isEmpty ? "- \(description(for: stop.content))" : "- \(description(for: stop.content)) — \(note)"
-      })
-    }
+    lines.append(contentsOf: ruledOutSummary(plan: plan))
     lines.append("Ask: Seed this Galavant trip from our conversation so far, using the seed format in the project instructions. That format replaces the candidate-places format for this reply.")
     return lines.joined(separator: "\n")
   }
@@ -90,15 +84,7 @@ public enum RecommendationHandoffContract {
       lines.append("Stops so far:")
       lines.append(contentsOf: stops)
     }
-    if !plan.ruledOut.isEmpty {
-      lines.append("Already ruled out (don't suggest again):")
-      lines.append(contentsOf: plan.ruledOut.map { stop in
-        let note = stop.entry.inlineNote.map(Self.oneLineRuledOutNote) ?? ""
-        return note.isEmpty
-          ? "- \(description(for: stop.content))"
-          : "- \(description(for: stop.content)) — \(note)"
-      })
-    }
+    lines.append(contentsOf: ruledOutSummary(plan: plan))
     lines.append("Ask: Recommend candidate places that fit this trip. Give options with a useful locality, search hint, and concise rationale.")
     return lines.joined(separator: "\n")
   }
@@ -122,6 +108,16 @@ public enum RecommendationHandoffContract {
 
     lines.append(contentsOf: plan.stays.map { "Staying: \(description(for: $0.content))" })
     return lines
+  }
+
+  private static func ruledOutSummary(plan: TripPlan) -> [String] {
+    guard !plan.ruledOut.isEmpty else { return [] }
+    return ["Already ruled out (don't suggest again):"] + plan.ruledOut.map { stop in
+      let note = stop.entry.inlineNote.map(Self.oneLineRuledOutNote) ?? ""
+      return note.isEmpty
+        ? "- \(description(for: stop.content))"
+        : "- \(description(for: stop.content)) — \(note)"
+    }
   }
 
   private static func description(for content: StopContent) -> String {
