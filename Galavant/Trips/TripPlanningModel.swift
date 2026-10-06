@@ -7,6 +7,11 @@ import GalavantPlaces
 import GalavantSchema
 import SQLiteData
 
+@Selection
+struct TripDocumentRow {
+  let id: TripDocument.ID
+}
+
 /// Owns one trip's planning surface (ADR-0004): the shortlist + considering
 /// pile of pulled ideas, and the filtered pool you pull *from*. Persistence
 /// delegates to the tested `TripIdea` operations; pool scoping reuses the pure
@@ -21,6 +26,7 @@ final class TripPlanningModel {
   @ObservationIgnored @Dependency(\.handoffSessionStore) var handoffSessionStore
   @ObservationIgnored @Dependency(\.date) var date
   @ObservationIgnored @FetchAll(Trip.all) var trips
+  @ObservationIgnored @FetchAll var tripDocumentRows: [TripDocumentRow]
   @ObservationIgnored @FetchAll(Idea.order(by: \.name)) var ideas
   @ObservationIgnored @FetchAll(TripIdea.all) var allTripIdeas
   @ObservationIgnored @FetchAll(TripStay.all) var allTripStays
@@ -151,11 +157,16 @@ final class TripPlanningModel {
     case sketch(TripSketchPresentation)
     /// Review the trip-wide, projection-backed list of booking decisions.
     case booking
+    /// Read and manage trip-attached research documents.
+    case documents
   }
 
   init(tripID: Trip.ID) {
     @Dependency(\.calendarReconciliationHistoryStore) var calendarHistoryStore
     self.tripID = tripID
+    _tripDocumentRows = FetchAll(TripDocument.where { $0.tripID.eq(tripID) }.select {
+      TripDocumentRow.Columns(id: $0.id)
+    })
     calendarLocalState = calendarHistoryStore.state(tripID)
     // Opening a trip to plan it is the strongest "this is the trip I'm working on"
     // signal — record it so a share-extension capture defaults onto it.
@@ -164,18 +175,11 @@ final class TripPlanningModel {
 
   // MARK: - Derived state
 
-  var trip: Trip? { trips.first { $0.id == tripID } }
-
   @Selection struct HeaderThumb {
     let ideaID: Idea.ID
     let thumbnail: Data
   }
 
-  var headerThumbnailByIdea: [Idea.ID: Data] {
-    Dictionary(headerThumbs.map { ($0.ideaID, $0.thumbnail) }, uniquingKeysWith: { first, _ in first })
-  }
-
-  private var entries: [TripIdea] { allTripIdeas.filter { $0.tripID == tripID } }
   private var stays: [TripStay] { allTripStays.filter { $0.tripID == tripID } }
   private var dayRegions: [TripDayRegion] { allTripDayRegions.filter { $0.tripID == tripID } }
   private var calendarConstraints: [CalendarTripConstraint] {
@@ -509,6 +513,14 @@ final class TripPlanningModel {
     }
   }
 
+  func decline(_ stopID: TripIdea.ID, reason: String?) {
+    withErrorReporting {
+      try database.write { db in
+        try TripIdea.decline(stopID: stopID, reason: reason, in: db)
+      }
+    }
+  }
+
   /// Toggle an idea's "considering" state from the Add Ideas sheet's bubble
   /// icon: pull it as considering if it's off the trip, demote a shortlisted one
   /// back to considering, or remove it if it's already considering. Scheduled
@@ -521,6 +533,7 @@ final class TripPlanningModel {
     case .shortlisted:
       if let id = entryID(for: idea) { setStatus(.considering, for: id) }
     case .scheduled, .done, .skipped: break
+    case .declined: pull(idea)
     }
   }
 
@@ -536,6 +549,7 @@ final class TripPlanningModel {
     case .shortlisted:
       if let id = entryID(for: idea) { remove(id) }
     case .scheduled, .done, .skipped: break
+    case .declined: pullToShortlist(idea)
     }
   }
 

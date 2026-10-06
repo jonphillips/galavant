@@ -9,6 +9,8 @@ import SwiftUI
 /// unscheduled back to Schedule first (ADR-0004). The Add button (in the parent
 /// shell) opens the pool sheet.
 struct TripIdeasView: View {
+  @State private var stopToDecline: TripIdea.ID?
+  @State private var declineReason = ""
   let model: TripPlanningModel
   /// On compact layouts this is the first list section, so it scrolls with the
   /// pool instead of taking permanent vertical space above it.
@@ -71,6 +73,20 @@ struct TripIdeasView: View {
           Text("Open the most recent recommendation set for this trip.")
         }
       }
+      Section {
+        Button {
+          model.destination = .documents
+        } label: {
+          HStack {
+            Label("Documents", systemImage: "doc.text")
+            Spacer()
+            if model.tripDocumentCount > 0 {
+              Text(model.tripDocumentCount, format: .number)
+                .foregroundStyle(.secondary)
+            }
+          }
+        }
+      }
       // The three plain-language stages the planner thinks in (dogfood):
       // Consider (a maybe), Schedule (committed, awaiting a day — the shortlist,
       // plus anything already sent to be scheduled but still dayless), Scheduled
@@ -89,6 +105,11 @@ struct TripIdeasView: View {
               model.tripIdeaRowTapped(resolved, isDrawnOnCanvas: visibleStopIDs.contains(resolved.id))
             }
             .listRowBackground(rowBackground(for: resolved))
+            .contextMenu {
+              Button("Rule Out…", systemImage: "xmark.circle") {
+                stopToDecline = resolved.id
+              }
+            }
             .swipeActions(edge: .leading) {
               if resolved.idea?.kind == .stay {
                 Button {
@@ -104,6 +125,29 @@ struct TripIdeasView: View {
                 model.remove(resolved.id)
               } label: {
                 Icon.delete.label("Remove")
+              }
+            }
+          }
+        }
+      }
+      if !plan.ruledOut.isEmpty {
+        Section {
+          DisclosureGroup("Ruled out (\(plan.ruledOut.count))") {
+            ForEach(plan.ruledOut) { resolved in
+              VStack(alignment: .leading, spacing: 3) {
+                Text(resolved.content.title)
+                  .font(.body)
+                if let note = resolved.entry.inlineNote, !note.isEmpty {
+                  Text(note)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                }
+              }
+              .contextMenu {
+                Button("Reconsider", systemImage: "arrow.uturn.backward") {
+                  model.setStatus(.considering, for: resolved.id)
+                }
               }
             }
           }
@@ -132,6 +176,11 @@ struct TripIdeasView: View {
               model.tripIdeaRowTapped(resolved, isDrawnOnCanvas: visibleStopIDs.contains(resolved.id))
             }
             .listRowBackground(rowBackground(for: resolved))
+            .contextMenu {
+              Button("Rule Out…", systemImage: "xmark.circle") {
+                stopToDecline = resolved.id
+              }
+            }
             .swipeActions(edge: .leading) {
               Button {
                 model.sendToBeScheduled(resolved.id)
@@ -201,6 +250,23 @@ struct TripIdeasView: View {
           Button("Add Ideas") { model.addIdeasButtonTapped() }
         }
       }
+    }
+    .alert("Rule Out Place", isPresented: Binding(
+      get: { stopToDecline != nil },
+      set: { if !$0 { stopToDecline = nil; declineReason = "" } }
+    )) {
+      TextField("Reason (optional)", text: $declineReason)
+      Button("Rule Out", role: .destructive) {
+        if let stopToDecline { model.decline(stopToDecline, reason: declineReason) }
+        stopToDecline = nil
+        declineReason = ""
+      }
+      Button("Cancel", role: .cancel) {
+        stopToDecline = nil
+        declineReason = ""
+      }
+    } message: {
+      Text("This place will stay attached to the trip under Ruled out.")
     }
   }
 

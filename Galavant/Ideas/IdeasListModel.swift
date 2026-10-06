@@ -297,6 +297,7 @@ final class IdeasListModel {
     case .scheduled: return entry.dayNumber != nil ? .scheduled : .schedule
     case .done: return .scheduled
     case .skipped: return .consider
+    case .declined: return nil
     }
   }
 

@@ -1,6 +1,6 @@
 # Effort — ADR-0048 Slice 1: `.declined` status + trip documents
 
-**Status:** Queued (2026-10-04): dispatched by the completing PR of `today-polish` · **Summary:** the
+**Status:** Done (2026-10-04), implementation in `effort/adr-0048-slice-1` · **Summary:** the
 two schema pieces of [ADR-0048](../decisions/0048-trip-seed-handoff.md) (trip seed handoff) that are
 useful without the seed. One is a way to rule a place out of a trip and keep the reason. The other is
 a synced, read-only Markdown document attached to a trip. **No seed verb, no contract change, no

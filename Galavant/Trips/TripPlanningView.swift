@@ -332,6 +332,14 @@ private struct TripPlanningPresentationHost<Content: View>: View {
       ) {
         ToBookSheet(model: model, rollup: bookingRollup)
       }
+      .sheet(
+        isPresented: Binding(
+          get: { model.destination?.is(\.documents) ?? false },
+          set: { model.destination = $0 ? .documents : nil }
+        )
+      ) {
+        TripDocumentsSheet(tripID: model.tripID)
+      }
       .sheet(item: $model.destination.recommendationHandoff, id: \.id) { presentation in
         RecommendationHandoffSheet(model: model, session: presentation.session)
       }

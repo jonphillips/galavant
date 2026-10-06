@@ -228,7 +228,11 @@ extension TripIdea {
     let existing = try TripIdea
       .where { $0.tripID.eq(tripID) && $0.ideaID.eq(ideaID) }
       .fetchOne(db)
-    if let existing { return existing }
+    if let existing {
+      guard existing.status == .declined else { return existing }
+      try setStatus(status, ideaID: ideaID, tripID: tripID, in: db)
+      return try TripIdea.find(existing.id).fetchOne(db) ?? existing
+    }
     let id = UUID()
     try TripIdea.insert {
       TripIdea.Draft(TripIdea(id: id, tripID: tripID, ideaID: ideaID, status: status))
@@ -360,6 +364,9 @@ extension TripIdea {
   /// Advance (or retreat) a stop's lifecycle status by its own primary key.
   public static func setStatus(_ status: TripIdeaStatus, stopID: TripIdea.ID, in db: Database) throws {
     switch status {
+    case .declined:
+      try decline(stopID: stopID, reason: nil, in: db)
+      return
     case .skipped:
       try markSkipped(stopID: stopID, in: db)
       return
@@ -380,6 +387,36 @@ extension TripIdea {
         $0.shortlistRank = rank
       }
       .execute(db)
+  }
+
+  /// Rule a considering or shortlisted stop out for this trip while preserving
+  /// its rationale. Scheduled stops must first be unscheduled. A member leaves
+  /// its alternatives ring using the same normalization as removal.
+  public static func decline(stopID: TripIdea.ID, reason: String?, in db: Database) throws {
+    guard let existing = try TripIdea.find(stopID).fetchOne(db),
+      existing.status == .considering || existing.status == .shortlisted
+    else { return }
+    let members = try alternativeMembers(containing: existing, in: db)
+    let trimmedReason = reason?.trimmingCharacters(in: .whitespacesAndNewlines)
+    let newNote: String?
+    if let trimmedReason, !trimmedReason.isEmpty {
+      let line = "Ruled out: \(trimmedReason)"
+      let oldNote = existing.inlineNote?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+      newNote = oldNote.isEmpty ? line : "\(oldNote)\n\n\(line)"
+    } else {
+      newNote = existing.inlineNote
+    }
+    try TripIdea.find(stopID)
+      .update {
+        $0.status = #bind(.declined)
+        $0.inlineNote = #bind(newNote)
+        $0.alternativeGroupID = #bind(nil)
+        $0.isActive = #bind(true)
+      }
+      .execute(db)
+    if existing.alternativeGroupID != nil {
+      try normalizeAlternativeMembers(members.filter { $0.id != stopID }, in: db)
+    }
   }
 
   /// Place a stop on a day by its own primary key.
@@ -871,6 +908,16 @@ extension TripIdea {
   /// This trip's "considering" maybe-pile — pulled but not yet committed. Pure.
   public static func considering(_ entries: [TripIdea]) -> [TripIdea] {
     entries.filter { $0.status == .considering }
+  }
+
+  /// Places ruled out for this trip, in title order. Pure; the idea lookup
+  /// supplies display names because `TripIdea` stores only a loose idea ID.
+  public static func ruledOut(_ entries: [TripIdea], ideasByID: [Idea.ID: Idea]) -> [TripIdea] {
+    entries.filter { $0.status == .declined }.sorted { lhs, rhs in
+      let left = lhs.ideaID.flatMap { ideasByID[$0]?.name } ?? lhs.inlineTitle ?? ""
+      let right = rhs.ideaID.flatMap { ideasByID[$0]?.name } ?? rhs.inlineTitle ?? ""
+      return left.localizedCaseInsensitiveCompare(right) == .orderedAscending
+    }
   }
 
   /// Scheduled stops not yet placed on a day — the "To Be Scheduled" bucket that

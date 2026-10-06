@@ -85,6 +85,15 @@ public enum RecommendationHandoffContract {
       lines.append("Stops so far:")
       lines.append(contentsOf: stops)
     }
+    if !plan.ruledOut.isEmpty {
+      lines.append("Already ruled out (don't suggest again):")
+      lines.append(contentsOf: plan.ruledOut.map { stop in
+        let note = stop.entry.inlineNote.map(Self.oneLineRuledOutNote) ?? ""
+        return note.isEmpty
+          ? "- \(description(for: stop.content))"
+          : "- \(description(for: stop.content)) — \(note)"
+      })
+    }
     lines.append("Ask: Recommend candidate places that fit this trip. Give options with a useful locality, search hint, and concise rationale.")
     return lines.joined(separator: "\n")
   }
@@ -113,6 +122,15 @@ public enum RecommendationHandoffContract {
   private static func description(for content: StopContent) -> String {
     guard let locality = locality(for: content) else { return content.title }
     return "\(content.title) (\(locality))"
+  }
+
+  private static func oneLineRuledOutNote(_ note: String) -> String {
+    let line = note.components(separatedBy: .newlines)
+      .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+      .filter { !$0.isEmpty }
+      .joined(separator: " ")
+    guard line.count > 160 else { return line }
+    return String(line.prefix(159)) + "…"
   }
 
   private static func locality(for content: StopContent) -> String? {

@@ -3,6 +3,17 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## ADR-0048 Slice 1 — `.declined` + trip documents (`effort/adr-0048-slice-1`) — 2026-10-04
+
+- Added the trip-scoped Ruled out list with additive rationale, reconsider and pull-to-reuse
+  behavior, and ruled-out context in recommendation briefs. Added synced trip documents with
+  paste/import, rename/delete, and a read-only Markdown viewer.
+- Added `TripDocument` migration and CloudKit table registration. This schema + sync change is
+  flagged for escalation before merge. Device gates remain: verify both devices sync documents and
+  ruled-out rows, and promote `tripDocuments` to the CloudKit Production schema before TestFlight.
+- **Verification.** `scripts/check-drift.sh` passed lint, all GalavantLibrary suites (750 tests,
+  7 known issues), and the GalavantUITests build. Headless `GalavantTests` passed 35 tests.
+
 ## Today polish (`effort/today-polish`) — 2026-10-04
 
 - Preserved a live device fix when the Today map advances to a new day, keeping it in the camera

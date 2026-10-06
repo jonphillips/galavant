@@ -3,13 +3,15 @@ import SQLiteData
 /// Where an idea sits in a trip's pull-based lifecycle (ADR-0004). Ideas are
 /// never *contained* by a trip; this status on the `TripIdea` join carries the
 /// relationship. Raw values order the live pipeline; `done`/`skipped` are the
-/// post-trip terminals that feed visited-state back to the pool. Never renumber.
+/// post-trip terminals that feed visited-state back to the pool, while `declined`
+/// records a pre-trip decision that a place is ruled out. Never renumber.
 public enum TripIdeaStatus: Int, QueryBindable, CaseIterable, Sendable {
   case considering = 0
   case shortlisted = 1
   case scheduled = 2
   case done = 3
   case skipped = 4
+  case declined = 5
 
   public var label: String {
     switch self {
@@ -18,6 +20,7 @@ public enum TripIdeaStatus: Int, QueryBindable, CaseIterable, Sendable {
     case .scheduled: "Scheduled"
     case .done: "Done"
     case .skipped: "Skipped"
+    case .declined: "Ruled out"
     }
   }
 
@@ -25,7 +28,7 @@ public enum TripIdeaStatus: Int, QueryBindable, CaseIterable, Sendable {
   /// as opposed to merely being weighed.
   public var isOnShortlist: Bool {
     switch self {
-    case .considering, .skipped: false
+    case .considering, .skipped, .declined: false
     case .shortlisted, .scheduled, .done: true
     }
   }

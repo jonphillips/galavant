@@ -833,6 +833,28 @@ extension DependencyValues {
       try #sql(#"ALTER TABLE "tripStays" ADD COLUMN "confirmationNumber" TEXT"#).execute(db)
       try #sql(#"ALTER TABLE "tripStays" ADD COLUMN "bookingURL" TEXT"#).execute(db)
     }
+    migrator.registerMigration("Create tripDocuments table (ADR-0048)") { db in
+      try #sql(
+        """
+        CREATE TABLE "tripDocuments" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "tripID" TEXT NOT NULL REFERENCES "trips"("id") ON DELETE CASCADE,
+          "title" TEXT NOT NULL DEFAULT '',
+          "body" TEXT NOT NULL DEFAULT '',
+          "origin" INTEGER NOT NULL DEFAULT 0,
+          "createdAt" TEXT NOT NULL
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_tripDocuments_on_tripID"
+        ON "tripDocuments"("tripID")
+        """
+      )
+      .execute(db)
+    }
     try migrator.migrate(database)
     defaultDatabase = database
     if case let .configured(startImmediately) = syncMode {

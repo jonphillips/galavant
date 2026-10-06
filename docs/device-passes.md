@@ -6,6 +6,9 @@ reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT
 
 ## Verification gates (decision gates, not a build queue)
 
+- On one device, add a trip document and confirm it appears on the other after sync; delete the trip and confirm the document is removed.
+- Rule out a place on one device and confirm it appears under Ruled out on the other.
+- Before the next TestFlight build, promote the `tripDocuments` record type to the CloudKit Production schema.
 - With Today open on a live day across midnight (or a clock change), confirm the map keeps your position in frame on the new day.
 - On a live trip day, check the Today map card's framing with and without location; confirm a preview day doesn't frame your position and that pin taps open the idea.
 - Re-copy the recommendation project instructions from Settings, confirm a "book ahead" hint seeds To book, and check the Today card on device.
