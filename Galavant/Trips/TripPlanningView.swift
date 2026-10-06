@@ -25,13 +25,11 @@ struct TripPlanningView: View {
   private var model: TripPlanningModel { router.planningModel(for: trip) }
   @State private var showDetailSheet = false
   @State private var showingChat = false
-  @State private var showingStartDay = false
   @State private var showingToday = false
   @State private var showingJourney = false
   @State private var todayRequested = false
   /// M7's local, read-only reconciliation view. Its results never leave this
   /// per-view model until later slices prove the durable authority semantics.
-  @State private var showingCalendarReconciliation = false
   @State private var calendarReconciliationModel = CalendarReconciliationModel()
   @State private var sheetDetent: PresentationDetent = .medium
   /// Measured heights of the full-bleed map and the bottom sheet over it — their
@@ -67,119 +65,106 @@ struct TripPlanningView: View {
     let bookingByRow = Dictionary(
       bookingRollup.items.map { ($0.row, $0.booking) },
       uniquingKeysWith: { first, _ in first })
-    CalendarReconciliationPresentationHost(
-      model: model,
-      reconciliationModel: calendarReconciliationModel,
-      isPresented: $showingCalendarReconciliation
-    ) {
-      TripPlanningPresentationHost(
-        model: model,
-        bookingRollup: bookingRollup,
-        showingStartDay: $showingStartDay
-      ) {
-        VStack(spacing: 0) {
-          // The chat inspector attaches *inside* this container, as a child of the
-          // toolbar host — not as a sibling modifier on `layout`. An `.inspector`
-          // resolved at the same view as `.toolbar` drops all but one trailing item on
-          // iPad (Recommend silently vanished next to Discuss); nesting it strictly
-          // below the toolbar host, as IdeasScreen does, keeps every item.
-          // (docs/KNOWN-ISSUES.md)
-          layout(bookingByRow: bookingByRow)
-            .chatPanel(isPresented: $showingChat, context: .trip(plan))
-        }
-      .navigationTitle(model.trip?.name ?? "Trip")
-      .navigationBarTitleDisplayMode(.inline)
-      // One ToolbarItemGroup, not two ToolbarItems: buried under the presentation
-      // hosts' `.sheet` wrappers, the chat `.inspector` merges the trip's toolbar and
-      // keeps only a single *item* — a second `ToolbarItem` (Recommend) silently
-      // vanished. A group is one contribution carrying both buttons, so both survive.
+    VStack(spacing: 0) {
+      // The chat inspector attaches *inside* this container, as a child of the
+      // toolbar host — not as a sibling modifier on `layout`. An `.inspector`
+      // resolved at the same view as `.toolbar` drops all but one trailing item on
+      // iPad (Recommend silently vanished next to Discuss); nesting it strictly
+      // below the toolbar host, as IdeasScreen does, keeps every item.
       // (docs/KNOWN-ISSUES.md)
-      .toolbar {
-        ToolbarItemGroup(placement: .topBarTrailing) {
-          if usesColumn {
-            Button {
-              showingJourney = true
-            } label: {
-              Icon.journey.label("Journey")
-            }
-          }
-          if !usesColumn, model.trip?.startDate != nil {
-            Button {
-              showToday()
-            } label: {
-              Label("Today", systemImage: "sun.max")
-            }
-          }
-          // The trip-shaping tools, promoted from the itinerary's "···" menu so
-          // they're one tap away; Start Day / Reconcile appear when they apply.
-          if bookingRollup.toBookCount > 0 {
-            Button { model.destination = .booking } label: {
-              Icon.bookingToBook.label("\(bookingRollup.toBookCount) to book")
-            }
-            .buttonStyle(.bordered)
-          } else if !bookingRollup.booked.isEmpty || !bookingRollup.decide.isEmpty {
-            Button { model.destination = .booking } label: {
-              Icon.bookingBooked.label("Bookings")
-            }
-          }
-          Button(action: model.sketchTapped) {
-            Label("Shape Trip", systemImage: "compass.drawing")
-          }
-          if !model.startDaySolverStops.isEmpty {
-            Button {
-              showingStartDay = true
-            } label: {
-              Label("Start Day", systemImage: "calendar.day")
-            }
-          }
-          if model.trip?.certainty.stage == .dated {
-            Button {
-              showingCalendarReconciliation = true
-            } label: {
-              Label(
-                "Reconcile Calendar",
-                systemImage: "clock.arrow.trianglehead.2.counterclockwise.rotate.90")
-            }
-          }
+      tripLayout(bookingRollup: bookingRollup, bookingByRow: bookingByRow, plan: plan)
+    }
+    .navigationTitle(model.trip?.name ?? "Trip")
+    .navigationBarTitleDisplayMode(.inline)
+    // One ToolbarItemGroup, not two ToolbarItems: buried under the presentation
+    // hosts' `.sheet` wrappers, the chat `.inspector` merges the trip's toolbar and
+    // keeps only a single *item* — a second `ToolbarItem` (Recommend) silently
+    // vanished. A group is one contribution carrying both buttons, so both survive.
+    // (docs/KNOWN-ISSUES.md)
+    .toolbar {
+      ToolbarItemGroup(placement: .topBarTrailing) {
+        if usesColumn {
           Button {
-            model.startRecommendationHandoff()
+            showingJourney = true
           } label: {
-            Icon.recommend.label("Recommend")
-          }
-          // Discuss this trip's itinerary with the model (ADR-0017).
-          Button {
-            showingChat = true
-          } label: {
-            Icon.chat.label("Discuss")
+            Icon.journey.label("Journey")
           }
         }
-      }
-      .fullScreenCover(isPresented: $showingToday, onDismiss: restoreDetailSheetAfterToday) {
-        TodayView(planningModel: model)
-      }
-      .fullScreenCover(isPresented: $showingJourney) {
-        NavigationStack {
-          JourneyView(planningModel: model)
+        if !usesColumn, model.trip?.startDate != nil {
+          Button {
+            showToday()
+          } label: {
+            Label("Today", systemImage: "sun.max")
+          }
+        }
+        // The trip-shaping tools, promoted from the itinerary's "···" menu so
+        // they're one tap away; Start Day / Reconcile appear when they apply.
+        if bookingRollup.toBookCount > 0 {
+          Button { model.destination = .booking } label: {
+            Icon.bookingToBook.label("\(bookingRollup.toBookCount) to book")
+          }
+          .buttonStyle(.bordered)
+        } else if !bookingRollup.booked.isEmpty || !bookingRollup.decide.isEmpty {
+          Button { model.destination = .booking } label: {
+            Icon.bookingBooked.label("Bookings")
+          }
+        }
+        Button(action: model.sketchTapped) {
+          Label("Shape Trip", systemImage: "compass.drawing")
+        }
+        if !model.startDaySolverStops.isEmpty {
+          Button {
+            model.destination = .startDay
+          } label: {
+            Label("Start Day", systemImage: "calendar.day")
+          }
+        }
+        if model.trip?.certainty.stage == .dated {
+          Button {
+            model.destination = .calendarReconciliation
+          } label: {
+            Label(
+              "Reconcile Calendar",
+              systemImage: "clock.arrow.trianglehead.2.counterclockwise.rotate.90")
+          }
+        }
+        Button {
+          model.startRecommendationHandoff()
+        } label: {
+          Icon.recommend.label("Recommend")
+        }
+        // Discuss this trip's itinerary with the model (ADR-0017).
+        Button {
+          showingChat = true
+        } label: {
+          Icon.chat.label("Discuss")
         }
       }
-      .task {
-        model.pickInitialSheetTabIfNeeded()
-        model.seedLensIfNeeded()
-        // A trip that is on opens on today rather than the whole-trip lens.
-        model.seedDayLensIfNeeded()
-        // Present the persistent sheet on appear (compact only) — `.constant(true)`
-        // is unreliable on a NavigationStack push.
-        if !usesColumn { showDetailSheet = true }
-        await model.fetchMissingETAs()
+    }
+    .fullScreenCover(isPresented: $showingToday, onDismiss: restoreDetailSheetAfterToday) {
+      TodayView(planningModel: model)
+    }
+    .fullScreenCover(isPresented: $showingJourney) {
+      NavigationStack {
+        JourneyView(planningModel: model)
       }
-      .onChange(of: plan.allLegs) { _, _ in
-        Task { await model.fetchMissingETAs() }
-      }
-      .onChange(of: model.tripRegionIDs) { _, _ in model.reseedLens() }
-      .onChange(of: model.canvasSelectedStopID) { _, id in
-        handleCanvasSelection(id)
-      }
-      }
+    }
+    .task {
+      model.pickInitialSheetTabIfNeeded()
+      model.seedLensIfNeeded()
+      // A trip that is on opens on today rather than the whole-trip lens.
+      model.seedDayLensIfNeeded()
+      // Present the persistent sheet on appear (compact only) — `.constant(true)`
+      // is unreliable on a NavigationStack push.
+      if !usesColumn { showDetailSheet = true }
+      await model.fetchMissingETAs()
+    }
+    .onChange(of: plan.allLegs) { _, _ in
+      Task { await model.fetchMissingETAs() }
+    }
+    .onChange(of: model.tripRegionIDs) { _, _ in model.reseedLens() }
+    .onChange(of: model.canvasSelectedStopID) { _, id in
+      handleCanvasSelection(id)
     }
   }
 
@@ -216,25 +201,46 @@ struct TripPlanningView: View {
     showDetailSheet = true
   }
 
-  @ViewBuilder private func layout(bookingByRow: [TripBookingRow: ResolvedBooking]) -> some View {
+  @ViewBuilder private func tripLayout(
+    bookingRollup: TripBookingRollup,
+    bookingByRow: [TripBookingRow: ResolvedBooking],
+    plan: TripPlan
+  ) -> some View {
     if usesColumn {
-      columnLayout(bookingByRow: bookingByRow)
+      layout(bookingRollup: bookingRollup, bookingByRow: bookingByRow)
+        .chatPanel(isPresented: $showingChat, context: .trip(plan))
     } else {
-      sheetLayout(bookingByRow: bookingByRow)
+      layout(bookingRollup: bookingRollup, bookingByRow: bookingByRow)
+    }
+  }
+
+  @ViewBuilder private func layout(
+    bookingRollup: TripBookingRollup,
+    bookingByRow: [TripBookingRow: ResolvedBooking]
+  ) -> some View {
+    if usesColumn {
+      columnLayout(bookingRollup: bookingRollup, bookingByRow: bookingByRow)
+    } else {
+      sheetLayout(bookingRollup: bookingRollup, bookingByRow: bookingByRow)
     }
   }
 
   /// iPad: map on the left, a solid detail column on the right — both live at once,
   /// no translucent overlay.
-  private func columnLayout(bookingByRow: [TripBookingRow: ResolvedBooking]) -> some View {
+  private func columnLayout(
+    bookingRollup: TripBookingRollup,
+    bookingByRow: [TripBookingRow: ResolvedBooking]
+  ) -> some View {
     HStack(spacing: 0) {
       canvas(bookingByRow: bookingByRow)
       Divider()
       TripDetailContent(
         model: model,
         reconciliationModel: calendarReconciliationModel,
+        bookingRollup: bookingRollup,
         bookingByRow: bookingByRow,
-        usesColumn: usesColumn
+        usesColumn: usesColumn,
+        showingChat: $showingChat
       )
         .frame(width: Self.columnWidth)
         .background(.background)
@@ -243,7 +249,10 @@ struct TripPlanningView: View {
   }
 
   /// iPhone: full-bleed map under a persistent, Apple-Maps-style bottom sheet.
-  private func sheetLayout(bookingByRow: [TripBookingRow: ResolvedBooking]) -> some View {
+  private func sheetLayout(
+    bookingRollup: TripBookingRollup,
+    bookingByRow: [TripBookingRow: ResolvedBooking]
+  ) -> some View {
     canvas(bookingByRow: bookingByRow)
       .ignoresSafeArea(.container, edges: .bottom)
       .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { mapHeight = $0 }
@@ -251,8 +260,10 @@ struct TripPlanningView: View {
         TripDetailContent(
           model: model,
           reconciliationModel: calendarReconciliationModel,
+          bookingRollup: bookingRollup,
           bookingByRow: bookingByRow,
-          usesColumn: usesColumn
+          usesColumn: usesColumn,
+          showingChat: $showingChat
         )
           .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { sheetHeight = $0 }
           .presentationDetents([Self.peek, .medium, .large], selection: $sheetDetent)
@@ -277,88 +288,6 @@ struct TripPlanningView: View {
       DayChipBar(model: model)
       TripCanvasMapView(model: model, bottomInsetFraction: bottomInsetFraction)
     }
-  }
-}
-
-/// Extracted from the planning host's modifier chain so the Xcode beta compiler
-/// can type-check the map-first sheet alongside the existing reconciliation UI.
-private struct CalendarReconciliationPresentationHost<Content: View>: View {
-  let model: TripPlanningModel
-  let reconciliationModel: CalendarReconciliationModel
-  @Binding var isPresented: Bool
-  @ViewBuilder let content: Content
-
-  var body: some View {
-    content
-      .sheet(isPresented: $isPresented, onDismiss: {
-        model.reloadCalendarTimeAuthority()
-      }) {
-        if let trip = model.trip {
-          CalendarReconciliationSheet(
-            model: reconciliationModel,
-            trip: trip,
-            plan: model.plan
-          )
-        }
-    }
-  }
-}
-
-/// Keeps the host's independent modal destinations out of the map/layout modifier
-/// chain, which otherwise exceeds the Xcode 27 beta type checker's practical limit.
-private struct TripPlanningPresentationHost<Content: View>: View {
-  let model: TripPlanningModel
-  let bookingRollup: TripBookingRollup
-  @Binding var showingStartDay: Bool
-  @ViewBuilder let content: Content
-
-  var body: some View {
-    @Bindable var model = model
-    content
-      .sheet(
-        isPresented: Binding(
-          get: { model.destination?.is(\.addIdeas) ?? false },
-          set: { model.destination = $0 ? .addIdeas : nil }
-        )
-      ) {
-        AddIdeasSheet(model: model)
-      }
-      .sheet(
-        isPresented: Binding(
-          get: { model.destination?.is(\.booking) ?? false },
-          set: { model.destination = $0 ? .booking : nil }
-        ),
-        onDismiss: model.bookingSheetDismissed
-      ) {
-        ToBookSheet(model: model, rollup: bookingRollup)
-      }
-      .sheet(
-        isPresented: Binding(
-          get: { model.destination?.is(\.documents) ?? false },
-          set: { model.destination = $0 ? .documents : nil }
-        )
-      ) {
-        TripDocumentsSheet(tripID: model.tripID)
-      }
-      .sheet(item: $model.destination.recommendationHandoff, id: \.id) { presentation in
-        RecommendationHandoffSheet(model: model, session: presentation.session)
-      }
-      .sheet(item: $model.destination.recommendationWorkspace, id: \.id) { presentation in
-        // Presented modally from a trip, so it supplies its own nav bar + Done. The
-        // Evaluate section instead pushes the same view, where the nav back button
-        // is the dismissal (no floating Done — it collided with the map search's ✕).
-        NavigationStack {
-          RecommendationWorkspaceHost(tripID: model.tripID, sessionID: presentation.sessionID)
-            .toolbar {
-              ToolbarItem(placement: .confirmationAction) {
-                Button("Done") { model.destination = nil }
-              }
-            }
-        }
-      }
-      .sheet(isPresented: $showingStartDay) {
-        StartDayPanel(model: model)
-      }
   }
 }
 

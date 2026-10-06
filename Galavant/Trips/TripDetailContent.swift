@@ -10,20 +10,22 @@ import SwiftUINavigation
 /// Trips collection.
 ///
 /// This content is layout-agnostic: `TripPlanningView` hosts it as the persistent
-/// bottom sheet on iPhone and as the right-hand column on iPad. Row-triggered
-/// sheets are presented here so they stack above either layout; toolbar-triggered
-/// sheets remain on the outer presentation host.
+/// bottom sheet on iPhone and as the right-hand column on iPad. Every trip-screen
+/// sheet is presented from `TripDetailContent`, because on iPhone the outer view is
+/// already presenting it.
 struct TripDetailContent: View {
   let model: TripPlanningModel
   let reconciliationModel: CalendarReconciliationModel
+  let bookingRollup: TripBookingRollup
   let bookingByRow: [TripBookingRow: ResolvedBooking]
   let usesColumn: Bool
+  @Binding var showingChat: Bool
 
   var body: some View {
     @Bindable var model = model
     Group {
       if usesColumn {
-        editorSheets
+        presentationSheets
           .popover(item: $model.detailIdeaID, id: \.self) { id in
             if let idea = model.ideaForDetail(id) {
               detailView(idea)
@@ -32,7 +34,7 @@ struct TripDetailContent: View {
             }
           }
       } else {
-        editorSheets
+        presentationSheets
           .sheet(item: $model.detailIdeaID, id: \.self) { id in
             if let idea = model.ideaForDetail(id) {
               detailView(idea)
@@ -40,7 +42,18 @@ struct TripDetailContent: View {
                 .presentationDragIndicator(.visible)
             }
           }
+          .chatPanel(isPresented: $showingChat, context: .trip(model.plan))
       }
+    }
+  }
+
+  private var presentationSheets: some View {
+    TripDetailPresentationHost(
+      model: model,
+      reconciliationModel: reconciliationModel,
+      bookingRollup: bookingRollup
+    ) {
+      editorSheets
     }
   }
 
@@ -151,6 +164,84 @@ struct TripDetailContent: View {
         .background(Color(.systemGroupedBackground))
       }
     }
+  }
+}
+
+/// Keeps the trip's sheet chain on its detail content so the compact layout never
+/// asks the already-presenting outer view to present another sheet.
+private struct TripDetailPresentationHost<Content: View>: View {
+  let model: TripPlanningModel
+  let reconciliationModel: CalendarReconciliationModel
+  let bookingRollup: TripBookingRollup
+  @ViewBuilder let content: Content
+
+  var body: some View {
+    @Bindable var model = model
+    content
+      .sheet(
+        isPresented: Binding(
+          get: { model.destination?.is(\.addIdeas) ?? false },
+          set: { model.destination = $0 ? .addIdeas : nil }
+        )
+      ) {
+        AddIdeasSheet(model: model)
+      }
+      .sheet(
+        isPresented: Binding(
+          get: { model.destination?.is(\.booking) ?? false },
+          set: { model.destination = $0 ? .booking : nil }
+        ),
+        onDismiss: model.bookingSheetDismissed
+      ) {
+        ToBookSheet(model: model, rollup: bookingRollup)
+      }
+      .sheet(
+        isPresented: Binding(
+          get: { model.destination?.is(\.documents) ?? false },
+          set: { model.destination = $0 ? .documents : nil }
+        )
+      ) {
+        TripDocumentsSheet(tripID: model.tripID)
+      }
+      .sheet(item: $model.destination.recommendationHandoff, id: \.id) { presentation in
+        RecommendationHandoffSheet(model: model, session: presentation.session)
+      }
+      .sheet(item: $model.destination.recommendationWorkspace, id: \.id) { presentation in
+        // Presented modally from a trip, so it supplies its own nav bar + Done. The
+        // Evaluate section instead pushes the same view, where the nav back button
+        // is the dismissal (no floating Done — it collided with the map search's ✕).
+        NavigationStack {
+          RecommendationWorkspaceHost(tripID: model.tripID, sessionID: presentation.sessionID)
+            .toolbar {
+              ToolbarItem(placement: .confirmationAction) {
+                Button("Done") { model.destination = nil }
+              }
+            }
+        }
+      }
+      .sheet(
+        isPresented: Binding(
+          get: { model.destination?.is(\.startDay) ?? false },
+          set: { model.destination = $0 ? .startDay : nil }
+        )
+      ) {
+        StartDayPanel(model: model)
+      }
+      .sheet(
+        isPresented: Binding(
+          get: { model.destination?.is(\.calendarReconciliation) ?? false },
+          set: { model.destination = $0 ? .calendarReconciliation : nil }
+        ),
+        onDismiss: model.reloadCalendarTimeAuthority
+      ) {
+        if let trip = model.trip {
+          CalendarReconciliationSheet(
+            model: reconciliationModel,
+            trip: trip,
+            plan: model.plan
+          )
+        }
+      }
   }
 }
 

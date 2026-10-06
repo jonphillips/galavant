@@ -4,6 +4,13 @@ Jon's checklist: real-device and distribution gates. **Not executor work; the ex
 reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT_HANDOFF.md` on
 2026-09-29 (jon-platform ADR-0005). When a gate clears, delete it and note it in `DONE-LOG.md`.
 
+- iPhone, a trip with ideas, bottom sheet up: each of Add Ideas, Documents, Evaluate
+  Recommendations, Recommend, N to book, Start Day, Reconcile Calendar (dated trip), Discuss,
+  Shape Trip and Today opens, and dismissing returns to the sheet at its detent. Repeat on iPad
+  (no regressions).
+- iPhone, an empty trip: the summary, Documents and Add rows are visible and tappable, with the
+  empty message below them.
+
 ## Verification gates (decision gates, not a build queue)
 
 - On one device, add a trip document and confirm it appears on the other after sync; delete the trip and confirm the document is removed.

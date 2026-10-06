@@ -159,6 +159,8 @@ final class TripPlanningModel {
     case booking
     /// Read and manage trip-attached research documents.
     case documents
+    case startDay
+    case calendarReconciliation
   }
 
   init(tripID: Trip.ID) {

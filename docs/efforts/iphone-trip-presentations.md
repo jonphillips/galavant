@@ -1,6 +1,6 @@
 # Effort — iPhone trip presentations + Ideas empty state
 
-**Status:** Dispatched (2026-10-06) · **Summary:** on iPhone, most of the trip screen's sheets never
+**Status:** Done (2026-10-06) · **Summary:** on iPhone, most of the trip screen's sheets never
 appear, and the Ideas empty state covers the rows under it. Both are view-layer defects found in
 device dogfooding on 2026-10-06. No schema, sync, or model logic change.
 

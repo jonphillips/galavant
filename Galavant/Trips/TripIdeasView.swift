@@ -87,6 +87,21 @@ struct TripIdeasView: View {
           }
         }
       }
+      if plan.isEmpty {
+        Section {
+          VStack(alignment: .leading, spacing: 8) {
+            Icon.emptyPool.label("No ideas yet")
+              .font(.headline)
+            Text("Pull ideas from the pool onto this trip.")
+              .font(.subheadline)
+              .foregroundStyle(.secondary)
+            if !showsInlineAdd {
+              Button("Add Ideas") { model.addIdeasButtonTapped() }
+            }
+          }
+          .padding(.vertical, 8)
+        }
+      }
       // The three plain-language stages the planner thinks in (dogfood):
       // Consider (a maybe), Schedule (committed, awaiting a day — the shortlist,
       // plus anything already sent to be scheduled but still dayless), Scheduled
@@ -239,17 +254,6 @@ struct TripIdeasView: View {
       var entries = plan.shortlist
       difference.apply(to: &entries)
       model.reorderShortlist(entries.map(\.id))
-    }
-    .overlay {
-      if plan.isEmpty {
-        ContentUnavailableView {
-          Icon.emptyPool.label("No ideas yet")
-        } description: {
-          Text("Tap + to pull ideas from the pool onto this trip.")
-        } actions: {
-          Button("Add Ideas") { model.addIdeasButtonTapped() }
-        }
-      }
     }
     .alert("Rule Out Place", isPresented: Binding(
       get: { stopToDecline != nil },

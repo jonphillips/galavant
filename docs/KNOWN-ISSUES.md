@@ -4,6 +4,20 @@ Issues observed during the Xcode 27 beta cycle. Re-verify each against the Xcode
 27.0 release build before keeping a workaround; delete an entry when it's fixed
 upstream or we work around it.
 
+## Trip sheets must be presented from `TripDetailContent` — STANDING RULE
+
+**Observed:** 2026-10-06, iPhone.
+
+**Symptom:** Trip sheets silently failed to present on iPhone; the same destinations worked on iPad.
+
+**Cause:** `TripPlanningView` already presents the persistent `TripDetailContent` bottom sheet, so
+the outer view cannot present another sheet at the same time.
+
+**Rule:** Present every trip-screen sheet from `TripDetailContent`. Today keeps its existing
+dismiss-then-present path.
+
+**Files:** `TripPlanningView.swift`, `TripDetailContent.swift`.
+
 ## A `Map` steals taps from SwiftUI controls inset/overlaid over it (beta observation) — WORKED AROUND
 
 The trip-canvas `DayChipBar` pills went dead: you could drag the pill row
