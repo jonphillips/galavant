@@ -1,14 +1,14 @@
 # Effort — ADR-0049 S1: backup & restore
 
-**Status:** Designed (2026-10-06). **Blocked** on the `CloudSyncKit` lift (yes-chef effort
-`cloudsynckit-backup-lift`, jon-platform ADR-0006). The architect dispatches this once that merges. ·
+**Status:** Dispatched (2026-10-06). The `CloudSyncKit` lift it needed has landed (jon-platform ADR-0006). ·
 **Summary:** [ADR-0049](../decisions/0049-backup-restore-and-production-cutover.md) D1–D2. Adopt the
 `CloudSyncKit` backup and restore: Galavant supplies its constants and a migrate-by-path entry point, and
 Settings gains a Backup section that only the travel party's owner sees. The cutover's re-seed and rollback
 depend on it. No schema change, but it **touches sync**, so the architect escalates the PR to Jon.
 
 Read first: ADR-0049, jon-platform `docs/adr/0006-lift-backup-restore-into-cloud-sync-kit.md`, and the
-lifted API as merged in `packages/CloudSyncKit`. Yes Chef is the reference consumer: its `YesChefCloudSync`
+lifted API in `packages/CloudSyncKit` (`DatabaseBackup.swift`, `DatabaseBackupConfiguration.swift`, and the
+restore hold in `CloudSync.swift`). Yes Chef is the reference consumer: its `YesChefCloudSync`
 facade, `Schema.swift` `migrateRestoreCandidate(at:)`, `SettingsViews.swift` backup rows, and
 `SyncStatusSection.swift` restore-hold row.
 
@@ -27,6 +27,10 @@ the live path or SQLiteData's default.
 
 ## 2. Facade configuration (`GalavantCloudSync`)
 
+Two values, matching Yes Chef's facade. The restore-hold key goes on the existing `configuration`
+(`CloudSyncConfiguration.restoreRequiresManualEnablementDefaultsKey`). Everything else goes on a new
+`databaseBackupConfiguration: DatabaseBackupConfiguration` whose `cloudSync` is that `configuration`.
+
 | Value | Galavant |
 | --- | --- |
 | display name | `Galavant` |
@@ -35,11 +39,13 @@ the live path or SQLiteData's default.
 | live store URL | the app-group path from `GalavantStorage`. **Restore throws if the app group is unavailable**; it never falls back to Application Support the way `liveDatabasePath()` does |
 | migrate closure | `migrateRestoreCandidate(at:)` from §1 |
 | declared schema version | the current registered-migration count, guarded by a test that the two match |
-| restore-hold key | `GalavantCloudKitSyncRestoreRequiresManualEnablement` |
+| restore-hold key (`CloudSyncConfiguration`) | `GalavantCloudKitSyncRestoreRequiresManualEnablement` |
 | last-pre-restore key | `GalavantDatabaseBackupLastPreRestorePath` |
 
-App start must respect the hold: the launch-environment mirror stays suppressed while a restore holds sync
-off. The kit does this; make sure Galavant's `init()` calls go through the hold-aware facade.
+Setting the hold key is what turns the hold on. Once it's set, `CloudSync.isManuallyEnabled` and the
+launch-environment mirror both respect a held restore, and a deliberate `setManuallyEnabled(true)` clears it.
+Add `isDisabledByRestore()` to the facade, forwarding to `CloudSync.isDisabledByRestore(configuration:)` as Yes
+Chef's does.
 
 ## 3. Settings → Backup
 
@@ -50,13 +56,14 @@ A new section in `SettingsScreen`, modelled on Yes Chef's rows, using the kit's 
   - *"This replaces the library on this device. Galavant saves an automatic undo backup first. iCloud sync
     stays off until you turn it back on. When you do, this restored library becomes the version everywhere: it
     overwrites iCloud, and anything deleted since the backup comes back."*
-  - When the kit reports the store holds shares, add: *"Your travel party may need to be shared again, and
+  - When the restore model's `willNeedToReshareRecords` is true, add: *"Your travel party may need to be shared again, and
     the people you share with may need to reinstall Galavant and accept the new invite."*
 - After restoring, prompt to close and reopen, as Yes Chef does.
 - **Undo last restore** when the kit has an undoable restore.
 - **On a participant's phone the section shows only:** *"Backups are made by the person who shared this
-  travel party with you."* Use the kit's foreign-owned-rows check (ADR-0006 D3), not a Galavant-side guess
-  from planners.
+  travel party with you."* Decide with `DatabaseBackup.containsForeignOwnedRows(in:)` against the live
+  database (ADR-0006 D3), not a Galavant-side guess from planners. The kit also refuses restore on such a
+  device, so hiding the section is about honest UI, not safety.
 
 ## 4. Sync status while restore holds sync off
 
