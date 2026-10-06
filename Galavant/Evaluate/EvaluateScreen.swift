@@ -168,7 +168,7 @@ final class EvaluateQueueModel {
     let tripIdeasByID = Dictionary(uniqueKeysWithValues: allTripIdeas.map { ($0.id, $0) })
     return sessions
       .filter {
-        $0.taskType == RecommendationHandoffTask.candidatePlaces
+        ($0.taskType == RecommendationHandoffTask.candidatePlaces || $0.taskType == RecommendationHandoffTask.seedTrip)
           && $0.hasCommittedRecommendationCandidates
       }
       .sorted { $0.createdAt > $1.createdAt }

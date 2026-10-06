@@ -244,6 +244,30 @@ struct RecommendationHandoffTests {
     #expect(candidate.placementAfter == "Forestis")
   }
 
+  @Test func v1CandidatePasteStillDecodesWithOlderMarkerWarning() throws {
+    let body = "GV-CONTRACT: v1\n[{\"name\":\"Old format place\"}]"
+    let routed = try RecommendationHandoffContract.marker.strippingMarker(from: body)
+    #expect(routed.warning != nil)
+    #expect(try TripCandidate.decodeReturn(routed.text).only?.name == "Old format place")
+  }
+
+  @Test func seedBriefUsesTripContextAndV2ProjectInstructionsKeepTheCandidateClause() {
+    let handoff = HandoffSession(
+      sourceType: "trip", sourceID: UUID(), taskType: RecommendationHandoffTask.seedTrip,
+      scopeKey: nil, exportedPrompt: ""
+    )
+    let brief = RecommendationHandoffContract.seedBrief(
+      session: handoff, tripName: "Denmark", plan: plan(lengthInDays: 13)
+    )
+    #expect(brief.contains(handoff.header))
+    #expect(brief.contains("Trip: Denmark"))
+    #expect(brief.contains("using the seed format in the project instructions"))
+    #expect(!brief.contains("Trip notes:"))
+    #expect(RecommendationHandoffContract.marker.version == "v2")
+    #expect(RecommendationHandoffContract.projectInstructions.contains("GV-CONTRACT: v1\n[{"))
+    #expect(RecommendationHandoffContract.projectInstructions.contains("GV-CONTRACT: v2\", then a narrative"))
+  }
+
   @Test func bookAheadAcceptsBooleansAndKnownStringsWithoutRejectingDrift() throws {
     let cases: [(String, Bool?)] = [
       (#"{"book_ahead":true}"#, true),

@@ -67,6 +67,32 @@ struct RecommendationCandidateDraft: Identifiable {
 }
 
 extension TripPlanningModel {
+  func startSeedHandoff() {
+    guard let trip else { return }
+    let scope = RecommendationHandoffScope.trip
+    let promptSession = HandoffSession(
+      sourceType: scope.sourceType, sourceID: trip.id,
+      taskType: RecommendationHandoffTask.seedTrip, scopeKey: scope.scopeKey, exportedPrompt: ""
+    )
+    let session = HandoffSession(
+      id: promptSession.id, sourceType: promptSession.sourceType,
+      sourceID: promptSession.sourceID, taskType: promptSession.taskType,
+      scopeKey: promptSession.scopeKey, createdAt: promptSession.createdAt,
+      exportedPrompt: RecommendationHandoffContract.seedBrief(
+        session: promptSession, tripName: trip.name, plan: plan
+      )
+    )
+    do {
+      try handoffSessionStore.save(session)
+      seedPlan = nil
+      recommendationHandoffWarning = nil
+      recommendationHandoffError = nil
+      destination = .recommendationHandoff(RecommendationHandoffPresentation(session: session))
+    } catch {
+      recommendationHandoffError = error.localizedDescription
+    }
+  }
+
   func startRecommendationHandoff() {
     guard let trip else { return }
     let scope = RecommendationHandoffScope.trip
@@ -103,6 +129,10 @@ extension TripPlanningModel {
 
   func pasteRecommendationResult(_ strings: [String], for session: HandoffSession) {
     guard let pasted = strings.first else { return }
+    if session.taskType == RecommendationHandoffTask.seedTrip {
+      pasteSeedResult(pasted, for: session)
+      return
+    }
     do {
       var warnings: [String] = []
 
@@ -152,6 +182,53 @@ extension TripPlanningModel {
     }
   }
 
+  private func pasteSeedResult(_ pasted: String, for session: HandoffSession) {
+    do {
+      var warnings: [String] = []
+      let bodyText: String
+      if let routed = try? HandoffRouting.route(pasted) {
+        bodyText = routed.text
+        if routed.sessionID != session.id {
+          warnings.append("This result was tagged for a different handoff — added it to this trip anyway.")
+        }
+      } else {
+        bodyText = pasted
+        warnings.append("This result had no Galavant handoff token — added it to this trip anyway.")
+      }
+      let contract = try RecommendationHandoffContract.marker.strippingMarker(from: bodyText)
+      if let warning = contract.warning { warnings.append(warning) }
+      var decoded = try SeedReturn.decode(contract.text)
+      decoded.warnings.insert(contentsOf: warnings, at: 0)
+      guard let trip else { return }
+      let context = SeedPlanContext(
+        trip: trip,
+        tripIdeas: allTripIdeas.filter { $0.tripID == tripID },
+        ideasByID: Dictionary(ideas.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }),
+        stays: allTripStays.filter { $0.tripID == tripID },
+        tripRegions: tripRegions,
+        partyRegions: regions.filter { $0.travelPartyID == trip.travelPartyID }
+      )
+      seedPlan = SeedPlan.make(from: decoded, trip: trip, context: context)
+      recommendationHandoffError = nil
+    } catch {
+      recommendationHandoffError = error.localizedDescription
+    }
+  }
+
+  func commitSeedPlan(from session: HandoffSession) {
+    guard let plan = seedPlan else { return }
+    do {
+      let importedSession = try database.write { db in
+        try SeedPlan.commit(plan, tripID: tripID, session: session, now: date.now, in: db)
+      }
+      try handoffSessionStore.save(importedSession)
+      seedPlan = nil
+      destination = nil
+    } catch {
+      recommendationHandoffError = error.localizedDescription
+    }
+  }
+
   func commitRecommendationCandidate(_ candidate: RecommendationCandidateDraft, from session: HandoffSession) {
     guard candidate.canCommit else { return }
     withErrorReporting {
@@ -173,8 +250,8 @@ extension TripPlanningModel {
   var mostRecentRecommendationWorkspaceSession: HandoffSession? {
     handoffSessionStore.sessions()
       .filter {
-          $0.sourceID == tripID
-          && $0.taskType == RecommendationHandoffTask.candidatePlaces
+        $0.sourceID == tripID
+          && ($0.taskType == RecommendationHandoffTask.candidatePlaces || $0.taskType == RecommendationHandoffTask.seedTrip)
           && $0.hasCommittedRecommendationCandidates
       }
       .max { $0.createdAt < $1.createdAt }

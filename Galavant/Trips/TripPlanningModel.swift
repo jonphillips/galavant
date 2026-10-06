@@ -18,6 +18,9 @@ struct TripDocumentRow {
 /// `poolFiltered`. The view stays presentation.
 @MainActor
 @Observable
+// The model was at the type-body threshold before seed review state was added;
+// seedPlan belongs alongside the existing recommendation presentation state.
+// swiftlint:disable:next type_body_length
 final class TripPlanningModel {
   @ObservationIgnored @Dependency(\.defaultDatabase) var database
   @ObservationIgnored @Dependency(\.recentTripStore) var recentTripStore
@@ -52,6 +55,7 @@ final class TripPlanningModel {
   let tripID: Trip.ID
   var destination: Destination?
   var recommendationReview: [RecommendationCandidateDraft] = []
+  var seedPlan: SeedPlan?
   var recommendationHandoffError: String?
   /// Non-blocking heads-up when a paste imported despite a dropped token or an
   /// out-of-date contract marker (warn-not-block, ADR-0036 handoff ergonomics).

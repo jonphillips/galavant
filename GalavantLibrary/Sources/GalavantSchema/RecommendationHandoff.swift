@@ -49,24 +49,29 @@ public enum RecommendationHandoffScopeError: Error, Equatable, Sendable {
 
 public enum RecommendationHandoffTask {
   public static let candidatePlaces = "candidatePlaces"
+  public static let seedTrip = "seedTrip"
 }
 
 public enum RecommendationHandoffContract {
-  public static let marker = HandoffContractMarker(prefix: "GV-CONTRACT", version: "v1")
+  public static let marker = HandoffContractMarker(prefix: "GV-CONTRACT", version: "v2")
 
-  /// The one copyable contract for the user's ChatGPT or Claude project instructions.
-  public static let projectInstructions = """
-    You are helping plan a Galavant trip. When asked for candidate places, return only the handoff token from the brief, the contract marker below, and one JSON array. Do not wrap the JSON in Markdown.
-
-    GV-CONTRACT: v1
-
-    Candidate JSON fields are optional: name, locality, search_hint, why, fit, kind, visit, priority, day_ref, placement_after, book_ahead. Use name for the place name, locality for its town or neighborhood, search_hint for an Apple Maps-style query, and why/fit for the trip-specific rationale. priority is an integer when you can rank it. day_ref and placement_after are advisory only. book_ahead is true when the place needs a reservation or ticket bought in advance (timed entry, popular restaurant, show); omit it otherwise.
-
-    Return shape:
-    GV-HANDOFF: <token from the brief>
-    GV-CONTRACT: v1
-    [{"name":"…","locality":"…","search_hint":"…","why":"…","fit":"…","kind":"…","visit":"…","priority":0,"day_ref":"…","placement_after":"…","book_ahead":true}]
-    """
+  public static func seedBrief(session: HandoffSession, tripName: String, plan: TripPlan) -> String {
+    var lines = [session.header, "Trip: \(tripName)"]
+    let stops = stopSummary(plan: plan)
+    if !stops.isEmpty {
+      lines.append("Stops so far:")
+      lines.append(contentsOf: stops)
+    }
+    if !plan.ruledOut.isEmpty {
+      lines.append("Already ruled out (don't suggest again):")
+      lines.append(contentsOf: plan.ruledOut.map { stop in
+        let note = stop.entry.inlineNote.map(Self.oneLineRuledOutNote) ?? ""
+        return note.isEmpty ? "- \(description(for: stop.content))" : "- \(description(for: stop.content)) — \(note)"
+      })
+    }
+    lines.append("Ask: Seed this Galavant trip from our conversation so far, using the seed format in the project instructions. That format replaces the candidate-places format for this reply.")
+    return lines.joined(separator: "\n")
+  }
 
   public static func brief(
     session: HandoffSession,
