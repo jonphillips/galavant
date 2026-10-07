@@ -73,7 +73,9 @@ struct RecommendationHandoffSheet: View {
         set: { if !$0 { clearActiveWarning() } }
       )
     ) {
-      Button("OK", role: .cancel) {}
+      Button("OK", role: .cancel) {
+        if session.taskType == RecommendationHandoffTask.seedTrip { dismiss() }
+      }
     } message: {
       Text(activeWarning ?? "")
     }
@@ -228,7 +230,6 @@ private struct SeedReviewSheet: View {
           Button("Confirm Obvious Matches", systemImage: "checkmark.circle") {
             model.confirmObviousMatches()
           }
-          .disabled(!model.matchingFinished)
           if !model.matchingRows.isEmpty {
             Text("Checking saved ideas and Maps…")
               .font(.footnote).foregroundStyle(.secondary)

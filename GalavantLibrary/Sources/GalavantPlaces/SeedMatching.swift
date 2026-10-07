@@ -8,13 +8,16 @@ public enum SeedMatching {
     let covering = results.filter { result in
       let words = significantWords(result.name)
       let resultWords = Set(words)
-      let compactName = words.joined()
-        .components(separatedBy: CharacterSet.alphanumerics.inverted).joined()
       return significantKeys.contains { key in
-        key.allSatisfy(resultWords.contains) || key.joined().count > 3 && compactName.contains(key.joined())
+        key.allSatisfy(resultWords.contains) || compact(key.joined()) == compact(result.name)
       }
     }
     return covering.count == 1 ? covering[0] : nil
+  }
+
+  private static func compact(_ value: String) -> String {
+    value.folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: nil)
+      .unicodeScalars.filter(CharacterSet.alphanumerics.contains).map(String.init).joined()
   }
 
   private static func significantWords(_ value: String) -> [String] {

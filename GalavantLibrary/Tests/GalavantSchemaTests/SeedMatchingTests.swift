@@ -4,11 +4,12 @@ import Testing
 
 @Suite struct SeedMatchingTests {
   @Test func keysStripBusinessSuffixesAndUseOnlyFirstHintSegment() {
-    #expect(SeedMatchKeys.make(name: "DYVIG BADEHOTEL ApS", searchHint: "Dyvig Badehotel, Nordborg, Denmark") == [
-      "dyvigbadehotel",
-    ])
-    #expect(SeedMatchKeys.make(name: "Ruth's Hotel", searchHint: nil) == ["ruthshotel"])
-    #expect(SeedMatchKeys.make(name: "Cafe", searchHint: "Café") == ["cafe"])
+    #expect(SeedMatchKeys.make(name: "DYVIG BADEHOTEL ApS", searchHint: "Dyvig Badehotel, Nordborg, Denmark") ==
+      SeedMatchKeys(compact: ["dyvigbadehotel"], words: ["dyvig badehotel"]))
+    #expect(SeedMatchKeys.make(name: "Ruth's Hotel", searchHint: nil) ==
+      SeedMatchKeys(compact: ["ruthshotel"], words: ["ruth's hotel"]))
+    #expect(SeedMatchKeys.make(name: "Cafe", searchHint: "Café") ==
+      SeedMatchKeys(compact: ["cafe"], words: ["cafe"]))
   }
 
   @Test func poolMatchHonorsLocalityAndReportsAmbiguity() {

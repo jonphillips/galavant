@@ -26,6 +26,34 @@ public struct SeedPlanContext: Sendable {
   }
 }
 
+public enum SeedMapRowResolution: Equatable, Sendable {
+  case resolved(Idea.ID)
+  case collision(existingTitle: String)
+  case unresolved
+}
+
+public struct SeedMapRowOutcome: Equatable, Sendable {
+  public var rowID: UUID
+  public var rowTitle: String
+  public var resolution: SeedMapRowResolution
+
+  public init(rowID: UUID, rowTitle: String, resolution: SeedMapRowResolution) {
+    self.rowID = rowID
+    self.rowTitle = rowTitle
+    self.resolution = resolution
+  }
+}
+
+public struct SeedPlanCommitResult: Equatable, Sendable {
+  public var session: HandoffSession
+  public var mapRowOutcomes: [SeedMapRowOutcome]
+
+  public init(session: HandoffSession, mapRowOutcomes: [SeedMapRowOutcome]) {
+    self.session = session
+    self.mapRowOutcomes = mapRowOutcomes
+  }
+}
+
 public struct SeedTripEdit: Equatable, Sendable {
   public var lengthDays: Int?
   public var includeLength: Bool
@@ -208,7 +236,7 @@ public struct SeedPlan: Equatable, Sendable {
   }
 
   /// Import the reviewed plan into the caller's active database transaction.
-  /// The returned session carries candidate links and is saved device-locally by the caller.
+  /// The result carries the session links and the map-resolution outcomes for its rows.
   @discardableResult
   public static func commit(
     _ plan: SeedPlan,
@@ -216,12 +244,8 @@ public struct SeedPlan: Equatable, Sendable {
     session: HandoffSession,
     now: Date,
     in db: Database
-  ) throws -> HandoffSession {
-    var unresolved: [String] = []
-    return try commit(
-      plan, tripID: tripID, session: session, now: now, in: db,
-      resolveMapMatch: nil, unresolvedMapRows: &unresolved
-    )
+  ) throws -> SeedPlanCommitResult {
+    try commit(plan, tripID: tripID, session: session, now: now, mapCaptures: [:], in: db)
   }
 
   @discardableResult
@@ -230,10 +254,9 @@ public struct SeedPlan: Equatable, Sendable {
     tripID: Trip.ID,
     session suppliedSession: HandoffSession,
     now: Date,
-    in db: Database,
-    resolveMapMatch: ((UUID, TripIdea.ID?, Database) throws -> Idea.ID?)? = nil,
-    unresolvedMapRows: inout [String]
-  ) throws -> HandoffSession {
+    mapCaptures: [UUID: IdeaCapture],
+    in db: Database
+  ) throws -> SeedPlanCommitResult {
     if !plan.seed.narrative.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
       plan.seed.narrative.utf8.count > 512_000
     {
@@ -241,18 +264,43 @@ public struct SeedPlan: Equatable, Sendable {
       throw TripDocumentError.tooLarge
     }
     try applyTripEdits(plan, tripID: tripID, in: db)
-    try commitStays(
-      plan.stays, tripID: tripID, now: now, resolveMapMatch: resolveMapMatch,
-      unresolvedMapRows: &unresolvedMapRows, in: db
-    )
+    var mapRowOutcomes: [SeedMapRowOutcome] = []
+    try commitStays(plan.stays, tripID: tripID, now: now, mapCaptures: mapCaptures,
+      outcomes: &mapRowOutcomes, in: db)
     var session = try commitPlaces(
       plan, tripID: tripID, session: suppliedSession, now: now,
-      resolveMapMatch: resolveMapMatch, unresolvedMapRows: &unresolvedMapRows, in: db
+      mapCaptures: mapCaptures, outcomes: &mapRowOutcomes, in: db
     )
     try addDocument(plan.seed.narrative, tripID: tripID, now: now, in: db)
     session.importedAt = now
     session.status = .imported
-    return session
+    return SeedPlanCommitResult(session: session, mapRowOutcomes: mapRowOutcomes)
+  }
+
+  /// Resolve a confirmed Maps capture inside the import transaction. A collision
+  /// returns the candidate row to its freeform state and removes only a newly
+  /// minted, now-unreferenced idea.
+  public static func resolveMapRow(
+    capture: IdeaCapture,
+    stopID: TripIdea.ID?,
+    in db: Database
+  ) throws -> SeedMapRowResolution {
+    guard let stopID else {
+      let party = try TravelParty.ensureDefault(in: db)
+      let resolution = try Idea.resolveCapture(capture, travelPartyID: party.id, in: db)
+      return .resolved(resolution.ideaID)
+    }
+    guard let resolution = try RecommendationResolution.confirm(
+      candidateStopID: stopID, capture: capture, in: db
+    ) else { return .unresolved }
+    guard let collision = resolution.collision else { return .resolved(resolution.capture.ideaID) }
+    let existing = try TripIdea.find(collision.existingID).fetchOne(db)
+    let ideaName = try existing?.ideaID.flatMap { try Idea.find($0).fetchOne(db)?.name }
+    let title = existing?.inlineTitle ?? ideaName ?? capture.name
+    _ = try TripIdea.detachResolvedIdea(
+      from: stopID, deletingOrphanedIdea: resolution.capture.isNew, in: db
+    )
+    return .collision(existingTitle: title)
   }
 
   private static func applyTripEdits(_ plan: SeedPlan, tripID: Trip.ID, in db: Database) throws {
@@ -269,15 +317,18 @@ public struct SeedPlan: Equatable, Sendable {
 
   private static func commitStays(
     _ stays: [SeedStayPlan], tripID: Trip.ID, now: Date,
-    resolveMapMatch: ((UUID, TripIdea.ID?, Database) throws -> Idea.ID?)?,
-    unresolvedMapRows: inout [String], in db: Database
+    mapCaptures: [UUID: IdeaCapture], outcomes: inout [SeedMapRowOutcome], in db: Database
   ) throws {
     for stayPlan in stays where stayPlan.include && !stayPlan.alreadyOnTrip {
       let base = stayPlan.base
       var ideaID = stayPlan.matchConfirmed ? stayPlan.confirmedIdeaID : nil
-      if ideaID == nil, stayPlan.matchConfirmed, case .none = stayPlan.poolMatch {
-        ideaID = try resolveMapMatch?(base.id, nil, db)
-        if ideaID == nil, resolveMapMatch != nil { unresolvedMapRows.append(base.name) }
+      if ideaID == nil, stayPlan.matchConfirmed, case .none = stayPlan.poolMatch,
+        let capture = mapCaptures[base.id] {
+        let resolution = try resolveMapRow(capture: capture, stopID: nil, in: db)
+        outcomes.append(SeedMapRowOutcome(rowID: base.id, rowTitle: base.name, resolution: resolution))
+        if case let .resolved(resolvedID) = resolution { ideaID = resolvedID }
+      } else if ideaID == nil, stayPlan.matchConfirmed, case .none = stayPlan.poolMatch {
+        outcomes.append(SeedMapRowOutcome(rowID: base.id, rowTitle: base.name, resolution: .unresolved))
       }
       let note = stayPlan.note(resolved: ideaID != nil)
       let stayID: TripStay.ID
@@ -305,8 +356,7 @@ public struct SeedPlan: Equatable, Sendable {
   private static func commitPlaces(
     _ plan: SeedPlan, tripID: Trip.ID, session suppliedSession: HandoffSession,
     now: Date,
-    resolveMapMatch: ((UUID, TripIdea.ID?, Database) throws -> Idea.ID?)?,
-    unresolvedMapRows: inout [String], in db: Database
+    mapCaptures: [UUID: IdeaCapture], outcomes: inout [SeedMapRowOutcome], in db: Database
   ) throws -> HandoffSession {
     let includedPlaces = plan.places.filter(\.include)
     let candidates = includedPlaces.map { $0.place.candidate }
@@ -318,10 +368,6 @@ public struct SeedPlan: Equatable, Sendable {
     for (index, row) in plan.places.enumerated() where row.include {
       if let id = row.existingTripIdeaID {
         if row.statusUpdate { try TripIdea.setStatus(row.status, stopID: id, in: db) }
-        if row.matchConfirmed, let ideaID = row.confirmedIdeaID {
-          _ = try TripIdea.attachResolvedIdea(ideaID, to: id, in: db)
-          try recordPlaceNotes(row.place.placeNotes, ideaID: ideaID, now: now, in: db)
-        }
         if plan.formsRing(at: index), let group = row.place.group {
           try TripIdea.setStatus(.considering, stopID: id, in: db)
           ringMembers[group, default: []].append(id)
@@ -340,19 +386,22 @@ public struct SeedPlan: Equatable, Sendable {
       }
       let stop = try TripIdea.commitSeedRow(
         candidate: row.place.candidate, status: status,
-        note: row.note(resolved: resolvedIdeaID != nil || (row.matchConfirmed && resolveMapMatch != nil)),
+        note: row.note(resolved: resolvedIdeaID != nil || mapCaptures[row.id] != nil),
         bookingStatus: row.place.candidate.bookAhead == true && status != .declined ? .toBook : nil,
         shortlistRank: rank, ideaID: resolvedIdeaID, into: tripID, in: db
       )
       var finalIdeaID = resolvedIdeaID
-      if finalIdeaID == nil, row.matchConfirmed, case .none = row.poolMatch {
-        finalIdeaID = try resolveMapMatch?(row.id, stop.id, db)
-        if let finalIdeaID {
-          _ = try TripIdea.attachResolvedIdea(finalIdeaID, to: stop.id, in: db)
-        } else if resolveMapMatch != nil {
+      if finalIdeaID == nil, row.matchConfirmed, case .none = row.poolMatch,
+        let capture = mapCaptures[row.id] {
+        let resolution = try resolveMapRow(capture: capture, stopID: stop.id, in: db)
+        outcomes.append(SeedMapRowOutcome(rowID: row.id, rowTitle: row.title, resolution: resolution))
+        if case let .resolved(ideaID) = resolution {
+          finalIdeaID = ideaID
+        } else {
           try TripIdea.find(stop.id).update { $0.inlineNote = #bind(row.note(resolved: false)) }.execute(db)
-          unresolvedMapRows.append(row.title)
         }
+      } else if finalIdeaID == nil, row.matchConfirmed, case .none = row.poolMatch {
+        outcomes.append(SeedMapRowOutcome(rowID: row.id, rowTitle: row.title, resolution: .unresolved))
       }
       try recordPlaceNotes(row.place.placeNotes, ideaID: finalIdeaID, now: now, in: db)
       importedIDs[row.place.candidate.id.uuidString] = stop.id
@@ -419,7 +468,7 @@ extension TripIdea {
     let id = UUID()
     let row = TripIdea(
       id: id, tripID: tripID, ideaID: ideaID,
-      inlineTitle: ideaID == nil ? (candidate.name ?? candidate.suggestedTitle) : nil,
+      inlineTitle: candidate.name ?? candidate.suggestedTitle,
       inlineNote: note, status: status, shortlistRank: shortlistRank, bookingStatus: bookingStatus
     )
     try TripIdea.insert { TripIdea.Draft(row) }.execute(db)

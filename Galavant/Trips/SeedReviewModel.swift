@@ -68,46 +68,33 @@ final class SeedReviewModel {
     guard let plan else { return false }
     do {
       let selectedMapPlaces = selectedMapPlaces
-      let (importedSession, unresolved, collisions) = try database.write { db in
-        var unresolved: [String] = []
-        var collisions: [String] = []
-        let imported = try SeedPlan.commit(
-          plan, tripID: session.sourceID, session: session, now: date.now, in: db,
-          resolveMapMatch: { rowID, stopID, db in
-            guard let place = selectedMapPlaces[rowID] else { return nil }
-            var capture = place.ideaCapture()
-            if capture.kind == nil,
-              let rowKind = plan.places.first(where: { $0.id == rowID })?.place.normalizedKind
-            {
-              capture.kind = rowKind
-            }
-            if let stopID {
-              guard let resolution = try RecommendationResolution.confirm(
-                candidateStopID: stopID, capture: capture, in: db
-              ) else { return nil }
-              if let collision = resolution.collision {
-                let duplicate = try TripIdea.find(collision.duplicateID).fetchOne(db)
-                let ideaName = try duplicate?.ideaID.flatMap { try Idea.find($0).fetchOne(db)?.name }
-                let title = duplicate?.inlineTitle ?? ideaName ?? place.name
-                _ = try TripIdea.detachResolvedIdea(
-                  from: stopID, deletingOrphanedIdea: resolution.capture.isNew, in: db
-                )
-                collisions.append("\(place.name) (already on trip as \(title))")
-                return nil
-              }
-              return resolution.capture.ideaID
-            }
-            let party = try TravelParty.ensureDefault(in: db)
-            return try Idea.resolveCapture(capture, travelPartyID: party.id, in: db).ideaID
-          },
-          unresolvedMapRows: &unresolved
-        )
-        return (imported, unresolved, collisions)
+      let mapCaptures = selectedMapPlaces.reduce(into: [UUID: IdeaCapture]()) { captures, selection in
+        let (rowID, place) = selection
+        var capture = place.ideaCapture()
+        if capture.kind == nil {
+          capture.kind = plan.places.first(where: { $0.id == rowID })?.place.normalizedKind
+            ?? plan.stays.first(where: { $0.id == rowID }).map { _ in .stay }
+        }
+        captures[rowID] = capture
       }
-      try handoffSessionStore.save(importedSession)
+      let result = try database.write { db in
+        try SeedPlan.commit(
+          plan, tripID: session.sourceID, session: session, now: date.now,
+          mapCaptures: mapCaptures, in: db
+        )
+      }
+      try handoffSessionStore.save(result.session)
       self.plan = nil
-      let collidedNames = Set(collisions.compactMap { $0.components(separatedBy: " (already on trip as ").first })
-      let rowsNeedingResolution = Array(Set(collisions + unresolved.filter { !collidedNames.contains($0) })).sorted()
+      let rowsNeedingResolution = result.mapRowOutcomes.compactMap { outcome -> String? in
+        switch outcome.resolution {
+        case .resolved:
+          nil
+        case let .collision(existingTitle):
+          "\(outcome.rowTitle) (already on trip as \(existingTitle))"
+        case .unresolved:
+          outcome.rowTitle
+        }
+      }
       importSummary = rowsNeedingResolution.isEmpty ? nil :
         "Imported. Resolve these rows in Evaluate Recommendations: \(rowsNeedingResolution.joined(separator: ", "))."
       error = nil
@@ -256,10 +243,10 @@ final class SeedReviewModel {
 
   private func requestKeys(rowID: UUID) -> [String] {
     if let row = plan?.places.first(where: { $0.id == rowID }) {
-      return SeedMatchKeys.make(name: row.place.candidate.name, searchHint: row.place.candidate.searchHint)
+      return SeedMatchKeys.make(name: row.place.candidate.name, searchHint: row.place.candidate.searchHint).words
     }
     if let row = plan?.stays.first(where: { $0.id == rowID }) {
-      return SeedMatchKeys.make(name: row.base.name, searchHint: row.base.searchHint)
+      return SeedMatchKeys.make(name: row.base.name, searchHint: row.base.searchHint).words
     }
     return []
   }
