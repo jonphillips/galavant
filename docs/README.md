@@ -22,6 +22,7 @@ Memory (`~/.claude`) never tracks status; it defers here. **GitHub PR state is t
 | **[efforts/](efforts/)** | Off-arc briefs (defects, dogfood rounds, features outside a milestone) | Architect; executor only via `NEXT_UP.md` | A brief is written or its status changes |
 | **[open-questions.md](open-questions.md)** | Candidates, designed-but-unscheduled work, parked decisions | Architect, Jon — **never the executor** | Anything is noticed, proposed, or parked |
 | **[device-passes.md](device-passes.md)** | Jon's real-device and distribution gates | Jon, architect | A gate is owed or clears |
+| **[PROD-CUTOVER.md](PROD-CUTOVER.md)** | The Development → Production cutover runbook (ADR-0049 D3): ops steps, not a dispatch | Jon, architect | A phase is run, or the order changes |
 | **[verification.md](verification.md)** | The standing verification commands and gates | Executor | The pattern changes |
 | **[ROADMAP.md](ROADMAP.md)** | The milestone arc (M0…M10+) and milestone-level status markers | Architect | A milestone changes state |
 | **[DONE-LOG.md](DONE-LOG.md)** | Shipped work, newest first; the completing PR adds its entry naming its branch | Humans; no dispatch reads it | Work merges |

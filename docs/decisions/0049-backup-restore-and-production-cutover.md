@@ -1,10 +1,10 @@
 # ADR-0049: Local backup & restore, and the order of the Production cutover
 
-*Status: **proposed** — 2026-10-06. Drafted by the architect from a design conversation with Jon;
-ratified by Jon merging this ADR's PR. Adopts jon-platform
+*Status: **accepted** — 2026-10-06, ratified by Jon merging #154. S1 shipped in #157 and passed on device
+2026-10-07. S2 is [`docs/PROD-CUTOVER.md`](../PROD-CUTOVER.md). (Drafted by the architect from a design
+conversation with Jon.) Adopts jon-platform
 [ADR-0006](../../../../jon-platform/docs/adr/0006-lift-backup-restore-into-cloud-sync-kit.md) (backup and
-restore lifted from Yes Chef into `CloudSyncKit`, with an owner-only restore guard). **S1 is blocked on that
-lift**, which is not yet queued. Rides ADR-0001 (CloudKit via SQLiteData), ADR-0003 (one shared travel
+restore lifted from Yes Chef into `CloudSyncKit`, with an owner-only restore guard). Rides ADR-0001 (CloudKit via SQLiteData), ADR-0003 (one shared travel
 party), ADR-0005 (TestFlight distribution), ADR-0009 (images are in-database BLOBs), and ADR-0028 (share
 extension and the persisted sync switch). Prior art: Yes Chef
 [ADR-0030](../../../../cooking/yes-chef/docs/decisions/ADR-0030-local-backup-and-restore.md) and
@@ -104,13 +104,13 @@ development build returns to the working library.
 
 ## Slices
 
-- **S1: Adopt backup and restore** *(blocked on the jon-platform ADR-0006 lift)*. Galavant's facade
+- **S1: Adopt backup and restore** *(shipped, #157)*. Galavant's facade
   configuration (D1), a Settings "Backup" section with export, restore, undo last restore, and the confirmed
   re-enable modelled on Yes Chef's rows, hidden on a participant's phone (D2). Package-level tests: Galavant's
   configuration identifies a Galavant store and rejects a Yes Chef one, and a seeded store round-trips through
   snapshot, prepare, and restore with image BLOBs intact. Device gates go into `device-passes.md` when S1
   lands.
-- **S2: `docs/PROD-CUTOVER.md`** *(architect, docs only)*: the runbook for D3, written once S1's shape is
+- **S2: [`docs/PROD-CUTOVER.md`](../PROD-CUTOVER.md)** *(architect, docs only; written 2026-10-07)*: the runbook for D3, written once S1's shape is
   known.
 
 ## Consequences

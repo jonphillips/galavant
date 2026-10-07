@@ -4,22 +4,13 @@ Jon's checklist: real-device and distribution gates. **Not executor work; the ex
 reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT_HANDOFF.md` on
 2026-09-29 (jon-platform ADR-0005). When a gate clears, delete it and note it in `DONE-LOG.md`.
 
-- **ADR-0049 S1 backup & restore.** On a development build with one iCloud account, export from
-  iPhone to Files and restore on iPad. With Yes Chef also installed, confirm the Galavant importer
-  can select the backup. Confirm trips, ideas, images, and documents match; sync stays off after
-  relaunch; re-enabling sync asks for confirmation; Undo Last Restore returns the prior library.
-- iPhone, a trip with ideas, bottom sheet up: each of Add Ideas, Documents, Evaluate
-  Recommendations, Recommend, N to book, Start Day, Reconcile Calendar (dated trip), Discuss,
-  Shape Trip and Today opens, and dismissing returns to the sheet at its detent. Repeat on iPad
-  (no regressions).
-- iPhone, an empty trip: the summary, Documents and Add rows are visible and tappable, with the
-  empty message below them.
+- **Production cutover.** Run [`PROD-CUTOVER.md`](PROD-CUTOVER.md) (ADR-0049 D3), Phase 1 onward. It
+  ends with sharing the travel party with Wendy and the M5 gate below.
 
 ## Verification gates (decision gates, not a build queue)
 
 - On one device, add a trip document and confirm it appears on the other after sync; delete the trip and confirm the document is removed.
 - Rule out a place on one device and confirm it appears under Ruled out on the other.
-- Before the next TestFlight build, promote the `tripDocuments` record type to the CloudKit Production schema.
 - With Today open on a live day across midnight (or a clock change), confirm the map keeps your position in frame on the new day.
 - On a live trip day, check the Today map card's framing with and without location; confirm a preview day doesn't frame your position and that pin taps open the idea.
 - Re-copy the recommendation project instructions from Settings, confirm a "book ahead" hint seeds To book, and check the Today card on device.
@@ -28,8 +19,8 @@ reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT
 - On a trip, Seed from Conversation → paste the brief into the Denmark conversation → paste the
   reply back → review → Import; check the founding document, stays, rings and Ruled out on iPhone
   and iPad.
-- **M5 real-device gate.** TestFlight on both phones: travel-party share acceptance,
-  two-way CloudKit changes, image/BLOB round-trips, pinned-reservation behavior.
+- **M5 real-device gate.** Phase 6 of `PROD-CUTOVER.md`. TestFlight on both phones, on Production:
+  travel-party share acceptance, two-way CloudKit changes, image/BLOB round-trips, pinned-reservation behavior.
   Checklist: `docs/milestones/M5-EXECUTION.md`. (The old "manual Calendar export on both devices"
   check was dropped per ADR-0034.)
 - **M4 CloudKit BLOB sync** still needs two-real-device verification (ADR-0009 §4).

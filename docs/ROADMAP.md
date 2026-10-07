@@ -274,7 +274,7 @@ for the remaining real-device/distribution verification spine.
 - ⏳ **M5 gate (calendar removed per ADR-0034):** complete the real two-device
   CloudKit share-accept and change-sync test; ship a TestFlight build; deploy it to
   Jon's wife's phone; verify image/BLOB round trips in CloudKit. This gate is now
-  independent of the calendar work.
+  independent of the calendar work. The way there is `docs/PROD-CUTOVER.md` (ADR-0049 D3).
 - Deferred polish remains optional: iPad/Mac refinement, weather, and any further
   trip-header work. Booking-window notifications remain backlog, not an M5 gate.
 - ✅ Done when: both phones have used the TestFlight build against the same shared

@@ -27,8 +27,8 @@ backfilled **on touch**; the table below is the current index.
 | [adr-0048-slice-1-declined-and-documents.md](adr-0048-slice-1-declined-and-documents.md) | ADR-0048 Slice 1 — `.declined` status (ruled out, with reason) + synced read-only trip documents | Done (2026-10-04) |
 | [iphone-trip-presentations.md](iphone-trip-presentations.md) | Dogfood 2026-10-06 — trip sheets dropped on iPhone (outer host already presenting); Ideas empty-state overlay covers rows | Done (2026-10-06) |
 | [adr-0048-slice-2-seed-verb.md](adr-0048-slice-2-seed-verb.md) | ADR-0048 Slice 2 — seed verb: contract v2, `SeedReturn` decode, `SeedPlan`, bulk review, one-transaction commit | Done (2026-10-06) |
-| [adr-0048-slice-3-seed-matching.md](adr-0048-slice-3-seed-matching.md) | ADR-0048 Slice 3 — seed matching: saved ideas then map, Confirm Obvious Matches, research notes → `IdeaEvaluation` | Parked — behind ADR-0049 S1 (Jon, 2026-10-06) |
-| [adr-0049-s1-backup-restore.md](adr-0049-s1-backup-restore.md) | ADR-0049 S1 — adopt `CloudSyncKit` backup & restore: migrate-by-path, facade config, owner-only Settings Backup section, restore-held sync row | Dispatched (2026-10-06) |
+| [adr-0048-slice-3-seed-matching.md](adr-0048-slice-3-seed-matching.md) | ADR-0048 Slice 3 — seed matching: saved ideas then map, Confirm Obvious Matches, research notes → `IdeaEvaluation` | Dispatched (2026-10-07) |
+| [adr-0049-s1-backup-restore.md](adr-0049-s1-backup-restore.md) | ADR-0049 S1 — adopt `CloudSyncKit` backup & restore: migrate-by-path, facade config, owner-only Settings Backup section, restore-held sync row | Done (2026-10-07) |
 | [codex-recommendation-brief-stops.md](codex-recommendation-brief-stops.md) | Recommendation brief stops (moved from `docs/handoffs/`) | See doc |
 
 **Authoring a brief:** add its entry here in the same change (index at creation), give it a

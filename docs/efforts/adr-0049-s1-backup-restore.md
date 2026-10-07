@@ -1,6 +1,6 @@
 # Effort — ADR-0049 S1: backup & restore
 
-**Status:** Dispatched (2026-10-06). The `CloudSyncKit` lift it needed has landed (jon-platform ADR-0006). ·
+**Status:** Done (2026-10-07). Shipped in #157; Jon's device pass cleared 2026-10-07. ·
 **Summary:** [ADR-0049](../decisions/0049-backup-restore-and-production-cutover.md) D1–D2. Adopt the
 `CloudSyncKit` backup and restore: Galavant supplies its constants and a migrate-by-path entry point, and
 Settings gains a Backup section that only the travel party's owner sees. The cutover's re-seed and rollback
