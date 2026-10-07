@@ -4,8 +4,14 @@ Jon's checklist: real-device and distribution gates. **Not executor work; the ex
 reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT_HANDOFF.md` on
 2026-09-29 (jon-platform ADR-0005). When a gate clears, delete it and note it in `DONE-LOG.md`.
 
-- **Production cutover.** Run [`PROD-CUTOVER.md`](PROD-CUTOVER.md) (ADR-0049 D3), Phase 1 onward. It
-  ends with sharing the travel party with Wendy and the M5 gate below.
+- **Production cutover.** Run [`PROD-CUTOVER.md`](PROD-CUTOVER.md) (ADR-0049 D3). It ends with sharing
+  the travel party with Wendy and the M5 gate below. **Phase 1 done 2026-10-07:** every column the
+  build writes has held a value and synced, and the `recordName` indexes are added. The gaps left on
+  purpose are `travelProfiles`, `calendarPlanRepairs.resolvedAt` and `ideaEvaluations.lastVerifiedAt`,
+  none of which the build writes. **Phase 2 (deploy) waits for ADR-0048 Slice 3:** after it merges, do
+  its seed-import device pass on a dev build with at least one matched place carrying research notes.
+  That fills `ideaEvaluations.evaluationDate` and `summary`. Then re-check those two fields in the
+  console and deploy.
 
 ## Verification gates (decision gates, not a build queue)
 
