@@ -25,6 +25,10 @@ reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT
 - On a trip, Seed from Conversation → paste the brief into the Denmark conversation → paste the
   reply back → review → Import; check the founding document, stays, rings and Ruled out on iPhone
   and iPad.
+- Seed the Denmark conversation into a trip that shares a few places with the pool: saved-idea matches
+  badge correctly (including business-listing names), "Confirm Obvious Matches" resolves the expected
+  rows, deferred places appear on the Ideas map, research notes show on resolved places, and Evaluate
+  opens the leftovers.
 - **M5 real-device gate.** Phase 6 of `PROD-CUTOVER.md`. TestFlight on both phones, on Production:
   travel-party share acceptance, two-way CloudKit changes, image/BLOB round-trips, pinned-reservation behavior.
   Checklist: `docs/milestones/M5-EXECUTION.md`. (The old "manual Calendar export on both devices"

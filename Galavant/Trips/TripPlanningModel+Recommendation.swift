@@ -191,7 +191,8 @@ extension TripPlanningModel {
       ideasByID: Dictionary(ideas.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }),
       stays: allTripStays.filter { $0.tripID == tripID },
       tripRegions: tripRegions,
-      partyRegions: regions.filter { $0.travelPartyID == trip.travelPartyID }
+      partyRegions: regions.filter { $0.travelPartyID == trip.travelPartyID },
+      poolIdeas: ideas
     )
   }
 

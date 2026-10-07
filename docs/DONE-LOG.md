@@ -3,6 +3,19 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## ADR-0048 Slice 3 — seed matching (`effort/adr-0048-slice-3`) — 2026-10-07
+
+- Seed review now matches saved ideas before searching Maps (four searches at a time), marks live
+  trip collisions, and lets one tap confirm the obvious saved and map matches. Confirmed rows resolve
+  through the capture merge inside the existing import transaction; resolved `place_notes` become
+  Trip research evaluations, while unresolved rows retain their notes for Evaluate Recommendations.
+  No schema change.
+- Added a ruled-out-row follow-up to `open-questions.md` and the seed matching device pass.
+- **Verification.** `scripts/check-drift.sh` passed SwiftLint, all GalavantLibrary suites (774 tests,
+  7 known issues), and the GalavantUITests build. Headless `GalavantTests` passed 35 tests. Device
+  follow-up: exercise matching, confirmation, resolved evaluations, and Evaluate leftovers on iPhone
+  and iPad.
+
 ## ADR-0049 S2 — cutover runbook; device passes cleared (`plan/adr-0049-s2-cutover-and-slice-3`) — 2026-10-07
 
 - Wrote `docs/PROD-CUTOVER.md`, the runbook for ADR-0049 D3: audit the Development schema both ways

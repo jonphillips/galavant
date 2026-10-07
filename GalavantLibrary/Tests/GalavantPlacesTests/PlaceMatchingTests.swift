@@ -40,6 +40,21 @@ import Testing
     #expect(PlaceMatching.ladder(for: ParsedPage()).isEmpty)
   }
 
+  @Test("Seed obvious choice requires one result to cover every significant key word")
+  func seedObviousChoice() {
+    let exact = Place(id: UUID(), name: "Dyvig Badehotel", latitude: 0, longitude: 0)
+    let partial = Place(id: UUID(), name: "Dyvig Restaurant", latitude: 0, longitude: 0)
+    let other = Place(id: UUID(), name: "Dyvig Badehotel Nordborg", latitude: 0, longitude: 0)
+    #expect(SeedMatching.obviousChoice(keys: ["dyvigbadehotel"], results: [exact, partial]) == exact)
+    #expect(SeedMatching.obviousChoice(keys: ["dyvigbadehotel"], results: [exact, other]) == nil)
+    #expect(SeedMatching.obviousChoice(keys: ["dyvigbadehotel"], results: [partial]) == nil)
+    #expect(SeedMatching.obviousChoice(keys: ["ND122 2"], results: [exact]) == nil)
+    let ruth = Place(id: UUID(), name: "Ruth's Hotel", latitude: 0, longitude: 0)
+    #expect(SeedMatching.obviousChoice(keys: ["ruthshotel"], results: [ruth]) == ruth)
+    let cafe = Place(id: UUID(), name: "Café Central", latitude: 0, longitude: 0)
+    #expect(SeedMatching.obviousChoice(keys: ["cafecentral"], results: [cafe]) == cafe)
+  }
+
   // MARK: Query tokenizing
 
   @Test("Query drops stopwords and aggregator noise, keeps name + city")
