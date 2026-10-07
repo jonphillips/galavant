@@ -45,10 +45,13 @@ compare the CloudKit dashboard's **Development** schema with `GalavantCloudSync.
 - [ ] **Every registered table has a record type, with every column as a field.** Development creates
       types and fields only when a record carrying them is first pushed. A table that has never held a row
       has no type yet. A column that has only ever been `NULL` has no field yet. Production does not infer
-      schema, so saves that need a missing type or field fail there. Candidates are tables and columns for
-      features that aren't fully wired (check `travelProfiles`) and recent additions (`tripDocuments`,
-      `ideaEvaluations`). **Fix:** on a development build with sync on, create a row
+      schema, so saves that need a missing type or field fail there. Check recent additions first
+      (`tripDocuments`, `ideaEvaluations`). **Fix:** on a development build with sync on, create a row
       that fills the missing column, let it push, check the dashboard, then delete the row.
+      **Exception: a gap that nothing in the build can write is fine to leave.** Deploys are additive, so it
+      goes to Production with the slice that first writes it. Today that's `travelProfiles`: the storage
+      and editor exist, but no screen presents the editor (M6-EXECUTION item 4), so it probably has no
+      record type yet. Note it and move on.
 - [ ] **Nothing extra.** A record type or field with no registered table or column is a leftover from an
       experiment. Delete it from the Development schema in the dashboard before deploying. **Never use
       "Reset Development Environment"**: it deletes all Development data, and that data is the rollback.
