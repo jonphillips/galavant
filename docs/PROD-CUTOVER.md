@@ -162,6 +162,10 @@ compare the CloudKit dashboard's **Development** schema with `GalavantCloudSync.
 
 ## After the cutover
 
+- [ ] **From now on, every TestFlight build waits on a schema deploy.** A slice that adds a synced
+      table or column, or is the first to write one (Slice 3 writes `ideaEvaluations.evaluationDate`
+      and `summary`; wiring `travelProfiles` writes that table), must push it from a development build
+      and deploy the schema to Production before its TestFlight build goes out.
 - [ ] Keep the **Development** zone as a cold archive at least until the M5 gate has passed on Production.
 - [ ] Record the answer to **OQ2** (did Production seed in place?) in ADR-0049, and tell Yes Chef
       (ADR-0056 OQ1). Check the trigger on the jon-platform `SEAM-LEDGER.md` row for the Dev→Prod
