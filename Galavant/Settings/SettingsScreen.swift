@@ -5,6 +5,13 @@ import SQLiteData
 import SwiftUI
 import UniformTypeIdentifiers
 
+private enum BackupAvailability {
+  case checking
+  case owner
+  case participant
+  case unavailable
+}
+
 /// The "You"/settings section, surfaced as a top-level destination in the sidebar /
 /// tab bar (ADR-0014 slice 4 graduates here from the Ideas toolbar stub). Houses the
 /// sync-health surface (ADR/M5-sync), the AI/chat model settings, and travel-party
@@ -27,8 +34,7 @@ struct SettingsScreen: View {
   @State private var isPresentingBackupImporter = false
   @State private var isConfirmingRestore = false
   @State private var isPresentingRestoreRestartCover = false
-  @State private var backupOwnership: Bool?
-  @State private var backupOwnershipCheckFailed = false
+  @State private var backupAvailability = BackupAvailability.checking
   @Dependency(\.defaultDatabase) private var database
   @Environment(\.scenePhase) private var scenePhase
 
@@ -109,7 +115,7 @@ struct SettingsScreen: View {
     )
     .fileImporter(
       isPresented: $isPresentingBackupImporter,
-      allowedContentTypes: [.galavantSQLiteBackup],
+      allowedContentTypes: [.galavantSQLiteBackup, .data],
       onCompletion: backupRestoreSelected
     )
     .alert("Restore This Backup?", isPresented: $isConfirmingRestore) {
@@ -145,15 +151,16 @@ struct SettingsScreen: View {
   }
 
   @ViewBuilder private var backupSection: some View {
-    if backupOwnership == true {
+    switch backupAvailability {
+    case .participant:
       Section("Backup") {
         Text("Backups are made by the person who shared this travel party with you.")
       }
-    } else if backupOwnershipCheckFailed {
+    case .unavailable:
       Section("Backup") {
         Text("Galavant couldn't check who owns this travel party. Backups are unavailable right now.")
       }
-    } else if backupOwnership == false {
+    case .owner:
       Section("Backup") {
         Button {
           Task {
@@ -190,7 +197,7 @@ struct SettingsScreen: View {
           .disabled(backupRestore.isPreparing || backupRestore.isRestoring)
         }
       }
-    } else {
+    case .checking:
       Section("Backup") { ProgressView() }
     }
   }
@@ -219,9 +226,10 @@ struct SettingsScreen: View {
 
   private func refreshBackupOwnership() async {
     do {
-      backupOwnership = try await DatabaseBackup.containsForeignOwnedRows(in: database)
+      let hasForeignOwnedRows = try await DatabaseBackup.containsForeignOwnedRows(in: database)
+      backupAvailability = hasForeignOwnedRows ? .participant : .owner
     } catch {
-      backupOwnershipCheckFailed = true
+      backupAvailability = .unavailable
     }
   }
 

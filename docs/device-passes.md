@@ -5,9 +5,9 @@ reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT
 2026-09-29 (jon-platform ADR-0005). When a gate clears, delete it and note it in `DONE-LOG.md`.
 
 - **ADR-0049 S1 backup & restore.** On a development build with one iCloud account, export from
-  iPhone to Files and restore on iPad. Confirm trips, ideas, images, and documents match; sync stays
-  off after relaunch; re-enabling sync asks for confirmation; Undo Last Restore returns the prior
-  library.
+  iPhone to Files and restore on iPad. With Yes Chef also installed, confirm the Galavant importer
+  can select the backup. Confirm trips, ideas, images, and documents match; sync stays off after
+  relaunch; re-enabling sync asks for confirmation; Undo Last Restore returns the prior library.
 - iPhone, a trip with ideas, bottom sheet up: each of Add Ideas, Documents, Evaluate
   Recommendations, Recommend, N to book, Start Day, Reconcile Calendar (dated trip), Discuss,
   Shape Trip and Today opens, and dismissing returns to the sheet at its detent. Repeat on iPad

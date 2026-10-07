@@ -18,6 +18,7 @@ struct DatabaseBackupTests {
     let configuration = GalavantCloudSync.databaseBackupConfiguration
     #expect(configuration.displayName == "Galavant")
     #expect(configuration.identifyingTableNames == ["travelParties", "ideas"])
+    // The facade derives this version directly from the registered list, so it cannot drift.
     #expect(configuration.declaredSchemaVersion == GalavantDatabaseMigrations.makeMigrator().migrations.count)
 
     let directory = try makeTemporaryDirectory()
