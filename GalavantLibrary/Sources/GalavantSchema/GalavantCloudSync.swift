@@ -16,7 +16,22 @@ public enum GalavantCloudSync {
     containerIdentifier: "iCloud.com.jonphillips.galavant",
     enabledDefaultsKey: "GalavantCloudKitSyncEnabled",
     enabledEnvironmentKey: "GALAVANT_CLOUDKIT_SYNC_ENABLED",
-    enabledLaunchArgument: "-GalavantCloudKitSyncEnabled"
+    enabledLaunchArgument: "-GalavantCloudKitSyncEnabled",
+    restoreRequiresManualEnablementDefaultsKey: "GalavantCloudKitSyncRestoreRequiresManualEnablement"
+  )
+
+  /// Per-app identity and migration entry point for CloudSyncKit's shared backup flow.
+  public static let databaseBackupConfiguration = DatabaseBackupConfiguration(
+    displayName: "Galavant",
+    backupFilenamePrefix: "Galavant-Backup-",
+    preRestoreFilenamePrefix: "Galavant-PreRestore-",
+    restoreStagingFilenamePrefix: "Galavant-Restore-",
+    identifyingTableNames: ["travelParties", "ideas"],
+    declaredSchemaVersion: GalavantDatabaseMigrations.schemaVersion,
+    lastPreRestoreDefaultsKey: "GalavantDatabaseBackupLastPreRestorePath",
+    cloudSync: configuration,
+    liveStoreURL: { try GalavantStorage.liveDatabaseURL() },
+    migrate: { try DependencyValues.migrateRestoreCandidate(at: $0) }
   )
 
   public typealias BootstrapMode = CloudSync.BootstrapMode
@@ -40,6 +55,10 @@ public enum GalavantCloudSync {
 
   public static func setManuallyEnabled(_ enabled: Bool, defaults: UserDefaults = .standard) {
     CloudSync.setManuallyEnabled(enabled, configuration: configuration, defaults: defaults)
+  }
+
+  public static func isDisabledByRestore(defaults: UserDefaults = .standard) -> Bool {
+    CloudSync.isDisabledByRestore(configuration: configuration, defaults: defaults)
   }
 
   public static func persistManualEnablementFromLaunchEnvironment(

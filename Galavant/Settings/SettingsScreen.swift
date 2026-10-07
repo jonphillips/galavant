@@ -1,6 +1,16 @@
+import CloudSyncKit
+import Dependencies
 import GalavantSchema
 import SQLiteData
 import SwiftUI
+import UniformTypeIdentifiers
+
+private enum BackupAvailability {
+  case checking
+  case owner
+  case participant
+  case unavailable
+}
 
 /// The "You"/settings section, surfaced as a top-level destination in the sidebar /
 /// tab bar (ADR-0014 slice 4 graduates here from the Ideas toolbar stub). Houses the
@@ -12,6 +22,20 @@ import SwiftUI
 struct SettingsScreen: View {
   @State private var model = SettingsModel()
   @State private var syncHealth = SyncHealthModel()
+  @State private var backupExport = DatabaseBackupExportModel(
+    configuration: GalavantCloudSync.databaseBackupConfiguration
+  )
+  @State private var backupRestore = DatabaseBackupRestoreModel(
+    configuration: GalavantCloudSync.databaseBackupConfiguration
+  )
+  @State private var backupExportDocument: GalavantBackupExportDocument?
+  @State private var backupExportFilename = "Galavant-Backup.sqlite"
+  @State private var isPresentingBackupExporter = false
+  @State private var isPresentingBackupImporter = false
+  @State private var isConfirmingRestore = false
+  @State private var isPresentingRestoreRestartCover = false
+  @State private var backupAvailability = BackupAvailability.checking
+  @Dependency(\.defaultDatabase) private var database
   @Environment(\.scenePhase) private var scenePhase
 
   var body: some View {
@@ -47,6 +71,8 @@ struct SettingsScreen: View {
         Text("Invite your travel party to share the same ideas, trips, and ratings over iCloud.")
       }
 
+      backupSection
+
       #if DEBUG
       Section("Developer") {
         NavigationLink {
@@ -78,5 +104,186 @@ struct SettingsScreen: View {
     .onChange(of: syncHealth.isSynchronizing) { _, _ in
       Task { await syncHealth.refresh() }
     }
+    .task { await refreshBackupOwnership() }
+    .fileExporter(
+      isPresented: $isPresentingBackupExporter,
+      document: backupExportDocument,
+      contentType: .galavantSQLiteBackup,
+      defaultFilename: backupExportFilename,
+      onCompletion: backupExportCompleted,
+      onCancellation: clearPreparedBackup
+    )
+    .fileImporter(
+      isPresented: $isPresentingBackupImporter,
+      allowedContentTypes: [.galavantSQLiteBackup, .data],
+      onCompletion: backupRestoreSelected
+    )
+    .alert("Restore This Backup?", isPresented: $isConfirmingRestore) {
+      Button("Restore", role: .destructive) {
+        Task {
+          if await backupRestore.restorePreparedBackup() {
+            isPresentingRestoreRestartCover = true
+          }
+        }
+      }
+      Button("Cancel", role: .cancel) { backupRestore.discardPreparedRestore() }
+    } message: {
+      Text(restoreConfirmation)
+    }
+    .fullScreenCover(isPresented: $isPresentingRestoreRestartCover) {
+      ContentUnavailableView(
+        "Restart Galavant",
+        systemImage: "arrow.clockwise",
+        description: Text("Your backup is restored — close and reopen Galavant to use it. You can undo this restore from Settings after reopening. iCloud sync stays off until you turn it back on.")
+      )
+      .interactiveDismissDisabled()
+    }
+    .alert("Could Not Export Backup", isPresented: backupExportErrorPresented) {
+      Button("OK") { backupExport.dismissError() }
+    } message: {
+      Text(backupExport.errorMessage ?? "")
+    }
+    .alert("Could Not Restore Backup", isPresented: backupRestoreErrorPresented) {
+      Button("OK") { backupRestore.dismissError() }
+    } message: {
+      Text(backupRestore.errorMessage ?? "")
+    }
   }
+
+  @ViewBuilder private var backupSection: some View {
+    switch backupAvailability {
+    case .participant:
+      Section("Backup") {
+        Text("Backups are made by the person who shared this travel party with you.")
+      }
+    case .unavailable:
+      Section("Backup") {
+        Text("Galavant couldn't check who owns this travel party. Backups are unavailable right now.")
+      }
+    case .owner:
+      Section("Backup") {
+        Button {
+          Task {
+            guard let snapshot = await backupExport.prepareBackupForExport() else { return }
+            backupExportDocument = GalavantBackupExportDocument(snapshot: snapshot)
+            backupExportFilename = backupExport.defaultFilename()
+            isPresentingBackupExporter = true
+          }
+        } label: {
+          Label("Export a Backup", systemImage: "externaldrive.badge.checkmark")
+        }
+        .disabled(backupExport.isPreparing)
+
+        Button { isPresentingBackupImporter = true } label: {
+          HStack {
+            Label("Restore from a Backup", systemImage: "externaldrive.badge.plus")
+            if backupRestore.isPreparing || backupRestore.isRestoring {
+              Spacer()
+              ProgressView()
+            }
+          }
+        }
+        .disabled(backupRestore.isPreparing || backupRestore.isRestoring)
+
+        if backupRestore.hasUndoableRestore {
+          Button {
+            Task {
+              await backupRestore.prepareUndo()
+              isConfirmingRestore = backupRestore.isPrepared
+            }
+          } label: {
+            Label("Undo Last Restore", systemImage: "arrow.uturn.backward")
+          }
+          .disabled(backupRestore.isPreparing || backupRestore.isRestoring)
+        }
+      }
+    case .checking:
+      Section("Backup") { ProgressView() }
+    }
+  }
+
+  private var restoreConfirmation: String {
+    var message = "This replaces the library on this device. Galavant saves an automatic undo backup first. iCloud sync stays off until you turn it back on. When you do, this restored library becomes the version everywhere: it overwrites iCloud, and anything deleted since the backup comes back."
+    if backupRestore.willNeedToReshareRecords {
+      message += "\n\nYour travel party may need to be shared again, and the people you share with may need to reinstall Galavant and accept the new invite."
+    }
+    return message
+  }
+
+  private var backupExportErrorPresented: Binding<Bool> {
+    Binding(
+      get: { backupExport.errorMessage != nil },
+      set: { if !$0 { backupExport.dismissError() } }
+    )
+  }
+
+  private var backupRestoreErrorPresented: Binding<Bool> {
+    Binding(
+      get: { backupRestore.errorMessage != nil },
+      set: { if !$0 { backupRestore.dismissError() } }
+    )
+  }
+
+  private func refreshBackupOwnership() async {
+    do {
+      let hasForeignOwnedRows = try await DatabaseBackup.containsForeignOwnedRows(in: database)
+      backupAvailability = hasForeignOwnedRows ? .participant : .owner
+    } catch {
+      backupAvailability = .unavailable
+    }
+  }
+
+  private func backupExportCompleted(_ result: Result<URL, any Error>) {
+    if case let .failure(error) = result { backupExport.recordExportFailure(error) }
+    clearPreparedBackup()
+  }
+
+  private func clearPreparedBackup() {
+    if let backupExportDocument { backupExport.discard(backupExportDocument.snapshot) }
+    backupExportDocument = nil
+  }
+
+  private func backupRestoreSelected(_ result: Result<URL, any Error>) {
+    switch result {
+    case let .success(url):
+      Task {
+        await backupRestore.prepareRestore(from: url)
+        isConfirmingRestore = backupRestore.isPrepared
+      }
+    case let .failure(error): backupRestore.recordImportFailure(error)
+    }
+  }
+}
+
+private final class GalavantBackupExportDocument: WritableDocument {
+  typealias Writer = GalavantBackupExportDocumentWriter
+  static let writableContentTypes: [UTType] = [.galavantSQLiteBackup]
+
+  let snapshot: DatabaseBackup.Snapshot
+  init(snapshot: DatabaseBackup.Snapshot) { self.snapshot = snapshot }
+
+  func writer(configuration: sending DocumentWriteConfiguration) -> sending GalavantBackupExportDocumentWriter {
+    GalavantBackupExportDocumentWriter()
+  }
+
+  func snapshot(contentType: UTType) async throws -> sending URL { snapshot.fileURL }
+}
+
+private struct GalavantBackupExportDocumentWriter: DocumentWriter {
+  typealias Snapshot = URL
+  func write(
+    snapshot: sending URL,
+    to destination: sending URL,
+    previous: sending URL?,
+    progress: consuming Subprogress
+  ) async throws {
+    try FileManager.default.copyItem(at: snapshot, to: destination)
+  }
+}
+
+private extension UTType {
+  static let galavantSQLiteBackup = UTType(
+    exportedAs: "com.jonphillips.galavant.database-backup",
+    conformingTo: .data
+  )
 }

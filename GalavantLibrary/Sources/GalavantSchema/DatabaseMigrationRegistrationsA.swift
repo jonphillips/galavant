@@ -1,0 +1,371 @@
+import SQLiteData
+
+// Migration definitions are intentionally kept together; their closures are append-only.
+// swiftlint:disable function_body_length
+enum GalavantDatabaseMigrationRegistrationsA {
+  static func register1(into migrator: inout DatabaseMigrator) {
+    migrator.registerMigration("Create ideas table") { db in
+      try #sql(
+        """
+        CREATE TABLE "ideas" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "name" TEXT NOT NULL DEFAULT '',
+          "notes" TEXT NOT NULL DEFAULT '',
+          "regionName" TEXT,
+          "latitude" REAL,
+          "longitude" REAL
+        ) STRICT
+        """
+      )
+      .execute(db)
+    }
+    migrator.registerMigration("Create travelParties table; add travelPartyID to ideas") { db in
+      try #sql(
+        """
+        CREATE TABLE "travelParties" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "name" TEXT NOT NULL DEFAULT ''
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        ALTER TABLE "ideas"
+        ADD COLUMN "travelPartyID" TEXT REFERENCES "travelParties"("id") ON DELETE CASCADE
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_ideas_on_travelPartyID" ON "ideas"("travelPartyID")
+        """
+      )
+      .execute(db)
+    }
+    migrator.registerMigration("Pool foundation: planners, ratings, idea fields") { db in
+      try #sql(
+        """
+        CREATE TABLE "planners" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "displayName" TEXT NOT NULL DEFAULT '',
+          "travelPartyID" TEXT REFERENCES "travelParties"("id") ON DELETE CASCADE
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE TABLE "ideaInterests" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "ideaID" TEXT NOT NULL REFERENCES "ideas"("id") ON DELETE CASCADE,
+          "plannerID" TEXT NOT NULL,
+          "level" INTEGER,
+          "note" TEXT NOT NULL DEFAULT ''
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_ideaInterests_on_ideaID" ON "ideaInterests"("ideaID")
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        ALTER TABLE "ideas" ADD COLUMN "kind" TEXT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        ALTER TABLE "ideas" ADD COLUMN "url" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT ''
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        ALTER TABLE "ideas" ADD COLUMN "visited" INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT 0
+        """
+      )
+      .execute(db)
+    }
+    migrator.registerMigration("Create mapRegions table") { db in
+      try #sql(
+        """
+        CREATE TABLE "mapRegions" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "name" TEXT NOT NULL DEFAULT '',
+          "centerLatitude" REAL NOT NULL DEFAULT 0,
+          "centerLongitude" REAL NOT NULL DEFAULT 0,
+          "latitudeDelta" REAL NOT NULL DEFAULT 0,
+          "longitudeDelta" REAL NOT NULL DEFAULT 0,
+          "travelPartyID" TEXT REFERENCES "travelParties"("id") ON DELETE CASCADE
+        ) STRICT
+        """
+      )
+      .execute(db)
+    }
+    migrator.registerMigration("Create tags and ideaTags tables") { db in
+      try #sql(
+        """
+        CREATE TABLE "tags" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "name" TEXT NOT NULL DEFAULT '',
+          "travelPartyID" TEXT REFERENCES "travelParties"("id") ON DELETE CASCADE
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE TABLE "ideaTags" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "ideaID" TEXT NOT NULL REFERENCES "ideas"("id") ON DELETE CASCADE,
+          "tagID" TEXT NOT NULL
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_ideaTags_on_ideaID" ON "ideaTags"("ideaID")
+        """
+      )
+      .execute(db)
+    }
+    migrator.registerMigration("Create trips and tripIdeas tables") { db in
+      try #sql(
+        """
+        CREATE TABLE "trips" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "name" TEXT NOT NULL DEFAULT '',
+          "notes" TEXT NOT NULL DEFAULT '',
+          "certaintyStage" INTEGER NOT NULL DEFAULT 0,
+          "somedayRank" INTEGER NOT NULL DEFAULT 0,
+          "targetYear" INTEGER,
+          "targetQuarter" INTEGER,
+          "startDate" TEXT,
+          "lengthInDays" INTEGER NOT NULL DEFAULT 7,
+          "travelPartyID" TEXT REFERENCES "travelParties"("id") ON DELETE CASCADE
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE TABLE "tripIdeas" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "tripID" TEXT NOT NULL REFERENCES "trips"("id") ON DELETE CASCADE,
+          "ideaID" TEXT NOT NULL,
+          "status" INTEGER NOT NULL DEFAULT 0,
+          "shortlistRank" INTEGER NOT NULL DEFAULT 0
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_tripIdeas_on_tripID" ON "tripIdeas"("tripID")
+        """
+      )
+      .execute(db)
+    }
+  }
+  static func register2(into migrator: inout DatabaseMigrator) {
+    migrator.registerMigration("Create tripRegions table") { db in
+      try #sql(
+        """
+        CREATE TABLE "tripRegions" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "tripID" TEXT NOT NULL REFERENCES "trips"("id") ON DELETE CASCADE,
+          "regionID" TEXT NOT NULL
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_tripRegions_on_tripID" ON "tripRegions"("tripID")
+        """
+      )
+      .execute(db)
+    }
+    migrator.registerMigration("Add scheduling columns to tripIdeas") { db in
+      try #sql(
+        """
+        ALTER TABLE "tripIdeas" ADD COLUMN "dayNumber" INTEGER
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        ALTER TABLE "tripIdeas" ADD COLUMN "dayPart" INTEGER
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        ALTER TABLE "tripIdeas" ADD COLUMN "startTime" TEXT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        ALTER TABLE "tripIdeas" ADD COLUMN "endTime" TEXT
+        """
+      )
+      .execute(db)
+    }
+    migrator.registerMigration("Add address and phone to ideas") { db in
+      try #sql(
+        """
+        ALTER TABLE "ideas" ADD COLUMN "address" TEXT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        ALTER TABLE "ideas" ADD COLUMN "phone" TEXT
+        """
+      )
+      .execute(db)
+    }
+    migrator.registerMigration("Add enrichedAt to ideas") { db in
+      try #sql(
+        """
+        ALTER TABLE "ideas" ADD COLUMN "enrichedAt" TEXT
+        """
+      )
+      .execute(db)
+    }
+    migrator.registerMigration("Add freeform-stop columns to tripIdeas (ADR-0010)") { db in
+      // ideaID becomes nullable: existing rows keep their non-null value; new
+      // freeform rows have ideaID NULL + inlineTitle/inlineNote non-null.
+      // SQLite doesn't let us drop NOT NULL from an existing column, but a NULL
+      // insert into a NOT NULL column is rejected — we need the column to accept
+      // NULLs. We work around SQLite's limitation by recreating the table.
+      try #sql(
+        """
+        CREATE TABLE "tripIdeas_new" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "tripID" TEXT NOT NULL REFERENCES "trips"("id") ON DELETE CASCADE,
+          "ideaID" TEXT,
+          "inlineTitle" TEXT,
+          "inlineNote" TEXT,
+          "status" INTEGER NOT NULL DEFAULT 0,
+          "shortlistRank" INTEGER NOT NULL DEFAULT 0,
+          "dayNumber" INTEGER,
+          "dayPart" INTEGER,
+          "startTime" TEXT,
+          "endTime" TEXT
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        INSERT INTO "tripIdeas_new"
+          SELECT "id","tripID","ideaID",NULL,NULL,"status","shortlistRank",
+                 "dayNumber","dayPart","startTime","endTime"
+          FROM "tripIdeas"
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        DROP TABLE "tripIdeas"
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        ALTER TABLE "tripIdeas_new" RENAME TO "tripIdeas"
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_tripIdeas_on_tripID" ON "tripIdeas"("tripID")
+        """
+      )
+      .execute(db)
+    }
+    migrator.registerMigration("Create imageAssets table") { db in
+      try #sql(
+        """
+        CREATE TABLE "imageAssets" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "ideaID" TEXT NOT NULL REFERENCES "ideas"("id") ON DELETE CASCADE,
+          "display" BLOB NOT NULL,
+          "thumbnail" BLOB NOT NULL,
+          "sourceURL" TEXT,
+          "sortRank" INTEGER NOT NULL DEFAULT 0,
+          "isHeader" INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT 0
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_imageAssets_on_ideaID" ON "imageAssets"("ideaID")
+        """
+      )
+      .execute(db)
+    }
+    migrator.registerMigration("Create tripStays table (ADR-0011)") { db in
+      // A stay rides its trip (single real FK, cascade-deletes); ideaID is a loose,
+      // optional UUID reconciled on read (ADR-0007), so no SQL FK on it. A freeform
+      // stay carries inlineTitle/inlineNote with ideaID NULL.
+      try #sql(
+        """
+        CREATE TABLE "tripStays" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "tripID" TEXT NOT NULL REFERENCES "trips"("id") ON DELETE CASCADE,
+          "ideaID" TEXT,
+          "inlineTitle" TEXT,
+          "inlineNote" TEXT,
+          "checkInDay" INTEGER NOT NULL DEFAULT 1,
+          "checkOutDay" INTEGER NOT NULL DEFAULT 2,
+          "checkInTime" TEXT,
+          "checkOutTime" TEXT
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_tripStays_on_tripID" ON "tripStays"("tripID")
+        """
+      )
+      .execute(db)
+    }
+    migrator.registerMigration("Add planned check times to tripStays") { db in
+      try #sql(#"ALTER TABLE "tripStays" ADD COLUMN "plannedCheckInTime" TEXT"#).execute(db)
+      try #sql(#"ALTER TABLE "tripStays" ADD COLUMN "plannedCheckOutTime" TEXT"#).execute(db)
+    }
+    migrator.registerMigration("Create tripDayRegions table (ADR-0012)") { db in
+      // One of the trip's regions assigned to a day; rides the trip (single real
+      // FK, cascade-deletes), regionID a loose UUID reconciled on read (ADR-0007).
+      try #sql(
+        """
+        CREATE TABLE "tripDayRegions" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "tripID" TEXT NOT NULL REFERENCES "trips"("id") ON DELETE CASCADE,
+          "dayNumber" INTEGER NOT NULL DEFAULT 1,
+          "regionID" TEXT NOT NULL
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE INDEX "index_tripDayRegions_on_tripID" ON "tripDayRegions"("tripID")
+        """
+      )
+      .execute(db)
+    }
+  }
+}
+// swiftlint:enable function_body_length

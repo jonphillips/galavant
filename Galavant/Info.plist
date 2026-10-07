@@ -34,5 +34,25 @@
 	<dict/>
 	<key>UNSPLASH_ACCESS_KEY</key>
 	<string>$(UNSPLASH_ACCESS_KEY)</string>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Galavant Backup</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.jonphillips.galavant.database-backup</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>sqlite</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
 </dict>
 </plist>
