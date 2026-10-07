@@ -12,6 +12,16 @@ retired `CURRENT_HANDOFF.md` and `ROADMAP.md`'s open items.
   pan or zoom on the ground, a tap on the card opening a full-screen interactive day map (with
   `MapUserLocationButton`) is the natural next step. Wait for dogfood evidence before adding it.
 
+- **Tags aren't visible and can't be managed (Jon, 2026-10-07).** On device, Jon sees no tags anywhere
+  and no way to manage them. The code has surfaces for both: a **Tags** section in the Idea form
+  (`IdeaFormView`), tag chips on `IdeaDetailView` when an idea has any, and **Ideas toolbar filter menu
+  → Tags → Manage Tags…** (`TagManagerView`, which only shows once at least one tag exists). So
+  the first question is whether those are unreachable, buried, or regressed on the current layout. A
+  data point from the 2026-10-07 backup: **24 `tags` rows but 0 `ideaTags` rows**, so tags exist but
+  none is attached to an idea. Find out why before designing anything. It is either a path that drops
+  the joins or old tags from early capture. It touches the Settings consolidation item (tag management
+  moving off the filter menu) and the multi-select tag picker below.
+
 ### Trip seed handoff (ADR-0048, accepted 2026-10-04)
 
 Bridges an open-ended Chat "bearings" conversation into a Galavant trip: a `seedTrip` verb, a
