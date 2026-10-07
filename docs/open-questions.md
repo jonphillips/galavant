@@ -37,6 +37,9 @@ queued behind it. ADR OQ1–OQ5 stay in the ADR.
   northern-trip places appeared. Options: show the non-array text in the review ("Chat also said: …"),
   or append it to the handoff record. Small; semantic-fidelity "review-dependent" class.
 
+- **Resolve a ruled-out row.** Ruled-out rows can't reach the Evaluate queue, so an unresolved deferred
+  place never reaches the pool. Offer "Find on Map" from the Ruled out section.
+
 ### M9 cockpit polish (post-ship follow-ups)
 
 M9 (recommendation handoff + evaluation cockpit) and the LLMHandoffKit lift shipped and

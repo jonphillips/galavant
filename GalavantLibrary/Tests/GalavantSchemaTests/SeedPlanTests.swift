@@ -2,6 +2,7 @@ import Dependencies
 import DependenciesTestSupport
 import Foundation
 import GalavantAI
+import GalavantPlaces
 import GalavantSchema
 import SQLiteData
 import Testing
@@ -84,7 +85,7 @@ struct SeedPlanTests {
     #expect(stays == 3)
     #expect(rings == 2)
     #expect(documentBody == seed.narrative)
-    #expect(importedSession.hasCommittedRecommendationCandidates)
+    #expect(importedSession.session.hasCommittedRecommendationCandidates)
 
     try await database.write { db in
       let trip = try #require(try Trip.find(tripID).fetchOne(db))
@@ -189,5 +190,216 @@ struct SeedPlanTests {
     ))
     #expect(!plan.tripEdit.includeCertainty)
     #expect(plan.tripEdit.year == nil)
+  }
+
+  @Test func confirmedPoolMatchLinksAndMovesPlaceNotesIntoEvaluation() async throws {
+    try await database.write { db in
+      let party = try TravelParty.ensureDefault(in: db)
+      let trip = try Trip.create(name: "Denmark", in: db)
+      let idea = Idea(
+        id: UUID(), name: "Dyvig Badehotel", address: "Nordborg, Denmark", travelPartyID: party.id
+      )
+      try Idea.insert { Idea.Draft(idea) }.execute(db)
+      let seed = try SeedReturn.decode("""
+        GV-SEED
+        {"places":[{"name":"DYVIG BADEHOTEL ApS","locality":"Nordborg","verdict":"deferred","future_trip":"Northern Denmark","reason":"Save for later","place_notes":"Rooms vary; ask for the larger room."}]}
+        """)
+      var plan = SeedPlan.make(from: seed, trip: trip, context: SeedPlanContext(
+        trip: trip, tripIdeas: [], ideasByID: [idea.id: idea], stays: [],
+        tripRegions: [], partyRegions: [], poolIdeas: [idea]
+      ))
+      #expect(plan.places[0].poolMatch == .idea(idea))
+      plan.places[0].matchConfirmed = true
+      plan.places[0].confirmedIdeaID = idea.id
+      let session = HandoffSession(
+        sourceType: "trip", sourceID: trip.id, taskType: RecommendationHandoffTask.seedTrip,
+        scopeKey: nil, exportedPrompt: ""
+      )
+      try SeedPlan.commit(
+        plan, tripID: trip.id, session: session, now: date.now, in: db
+      )
+      let row = try #require(try TripIdea.where { $0.tripID.eq(trip.id) }.fetchOne(db))
+      #expect(row.ideaID == idea.id)
+      #expect(row.status == .declined)
+      #expect(!(row.inlineNote?.contains("About the place:") ?? false))
+      #expect(row.inlineNote?.contains("Deferred — Northern Denmark") == true)
+      let evaluation = try #require(try IdeaEvaluation.where { $0.ideaID.eq(idea.id) }.fetchOne(db))
+      #expect(evaluation.sourceName == "Trip research")
+      #expect(evaluation.kind == .text)
+      #expect(evaluation.nativeValueText == "Rooms vary; ask for the larger room.")
+      #expect(evaluation.nativeDisplay == "Research note")
+      #expect(evaluation.evaluationDate == date.now)
+      #expect(evaluation.confidence == .inferred)
+      #expect(evaluation.staleness == .current)
+      #expect(evaluation.summary == evaluation.nativeValueText)
+    }
+  }
+
+  @Test func mapConfirmationRunsThroughCaptureMergeInsideImport() async throws {
+    try await database.write { db in
+      let trip = try Trip.create(name: "Denmark", in: db)
+      let seed = try SeedReturn.decode("GV-SEED\n{\"places\":[{\"name\":\"Dyvig Badehotel\",\"verdict\":\"considering\",\"place_notes\":\"Ask about room size.\"}]}")
+      var plan = SeedPlan.make(from: seed, trip: trip, context: SeedPlanContext(
+        trip: trip, tripIdeas: [], ideasByID: [:], stays: [], tripRegions: [], partyRegions: []
+      ))
+      plan.places[0].matchConfirmed = true
+      let mapPlace = Place(
+        id: UUID(), name: "Dyvig Badehotel", latitude: 55.0, longitude: 9.0,
+        address: "Nordborg, Denmark", mapItemIdentifier: "maps.dyvig"
+      )
+      let session = HandoffSession(
+        sourceType: "trip", sourceID: trip.id, taskType: RecommendationHandoffTask.seedTrip,
+        scopeKey: nil, exportedPrompt: ""
+      )
+      let result = try SeedPlan.commit(
+        plan, tripID: trip.id, session: session, now: date.now,
+        mapCaptures: [plan.places[0].id: mapPlace.ideaCapture()], in: db
+      )
+      let row = try #require(try TripIdea.where { $0.tripID.eq(trip.id) }.fetchOne(db))
+      #expect(row.ideaID != nil)
+      #expect(!(row.inlineNote?.contains("About the place:") ?? false))
+      let ideaID = try #require(row.ideaID)
+      #expect(try IdeaEvaluation.where { $0.ideaID.eq(ideaID) }.fetchCount(db) == 1)
+      #expect(result.mapRowOutcomes == [SeedMapRowOutcome(
+        rowID: plan.places[0].id, rowTitle: "Dyvig Badehotel", resolution: .resolved(ideaID)
+      )])
+    }
+  }
+
+  @Test func collisionDetachesConfirmedMapIdeaAndReturnsTheSeedRowForResolution() async throws {
+    try await database.write { db in
+      let party = try TravelParty.ensureDefault(in: db)
+      let trip = try Trip.create(name: "Denmark", in: db)
+      let existingIdea = Idea(
+        id: UUID(), name: "Restaurant ND122", mapItemIdentifier: "maps.nd122", travelPartyID: party.id
+      )
+      let existingStop = TripIdea(
+        id: UUID(), tripID: trip.id, ideaID: existingIdea.id, inlineTitle: nil, status: .shortlisted
+      )
+      try Idea.insert { Idea.Draft(existingIdea) }.execute(db)
+      try TripIdea.insert { TripIdea.Draft(existingStop) }.execute(db)
+      let seed = try SeedReturn.decode("GV-SEED\n{\"places\":[{\"name\":\"Restaurant ND 122\",\"place_notes\":\"Keep the reservation note.\"}]}")
+      var plan = SeedPlan.make(from: seed, trip: trip, context: SeedPlanContext(
+        trip: trip, tripIdeas: [existingStop], ideasByID: [existingIdea.id: existingIdea],
+        stays: [], tripRegions: [], partyRegions: [], poolIdeas: [existingIdea]
+      ))
+      plan.places[0].existingTripIdeaID = nil
+      plan.places[0].include = true
+      plan.places[0].poolMatch = .none
+      plan.places[0].matchConfirmed = true
+      let mapPlace = Place(
+        id: UUID(), name: "Restaurant ND 122", latitude: 55, longitude: 9,
+        mapItemIdentifier: "maps.nd122"
+      )
+      let session = HandoffSession(
+        sourceType: "trip", sourceID: trip.id, taskType: RecommendationHandoffTask.seedTrip,
+        scopeKey: nil, exportedPrompt: ""
+      )
+
+      let result = try SeedPlan.commit(
+        plan, tripID: trip.id, session: session, now: date.now,
+        mapCaptures: [plan.places[0].id: mapPlace.ideaCapture()], in: db
+      )
+
+      let imported = try #require(try TripIdea.where { $0.tripID.eq(trip.id) && $0.id.neq(existingStop.id) }.fetchOne(db))
+      #expect(result.mapRowOutcomes == [SeedMapRowOutcome(
+        rowID: plan.places[0].id,
+        rowTitle: "Restaurant ND 122",
+        resolution: .collision(existingTitle: "Restaurant ND122")
+      )])
+      #expect(imported.ideaID == nil)
+      #expect(imported.inlineTitle == "Restaurant ND 122")
+      #expect(imported.inlineNote?.contains("About the place: Keep the reservation note.") == true)
+      #expect(try TripIdea.find(existingStop.id).fetchOne(db)?.ideaID == existingIdea.id)
+    }
+  }
+
+  @Test func detachedSavedSeedRowStillResolvesInTripPlanByItsTitle() async throws {
+    try await database.write { db in
+      let party = try TravelParty.ensureDefault(in: db)
+      let trip = try Trip.create(name: "Denmark", in: db)
+      let idea = Idea(id: UUID(), name: "Dyvig Badehotel", travelPartyID: party.id)
+      try Idea.insert { Idea.Draft(idea) }.execute(db)
+      let seed = try SeedReturn.decode("GV-SEED\n{\"places\":[{\"name\":\"Dyvig Badehotel\"}]}")
+      var plan = SeedPlan.make(from: seed, trip: trip, context: SeedPlanContext(
+        trip: trip, tripIdeas: [], ideasByID: [idea.id: idea], stays: [],
+        tripRegions: [], partyRegions: [], poolIdeas: [idea]
+      ))
+      plan.places[0].matchConfirmed = true
+      plan.places[0].confirmedIdeaID = idea.id
+      let session = HandoffSession(
+        sourceType: "trip", sourceID: trip.id, taskType: RecommendationHandoffTask.seedTrip,
+        scopeKey: nil, exportedPrompt: ""
+      )
+      _ = try SeedPlan.commit(plan, tripID: trip.id, session: session, now: date.now, in: db)
+      let linked = try #require(try TripIdea.where { $0.tripID.eq(trip.id) }.fetchOne(db))
+      #expect(linked.ideaID == idea.id)
+
+      _ = try TripIdea.detachResolvedIdea(from: linked.id, in: db)
+      let detached = try #require(try TripIdea.find(linked.id).fetchOne(db))
+      #expect(detached.ideaID == nil)
+      #expect(detached.inlineTitle == "Dyvig Badehotel")
+      let resolved = TripPlan(entries: [detached], ideasByID: [:], lengthInDays: 7).stop(id: detached.id)
+      #expect(resolved?.content == .freeform(title: "Dyvig Badehotel", note: nil, coordinate: nil))
+    }
+  }
+
+  @Test func alreadyShortlistedND122SeedRowIsShownAndLeftUntouched() async throws {
+    try await database.write { db in
+      let party = try TravelParty.ensureDefault(in: db)
+      let trip = try Trip.create(name: "Denmark", in: db)
+      let idea = Idea(id: UUID(), name: "Restaurant ND122", travelPartyID: party.id)
+      try Idea.insert { Idea.Draft(idea) }.execute(db)
+      let existing = TripIdea(
+        id: UUID(), tripID: trip.id, ideaID: idea.id, inlineTitle: nil, status: .shortlisted,
+        shortlistRank: 4
+      )
+      try TripIdea.insert { TripIdea.Draft(existing) }.execute(db)
+      let seed = try SeedReturn.decode("GV-SEED\n{\"places\":[{\"name\":\"Restaurant ND122\",\"verdict\":\"core\"}]}")
+      let plan = SeedPlan.make(from: seed, trip: trip, context: SeedPlanContext(
+        trip: trip, tripIdeas: [existing], ideasByID: [idea.id: idea], stays: [],
+        tripRegions: [], partyRegions: [], poolIdeas: [idea]
+      ))
+      let row = try #require(plan.places.first)
+      #expect(row.alreadyOnTrip)
+      #expect(!row.include)
+      #expect(row.existingTripTitle == "Restaurant ND122")
+      let session = HandoffSession(
+        sourceType: "trip", sourceID: trip.id, taskType: RecommendationHandoffTask.seedTrip,
+        scopeKey: nil, exportedPrompt: ""
+      )
+
+      _ = try SeedPlan.commit(plan, tripID: trip.id, session: session, now: date.now, in: db)
+
+      #expect(try TripIdea.where { $0.tripID.eq(trip.id) }.fetchCount(db) == 1)
+      let unchanged = try #require(try TripIdea.find(existing.id).fetchOne(db))
+      #expect(unchanged.status == .shortlisted)
+      #expect(unchanged.shortlistRank == 4)
+      #expect(unchanged.ideaID == idea.id)
+    }
+  }
+
+  @Test func unresolvedConfirmedMapRowKeepsPlaceNotesAndIsReported() async throws {
+    try await database.write { db in
+      let trip = try Trip.create(name: "Denmark", in: db)
+      let seed = try SeedReturn.decode("GV-SEED\n{\"places\":[{\"name\":\"Unresolved stay\",\"place_notes\":\"Keep this fact.\"}]}")
+      var plan = SeedPlan.make(from: seed, trip: trip, context: SeedPlanContext(
+        trip: trip, tripIdeas: [], ideasByID: [:], stays: [], tripRegions: [], partyRegions: []
+      ))
+      plan.places[0].matchConfirmed = true
+      let session = HandoffSession(
+        sourceType: "trip", sourceID: trip.id, taskType: RecommendationHandoffTask.seedTrip,
+        scopeKey: nil, exportedPrompt: ""
+      )
+      let result = try SeedPlan.commit(
+        plan, tripID: trip.id, session: session, now: date.now, in: db
+      )
+      let row = try #require(try TripIdea.where { $0.tripID.eq(trip.id) }.fetchOne(db))
+      #expect(row.ideaID == nil)
+      #expect(row.inlineNote?.contains("About the place: Keep this fact.") == true)
+      #expect(result.mapRowOutcomes == [SeedMapRowOutcome(
+        rowID: plan.places[0].id, rowTitle: "Unresolved stay", resolution: .unresolved
+      )])
+    }
   }
 }

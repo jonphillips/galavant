@@ -67,13 +67,15 @@ struct RecommendationHandoffSheet: View {
       Text(activeError ?? "")
     }
     .alert(
-      "Recommendations imported",
+      session.taskType == RecommendationHandoffTask.seedTrip ? "Some rows need resolving" : "Recommendations imported",
       isPresented: Binding(
         get: { activeWarning != nil },
         set: { if !$0 { clearActiveWarning() } }
       )
     ) {
-      Button("OK", role: .cancel) {}
+      Button("OK", role: .cancel) {
+        if session.taskType == RecommendationHandoffTask.seedTrip { dismiss() }
+      }
     } message: {
       Text(activeWarning ?? "")
     }
@@ -103,7 +105,7 @@ struct RecommendationHandoffSheet: View {
 
   private var activeWarning: String? {
     session.taskType == RecommendationHandoffTask.seedTrip
-      ? nil
+      ? seedReviewModel?.importSummary
       : model.recommendationHandoffWarning
   }
 
@@ -116,7 +118,9 @@ struct RecommendationHandoffSheet: View {
   }
 
   private func clearActiveWarning() {
-    if session.taskType != RecommendationHandoffTask.seedTrip {
+    if session.taskType == RecommendationHandoffTask.seedTrip {
+      seedReviewModel?.importSummary = nil
+    } else {
       model.recommendationHandoffWarning = nil
     }
   }
@@ -182,11 +186,16 @@ private struct SeedReviewSheet: View {
                   get: { model.plan?.stays[index].include ?? false },
                   set: { model.plan?.stays[index].include = $0 }
                 ))
+                .disabled(row.alreadyOnTrip)
                 Text("Days \(row.base.checkInDay)–\(row.base.checkOutDay)")
                   .font(.caption).foregroundStyle(.secondary)
-                if let note = row.note { Text(note).font(.caption).lineLimit(3).foregroundStyle(.secondary) }
+                if let note = row.note() { Text(note).font(.caption).lineLimit(3).foregroundStyle(.secondary) }
                 if row.base.bookAhead { Label("Book ahead", systemImage: "calendar.badge.clock").font(.caption) }
                 if row.alreadyOnTrip { Text("Already on trip").font(.caption).foregroundStyle(.secondary) }
+                matchingControls(
+                  rowID: row.id, match: row.poolMatch,
+                  selectedIdeaID: row.confirmedIdeaID, confirmed: row.matchConfirmed
+                )
               }
             }
           }
@@ -216,11 +225,21 @@ private struct SeedReviewSheet: View {
             ForEach(plan.ignoredGroups, id: \.self) { Text("Choose one group ‘\($0)’ has fewer than two included options.").font(.footnote) }
           }
         }
+
+        Section {
+          Button("Confirm Obvious Matches", systemImage: "checkmark.circle") {
+            model.confirmObviousMatches()
+          }
+          if !model.matchingRows.isEmpty {
+            Text("Checking saved ideas and Maps…")
+              .font(.footnote).foregroundStyle(.secondary)
+          }
+        }
       }
     }
     .safeAreaInset(edge: .bottom) {
       Button {
-        if model.commit(from: session) { dismiss() }
+        if model.commit(from: session), model.importSummary == nil { dismiss() }
       } label: {
         Text("Import (\(includedCount))")
           .frame(maxWidth: .infinity)
@@ -239,6 +258,7 @@ private struct SeedReviewSheet: View {
         get: { model.plan?.places[index].include ?? false },
         set: { model.plan?.places[index].include = $0 }
       ))
+      .disabled(row.alreadyOnTrip)
       Picker("Verdict", selection: Binding(
         get: { model.plan?.places[index].place.verdict ?? .considering },
         set: { model.plan?.places[index].place.verdict = $0 }
@@ -249,7 +269,11 @@ private struct SeedReviewSheet: View {
         }
       }
       .font(.caption)
-      if let note = row.note { Text(note).font(.caption).lineLimit(3).foregroundStyle(.secondary) }
+      if let note = row.note() { Text(note).font(.caption).lineLimit(3).foregroundStyle(.secondary) }
+      matchingControls(
+        rowID: row.id, match: row.poolMatch,
+        selectedIdeaID: row.confirmedIdeaID, confirmed: row.matchConfirmed
+      )
       HStack(spacing: 10) {
         if let kind = row.place.candidate.kind {
           Text(row.place.normalizedKind.map { "\(kind) · \($0.label)" } ?? kind)
@@ -259,10 +283,65 @@ private struct SeedReviewSheet: View {
         }
         if row.place.candidate.bookAhead == true { Label("Book ahead", systemImage: "calendar.badge.clock") }
         if let day = row.place.candidate.dayRef { Text(day) }
-        if row.existingTripIdeaID != nil { Text("Already on trip") }
+        if row.existingTripIdeaID != nil { Text("Already on trip as \(row.existingTripTitle ?? row.title)") }
         if row.statusUpdate { Text("Status update · off by default") }
       }
       .font(.caption).foregroundStyle(.secondary)
+    }
+  }
+
+  @ViewBuilder
+  private func matchingControls(
+    rowID: UUID, match: SeedPoolMatch, selectedIdeaID: Idea.ID?, confirmed: Bool
+  ) -> some View {
+    switch match {
+    case let .idea(idea):
+      HStack {
+        Label("Saved idea · \(idea.name)", systemImage: "bookmark.fill")
+        Spacer()
+        if confirmed {
+          Button("Undo") { model.unconfirmMatch(rowID: rowID) }
+        } else {
+          Button("Confirm") { model.confirmIdea(idea, rowID: rowID) }
+        }
+      }
+      .font(.caption)
+    case let .ambiguous(ideas):
+      Picker("Choices (\(ideas.count))", selection: Binding<UUID?>(
+        get: { selectedIdeaID },
+        set: { id in
+          if let idea = ideas.first(where: { $0.id == id }) { model.confirmIdea(idea, rowID: rowID) }
+          else { model.unconfirmMatch(rowID: rowID) }
+        }
+      )) {
+        Text("Choose saved idea").tag(nil as UUID?)
+        ForEach(ideas) { idea in Text(idea.name).tag(Optional(idea.id)) }
+      }
+      .font(.caption)
+    case .none:
+      if model.matchingRows.contains(rowID) {
+        Text("Searching Maps…").font(.caption).foregroundStyle(.secondary)
+      } else if let results = model.mapResults[rowID], !results.isEmpty {
+        Picker(results.count == 1 ? "Map match" : "Choices (\(results.count))", selection: Binding<UUID?>(
+          get: { model.selectedMapPlaces[rowID]?.id ?? model.preselectedMapPlaces[rowID] },
+          set: { id in if let place = results.first(where: { $0.id == id }) { model.selectMapPlace(place, rowID: rowID) } }
+        )) {
+          Text("Choose map result").tag(nil as UUID?)
+          ForEach(results) { place in Text("\(place.name) · \(place.subtitle)").tag(Optional(place.id)) }
+        }
+        .font(.caption)
+        if let obviousID = model.preselectedMapPlaces[rowID],
+          let obvious = results.first(where: { $0.id == obviousID }), !confirmed
+        {
+          Button("Confirm \(obvious.name)") { model.selectMapPlace(obvious, rowID: rowID) }
+            .font(.caption)
+        } else if confirmed {
+          Label("Confirmed", systemImage: "checkmark.circle.fill").font(.caption)
+        }
+      } else if model.matchingFinished {
+        Label("Unresolved", systemImage: "questionmark.circle")
+          .font(.caption).foregroundStyle(.secondary)
+      }
     }
   }
 
