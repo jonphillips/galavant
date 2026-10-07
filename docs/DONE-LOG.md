@@ -3,6 +3,19 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## ADR-0049 S2 — cutover runbook; device passes cleared (`plan/adr-0049-s2-cutover-and-slice-3`) — 2026-10-07
+
+- Wrote `docs/PROD-CUTOVER.md`, the runbook for ADR-0049 D3: audit the Development schema both ways
+  against `makeSyncEngine`, deploy it, take and check the re-seed backup, install TestFlight over the
+  development build (sync is already on, so in-place seeding gets observed first), restore if Production
+  is empty, confirm server-side and on a fresh iPad, then share with Wendy for the M5 gate. It absorbs the
+  old `tripDocuments` promotion item. ADR-0049 marked accepted.
+- **Device passes cleared by Jon, 2026-10-07:** ADR-0049 S1 backup and restore (iPhone export, iPad
+  restore, contents match, sync hold and confirmed re-enable, undo, the importer selecting the backup
+  with Yes Chef installed); the iPhone trip presentations opening and returning to the sheet's detent on
+  iPhone and iPad; the empty-trip rows visible and tappable.
+- ADR-0048 Slice 3 re-dispatched (it was parked behind S1).
+
 ## ADR-0049 S1 — backup & restore (`effort/adr-0049-s1-backup-restore`) — 2026-10-06
 
 - Adopted CloudSyncKit backup and restore with Galavant's app-group store configuration, restore

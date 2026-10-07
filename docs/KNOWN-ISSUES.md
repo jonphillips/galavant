@@ -18,6 +18,30 @@ dismiss-then-present path.
 
 **Files:** `TripPlanningView.swift`, `TripDetailContent.swift`.
 
+## Calendar Reconciliation: a linked event that moves days shows as "No Itinerary Match" for one pass — OPEN
+
+**Observed:** 2026-10-07, iPhone (Jon). Ruby was linked on Oct 19 and moved in Calendar to Oct 21.
+
+**Symptom:** On the Reconcile Calendar pass that sees the move, Ruby shows under **No Itinerary
+Match** with "Eligible events are added as trip constraints". The stop still moves to Oct 21, and
+the next pass shows it under **High-Confidence Matches**.
+
+**Cause:** `CalendarReconciliation.candidates` classifies each event against the itinerary as it was
+*before* this pass. Ruby's new day has no Ruby stop yet, so the result is `.unmatched`. The link
+then applies the move by identity (`automaticPlan` → `updateLinkedStop`). The sheet lists the
+pre-application candidates. The copy is also wrong for a linked event: linked events are excluded from
+constraints (`CalendarConstraintReconciliation.swift:101`), so nothing was added. No data is wrong,
+only the display.
+
+**Fix direction:** classify a linked event as matched to its linked stop, or classify after the
+automatic plan applies. Then the moved event shows as a linked match, and the plan repair (below)
+explains the move. Add a regression test for the day-move pass.
+
+**Related:** the actionable **Plan Repair** section is the last section in the sheet, below
+**Calendar History**, so the repair a day move creates is easy to miss. Consider moving it to the top.
+
+**Files:** `GalavantSchema/CalendarReconciliation.swift`, `Galavant/Calendar/CalendarReconciliationSheet.swift`.
+
 ## A `Map` steals taps from SwiftUI controls inset/overlaid over it (beta observation) — WORKED AROUND
 
 The trip-canvas `DayChipBar` pills went dead: you could drag the pill row

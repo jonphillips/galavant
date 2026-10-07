@@ -1,6 +1,6 @@
 # Effort — ADR-0048 Slice 3: seed matching (saved ideas, then the map)
 
-**Status:** Parked (2026-10-06): Jon moved backup ahead of it (ADR-0049 S1). Re-dispatched by the architect after S1 · **Summary:**
+**Status:** Dispatched (2026-10-07), after ADR-0049 S1 shipped. It was parked behind S1 on 2026-10-06; the content is unchanged · **Summary:**
 [ADR-0048](../decisions/0048-trip-seed-handoff.md) D7. Inside the seed review, before Import:
 
 1. match each stay and place against the party's **saved ideas**, then the **map**;
