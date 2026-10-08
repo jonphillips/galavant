@@ -1,6 +1,6 @@
 # Effort — Taste Profile explains a missing identity; Planners can set "This is me"
 
-**Status:** Dispatched (2026-10-08) · **Summary:** on device, the Taste Profile editor showed no
+**Status:** Done→done-log (2026-10-08) · **Summary:** on device, the Taste Profile editor showed no
 "Your overlay" field, and nothing said why. The editor hides the field when this device doesn't know
 which planner it is. The only way to set that is the Ideas screen's "Who are you?" sheet, which appears
 on its own schedule. This effort shows the overlay section with a way to fix it, adds **This is me** to

@@ -2,19 +2,14 @@ import GalavantSchema
 import SwiftUI
 
 /// Edits the shared household taste profile and the current planner's overlay
-/// (ADR-0015 §3). The shared profile is surfaced first; the per-planner overlay
-/// lets each person annotate their own skew on top of it.
-///
-/// Entry point is a stub for now — wired into the settings/"You" area once that
-/// surface exists (BACKLOG). Both fields feed every model call through the
-/// `ModelClient` boundary (ADR-0014).
+/// (ADR-0015 §3). Settings → Library presents this editor; briefs and chat read
+/// the profile.
 struct TravelProfileEditView: View {
   @State private var model: TravelProfileEditModel
   @Environment(\.dismiss) private var dismiss
 
-  init(travelPartyID: TravelParty.ID, plannerID: Planner.ID? = nil) {
-    _model = State(initialValue: TravelProfileEditModel(
-      travelPartyID: travelPartyID, plannerID: plannerID))
+  init(travelPartyID: TravelParty.ID) {
+    _model = State(initialValue: TravelProfileEditModel(travelPartyID: travelPartyID))
   }
 
   var body: some View {
@@ -32,13 +27,24 @@ struct TravelProfileEditView: View {
           )
         }
 
-        if model.plannerID != nil {
-          Section {
+        Section {
+          if model.canEditOverlay {
             TextEditor(text: $model.overlayDraft)
               .frame(minHeight: 80)
-          } header: {
-            Text("Your overlay")
-          } footer: {
+          } else {
+            Text(
+              "Choose who you are on this device to add your own taste."
+            )
+            NavigationLink {
+              PlannerManagementView()
+            } label: {
+              Label("Choose Who You Are", systemImage: "person.crop.circle")
+            }
+          }
+        } header: {
+          Text("Your overlay")
+        } footer: {
+          if model.canEditOverlay {
             Text(
               "Your personal skew on top of the shared profile. Leave blank to inherit "
                 + "the household profile only."
@@ -61,5 +67,8 @@ struct TravelProfileEditView: View {
       }
     }
     .task { await model.load() }
+    .onChange(of: model.plannerID) { _, _ in
+      Task { await model.loadOverlay() }
+    }
   }
 }

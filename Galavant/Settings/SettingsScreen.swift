@@ -109,9 +109,7 @@ struct SettingsScreen: View {
       Task { await model.refreshTravelProfile() }
     }) {
       if let travelPartyID = model.travelPartyID {
-        TravelProfileEditView(
-          travelPartyID: travelPartyID,
-          plannerID: model.currentPlannerID)
+        TravelProfileEditView(travelPartyID: travelPartyID)
       }
     }
     // Refresh the sync signals on appear, on scene activation (the same hook that

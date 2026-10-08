@@ -3,7 +3,6 @@ import Dependencies
 import GalavantSchema
 import Observation
 import SQLiteData
-import Sharing
 import os
 
 /// Owns Settings state for travel-party sharing and the shared taste summary.
@@ -19,10 +18,6 @@ final class SettingsModel {
 
   @ObservationIgnored @Dependency(\.defaultDatabase) private var database
   @ObservationIgnored @Dependency(\.defaultSyncEngine) private var syncEngine
-  @ObservationIgnored @Shared(.appStorage("currentPlannerID")) private var currentPlannerIDString = ""
-
-  var currentPlannerID: Planner.ID? { UUID(uuidString: currentPlannerIDString) }
-
   func refreshTravelProfile() async {
     do {
       let party = try await database.write { db in

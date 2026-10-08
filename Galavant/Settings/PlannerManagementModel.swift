@@ -16,9 +16,17 @@ final class PlannerManagementModel {
   @ObservationIgnored @FetchAll(IdeaInterest.all) var interests
   @ObservationIgnored @Shared(.appStorage("currentPlannerID")) var currentPlannerIDString = ""
 
-  /// This device's own planner — never deletable from here (bind identity in the
-  /// Ideas identity sheet instead).
+  /// This device's own planner — never deletable from here.
   var currentPlannerID: Planner.ID? { UUID(uuidString: currentPlannerIDString) }
+  var hasCurrentPlanner: Bool {
+    guard let currentPlannerID else { return false }
+    return planners.contains { $0.id == currentPlannerID }
+  }
+
+  /// Bind this device to an existing synced planner. The identity stays local.
+  func setCurrentPlanner(_ planner: Planner) {
+    $currentPlannerIDString.withLock { $0 = planner.id.uuidString }
+  }
 
   /// How many ratings a planner has actually cast — the signal for whether a row
   /// is a real voter or a stale empty duplicate.
