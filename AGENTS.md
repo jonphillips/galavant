@@ -40,6 +40,20 @@ and ADR-0005. Jon approves plans (merges plan PRs) and decides escalations.
 - Database lives in the app group container (share extension writes to it)
 - Reusable modules go in the local SPM package, with tests
 
+## Production (since 2026-10-08)
+
+Galavant ships from TestFlight on CloudKit **Production** (`docs/PROD-CUTOVER.md`, ADR-0049). The
+library on Jon's devices is real data now, so:
+
+- **Schema deploys are permanent and additive.** Record types and fields can be added to Production,
+  never removed. A slice that adds a synced table or column, or is the first to write one, says so in
+  its brief. Its NEXT_UP **Owed** line names the deploy: push the field from a development build, then
+  deploy the schema, before the TestFlight build.
+- **Registered migrations are frozen.** Never edit, reorder or remove a `registerMigration` body that
+  has shipped. Append a new one.
+- **Restore is for recovery.** Once the travel party is shared, a restore is a two-person event
+  (ADR-0049 D2).
+
 ## Prior versions
 
 V1 (`~/code/galavant/galavantios`), V2 (`~/code/galavant/galavant-v2`), and the V1 Elixir server

@@ -42,6 +42,8 @@ explains the move. Add a regression test for the day-move pass.
 
 **Files:** `GalavantSchema/CalendarReconciliation.swift`, `Galavant/Calendar/CalendarReconciliationSheet.swift`.
 
+**Dispatched 2026-10-08:** `docs/efforts/calendar-linked-move-display.md`. Its PR deletes this entry.
+
 ## A `Map` steals taps from SwiftUI controls inset/overlaid over it (beta observation) — WORKED AROUND
 
 The trip-canvas `DayChipBar` pills went dead: you could drag the pill row

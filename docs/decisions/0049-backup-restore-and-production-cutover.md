@@ -131,3 +131,6 @@ development build returns to the working library.
   until then. (Same question as jon-platform ADR-0006 OQ2.)
 - **OQ2 — Does Production seed in place, without a restore?** Shared with Yes Chef ADR-0056 OQ1. Whichever
   app cuts over first answers it for both. D3 step 5 is written to work either way.
+  **2026-10-08: Galavant cut over first and didn't measure it.** Production ended up holding the library,
+  but the run didn't record whether it seeded on its own or needed the restore, so it doesn't settle
+  it. The question stays with Yes Chef's ADR-0056 dry run. It only matters for a future cutover. Galavant's own carry is done.

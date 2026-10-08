@@ -138,6 +138,12 @@ A small record holding free-text preferences, injected into model calls through 
   every row, no ownership flags — exactly as `IdeaInterest` holds per-planner ratings
   in shared records. "Per-planner" means *whose taste it describes*.
 - One real FK → `TravelParty`; `plannerID` is the loose optional (ADR-0007).
+- **Amendment (2026-10-08, Jon): named readers, not the `ModelClient` boundary.** The profile goes
+  only into the requests where taste shapes the answer: the outbound ChatGPT seed and recommendation
+  briefs (ADR-0036/0048), and the in-app chat system prompt (ADR-0017). Extractors and
+  `PlaceIntelligence` don't read it. Each reader renders the profile explicitly, so its prompt stays
+  testable. A boundary that injects into every call would also reach calls with no use for taste.
+  Brief: `docs/efforts/travel-profile-wiring.md`.
 
 ## Why this and not the alternatives
 

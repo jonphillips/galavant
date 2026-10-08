@@ -4,14 +4,14 @@ Jon's checklist: real-device and distribution gates. **Not executor work; the ex
 reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT_HANDOFF.md` on
 2026-09-29 (jon-platform ADR-0005). When a gate clears, delete it and note it in `DONE-LOG.md`.
 
-- **Production cutover.** Run [`PROD-CUTOVER.md`](PROD-CUTOVER.md) (ADR-0049 D3). It ends with sharing
-  the travel party with Wendy and the M5 gate below. **Phase 1 done 2026-10-07:** every column the
-  build writes has held a value and synced, and the `recordName` indexes are added. The gaps left on
-  purpose are `travelProfiles`, `calendarPlanRepairs.resolvedAt` and `ideaEvaluations.lastVerifiedAt`,
-  none of which the build writes. **Phase 2 (deploy) waits for ADR-0048 Slice 3:** after it merges, do
-  its seed-import device pass on a dev build with at least one matched place carrying research notes.
-  That fills `ideaEvaluations.evaluationDate` and `summary`. Then re-check those two fields in the
-  console and deploy.
+- **Production cutover — Phase 6 left.** Phases 1–5 done 2026-10-08: TestFlight on Production, iPhone
+  carried the library, a fresh iPad pulled it. Remaining: add Wendy as an internal TestFlight tester,
+  then run Phase 6 of [`PROD-CUTOVER.md`](PROD-CUTOVER.md) (she installs clean, accepts the travel-party
+  share), which is the M5 gate below.
+- **Schema deploy before TestFlight (standing).** A build that adds a synced table or column, or first
+  writes one, goes out only after a development build has pushed it and the schema is deployed to
+  Production. The dispatch's **Owed** line names the table. Next case: `travelProfiles` (the travel
+  profile effort).
 
 ## Verification gates (decision gates, not a build queue)
 
@@ -33,8 +33,9 @@ reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT
   travel-party share acceptance, two-way CloudKit changes, image/BLOB round-trips, pinned-reservation behavior.
   Checklist: `docs/milestones/M5-EXECUTION.md`. (The old "manual Calendar export on both devices"
   check was dropped per ADR-0034.)
-- **M4 CloudKit BLOB sync** still needs two-real-device verification (ADR-0009 §4).
-- **Bounded-intelligence gates.** `docs/milestones/M6-EXECUTION.md`: wire `TravelProfile`; review
-  chat's direct `create_idea` durable-write authority. Decision gates, not an
-  implementation queue. House memory marks the M6 AI thread paused pending yes-chef while
-  M5 dogfooding is the active thread.
+- **M4 CloudKit BLOB sync** (ADR-0009 §4): one direction passed 2026-10-08, when the fresh iPad pulled
+  the library's images and documents from Production. The round trip (add an image on one device, see it
+  on the other) is part of the M5 gate.
+- **Bounded-intelligence gates.** `docs/milestones/M6-EXECUTION.md`: review chat's direct
+  `create_idea` durable-write authority. A decision gate, not an implementation queue. (`TravelProfile`
+  was decided 2026-10-08 and is queued as an effort: the ChatGPT briefs and in-app chat read it.)
