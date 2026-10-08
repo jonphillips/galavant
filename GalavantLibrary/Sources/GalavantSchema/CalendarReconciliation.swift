@@ -9,7 +9,8 @@ public enum CalendarReconciliation {
     trip: Trip,
     plan: TripPlan,
     temporalContext: CalendarTripTemporalContext? = nil,
-    ignoredSourceIdentityHashes: Set<String> = []
+    ignoredSourceIdentityHashes: Set<String> = [],
+    linkedStops: [CalendarLinkedStop] = []
   ) -> [CalendarReconciliationCandidate] {
     let context = temporalContext ?? trip.startDate.flatMap {
       CalendarTripTemporalContext(
@@ -28,7 +29,12 @@ public enum CalendarReconciliation {
       guard projection != .outsideTrip else { return nil }
       return CalendarReconciliationCandidate(
         input: event,
-        result: result(for: event, plan: plan, projection: projection),
+        result: result(
+          for: event,
+          plan: plan,
+          projection: projection,
+          temporalContext: context,
+          linkedStops: linkedStops),
         projection: projection,
         temporalContext: context)
     }
@@ -50,8 +56,14 @@ public enum CalendarReconciliation {
   private static func result(
     for input: CalendarIngestedEvent,
     plan: TripPlan,
-    projection: CalendarTripDayProjection
+    projection: CalendarTripDayProjection,
+    temporalContext: CalendarTripTemporalContext? = nil,
+    linkedStops: [CalendarLinkedStop] = []
   ) -> CalendarReconciliationResult {
+    if let linkedResult = linkedMatch(
+      for: input, plan: plan, projection: projection,
+      temporalContext: temporalContext, linkedStops: linkedStops)
+    { return linkedResult }
     guard case let .day(dayNumber, _) = projection else {
       return projection == .unresolvedTimeZone && hasPotentialMatchWithoutDay(input, plan: plan)
         ? .unresolvedTimeZone
@@ -128,7 +140,7 @@ public enum CalendarReconciliation {
   ) -> CalendarReconciliationAutomaticPlan {
     var state = localState
     var applications: [CalendarReconciliationApplication] = []
-    let automaticStops = automaticStopCounts(candidates)
+    let automaticStops = automaticStopCounts(candidates, linkedStops: state.linkedStops)
 
     for candidate in candidates {
       let event = candidate.input.event
@@ -347,10 +359,12 @@ public enum CalendarReconciliation {
   }
 
   private static func automaticStopCounts(
-    _ candidates: [CalendarReconciliationCandidate]
+    _ candidates: [CalendarReconciliationCandidate],
+    linkedStops: [CalendarLinkedStop]
   ) -> [TripIdea.ID: Int] {
     candidates.reduce(into: [:]) { counts, candidate in
       guard candidate.input.event.isEligibleForSharedReconciliation,
+        linkedStopIndex(for: candidate.input.event, in: linkedStops) == nil,
         case let .automatic(stop, _) = candidate.result
       else { return }
       counts[stop.id, default: 0] += 1
@@ -422,4 +436,25 @@ public enum CalendarReconciliation {
       appliedAt: observedAt)
   }
 
+}
+
+private func linkedMatch(
+  for input: CalendarIngestedEvent,
+  plan: TripPlan,
+  projection: CalendarTripDayProjection,
+  temporalContext: CalendarTripTemporalContext?,
+  linkedStops: [CalendarLinkedStop]
+) -> CalendarReconciliationResult? {
+  guard let linkedIndex = CalendarReconciliation.linkedStopIndex(
+    for: input.event, in: linkedStops),
+    let stop = plan.itinerary.flatMap(\.stops).first(where: {
+      $0.id == linkedStops[linkedIndex].stopID
+    })
+  else { return nil }
+  let linkedProjection = temporalContext?.project(
+    input.event.temporal,
+    absoluteTimeZone: input.itineraryTimeZone ?? linkedStops[linkedIndex].itineraryTimeZone)
+    ?? projection
+  guard case .day = linkedProjection else { return nil }
+  return .automatic(stop, basis: .linkedEvent)
 }

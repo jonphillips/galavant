@@ -3,6 +3,19 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## Calendar linked day-move display (`effort/calendar-linked-move-display`) — 2026-10-08
+
+- Classified a linked Calendar event against its linked itinerary stop on any resolvable trip day;
+  unresolved time zones remain visible for review, and stale links still fall through to the existing
+  match ladder. `automaticPlan` still updates the existing binding by identity and creates the same
+  moved-day repair; linked candidates do not affect new-link uniqueness counts.
+- Moved **Plan Repair** above candidate sections, removed the fixed known issue, added the device
+  pass, and advanced `NEXT_UP.md` to tag management. No schema or sync change.
+- **Verification.** `scripts/check-drift.sh` passed lint, all GalavantLibrary suites (783 tests, 7
+  known issues), and the GalavantUITests build. Headless `GalavantTests` passed 35 tests. Device
+  follow-up: move a linked trip event to another trip day in Calendar, reconcile, and confirm the
+  linked match and Plan Repair section order on device.
+
 ## Production cutover, Phases 1–5; plan the next three efforts (`plan/post-cutover-next-up`) — 2026-10-08
 
 - **Galavant is on TestFlight against CloudKit Production** (ADR-0049 D3, `PROD-CUTOVER.md`). Phase 1

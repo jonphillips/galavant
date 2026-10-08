@@ -141,7 +141,8 @@ extension CalendarReconciliationModel {
       trip: trip,
       plan: plan,
       temporalContext: temporalContext,
-      ignoredSourceIdentityHashes: ignoredSourceIdentityHashes)
+      ignoredSourceIdentityHashes: ignoredSourceIdentityHashes,
+      linkedStops: localState.linkedStops)
     if let manualLink,
       let index = candidates.firstIndex(where: { $0.id == manualLink.candidateID })
     {

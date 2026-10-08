@@ -393,6 +393,200 @@ import Testing
     #expect(result == .unmatched)
   }
 
+  @Test func linkedEventMatchesItsStopAfterMovingToAnotherDay() throws {
+    let idea = Idea(id: UUID(), name: "Ruby", mapItemIdentifier: "maps-ruby")
+    let stop = stop(idea: idea, day: 1)
+    let movedEvent = event(title: "Dinner reservation", day: 3, identifier: "ruby-booking")
+    let linked = CalendarLinkedStop(
+      stopID: stop.id,
+      eventID: movedEvent.id,
+      commitment: try #require(CalendarCommitment(event: event(title: "Dinner reservation"))),
+      observedAt: .distantPast)
+    let candidates = CalendarReconciliation.candidates(
+      for: [ingestedEvent(event: movedEvent)],
+      trip: trip(),
+      plan: plan([stop], ideas: [idea]),
+      linkedStops: [linked])
+
+    guard case let .automatic(match, basis) = try #require(candidates.first?.result) else {
+      Issue.record("Expected the existing link to classify as an automatic match.")
+      return
+    }
+    #expect(match.id == stop.id)
+    #expect(basis == .linkedEvent)
+  }
+
+  @Test func linkedAbsoluteEventNeedsAResolvedZoneToClassifyAsLinked() throws {
+    let idea = Idea(id: UUID(), name: "Ruby", mapItemIdentifier: "maps-ruby")
+    let stop = stop(idea: idea, day: 1)
+    let start = calendar.date(from: DateComponents(year: 2026, month: 8, day: 1, hour: 19))!
+    let observed = CalendarObservedEvent(
+      id: "ruby-booking",
+      eventIdentifier: "ruby-booking",
+      externalIdentifier: "server-ruby",
+      title: "Dinner reservation",
+      temporal: .absolute(
+        start: start, end: start.addingTimeInterval(3600), timeZone: calendar.timeZone),
+      calendarTitle: "Family")
+    let input = CalendarIngestedEvent(
+      event: observed,
+      matchedPlace: CalendarMatchedPlace(name: idea.name, mapItemIdentifier: idea.mapItemIdentifier))
+    let linked = CalendarLinkedStop(
+      stopID: stop.id,
+      eventID: observed.id,
+      commitment: try #require(CalendarCommitment(event: observed)),
+      observedAt: .distantPast)
+    let itinerary = plan([stop], ideas: [idea])
+    let unresolved = CalendarReconciliation.candidates(
+      for: [input], trip: trip(), plan: itinerary, linkedStops: [linked])
+    let zonedLink = CalendarLinkedStop(
+      stopID: linked.stopID,
+      eventID: linked.eventID,
+      commitment: linked.commitment,
+      observedAt: linked.observedAt,
+      itineraryTimeZoneIdentifier: calendar.timeZone.identifier)
+    let resolved = CalendarReconciliation.candidates(
+      for: [input], trip: trip(), plan: itinerary, linkedStops: [zonedLink])
+
+    #expect(unresolved.first?.result == .unresolvedTimeZone)
+    guard case let .automatic(match, basis) = try #require(resolved.first?.result) else {
+      Issue.record("Expected the stored itinerary zone to resolve the linked match.")
+      return
+    }
+    #expect(match.id == stop.id)
+    #expect(basis == .linkedEvent)
+  }
+
+  @Test func linkedDayMoveStillUpdatesThePlanAndCreatesARepair() throws {
+    let idea = Idea(id: UUID(), name: "Ruby", mapItemIdentifier: "maps-ruby")
+    let stop = stop(idea: idea, day: 1)
+    let originalEvent = event(title: "Dinner reservation", identifier: "ruby-booking")
+    let movedEvent = event(title: "Dinner reservation", day: 3, identifier: originalEvent.id)
+    let linked = CalendarLinkedStop(
+      stopID: stop.id,
+      eventID: originalEvent.id,
+      commitment: try #require(CalendarCommitment(event: originalEvent)),
+      observedAt: .distantPast)
+    let state = CalendarReconciliationLocalState(linkedStops: [linked])
+    let candidates = CalendarReconciliation.candidates(
+      for: [ingestedEvent(event: movedEvent)],
+      trip: trip(),
+      plan: plan([stop], ideas: [idea]),
+      linkedStops: state.linkedStops)
+
+    let automaticPlan = CalendarReconciliation.automaticPlan(
+      candidates: candidates,
+      localState: state,
+      observedAt: .distantFuture,
+      makeHistoryID: UUID.init)
+    let repairs = CalendarReconciliation.planRepairs(
+      applications: automaticPlan.applications,
+      previousDayNumbers: [stop.id: 1],
+      history: automaticPlan.localState.history,
+      tripID: trip().id)
+
+    #expect(automaticPlan.applications.count == 1)
+    #expect(automaticPlan.applications.first?.kind == .updated)
+    #expect(automaticPlan.applications.first?.dayNumber == 3)
+    #expect(automaticPlan.applications.first?.stopID == stop.id)
+    #expect(automaticPlan.localState.linkedStops.first?.commitment == CalendarCommitment(event: movedEvent))
+    #expect(repairs.map(\.kind) == [.movedDay])
+  }
+
+  @Test func staleLinkedStopFallsThroughToTheSameDayLadder() throws {
+    let idea = Idea(id: UUID(), name: "Ruby")
+    let stop = stop(idea: idea, day: 3)
+    let input = ingestedEvent(event: event(title: "Ruby", day: 3, identifier: "ruby-booking"))
+    let staleLink = CalendarLinkedStop(
+      stopID: UUID(),
+      eventID: input.id,
+      commitment: try #require(CalendarCommitment(event: input.event)),
+      observedAt: .distantPast)
+    let itinerary = plan([stop], ideas: [idea])
+    let withoutLink = CalendarReconciliation.candidates(for: [input], trip: trip(), plan: itinerary)
+    let withStaleLink = CalendarReconciliation.candidates(
+      for: [input], trip: trip(), plan: itinerary, linkedStops: [staleLink])
+
+    #expect(withStaleLink == withoutLink)
+    guard case let .automatic(match, basis) = try #require(withStaleLink.first?.result) else {
+      Issue.record("Expected the stale link to fall through to an automatic name match.")
+      return
+    }
+    #expect(match.id == stop.id)
+    #expect(basis == .exactName)
+  }
+
+  @Test func staleLinkedCandidateDoesNotCompeteWithAnUnlinkedEventForTheStop() throws {
+    let idea = Idea(id: UUID(), name: "Ruby", mapItemIdentifier: "maps-ruby")
+    let stop = stop(idea: idea, day: 1)
+    let place = CalendarMatchedPlace(name: idea.name, mapItemIdentifier: idea.mapItemIdentifier)
+    let staleEvent = event(title: "Ruby", identifier: "stale-event")
+    let newEvent = event(title: "Ruby", identifier: "new-event")
+    let staleLink = CalendarLinkedStop(
+      stopID: UUID(),
+      eventID: staleEvent.id,
+      commitment: try #require(CalendarCommitment(event: staleEvent)),
+      observedAt: .distantPast)
+    let candidates = CalendarReconciliation.candidates(
+      for: [ingestedEvent(event: staleEvent, matchedPlace: place),
+            ingestedEvent(event: newEvent, matchedPlace: place)],
+      trip: trip(),
+      plan: plan([stop], ideas: [idea]),
+      linkedStops: [staleLink])
+    #expect(candidates.allSatisfy { candidate in
+      guard case let .automatic(match, _) = candidate.result else { return false }
+      return match.id == stop.id
+    })
+
+    let result = CalendarReconciliation.automaticPlan(
+      candidates: candidates,
+      localState: CalendarReconciliationLocalState(linkedStops: [staleLink]),
+      observedAt: .distantFuture,
+      makeHistoryID: UUID.init)
+
+    #expect(result.localState.linkedStops.contains { $0.eventID == newEvent.id && $0.stopID == stop.id })
+  }
+
+  @Test func validlyLinkedEventStillBlocksANewLinkToItsStop() throws {
+    let idea = Idea(id: UUID(), name: "Ruby", mapItemIdentifier: "maps-ruby")
+    let stop = stop(idea: idea, day: 1)
+    let place = CalendarMatchedPlace(name: idea.name, mapItemIdentifier: idea.mapItemIdentifier)
+    let linkedEvent = event(title: "Ruby", identifier: "linked-event")
+    let newEvent = event(title: "Ruby", identifier: "new-event")
+    let linked = CalendarLinkedStop(
+      stopID: stop.id,
+      eventID: linkedEvent.id,
+      commitment: try #require(CalendarCommitment(event: linkedEvent)),
+      observedAt: .distantPast)
+    let candidates = CalendarReconciliation.candidates(
+      for: [ingestedEvent(event: linkedEvent, matchedPlace: place),
+            ingestedEvent(event: newEvent, matchedPlace: place)],
+      trip: trip(),
+      plan: plan([stop], ideas: [idea]),
+      linkedStops: [linked])
+    guard case let .automatic(match, basis) = candidates.first?.result else {
+      Issue.record("Expected the existing binding to classify as a linked match.")
+      return
+    }
+    #expect(match.id == stop.id)
+    #expect(basis == .linkedEvent)
+    guard case let .automatic(newMatch, newBasis) = candidates.last?.result else {
+      Issue.record("Expected the unlinked event to remain a new automatic match candidate.")
+      return
+    }
+    #expect(newMatch.id == stop.id)
+    #expect(newBasis == .mapItemIdentifier)
+
+    let result = CalendarReconciliation.automaticPlan(
+      candidates: candidates,
+      localState: CalendarReconciliationLocalState(linkedStops: [linked]),
+      observedAt: .distantFuture,
+      makeHistoryID: UUID.init)
+
+    #expect(result.localState.linkedStops.count == 1)
+    #expect(result.localState.linkedStops.first?.eventID == linkedEvent.id)
+  }
+
   @Test func sameDayEventWithoutAMatchingStopIsUnmatched() {
     let noma = Idea(id: UUID(), name: "Noma")
     let input = ingestedEvent(event: event(title: "Canal tour"))

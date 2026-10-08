@@ -121,7 +121,16 @@ struct CalendarReconciliationSheet: View {
       }
     } else if model.candidates.isEmpty {
       ContentUnavailableView("No events in this trip's dates", systemImage: "calendar")
-    } else {
+    }
+    let repairs = model.planRepairs.filter { $0.tripID == trip.id }
+    if !repairs.isEmpty {
+      Section("Plan Repair") {
+        ForEach(repairs) { repair in
+          planRepairRow(repair)
+        }
+      }
+    }
+    if model.state != .frozen && !model.candidates.isEmpty {
       if !automatic.isEmpty {
         Section("High-Confidence Matches") {
           ForEach(automatic, content: candidateRow)
@@ -173,21 +182,13 @@ struct CalendarReconciliationSheet: View {
       }
     }
     // A linked stop whose event drifted out of the trip window is surfaced as a
-    // party-wide, actionable "Plan Repair" (below), not a separate device-local
+    // party-wide, actionable "Plan Repair", not a separate device-local
     // notice — the shared repair supersedes the old informational section.
     let history = model.sharedHistory.filter { $0.tripID == trip.id }
     if !history.isEmpty {
       Section("Calendar History") {
         ForEach(history.reversed()) { entry in
           historyRow(entry)
-        }
-      }
-    }
-    let repairs = model.planRepairs.filter { $0.tripID == trip.id }
-    if !repairs.isEmpty {
-      Section("Plan Repair") {
-        ForEach(repairs) { repair in
-          planRepairRow(repair)
         }
       }
     }
