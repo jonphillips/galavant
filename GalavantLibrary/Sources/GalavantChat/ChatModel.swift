@@ -172,6 +172,7 @@ public final class ChatModel {
   /// The system prompt: persona, shared travel taste, then serialized context.
   func systemPrompt() -> String {
     let tasteLines: [String] = (try? database.read { db -> [String] in
+      // Keep this read-only path deterministic without invoking write-side ensureDefault.
       guard let party = try TravelParty.order(by: \.id).fetchOne(db) else { return [] }
       let profiles = try TravelProfile.where { $0.travelPartyID.eq(party.id) }.fetchAll(db)
       let planners = try Planner.where { $0.travelPartyID.eq(party.id) }.fetchAll(db)

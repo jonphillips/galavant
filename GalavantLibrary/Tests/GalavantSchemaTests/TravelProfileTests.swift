@@ -145,6 +145,28 @@ struct TravelProfileTests {
     ) == ["Our travel taste: Shared taste"])
   }
 
+  @Test func promptLinesChooseLowestIDForDuplicateSharedAndPlannerRows() {
+    let partyID = UUID()
+    let plannerID = UUID()
+    let planner = Planner(id: plannerID, displayName: "Jon", travelPartyID: partyID)
+    let sharedLow = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+    let sharedHigh = UUID(uuidString: "00000000-0000-0000-0000-000000000002")!
+    let overlayLow = UUID(uuidString: "00000000-0000-0000-0000-000000000003")!
+    let overlayHigh = UUID(uuidString: "00000000-0000-0000-0000-000000000004")!
+    let profiles = [
+      TravelProfile(id: sharedHigh, travelPartyID: partyID, preferences: "Shared high"),
+      TravelProfile(id: overlayHigh, travelPartyID: partyID, plannerID: plannerID,
+                    preferences: "Overlay high"),
+      TravelProfile(id: sharedLow, travelPartyID: partyID, preferences: "Shared low"),
+      TravelProfile(id: overlayLow, travelPartyID: partyID, plannerID: plannerID,
+                    preferences: "Overlay low"),
+    ]
+
+    #expect(TravelProfile.promptLines(
+      travelPartyID: partyID, profiles: profiles, planners: [planner]
+    ) == ["Our travel taste: Shared low", "Jon's taste: Overlay low"])
+  }
+
   @Test func promptLinesRenderOverlayOnlyAndSkipOrphansAndWhitespace() {
     let partyID = UUID()
     let planner = Planner(id: UUID(), displayName: "Jon", travelPartyID: partyID)
@@ -173,6 +195,48 @@ struct TravelProfileTests {
     #expect(TravelProfile.promptLines(
       travelPartyID: partyID, profiles: profiles, planners: [planner]
     ).isEmpty)
+  }
+
+  @Test func setPreferencesConvergesDuplicateHouseholdAndPlannerRows() async throws {
+    let partyID = UUID()
+    let plannerID = UUID()
+    let sharedLow = UUID(uuidString: "00000000-0000-0000-0000-000000000011")!
+    let sharedHigh = UUID(uuidString: "00000000-0000-0000-0000-000000000012")!
+    let overlayLow = UUID(uuidString: "00000000-0000-0000-0000-000000000013")!
+    let overlayHigh = UUID(uuidString: "00000000-0000-0000-0000-000000000014")!
+
+    try await database.write { db in
+      try TravelParty.insert { TravelParty.Draft(TravelParty(id: partyID)) }.execute(db)
+      try Planner.insert {
+        Planner.Draft(id: plannerID, displayName: "Jon", travelPartyID: partyID)
+      }.execute(db)
+      try TravelProfile.insert {
+        TravelProfile.Draft(TravelProfile(id: sharedHigh, travelPartyID: partyID, preferences: "Old shared high"))
+      }.execute(db)
+      try TravelProfile.insert {
+        TravelProfile.Draft(TravelProfile(id: sharedLow, travelPartyID: partyID, preferences: "Old shared low"))
+      }.execute(db)
+      try TravelProfile.insert {
+        TravelProfile.Draft(TravelProfile(
+          id: overlayHigh, travelPartyID: partyID, plannerID: plannerID, preferences: "Old overlay high"))
+      }.execute(db)
+      try TravelProfile.insert {
+        TravelProfile.Draft(TravelProfile(
+          id: overlayLow, travelPartyID: partyID, plannerID: plannerID, preferences: "Old overlay low"))
+      }.execute(db)
+
+      #expect(try TravelProfile.setPreferences("Updated shared", travelPartyID: partyID, in: db) == sharedLow)
+      #expect(try TravelProfile.setPreferences(
+        "Updated overlay", travelPartyID: partyID, plannerID: plannerID, in: db) == overlayLow)
+    }
+
+    let profiles = try await database.read { db in
+      try TravelProfile.where { $0.travelPartyID.eq(partyID) }.fetchAll(db)
+    }
+    #expect(profiles.count == 2)
+    #expect(Set(profiles.map(\.id)) == [sharedLow, overlayLow])
+    #expect(profiles.first { $0.id == sharedLow }?.preferences == "Updated shared")
+    #expect(profiles.first { $0.id == overlayLow }?.preferences == "Updated overlay")
   }
 
   // MARK: - Helpers

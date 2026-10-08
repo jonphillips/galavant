@@ -15,17 +15,24 @@ extension TravelProfile {
     plannerID: Planner.ID? = nil,
     in db: Database
   ) throws -> TravelProfile.ID {
-    let existing: TravelProfile?
+    let matchingProfiles: [TravelProfile]
     if let plannerID {
-      existing = try TravelProfile
+      matchingProfiles = try TravelProfile
         .where { $0.travelPartyID.eq(travelPartyID) && $0.plannerID.eq(plannerID) }
-        .fetchOne(db)
+        .fetchAll(db)
     } else {
-      existing = try TravelProfile
+      matchingProfiles = try TravelProfile
         .where { $0.travelPartyID.eq(travelPartyID) && $0.plannerID.is(nil) }
-        .fetchOne(db)
+        .fetchAll(db)
     }
-    if let existing {
+
+    let converged = matchingProfiles.convergingByKey(logicalKey)
+    if !converged.losers.isEmpty {
+      try TravelProfile.where { $0.id.in(converged.losers.map(\.id)) }
+        .delete()
+        .execute(db)
+    }
+    if let existing = converged.survivors.first {
       try TravelProfile.find(existing.id)
         .update { $0.preferences = #bind(preferences) }
         .execute(db)
@@ -69,6 +76,17 @@ extension TravelProfile {
 extension TravelProfile {
   // MARK: - Prompt rendering (pure, ADR-0015 §3)
 
+  /// Select one deterministic row per household/planner key from a read result.
+  public static func survivingProfiles(
+    travelPartyID: TravelParty.ID,
+    profiles: [TravelProfile]
+  ) -> [TravelProfile] {
+    profiles
+      .filter { $0.travelPartyID == travelPartyID }
+      .convergingByKey(logicalKey)
+      .survivors
+  }
+
   /// Render the household profile and each known planner's overlay as stable
   /// prompt lines. Empty text and overlays for missing planners are omitted.
   public static func promptLines(
@@ -80,16 +98,16 @@ extension TravelProfile {
       text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    let profiles = survivingProfiles(travelPartyID: travelPartyID, profiles: profiles)
     var lines: [String] = []
-    if let shared = profiles.first(where: { $0.travelPartyID == travelPartyID && $0.plannerID == nil }) {
+    if let shared = profiles.first(where: { $0.plannerID == nil }) {
       let preferences = trimmed(shared.preferences)
       if !preferences.isEmpty { lines.append("Our travel taste: \(preferences)") }
     }
 
     let plannerByID = Dictionary(planners.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     let overlays = profiles.compactMap { profile -> (Planner, String)? in
-      guard profile.travelPartyID == travelPartyID,
-            let plannerID = profile.plannerID,
+      guard let plannerID = profile.plannerID,
             let planner = plannerByID[plannerID]
       else { return nil }
       let preferences = trimmed(profile.preferences)
@@ -100,5 +118,14 @@ extension TravelProfile {
     }
     lines.append(contentsOf: overlays.map { "\($0.0.displayName)'s taste: \($0.1)" })
     return lines
+  }
+
+  private static func logicalKey(_ profile: TravelProfile) -> LogicalKey {
+    LogicalKey(travelPartyID: profile.travelPartyID, plannerID: profile.plannerID)
+  }
+
+  private struct LogicalKey: Hashable {
+    let travelPartyID: TravelParty.ID
+    let plannerID: Planner.ID?
   }
 }

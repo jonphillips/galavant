@@ -35,10 +35,7 @@ struct SettingsScreen: View {
   @State private var isConfirmingRestore = false
   @State private var isPresentingRestoreRestartCover = false
   @State private var backupAvailability = BackupAvailability.checking
-  @State private var travelPartyID: TravelParty.ID?
-  @State private var sharedTasteSummary = "Not set"
   @State private var isPresentingTravelProfile = false
-  @AppStorage("currentPlannerID") private var currentPlannerIDString = ""
   @Dependency(\.defaultDatabase) private var database
   @Environment(\.scenePhase) private var scenePhase
 
@@ -71,13 +68,13 @@ struct SettingsScreen: View {
         } label: {
           VStack(alignment: .leading, spacing: 2) {
             Text("Taste Profile")
-            Text(sharedTasteSummary)
+            Text(model.sharedTasteSummary)
               .font(.caption)
               .foregroundStyle(.secondary)
           }
         }
         .buttonStyle(.plain)
-        .disabled(travelPartyID == nil)
+        .disabled(model.travelPartyID == nil)
       }
 
       Section {
@@ -109,12 +106,12 @@ struct SettingsScreen: View {
       CloudSharingView(sharedRecord: sharedRecord)
     }
     .sheet(isPresented: $isPresentingTravelProfile, onDismiss: {
-      Task { await refreshTravelProfile() }
+      Task { await model.refreshTravelProfile() }
     }) {
-      if let travelPartyID {
+      if let travelPartyID = model.travelPartyID {
         TravelProfileEditView(
           travelPartyID: travelPartyID,
-          plannerID: UUID(uuidString: currentPlannerIDString))
+          plannerID: model.currentPlannerID)
       }
     }
     // Refresh the sync signals on appear, on scene activation (the same hook that
@@ -135,7 +132,7 @@ struct SettingsScreen: View {
       Task { await syncHealth.refresh() }
     }
     .task { await refreshBackupOwnership() }
-    .task { await refreshTravelProfile() }
+    .task { await model.refreshTravelProfile() }
     .fileExporter(
       isPresented: $isPresentingBackupExporter,
       document: backupExportDocument,
@@ -261,28 +258,6 @@ struct SettingsScreen: View {
       backupAvailability = hasForeignOwnedRows ? .participant : .owner
     } catch {
       backupAvailability = .unavailable
-    }
-  }
-
-  private func refreshTravelProfile() async {
-    do {
-      let party = try await database.write { db in
-        try TravelParty.ensureDefault(in: db)
-      }
-      travelPartyID = party.id
-      let shared = try await database.read { db in
-        try TravelProfile
-          .where { $0.travelPartyID.eq(party.id) && $0.plannerID.is(nil) }
-          .fetchOne(db)?.preferences ?? ""
-      }
-      let firstLine = shared
-        .trimmingCharacters(in: .whitespacesAndNewlines)
-        .components(separatedBy: .newlines)
-        .first ?? ""
-      sharedTasteSummary = firstLine.isEmpty ? "Not set" : firstLine
-    } catch {
-      travelPartyID = nil
-      sharedTasteSummary = "Not set"
     }
   }
 
