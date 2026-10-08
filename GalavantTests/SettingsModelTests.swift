@@ -56,10 +56,12 @@ struct SettingsModelTests {
     await model.load()
     #expect(model.canEditOverlay == false)
 
+    model.sharedDraft = "Unsaved household change"
     $currentPlannerIDString.withLock { $0 = planner.id.uuidString }
     #expect(model.plannerID == planner.id)
-    await model.load()
+    await model.loadOverlay()
     #expect(model.canEditOverlay)
+    #expect(model.sharedDraft == "Unsaved household change")
     #expect(model.overlayDraft == "Prefers quiet hotels")
   }
 
@@ -89,6 +91,7 @@ struct SettingsModelTests {
     model.setCurrentPlanner(planner)
 
     #expect(model.currentPlannerID == planner.id)
+    #expect(model.hasCurrentPlanner)
     #expect(currentPlannerIDString == planner.id.uuidString)
   }
 }

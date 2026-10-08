@@ -19,9 +19,14 @@ struct PlannerManagementView: View {
           row(planner)
         }
       } footer: {
-        Text(
-          "Rename or remove the people who vote on ideas. Deleting a planner also "
-            + "removes the ratings they left — use it to clear out stale duplicates.")
+        VStack(alignment: .leading, spacing: 6) {
+          Text(
+            "Rename or remove the people who vote on ideas. Deleting a planner also "
+              + "removes the ratings they left — use it to clear out stale duplicates.")
+          if !model.hasCurrentPlanner {
+            Text("Swipe left on your name and tap This is me.")
+          }
+        }
       }
     }
     .navigationTitle("Planners")

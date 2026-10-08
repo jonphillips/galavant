@@ -66,6 +66,9 @@ struct TravelProfileEditView: View {
         }
       }
     }
-    .task(id: model.plannerID) { await model.load() }
+    .task { await model.load() }
+    .onChange(of: model.plannerID) { _, _ in
+      Task { await model.loadOverlay() }
+    }
   }
 }

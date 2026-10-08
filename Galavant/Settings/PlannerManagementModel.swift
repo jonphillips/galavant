@@ -18,6 +18,10 @@ final class PlannerManagementModel {
 
   /// This device's own planner — never deletable from here.
   var currentPlannerID: Planner.ID? { UUID(uuidString: currentPlannerIDString) }
+  var hasCurrentPlanner: Bool {
+    guard let currentPlannerID else { return false }
+    return planners.contains { $0.id == currentPlannerID }
+  }
 
   /// Bind this device to an existing synced planner. The identity stays local.
   func setCurrentPlanner(_ planner: Planner) {

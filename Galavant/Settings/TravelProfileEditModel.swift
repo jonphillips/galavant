@@ -12,6 +12,7 @@ final class TravelProfileEditModel {
   @ObservationIgnored @Shared(.appStorage("currentPlannerID")) var currentPlannerIDString = ""
 
   let travelPartyID: TravelParty.ID
+
   var plannerID: Planner.ID? {
     guard let plannerID = UUID(uuidString: currentPlannerIDString),
       planners.contains(where: { $0.id == plannerID })
@@ -32,11 +33,22 @@ final class TravelProfileEditModel {
     }) else { return }
     let profiles = TravelProfile.survivingProfiles(travelPartyID: travelPartyID, profiles: rows)
     sharedDraft = profiles.first { $0.plannerID == nil }?.preferences ?? ""
+    loadOverlay(from: profiles)
+  }
+
+  private func loadOverlay(from profiles: [TravelProfile]) {
     if let plannerID {
       overlayDraft = profiles.first { $0.plannerID == plannerID }?.preferences ?? ""
     } else {
       overlayDraft = ""
     }
+  }
+
+  func loadOverlay() async {
+    guard let rows = try? await database.read({ db in
+      try TravelProfile.where { $0.travelPartyID.eq(travelPartyID) }.fetchAll(db)
+    }) else { return }
+    loadOverlay(from: TravelProfile.survivingProfiles(travelPartyID: travelPartyID, profiles: rows))
   }
 
   func saveButtonTapped() {
