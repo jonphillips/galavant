@@ -53,6 +53,11 @@ struct SettingsScreen: View {
           Icon.map.label("Map Regions")
         }
         NavigationLink {
+          TagManagementSettingsView()
+        } label: {
+          Icon.tag.label("Tags")
+        }
+        NavigationLink {
           PlannerManagementView()
         } label: {
           Icon.travelParty.label("Planners")

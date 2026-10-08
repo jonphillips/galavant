@@ -3,6 +3,18 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## Tag management and Idea row tags (`effort/tag-management`) — 2026-10-08
+
+- Moved tag convergence, rename/merge, deletion and unused-tag cleanup into `GalavantSchema`; added
+  a pure `TagIndex` for canonical tags, idea-use counts and row labels. Duplicate tags choose the
+  lowest UUID and repoint/collapse their joins in one write.
+- Added Settings → Library → Tags with rename, delete confirmations and bulk unused-tag cleanup;
+  retired the filter-menu manager and surfaced tag names on Idea rows. No schema or migration change.
+- **Verification.** `scripts/check-drift.sh` passed SwiftLint, all GalavantLibrary suites (789 tests,
+  7 known issues), and the GalavantUITests build. Headless `GalavantTests` passed 35 tests. Device
+  follow-up: clear unused demo tags, verify an idea row label, and check same-name convergence after
+  an offline iPhone/iPad sync.
+
 ## Calendar linked day-move display (`effort/calendar-linked-move-display`) — 2026-10-08
 
 - Classified a linked Calendar event against its linked itinerary stop on any resolvable trip day;

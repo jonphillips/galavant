@@ -30,7 +30,7 @@ backfilled **on touch**; the table below is the current index.
 | [adr-0048-slice-3-seed-matching.md](adr-0048-slice-3-seed-matching.md) | ADR-0048 Slice 3 — seed matching: saved ideas then map, Confirm Obvious Matches, research notes → `IdeaEvaluation` | Done (2026-10-07) |
 | [adr-0049-s1-backup-restore.md](adr-0049-s1-backup-restore.md) | ADR-0049 S1 — adopt `CloudSyncKit` backup & restore: migrate-by-path, facade config, owner-only Settings Backup section, restore-held sync row | Done (2026-10-07) |
 | [calendar-linked-move-display.md](calendar-linked-move-display.md) | KNOWN-ISSUES — a linked event that moves days classifies as its linked stop; Plan Repair first in the sheet | Done (2026-10-08) |
-| [tag-management.md](tag-management.md) | Settings → Tags (counts, rename, delete, Delete Unused), same-name tag convergence (ADR-0008 pattern), tags on Idea rows | Queued (2026-10-08) |
+| [tag-management.md](tag-management.md) | Settings → Tags (counts, rename, delete, Delete Unused), same-name tag convergence (ADR-0008 pattern), tags on Idea rows | Done (2026-10-08) |
 | [travel-profile-wiring.md](travel-profile-wiring.md) | ADR-0015 §3 (amended) — Taste Profile in Settings; ChatGPT briefs + chat read it; first `travelProfiles` write | Queued (2026-10-08) |
 | [idea-quick-filters.md](idea-quick-filters.md) | Jon 2026-10-08 — Ideas filter capsules: Food / Stay / Other (kind groups) and, on a trip, Scheduled / Not scheduled | Queued (2026-10-08) |
 | [codex-recommendation-brief-stops.md](codex-recommendation-brief-stops.md) | Recommendation brief stops (moved from `docs/handoffs/`) | See doc |

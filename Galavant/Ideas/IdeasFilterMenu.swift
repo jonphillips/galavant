@@ -3,12 +3,10 @@ import SwiftUI
 
 /// The Ideas screen's filter toolbar menu — region (eternal pool only), kinds,
 /// tags, visited/matches toggles, and sort. Extracted from `IdeasScreen` so the
-/// screen stays a composition of its parts. The Manage… entries hand back up via
-/// bindings the parent owns (they present sheets at screen scope).
+/// screen stays a composition of its parts.
 struct IdeasFilterMenu: View {
   @Bindable var model: IdeasListModel
   @Binding var managingRegions: Bool
-  @Binding var managingTags: Bool
 
   var body: some View {
     Menu {
@@ -51,12 +49,6 @@ struct IdeasFilterMenu: View {
             model.toggleTag(tag.id)
           } label: {
             checked(tag.name, on: model.selectedTagIDs.contains(tag.id))
-          }
-        }
-        if !model.tags.isEmpty {
-          Divider()
-          Button("Manage Tags…", systemImage: Icon.manage.systemName) {
-            managingTags = true
           }
         }
       }

@@ -61,13 +61,9 @@ final class IdeasListModel {
   /// — the Ideas screen's launchpad half (BACKLOG "Ideas list trip-awareness").
   var activeTripID: Trip.ID?
 
-  var ideaTagIDs: [Idea.ID: Set<Tag.ID>] {
-    Dictionary(grouping: ideaTags, by: \.ideaID).mapValues { Set($0.map(\.tagID)) }
-  }
+  var tagIndex: TagIndex { TagIndex(tags: tags, ideaTags: ideaTags) }
 
-  var sortedTags: [Tag] {
-    tags.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-  }
+  var sortedTags: [Tag] { tagIndex.tags }
 
   var sortedRegions: [MapRegion] {
     regions.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
@@ -203,13 +199,20 @@ final class IdeasListModel {
   }
 
   var filteredIdeas: [Idea] {
+    filteredIdeas(using: tagIndex)
+  }
+
+  func filteredIdeas(using tagIndex: TagIndex) -> [Idea] {
+    let canonicalTagIDs = Dictionary(grouping: ideaTags, by: \.ideaID).mapValues { joins in
+      Set(joins.compactMap { tagIndex.survivorIDByTagID[$0.tagID] })
+    }
     let pooled = poolFiltered(
       ideas,
       regions: scopeRegions,
       kinds: selectedKinds,
       includeVisited: includeVisited,
-      tagIDs: selectedTagIDs,
-      ideaTagIDs: ideaTagIDs,
+      tagIDs: tagIndex.effectiveSelection(selectedTagIDs),
+      ideaTagIDs: canonicalTagIDs,
       pinnedIDs: selectedSubregionIDs.isEmpty ? activeTripIdeaIDs : []
     )
     let standings = standingByIdea
@@ -316,7 +319,8 @@ final class IdeasListModel {
       parts.append(selectedKinds.map(\.label).sorted().joined(separator: ", "))
     }
     if !selectedTagIDs.isEmpty {
-      let names = tags.filter { selectedTagIDs.contains($0.id) }.map(\.name).sorted()
+      let names = sortedTags.filter { tagIndex.effectiveSelection(selectedTagIDs).contains($0.id) }
+        .map(\.name)
       parts.append(names.joined(separator: ", "))
     }
     if !includeVisited { parts.append("hiding visited") }
@@ -348,8 +352,7 @@ final class IdeasListModel {
     showMatchesOnly = false
   }
 
-  // Region & tag management writes (rename / delete / define-from-map) live in
-  // IdeasListModel+Taxonomy.swift.
+  // Region management writes live in IdeasListModel+Taxonomy.swift.
 
   func task() async {
     if currentPlanner == nil {
