@@ -275,6 +275,11 @@ for the remaining real-device/distribution verification spine.
   CloudKit share-accept and change-sync test; ship a TestFlight build; deploy it to
   Jon's wife's phone; verify image/BLOB round trips in CloudKit. This gate is now
   independent of the calendar work. The way there is `docs/PROD-CUTOVER.md` (ADR-0049 D3).
+  - ✅ **TestFlight on CloudKit Production, 2026-10-08** (cutover Phases 1–5): Jon's iPhone
+    carried the library across, a fresh iPad pulled it from Production, and sync and
+    backup/restore work.
+  - ⏳ Phase 6: Wendy installs from TestFlight, accepts the travel-party share, and the
+    two-phone checks run.
 - Deferred polish remains optional: iPad/Mac refinement, weather, and any further
   trip-header work. Booking-window notifications remain backlog, not an M5 gate.
 - ✅ Done when: both phones have used the TestFlight build against the same shared

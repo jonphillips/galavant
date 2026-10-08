@@ -3,6 +3,22 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## Production cutover, Phases 1–5; plan the next three efforts (`plan/post-cutover-next-up`) — 2026-10-08
+
+- **Galavant is on TestFlight against CloudKit Production** (ADR-0049 D3, `PROD-CUTOVER.md`). Phase 1
+  audit and indexes were done 2026-10-07. The schema was deployed, the re-seed backup taken, and the
+  TestFlight build installed over the development build on Jon's iPhone with the library intact. A fresh
+  iPad install pulled the library, images and documents included, from Production, and syncs. Backup and
+  restore worked. **Not recorded:** whether Production seeded in place before a restore (ADR-0049 OQ2
+  stays open; Yes Chef's dry run can still answer it), and the Phase 5 dashboard counts. **Open:** Phase
+  6, sharing with Wendy and the M5 gate.
+- New standing rules in `AGENTS.md` § Production: schema deploys are permanent and additive, a first
+  write of a synced column owes a deploy before TestFlight, and registered migrations are frozen.
+- Planned three efforts, chained through NEXT_UP: `calendar-linked-move-display` (dispatched),
+  `tag-management`, `travel-profile`. ADR-0015 §3 amended: the travel profile has named readers (the
+  ChatGPT briefs and chat), not `ModelClient` injection. The open-questions tag candidates moved into the
+  tags brief. The multi-select tag picker entry was dropped because `TagPickerView` already shipped it.
+
 ## ADR-0048 Slice 3 — seed matching (`effort/adr-0048-slice-3`) — 2026-10-07
 
 - Seed review now matches saved ideas before searching Maps (four searches at a time), marks live
