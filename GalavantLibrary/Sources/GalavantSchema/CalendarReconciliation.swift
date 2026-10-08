@@ -29,7 +29,12 @@ public enum CalendarReconciliation {
       guard projection != .outsideTrip else { return nil }
       return CalendarReconciliationCandidate(
         input: event,
-        result: result(for: event, plan: plan, projection: projection, linkedStops: linkedStops),
+        result: result(
+          for: event,
+          plan: plan,
+          projection: projection,
+          temporalContext: context,
+          linkedStops: linkedStops),
         projection: projection,
         temporalContext: context)
     }
@@ -52,15 +57,13 @@ public enum CalendarReconciliation {
     for input: CalendarIngestedEvent,
     plan: TripPlan,
     projection: CalendarTripDayProjection,
+    temporalContext: CalendarTripTemporalContext? = nil,
     linkedStops: [CalendarLinkedStop] = []
   ) -> CalendarReconciliationResult {
-    if let linkedIndex = linkedStopIndex(for: input.event, in: linkedStops),
-      let stop = plan.itinerary.flatMap(\.stops).first(where: {
-        $0.id == linkedStops[linkedIndex].stopID
-      })
-    {
-      return .automatic(stop, basis: .linkedEvent)
-    }
+    if let linkedResult = linkedMatch(
+      for: input, plan: plan, projection: projection,
+      temporalContext: temporalContext, linkedStops: linkedStops)
+    { return linkedResult }
     guard case let .day(dayNumber, _) = projection else {
       return projection == .unresolvedTimeZone && hasPotentialMatchWithoutDay(input, plan: plan)
         ? .unresolvedTimeZone
@@ -433,4 +436,25 @@ public enum CalendarReconciliation {
       appliedAt: observedAt)
   }
 
+}
+
+private func linkedMatch(
+  for input: CalendarIngestedEvent,
+  plan: TripPlan,
+  projection: CalendarTripDayProjection,
+  temporalContext: CalendarTripTemporalContext?,
+  linkedStops: [CalendarLinkedStop]
+) -> CalendarReconciliationResult? {
+  guard let linkedIndex = CalendarReconciliation.linkedStopIndex(
+    for: input.event, in: linkedStops),
+    let stop = plan.itinerary.flatMap(\.stops).first(where: {
+      $0.id == linkedStops[linkedIndex].stopID
+    })
+  else { return nil }
+  let linkedProjection = temporalContext?.project(
+    input.event.temporal,
+    absoluteTimeZone: input.itineraryTimeZone ?? linkedStops[linkedIndex].itineraryTimeZone)
+    ?? projection
+  guard case .day = linkedProjection else { return nil }
+  return .automatic(stop, basis: .linkedEvent)
 }

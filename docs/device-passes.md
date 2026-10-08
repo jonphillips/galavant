@@ -12,11 +12,10 @@ reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT
   writes one, goes out only after a development build has pushed it and the schema is deployed to
   Production. The dispatch's **Owed** line names the table. Next case: `travelProfiles` (the travel
   profile effort).
-- Move a linked trip event to another trip day in Calendar, run Reconcile Calendar, and confirm it
-  shows as a linked match (not "No Itinerary Match") with the Plan Repair at the top of the sheet.
-
 ## Verification gates (decision gates, not a build queue)
 
+- Move a linked trip event to another trip day in Calendar, run Reconcile Calendar, and confirm it
+  shows as a linked match (not "No Itinerary Match") with the Plan Repair at the top of the sheet.
 - On one device, add a trip document and confirm it appears on the other after sync; delete the trip and confirm the document is removed.
 - Rule out a place on one device and confirm it appears under Ruled out on the other.
 - With Today open on a live day across midnight (or a clock change), confirm the map keeps your position in frame on the new day.
