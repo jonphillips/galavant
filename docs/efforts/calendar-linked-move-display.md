@@ -1,9 +1,9 @@
 # Effort — Calendar: a linked event that moves days shows as linked, and Plan Repair comes first
 
-**Status:** Dispatched (2026-10-08) · **Summary:** fixes the `KNOWN-ISSUES.md` entry *"a linked event
+**Status:** Done (2026-10-08) · **Summary:** fixes the `KNOWN-ISSUES.md` entry *"a linked event
 that moves days shows as 'No Itinerary Match' for one pass"*. A linked event is classified against its
-linked stop, wherever the stop sits now. The actionable **Plan Repair** section moves to the top of the
-sheet. Display only: the data was already right. No schema change, no sync change.
+linked stop, wherever the stop sits now. The actionable **Plan Repair** section moves above candidate
+sections. Display only: the data was already right. No schema change, no sync change.
 
 Implements ADR-0034 (calendar reconciliation authority) and ADR-0041 (dogfood amendments). Neither
 changes.

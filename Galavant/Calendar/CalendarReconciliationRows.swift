@@ -128,6 +128,7 @@ extension CalendarReconciliationSheet {
 
   func basisDescription(_ basis: CalendarMatchBasis) -> String {
     switch basis {
+    case .linkedEvent: "an existing Calendar link"
     case .mapItemIdentifier: "the same Apple Maps place"
     case .exactName: "the exact place name"
     case .nameAndProximity: "a nearby place with a shared name"

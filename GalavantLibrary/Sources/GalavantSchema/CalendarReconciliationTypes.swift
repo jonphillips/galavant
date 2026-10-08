@@ -185,6 +185,8 @@ public struct CalendarObservedEvent: Equatable, Sendable, Identifiable {
 /// intentionally descriptive rather than a numeric score: Slice 1 proves a
 /// conservative ladder before later slices establish durable links.
 public enum CalendarMatchBasis: Equatable, Sendable {
+  /// The event was already linked to this stop; identity, not name or place evidence.
+  case linkedEvent
   /// The event and exactly one scheduled pool idea share a Maps place identity.
   case mapItemIdentifier
   /// Exactly one same-day stop has the same normalized visible name.

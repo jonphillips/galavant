@@ -12,6 +12,8 @@ reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT
   writes one, goes out only after a development build has pushed it and the schema is deployed to
   Production. The dispatch's **Owed** line names the table. Next case: `travelProfiles` (the travel
   profile effort).
+- Move a linked trip event to another trip day in Calendar, run Reconcile Calendar, and confirm it
+  shows as a linked match (not "No Itinerary Match") with the Plan Repair at the top of the sheet.
 
 ## Verification gates (decision gates, not a build queue)
 
