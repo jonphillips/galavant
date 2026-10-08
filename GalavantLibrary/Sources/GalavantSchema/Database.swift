@@ -4,14 +4,36 @@ import IssueReporting
 import SQLiteData
 
 public enum GalavantStorage {
-  public static let appGroupID = "group.com.jonphillips.galavant"
+  public static let appGroupInfoKey = "GalavantAppGroupID"
+
+  public static var appGroupID: String? {
+    resolveAppGroupID(Bundle.main.object(forInfoDictionaryKey: appGroupInfoKey))
+  }
 
   public enum StorageError: Error {
+    case appGroupIdentifierUnavailable
     case appGroupUnavailable
+  }
+
+  /// Resolve the configured app group without allowing a missing key to select
+  /// the production store. Kept pure at the input boundary for package tests.
+  public static func appGroupID(from infoDictionary: [String: Any]) -> String? {
+    resolveAppGroupID(infoDictionary[appGroupInfoKey])
+  }
+
+  private static func resolveAppGroupID(_ value: Any?) -> String? {
+    guard let appGroupID = value as? String, !appGroupID.isEmpty else {
+      reportIssue("Missing or empty \(appGroupInfoKey) in Info.plist")
+      return nil
+    }
+    return appGroupID
   }
 
   /// Backup and restore must address the shared live store, never a fallback location.
   public static func liveDatabaseURL() throws -> URL {
+    guard let appGroupID else {
+      throw StorageError.appGroupIdentifierUnavailable
+    }
     guard let container = FileManager.default.containerURL(
       forSecurityApplicationGroupIdentifier: appGroupID
     ) else {
@@ -20,18 +42,8 @@ public enum GalavantStorage {
     return container.appending(path: "galavant.sqlite")
   }
 
-  public static func liveDatabasePath() -> String {
-    if let container = FileManager.default.containerURL(
-      forSecurityApplicationGroupIdentifier: appGroupID
-    ) {
-      return container.appending(path: "galavant.sqlite").path(percentEncoded: false)
-    }
-    reportIssue("App group container unavailable; falling back to Application Support")
-    let directory = URL.applicationSupportDirectory.appending(
-      path: "Galavant", directoryHint: .isDirectory
-    )
-    try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-    return directory.appending(path: "galavant.sqlite").path(percentEncoded: false)
+  public static func liveDatabasePath() throws -> String {
+    try liveDatabaseURL().path(percentEncoded: false)
   }
 }
 
@@ -87,7 +99,7 @@ extension DependencyValues {
     let database: any DatabaseWriter =
       if context == .live {
         try SQLiteData.defaultDatabase(
-          path: path ?? GalavantStorage.liveDatabasePath(), configuration: configuration
+          path: try path ?? GalavantStorage.liveDatabasePath(), configuration: configuration
         )
       } else if let path {
         try SQLiteData.defaultDatabase(path: path, configuration: configuration)

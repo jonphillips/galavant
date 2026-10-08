@@ -34,7 +34,7 @@ backfilled **on touch**; the table below is the current index.
 | [travel-profile-wiring.md](travel-profile-wiring.md) | ADR-0015 §3 (amended) — Taste Profile in Settings; ChatGPT briefs + chat read it; first `travelProfiles` write | Done (2026-10-08) |
 | [idea-quick-filters.md](idea-quick-filters.md) | Jon 2026-10-08 — Ideas filter capsules: Food / Stay / Other (kind groups) and, on a trip, Scheduled / Not scheduled | Done (2026-10-08) |
 | [taste-profile-identity.md](taste-profile-identity.md) | Follow-up to #167 — Taste Profile explains a missing device identity and links to Planners; Planners gains "This is me"; stale editor doc comment | Done (2026-10-08) |
-| [galavant-dev-variant.md](galavant-dev-variant.md) | ADR-0050 — Debug builds as "Galavant Dev": own bundle IDs, app group, name, icon; same CloudKit container (Development) | Queued (2026-10-08) |
+| [galavant-dev-variant.md](galavant-dev-variant.md) | ADR-0050 — Debug builds as "Galavant Dev": own bundle IDs, app group, name, icon; same CloudKit container (Development) | Dispatched (2026-10-08) |
 | [testflight-script.md](testflight-script.md) | `testflight` (jon-platform script): preflight, cktool schema gate, optional marketing bump via PR, git-derived build number, archive, verified export, upload, tag, What to Test | Queued (2026-10-08) |
 | [codex-recommendation-brief-stops.md](codex-recommendation-brief-stops.md) | Recommendation brief stops (moved from `docs/handoffs/`) | See doc |
 

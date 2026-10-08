@@ -1274,6 +1274,9 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = GalavantShare/GalavantShare.entitlements;
+				GALAVANT_APP_GROUP = group.com.jonphillips.galavant.dev;
+				GALAVANT_BUNDLE_ID = com.jonphillips.galavant.dev;
+				GALAVANT_DISPLAY_NAME = "Galavant Dev";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = GalavantShare/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1281,7 +1284,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.jonphillips.galavant.share;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(GALAVANT_BUNDLE_ID).share";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -1291,6 +1294,9 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = GalavantShare/GalavantShare.entitlements;
+				GALAVANT_APP_GROUP = group.com.jonphillips.galavant;
+				GALAVANT_BUNDLE_ID = com.jonphillips.galavant;
+				GALAVANT_DISPLAY_NAME = Galavant;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = GalavantShare/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1298,7 +1304,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.jonphillips.galavant.share;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(GALAVANT_BUNDLE_ID).share";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -1325,15 +1331,18 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 0875D5B7D1A0BAAA7A6A2F1C /* Secrets.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = "AppIcon-Dev";
 				CODE_SIGN_ENTITLEMENTS = Galavant/Galavant.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GALAVANT_APP_GROUP = group.com.jonphillips.galavant.dev;
+				GALAVANT_BUNDLE_ID = com.jonphillips.galavant.dev;
+				GALAVANT_DISPLAY_NAME = "Galavant Dev";
 				INFOPLIST_FILE = Galavant/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.jonphillips.galavant;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(GALAVANT_BUNDLE_ID)";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -1408,12 +1417,15 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Galavant/Galavant.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GALAVANT_APP_GROUP = group.com.jonphillips.galavant;
+				GALAVANT_BUNDLE_ID = com.jonphillips.galavant;
+				GALAVANT_DISPLAY_NAME = Galavant;
 				INFOPLIST_FILE = Galavant/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.jonphillips.galavant;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(GALAVANT_BUNDLE_ID)";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
