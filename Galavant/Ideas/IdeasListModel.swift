@@ -74,11 +74,13 @@ final class IdeasListModel {
   }
 
   init() {
-    // Test hook: simulate a device that doesn't yet know which planner it is
-    // (e.g. a freshly synced second device) without wiping the shared data.
-    if CommandLine.arguments.contains("--reset-identity") {
-      $currentPlannerIDString.withLock { $0 = "" }
-    }
+    #if DEBUG
+      // Test hook: simulate a device that doesn't yet know which planner it is
+      // (e.g. a freshly synced second device) without wiping the shared data.
+      if CommandLine.arguments.contains("--reset-identity") {
+        $currentPlannerIDString.withLock { $0 = "" }
+      }
+    #endif
   }
 
   @CasePathable
