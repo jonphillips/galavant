@@ -59,3 +59,4 @@ at creation). See `docs/README.md` (the atlas) and `jon-platform/docs/agent-work
 | [0047](0047-trip-booking-status.md) | Booking status is a trip-level fact — not needed, to book, booked |
 | [0048](0048-trip-seed-handoff.md) | Trip seed handoff — one crossing from an open-ended Chat conversation into a Galavant trip |
 | [0049](0049-backup-restore-and-production-cutover.md) | Local backup & restore, and the order of the Production cutover |
+| [0050](0050-galavant-dev-variant.md) | Galavant Dev — Debug builds get their own bundle ID and app group, and share the CloudKit container (proposed) |

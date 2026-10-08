@@ -53,6 +53,10 @@ library on Jon's devices is real data now, so:
   has shipped. Append a new one.
 - **Restore is for recovery.** Once the travel party is shared, a restore is a two-person event
   (ADR-0049 D2).
+- **Never install a development build with the production identity on a device that runs TestFlight.**
+  Development builds go to the simulator until ADR-0050 (Galavant Dev) ships. After that, Xcode Run
+  builds **Galavant Dev**, which installs next to TestFlight with its own app group and talks to
+  CloudKit Development. Device passes run on TestFlight builds.
 
 ## Prior versions
 
