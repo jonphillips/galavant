@@ -79,6 +79,17 @@ targets:
         # HTTPS only, no custom crypto: exempt. Answers App Store Connect's export
         # compliance question so it isn't asked on every TestFlight upload.
         ITSAppUsesNonExemptEncryption: false
+        # App Store Connect rejects an iPad-capable bundle without these: iPad
+        # multitasking requires all four orientations.
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
         UTExportedTypeDeclarations:
           - UTTypeConformsTo: [public.data]
             UTTypeDescription: Galavant Backup
