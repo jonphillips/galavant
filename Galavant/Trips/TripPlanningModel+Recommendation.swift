@@ -79,7 +79,8 @@ extension TripPlanningModel {
       sourceID: promptSession.sourceID, taskType: promptSession.taskType,
       scopeKey: promptSession.scopeKey, createdAt: promptSession.createdAt,
       exportedPrompt: RecommendationHandoffContract.seedBrief(
-        session: promptSession, tripName: trip.name, plan: plan
+        session: promptSession, tripName: trip.name, plan: plan,
+        tasteLines: tasteLines(for: trip)
       )
     )
     do {
@@ -113,7 +114,8 @@ extension TripPlanningModel {
         session: promptSession,
         tripName: trip.name,
         tripNotes: trip.notes,
-        plan: plan
+        plan: plan,
+        tasteLines: tasteLines(for: trip)
       )
     )
     do {
@@ -124,6 +126,16 @@ extension TripPlanningModel {
     } catch {
       recommendationHandoffError = error.localizedDescription
     }
+  }
+
+  private func tasteLines(for trip: Trip) -> [String] {
+    guard let partyID = trip.travelPartyID else { return [] }
+    return (try? database.read { db in
+      let profiles = try TravelProfile.where { $0.travelPartyID.eq(partyID) }.fetchAll(db)
+      let planners = try Planner.where { $0.travelPartyID.eq(partyID) }.fetchAll(db)
+      return TravelProfile.promptLines(
+        travelPartyID: partyID, profiles: profiles, planners: planners)
+    }) ?? []
   }
 
   func pasteRecommendationResult(

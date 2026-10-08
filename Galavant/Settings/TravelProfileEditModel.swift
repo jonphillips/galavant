@@ -20,9 +20,10 @@ final class TravelProfileEditModel {
   }
 
   func load() async {
-    guard let profiles = try? await database.read({ db in
+    guard let rows = try? await database.read({ db in
       try TravelProfile.where { $0.travelPartyID.eq(travelPartyID) }.fetchAll(db)
     }) else { return }
+    let profiles = TravelProfile.survivingProfiles(travelPartyID: travelPartyID, profiles: rows)
     sharedDraft = profiles.first { $0.plannerID == nil }?.preferences ?? ""
     if let plannerID {
       overlayDraft = profiles.first { $0.plannerID == plannerID }?.preferences ?? ""

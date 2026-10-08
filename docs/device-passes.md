@@ -10,8 +10,11 @@ reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT
   share), which is the M5 gate below.
 - **Schema deploy before TestFlight (standing).** A build that adds a synced table or column, or first
   writes one, goes out only after a development build has pushed it and the schema is deployed to
-  Production. The dispatch's **Owed** line names the table. Next case: `travelProfiles` (the travel
-  profile effort).
+  Production. For `travelProfiles`: on a development build with sync on, save a household profile and
+  your overlay (so `plannerID` holds a value). In the CloudKit console, confirm `travelProfiles` has
+  `travelPartyID`, `plannerID` and `preferences`. Deploy the schema to Production, then archive the
+  TestFlight build. On TestFlight, edit the profile on one device and confirm it reaches the other;
+  then run Discuss and a recommendation brief and confirm the taste lines are in the prompt.
 
 ## Verification gates (decision gates, not a build queue)
 

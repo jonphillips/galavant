@@ -31,11 +31,10 @@ then use real planning behavior to decide the smallest next product change.
 3. **Discovery direction:** decide from use whether frontier `PlaceDiscoveryClient`
    deserves a real candidate-review pipeline, or whether external conversational
    discovery is the better product surface. Do not build both by momentum.
-4. **TravelProfile — decided 2026-10-08 (Jon).** Storage, assembly helper and editor exist,
-   but Settings doesn't present the editor and no model request reads the profile. The
-   minimal path: Settings presents the editor. The outbound ChatGPT briefs (seed and
-   recommendation) and the in-app chat instructions read the profile. Extractors and
-   `PlaceIntelligence` don't. Brief: `../efforts/travel-profile-wiring.md`.
+4. **TravelProfile — shipped (#167, 2026-10-08).** Settings presents the editor. The outbound
+   ChatGPT briefs (seed and recommendation) and the in-app chat instructions read the profile.
+   Extractors and `PlaceIntelligence` don't. First write to synced `travelProfiles`; Production
+   schema deploy and two-device TestFlight verification remain owed in `device-passes.md`.
 5. **Trip discussion context:** `ChatContext.trip` intentionally serializes a thin
    itinerary/shortlist/stays projection. Decide from observed conversations whether a
    richer authoritative projection is needed before creating one.
