@@ -12,6 +12,14 @@ struct GalavantStorageTests {
     )
   }
 
+  @Test
+  func databaseChangeNotificationNameUsesAppGroupID() {
+    #expect(
+      DatabaseChange.notificationName(appGroupID: "group.example.dev")
+        == "group.example.dev.databaseDidChange"
+    )
+  }
+
   @Test(arguments: [[:], [GalavantStorage.appGroupInfoKey: ""]])
   func appGroupIDReportsMissingOrEmptyValue(_ infoDictionary: [String: String]) {
     withKnownIssue {

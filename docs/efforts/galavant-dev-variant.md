@@ -1,6 +1,6 @@
 # Effort — Galavant Dev: Debug builds get their own bundle ID, app group, name and icon
 
-**Status:** Dispatched (2026-10-08) · **Summary:** implements [ADR-0050](../decisions/0050-galavant-dev-variant.md).
+**Status:** Done (2026-10-08) · **Summary:** implements [ADR-0050](../decisions/0050-galavant-dev-variant.md).
 Xcode Run (Debug) builds **Galavant Dev**, with its own bundle IDs, app group, display name and icon, so
 it can sit next to the TestFlight app on Jon's devices. It still uses the real iCloud container, which
 puts it on CloudKit Development. Release is byte-for-byte unchanged. No schema, migration or sync-model
