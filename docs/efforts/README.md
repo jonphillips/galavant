@@ -32,6 +32,7 @@ backfilled **on touch**; the table below is the current index.
 | [calendar-linked-move-display.md](calendar-linked-move-display.md) | KNOWN-ISSUES — a linked event that moves days classifies as its linked stop; Plan Repair first in the sheet | Dispatched (2026-10-08) |
 | [tag-management.md](tag-management.md) | Settings → Tags (counts, rename, delete, Delete Unused), same-name tag convergence (ADR-0008 pattern), tags on Idea rows | Queued (2026-10-08) |
 | [travel-profile-wiring.md](travel-profile-wiring.md) | ADR-0015 §3 (amended) — Taste Profile in Settings; ChatGPT briefs + chat read it; first `travelProfiles` write | Queued (2026-10-08) |
+| [idea-quick-filters.md](idea-quick-filters.md) | Jon 2026-10-08 — Ideas filter capsules: Food / Stay / Other (kind groups) and, on a trip, Scheduled / Not scheduled | Queued (2026-10-08) |
 | [codex-recommendation-brief-stops.md](codex-recommendation-brief-stops.md) | Recommendation brief stops (moved from `docs/handoffs/`) | See doc |
 
 **Authoring a brief:** add its entry here in the same change (index at creation), give it a
