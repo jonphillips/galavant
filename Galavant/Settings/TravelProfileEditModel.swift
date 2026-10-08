@@ -1,22 +1,29 @@
 import Dependencies
 import GalavantSchema
 import SQLiteData
+import Sharing
 import SwiftUI
 
 @Observable
 @MainActor
 final class TravelProfileEditModel {
   @ObservationIgnored @Dependency(\.defaultDatabase) var database
+  @ObservationIgnored @FetchAll(Planner.all) private var planners
+  @ObservationIgnored @Shared(.appStorage("currentPlannerID")) var currentPlannerIDString = ""
 
   let travelPartyID: TravelParty.ID
-  let plannerID: Planner.ID?
+  var plannerID: Planner.ID? {
+    guard let plannerID = UUID(uuidString: currentPlannerIDString),
+      planners.contains(where: { $0.id == plannerID })
+    else { return nil }
+    return plannerID
+  }
 
   var sharedDraft = ""
   var overlayDraft = ""
 
-  init(travelPartyID: TravelParty.ID, plannerID: Planner.ID? = nil) {
+  init(travelPartyID: TravelParty.ID) {
     self.travelPartyID = travelPartyID
-    self.plannerID = plannerID
   }
 
   func load() async {
@@ -27,6 +34,8 @@ final class TravelProfileEditModel {
     sharedDraft = profiles.first { $0.plannerID == nil }?.preferences ?? ""
     if let plannerID {
       overlayDraft = profiles.first { $0.plannerID == plannerID }?.preferences ?? ""
+    } else {
+      overlayDraft = ""
     }
   }
 
@@ -43,4 +52,6 @@ final class TravelProfileEditModel {
       }
     }
   }
+
+  var canEditOverlay: Bool { plannerID != nil }
 }

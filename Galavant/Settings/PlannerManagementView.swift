@@ -10,6 +10,7 @@ struct PlannerManagementView: View {
   @State private var renaming: Planner?
   @State private var nameDraft = ""
   @State private var pendingDelete: Planner?
+  @State private var pendingIdentity: Planner?
 
   var body: some View {
     List {
@@ -59,6 +60,20 @@ struct PlannerManagementView: View {
             + "^[\(model.voteCount(for: planner)) rating](inflect: true) they left will be removed.")
       }
     }
+    .alert(
+      "Use this device as \(pendingIdentity?.displayName ?? "planner")?",
+      isPresented: Binding(get: { pendingIdentity != nil }, set: { if !$0 { pendingIdentity = nil } })
+    ) {
+      Button("Use This Planner") {
+        if let planner = pendingIdentity { model.setCurrentPlanner(planner) }
+        pendingIdentity = nil
+      }
+      Button("Cancel", role: .cancel) { pendingIdentity = nil }
+    } message: {
+      if let planner = pendingIdentity {
+        Text("Votes and your taste overlay will be \(planner.displayName)'s on this device.")
+      }
+    }
   }
 
   private func row(_ planner: Planner) -> some View {
@@ -84,6 +99,17 @@ struct PlannerManagementView: View {
     }
     .swipeActions {
       if !isMe {
+        Button {
+          if model.currentPlannerID == nil {
+            model.setCurrentPlanner(planner)
+          } else {
+            pendingIdentity = planner
+          }
+        } label: {
+          Label("This is me", systemImage: "person.crop.circle")
+        }
+        .tint(.accentColor)
+
         Button(role: .destructive) {
           pendingDelete = planner
         } label: {

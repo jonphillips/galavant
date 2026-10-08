@@ -36,6 +36,8 @@ reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT
   sync and opening Settings → Tags. Rename a tag onto an existing name (different case) and confirm
   the alert says it will merge before you save. SwiftUI may not refresh an alert message while you
   type, so if the note doesn't appear, say so.
+- On a device or simulator with no identity, open Settings → Taste Profile: the overlay section
+  explains and links to Planners. Mark yourself **This is me**, go back, and the overlay field appears.
 - On iPad and iPhone, Ideas → Denmark: tap Food, then Food + Stay, then Other; confirm the list and
   map pins narrow together. Tap Scheduled, then Not scheduled. Switch to All and confirm the stage
   capsules disappear and the kind selection stays.

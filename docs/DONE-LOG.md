@@ -3,6 +3,20 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## Taste Profile identity (`effort/taste-profile-identity`) — 2026-10-08
+
+- The Taste Profile editor now keeps **Your overlay** visible when this device has no valid planner
+  identity, explains how to set one, and links to Planners inside the editor's navigation stack. It
+  reads `currentPlannerID` live and only edits an overlay for a planner row present in the synced
+  library.
+- Added **This is me** to other planner rows in Settings → Planners. Switching from an existing
+  identity confirms the change; the value remains device-local, with no schema, sync or migration
+  change. Updated the editor's Settings → Library and profile-reader documentation.
+- **Verification.** `scripts/check-drift.sh` passed SwiftLint, all GalavantLibrary suites (797 tests,
+  7 known issues), and the GalavantUITests build. Headless `GalavantTests` passed 41 tests. Device
+  follow-up: with no identity, open Settings → Taste Profile and confirm the overlay section explains
+  and links to Planners; mark yourself **This is me**, return, and confirm the overlay field appears.
+
 ## Travel profile wiring (`effort/travel-profile`) — 2026-10-08
 
 - Added Settings → Library → Taste Profile, with `SettingsModel` owning the shared profile summary and
