@@ -16,7 +16,6 @@ struct IdeasScreen: View {
   @State private var namingRegion = false
   @State private var regionNameDraft = ""
   @State private var managingRegions = false
-  @State private var managingTags = false
   @State private var showingChat = false
   /// The idea whose map pin was last tapped — the list scrolls to and highlights
   /// its row, so the pin and the row read as one selection.
@@ -63,8 +62,7 @@ struct IdeasScreen: View {
         }
       }
       ToolbarItem {
-        IdeasFilterMenu(
-          model: model, managingRegions: $managingRegions, managingTags: $managingTags)
+        IdeasFilterMenu(model: model, managingRegions: $managingRegions)
       }
       // Define Region whenever a map is on screen (always on regular, map mode on compact).
       if horizontalSizeClass == .regular || mode == .map {
@@ -143,9 +141,6 @@ struct IdeasScreen: View {
     }
     .sheet(isPresented: $managingRegions) {
       RegionManagerView(model: model)
-    }
-    .sheet(isPresented: $managingTags) {
-      TagManagerView(model: model)
     }
   }
 
@@ -341,12 +336,14 @@ struct IdeasScreen: View {
   }
 
   private var ideaRows: some View {
-    List {
-      ForEach(model.filteredIdeas) { idea in
+    let tagIndex = model.tagIndex
+    return List {
+      ForEach(model.filteredIdeas(using: tagIndex)) { idea in
         IdeaRow(
           idea: idea,
           headerThumbnail: model.headerThumbnailByIdea[idea.id],
           evaluation: model.headlineEvaluationByIdea[idea.id],
+          tagNames: tagIndex.names(for: idea.id),
           interests: model.ratingRow(for: idea),
           isMatch: model.isMatch(idea),
           myInterest: model.myInterest(for: idea),
@@ -358,7 +355,7 @@ struct IdeasScreen: View {
         .listRowBackground(
           focusedIdeaID == idea.id ? Color.accentColor.opacity(0.15) : nil)
       }
-      .onDelete { model.deleteIdeas(model.filteredIdeas, at: $0) }
+      .onDelete { model.deleteIdeas(model.filteredIdeas(using: tagIndex), at: $0) }
     }
     .safeAreaInset(edge: .top, spacing: 0) {
       if model.isFiltering {

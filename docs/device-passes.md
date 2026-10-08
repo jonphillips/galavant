@@ -22,6 +22,9 @@ reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT
 - On a live trip day, check the Today map card's framing with and without location; confirm a preview day doesn't frame your position and that pin taps open the idea.
 - Re-copy the recommendation project instructions from Settings, confirm a "book ahead" hint seeds To book, and check the Today card on device.
 - **Evaluate re-paste flow.** Confirm the paste-confirmation wording and re-paste flow on device.
+- **Settings → Library → Tags:** delete the unused demo tags; tag an idea and confirm the tag shows on
+  its row; create the same tag name on iPhone and iPad (one offline) and confirm one tag remains after
+  sync and opening Settings → Tags.
 - Re-copy the project instructions (now v2) into the ChatGPT project.
 - On a trip, Seed from Conversation → paste the brief into the Denmark conversation → paste the
   reply back → review → Import; check the founding document, stays, rings and Ruled out on iPhone

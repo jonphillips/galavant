@@ -43,6 +43,7 @@ struct IdeaRow: View {
   /// The one accolade to headline on the row (dogfood #3) — a Michelin ★/🗝, a
   /// score — so a planner can weigh ideas without tapping in. Nil → no rating.
   var evaluation: IdeaEvaluation? = nil
+  var tagNames: [String] = []
   /// Every travel-party planner with their level (nil = pending), or empty when
   /// nobody has rated yet. Shown as the his/hers bars.
   let interests: [(planner: Planner, level: Interest?)]
@@ -78,6 +79,13 @@ struct IdeaRow: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
+            }
+            if !tagNames.isEmpty {
+              Label(tagNames.joined(separator: " · "), systemImage: Icon.tag.systemName)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
             }
           }
         }

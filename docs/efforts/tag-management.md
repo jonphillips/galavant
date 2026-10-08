@@ -1,6 +1,6 @@
 # Effort — Tag management in Settings, duplicate tags converge, tags on Idea rows
 
-**Status:** Queued (2026-10-08) · **Summary:** tags get a home in **Settings → Library → Tags**, with
+**Status:** Done (2026-10-08) · **Summary:** tags get a home in **Settings → Library → Tags**, with
 usage counts, rename, delete and "Delete Unused Tags". Tags with the same name converge to one row, the
 way ADR-0008 does for other logically unique rows. An Idea row shows its tags. No schema change.
 
