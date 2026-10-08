@@ -15,6 +15,11 @@ reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT
   `travelPartyID`, `plannerID` and `preferences`. Deploy the schema to Production, then archive the
   TestFlight build. On TestFlight, edit the profile on one device and confirm it reaches the other;
   then run Discuss and a recommendation brief and confirm the taste lines are in the prompt.
+- **Galavant Dev portal setup (one-time, before the `galavant-dev-variant` device pass, ADR-0050).**
+  Register App IDs `com.jonphillips.galavant.dev` and `com.jonphillips.galavant.dev.share` and the app
+  group `group.com.jonphillips.galavant.dev`; assign the existing container `iCloud.com.jonphillips.galavant`
+  to both. Enable **WeatherKit** on the `.dev` app ID in **both** Capabilities and App Services.
+  Automatic signing creates most of it on the first Run; WeatherKit it won't.
 
 ## Verification gates (decision gates, not a build queue)
 
