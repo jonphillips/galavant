@@ -13,6 +13,7 @@ public func poolFiltered(
   _ ideas: [Idea],
   regions: [MapRegion] = [],
   kinds: Set<IdeaKind> = [],
+  kindGroups: Set<IdeaKindGroup> = [],
   includeVisited: Bool = true,
   tagIDs selectedTagIDs: Set<Tag.ID> = [],
   ideaTagIDs: [Idea.ID: Set<Tag.ID>] = [:],
@@ -29,6 +30,9 @@ public func poolFiltered(
     }
     if !kinds.isEmpty {
       guard let kind = idea.kind, kinds.contains(kind) else { return false }
+    }
+    if !kindGroups.isEmpty, !kindGroups.contains(IdeaKindGroup(kind: idea.kind)) {
+      return false
     }
     if !selectedTagIDs.isEmpty {
       // Selecting more tags narrows: the idea must carry all selected tags.

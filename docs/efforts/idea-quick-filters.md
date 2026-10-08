@@ -1,6 +1,6 @@
 # Effort — Ideas quick filters: Food / Stay / Other, and Scheduled / Not scheduled
 
-**Status:** Queued (2026-10-08) · **Summary:** a row of one-tap filter capsules on the Ideas screen,
+**Status:** Done (2026-10-08) · **Summary:** a row of one-tap filter capsules on the Ideas screen,
 next to the trip's region capsules: **Food**, **Stay** and **Other** always, and **Scheduled** / **Not
 scheduled** while a trip capsule is active. They narrow the list and the map together. No schema
 change, nothing synced: the selection is screen state, like the region chips.

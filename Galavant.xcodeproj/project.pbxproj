@@ -57,6 +57,7 @@
 		4DAAA7D1E36518BAE6613248 /* TripFormModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20DAF6B7A5F203899F4C780 /* TripFormModel.swift */; };
 		4FA9D5986A89B2B51B88F5C2 /* AppScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82AECABDADDBF8957A5816F8 /* AppScreen.swift */; };
 		5097A31BB1F6D41AE7DEE5E2 /* TripItineraryRows.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5136B6948D6F84243B5FFAA0 /* TripItineraryRows.swift */; };
+		50EEE42D97D8F60341A052BC /* IdeasQuickFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F751F213140FE74EA9BCE772 /* IdeasQuickFilterTests.swift */; };
 		5136C263464437C2CE03DE06 /* TripCanvasPreviewState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63AC8A1BBF043DAD05084616 /* TripCanvasPreviewState.swift */; };
 		5222D1023F3D13D0B45B3FE4 /* TripAddButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD6629168771E53AD5C86CF /* TripAddButton.swift */; };
 		52949A4330FDF85D0EBF5AEA /* LLMClientKit in Frameworks */ = {isa = PBXBuildFile; productRef = BEC45E8A60608009E9EFFDCC /* LLMClientKit */; };
@@ -378,6 +379,7 @@
 		F3FC31E17E805B3C73F727B8 /* TripPlanningDrafts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripPlanningDrafts.swift; sourceTree = "<group>"; };
 		F488B618BA63C6AA12590997 /* RecommendationWorkspaceImageDropWell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationWorkspaceImageDropWell.swift; sourceTree = "<group>"; };
 		F559C52B9F16FDB24E4BBCEB /* PlannerManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlannerManagementView.swift; sourceTree = "<group>"; };
+		F751F213140FE74EA9BCE772 /* IdeasQuickFilterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeasQuickFilterTests.swift; sourceTree = "<group>"; };
 		F800835C302F4215E837F4FF /* RecommendationCandidateCardPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationCandidateCardPresentation.swift; sourceTree = "<group>"; };
 		F84C0FF0F99E3606279BB42C /* RegionManagementSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegionManagementSettingsView.swift; sourceTree = "<group>"; };
 		F8D1F8D207FE25FE14CCFED7 /* IdeasListModel+Taxonomy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "IdeasListModel+Taxonomy.swift"; sourceTree = "<group>"; };
@@ -611,6 +613,7 @@
 				A6A44988F7D404979433FB37 /* BookingEditorMappingTests.swift */,
 				EBEF8CB6002B75C0D6AF96A3 /* DeviceLocationTests.swift */,
 				DFDD20F3FC13F6B974FF8181 /* IdeasListDeleteTests.swift */,
+				F751F213140FE74EA9BCE772 /* IdeasQuickFilterTests.swift */,
 				58114810B86AFEBF95E05C07 /* TripCanvasPreviewStateTests.swift */,
 				EB7EC4E4FC4F7E11352D4E74 /* TripPlanningSenseOfNowTests.swift */,
 			);
@@ -967,6 +970,7 @@
 				47F681EE50E7C8E6AF3C22D3 /* BookingEditorMappingTests.swift in Sources */,
 				B3DC96559D44DB8C8ABF705D /* DeviceLocationTests.swift in Sources */,
 				8E5F270D961669BB1431CDAD /* IdeasListDeleteTests.swift in Sources */,
+				50EEE42D97D8F60341A052BC /* IdeasQuickFilterTests.swift in Sources */,
 				4C528609E50B3202B6BB33E7 /* TripCanvasPreviewStateTests.swift in Sources */,
 				FB833A8213FBA1E378DDC0D8 /* TripPlanningSenseOfNowTests.swift in Sources */,
 			);

@@ -34,6 +34,44 @@ struct RegionFilterTests {
     #expect(result.map(\.name) == ["Noma"])
   }
 
+  @Test func kindGroupMappingCoversEveryKindAndUnspecified() {
+    for kind in IdeaKind.allCases {
+      let expected: IdeaKindGroup = switch kind {
+      case .food, .drink: .food
+      case .stay: .stay
+      case .sight, .tour, .activity, .beach, .park, .outdoorTrail, .museum, .theater,
+        .nightlife, .shop, .market, .transit: .other
+      }
+      #expect(IdeaKindGroup(kind: kind) == expected)
+    }
+    #expect(IdeaKindGroup(kind: nil) == .other)
+  }
+
+  @Test func kindGroupFiltersUnionAndCombineWithOtherFilters() {
+    let food = idea(name: "Noma", kind: .food)
+    let drink = idea(name: "Wine bar", kind: .drink)
+    let stay = idea(name: "Hotel", kind: .stay)
+    let other = idea(name: "Museum", kind: .museum)
+    let unspecified = idea(name: "Someday", kind: nil)
+    let ideas = [food, drink, stay, other, unspecified]
+
+    #expect(poolFiltered(ideas, kindGroups: []).map(\.name) == ideas.map(\.name))
+    #expect(poolFiltered(ideas, kindGroups: [.food]).map(\.name) == ["Noma", "Wine bar"])
+    #expect(
+      Set(poolFiltered(ideas, kindGroups: [.food, .stay]).map(\.name)) == ["Noma", "Wine bar", "Hotel"]
+    )
+    #expect(
+      Set(poolFiltered(ideas, kindGroups: [.other]).map(\.name)) == ["Museum", "Someday"]
+    )
+    #expect(poolFiltered(ideas, kinds: [.drink], kindGroups: [.food]).map(\.name) == ["Wine bar"])
+    let locatedFood = idea(name: "Located cafe", kind: .food, lat: 55.67, lon: 12.57)
+    let outsideFood = idea(name: "Far cafe", kind: .food, lat: 40.7, lon: -74)
+    #expect(
+      poolFiltered([locatedFood, outsideFood], regions: [copenhagen], kindGroups: [.food])
+        .map(\.name) == ["Located cafe"]
+    )
+  }
+
   @Test func visitedExclusion() {
     let fresh = idea(name: "Fresh", visited: false)
     let been = idea(name: "Been there", visited: true)
