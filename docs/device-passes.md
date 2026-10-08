@@ -12,6 +12,7 @@ reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT
   writes one, goes out only after a development build has pushed it and the schema is deployed to
   Production. The dispatch's **Owed** line names the table. Next case: `travelProfiles` (the travel
   profile effort).
+
 ## Verification gates (decision gates, not a build queue)
 
 - Move a linked trip event to another trip day in Calendar, run Reconcile Calendar, and confirm it
@@ -24,7 +25,9 @@ reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT
 - **Evaluate re-paste flow.** Confirm the paste-confirmation wording and re-paste flow on device.
 - **Settings → Library → Tags:** delete the unused demo tags; tag an idea and confirm the tag shows on
   its row; create the same tag name on iPhone and iPad (one offline) and confirm one tag remains after
-  sync and opening Settings → Tags.
+  sync and opening Settings → Tags. Rename a tag onto an existing name (different case) and confirm
+  the alert says it will merge before you save. SwiftUI may not refresh an alert message while you
+  type, so if the note doesn't appear, say so.
 - Re-copy the project instructions (now v2) into the ChatGPT project.
 - On a trip, Seed from Conversation → paste the brief into the Denmark conversation → paste the
   reply back → review → Import; check the founding document, stays, rings and Ruled out on iPhone

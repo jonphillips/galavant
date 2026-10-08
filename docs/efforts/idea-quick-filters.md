@@ -76,6 +76,26 @@ One horizontally scrolling row under `capsuleBar`:
 capsule switches, because they're a "what am I looking for" lens. The schedule filter doesn't (see
 above). Subregion behavior doesn't change.
 
+## 4. Tidy the tag selection while you're in here (carried from #164's review)
+
+`tag-management` (#164) maps the tag selection through `TagIndex.effectiveSelection` for **filtering**,
+but three readers still use the raw `selectedTagIDs`. This effort rewrites the same filter state, so fix
+them here:
+
+- `isFiltering` and `filterSummary`. A selected tag that's been deleted in Settings leaves "filtering"
+  on, with an empty summary part and a trailing `·`.
+- The **Tags** submenu checkmarks in `IdeasFilterMenu`. A selected tag that lost a convergence still
+  filters, as its survivor, but nothing shows checked.
+
+Fix: normalize once. When tags change, or in `toggleTag`, set `selectedTagIDs` to
+`tagIndex.effectiveSelection(selectedTagIDs)`, so every reader sees survivors only. Alternatively, have
+all three readers go through `effectiveSelection`; pick one. Also **build the `TagIndex` once per pass**:
+`filteredIdeas` and `sortedTags` currently build one per access, and `filterSummary` builds one inside
+its per-tag closure. Hoist it, as `ideaRows` already does, or cache it on the fetched arrays.
+
+**Test (app):** select a tag, delete it, and confirm `isFiltering` is false and the summary has no empty
+part. Select a loser id after convergence, and confirm the survivor reads as selected.
+
 ## Tests
 
 **Package** (`GalavantSchemaTests`):
