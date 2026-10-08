@@ -31,11 +31,7 @@ struct IdeasScreen: View {
       if !model.capsules.isEmpty {
         capsuleBar
       }
-      // The active trip's subregions, to steer the browse (ADR-0013) — only worth
-      // showing once a trip spans 2+ regions.
-      if model.activeTripID != nil, model.tripSubregions.count >= 2 {
-        subregionBar
-      }
+      quickFilterBar
       // The chat inspector is attached *inside* the toolbar-bearing view, not on the
       // whole screen: an `.inspector` on the detail-root content swallows that view's
       // `.toolbar` on iPad (the items silently vanish). Nesting it below the toolbar
@@ -209,36 +205,58 @@ struct IdeasScreen: View {
     model.ideaTapped(idea)
   }
 
-  /// The active trip's subregions as opt-in narrowing chips (ADR-0013). None on =
-  /// the trip's full union; toggling some narrows the list and the map's framing.
-  private var subregionBar: some View {
+  /// The one-tap browse filters and the active trip's optional region narrowing.
+  private var quickFilterBar: some View {
     ScrollView(.horizontal, showsIndicators: false) {
       HStack(spacing: 8) {
-        ForEach(model.tripSubregions) { region in
-          subregionChip(region)
+        if model.activeTripID != nil, model.tripSubregions.count >= 2 {
+          ForEach(model.tripSubregions) { region in
+            IdeasQuickFilterChip(
+              label: region.name,
+              systemImage: Icon.map.systemName,
+              isSelected: model.selectedSubregionIDs.contains(region.id)
+            ) {
+              model.toggleSubregion(region.id)
+            }
+          }
+          quickFilterDivider
+        }
+        ForEach(IdeaKindGroup.allCases, id: \.self) { group in
+          IdeasQuickFilterChip(
+            label: group.label,
+            systemImage: group.systemImage,
+            isSelected: model.selectedKindGroups.contains(group)
+          ) {
+            model.toggleKindGroup(group)
+          }
+        }
+        if model.activeTripID != nil {
+          quickFilterDivider
+          IdeasQuickFilterChip(
+            label: IdeasListModel.ScheduleFilter.scheduled.label,
+            systemImage: "calendar",
+            isSelected: model.scheduleFilter == .scheduled
+          ) {
+            model.toggleScheduleFilter(.scheduled)
+          }
+          IdeasQuickFilterChip(
+            label: IdeasListModel.ScheduleFilter.notScheduled.label,
+            systemImage: "calendar.badge.clock",
+            isSelected: model.scheduleFilter == .notScheduled
+          ) {
+            model.toggleScheduleFilter(.notScheduled)
+          }
         }
       }
       .padding(.horizontal)
-      .padding(.bottom, 8)
+      .padding(.vertical, 8)
     }
   }
 
-  private func subregionChip(_ region: MapRegion) -> some View {
-    let on = model.selectedSubregionIDs.contains(region.id)
-    return Button {
-      model.toggleSubregion(region.id)
-    } label: {
-      HStack(spacing: 5) {
-        Icon.map.image.imageScale(.small)
-        Text(region.name).lineLimit(1)
-      }
-      .font(.subheadline)
-      .padding(.horizontal, 11)
-      .padding(.vertical, 6)
-      .background(Capsule().fill(on ? AnyShapeStyle(.tint) : AnyShapeStyle(.thinMaterial)))
-      .foregroundStyle(on ? Color.white : Color.primary)
-    }
-    .buttonStyle(.plain)
+  private var quickFilterDivider: some View {
+    Divider()
+      .frame(height: 20)
+      .padding(.horizontal, 2)
   }
 
   /// The eternal pool shows each idea's derived trip badge; an active-trip
@@ -373,6 +391,34 @@ struct IdeasScreen: View {
     }
   }
 }
+
+private struct IdeasQuickFilterChip: View {
+  let label: String
+  let systemImage: String
+  let isSelected: Bool
+  let action: () -> Void
+
+  var body: some View {
+    Button(action: action) {
+      HStack(spacing: 5) {
+        Image(systemName: systemImage)
+          .imageScale(.small)
+          .accessibilityHidden(true)
+        Text(label).lineLimit(1)
+      }
+      .font(.subheadline)
+      .padding(.horizontal, 11)
+      .padding(.vertical, 6)
+      .background(
+        Capsule().fill(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.thinMaterial))
+      )
+      .foregroundStyle(isSelected ? Color.white : Color.primary)
+    }
+    .buttonStyle(.plain)
+    .accessibilityAddTraits(isSelected ? .isSelected : [])
+  }
+}
+
 #Preview {
   let _ = prepareDependencies {
     try! $0.bootstrapDatabase()

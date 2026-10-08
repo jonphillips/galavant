@@ -48,7 +48,7 @@ struct IdeasFilterMenu: View {
           Button {
             model.toggleTag(tag.id)
           } label: {
-            checked(tag.name, on: model.selectedTagIDs.contains(tag.id))
+            checked(tag.name, on: model.effectiveSelectedTagIDs.contains(tag.id))
           }
         }
       }

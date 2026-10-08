@@ -39,7 +39,9 @@ final class IdeasListModel {
   /// Reset whenever the capsule changes.
   var selectedSubregionIDs: Set<MapRegion.ID> = []
   var selectedKinds: Set<IdeaKind> = []
+  var selectedKindGroups: Set<IdeaKindGroup> = []
   var selectedTagIDs: Set<Tag.ID> = []
+  var scheduleFilter: ScheduleFilter?
   var includeVisited = true
   /// Worklist controls over the his/hers "match" projection (BACKLOG "match
   /// signal"): hide all but matches, and float matches to the top.
@@ -52,6 +54,18 @@ final class IdeasListModel {
       switch self {
       case .alphabetical: "A–Z"
       case .matchesFirst: "Matches first"
+      }
+    }
+  }
+
+  enum ScheduleFilter: String {
+    case scheduled
+    case notScheduled
+
+    var label: String {
+      switch self {
+      case .scheduled: "Scheduled"
+      case .notScheduled: "Not scheduled"
       }
     }
   }
@@ -178,6 +192,7 @@ final class IdeasListModel {
   func selectCapsule(_ tripID: Trip.ID?) {
     activeTripID = tripID
     selectedSubregionIDs = []
+    if tripID == nil { scheduleFilter = nil }
     if let tripID { recentTripStore.record(tripID) }
   }
 
@@ -210,13 +225,26 @@ final class IdeasListModel {
       ideas,
       regions: scopeRegions,
       kinds: selectedKinds,
+      kindGroups: selectedKindGroups,
       includeVisited: includeVisited,
       tagIDs: tagIndex.effectiveSelection(selectedTagIDs),
       ideaTagIDs: canonicalTagIDs,
       pinnedIDs: selectedSubregionIDs.isEmpty ? activeTripIdeaIDs : []
     )
+    let stages = scheduleFilter == nil ? [:] : activeTripStagesByIdea
+    let stageFiltered: [Idea]
+    if let scheduleFilter {
+      stageFiltered = pooled.filter { idea in
+        switch scheduleFilter {
+        case .scheduled: stages[idea.id] == .scheduled
+        case .notScheduled: stages[idea.id] != .scheduled
+        }
+      }
+    } else {
+      stageFiltered = pooled
+    }
     let standings = standingByIdea
-    let matched = showMatchesOnly ? pooled.filter { standings[$0.id] == .match } : pooled
+    let matched = showMatchesOnly ? stageFiltered.filter { standings[$0.id] == .match } : stageFiltered
     switch sortMode {
     case .alphabetical:
       // `ideas` is fetched name-ordered, but SQLite's default BINARY collation is
@@ -292,66 +320,6 @@ final class IdeasListModel {
   /// This idea's stage on the active trip in the planner's plain-language terms
   /// (dogfood) — Consider / Schedule / Scheduled — the Status menu's current
   /// value. Nil when no capsule is active or the idea isn't on the trip.
-  func activeTripStage(for idea: Idea) -> TripPullStage? {
-    guard let tripID = activeTripID,
-      let entry = tripIdeas.first(where: { $0.tripID == tripID && $0.ideaID == idea.id })
-    else { return nil }
-    switch entry.status {
-    case .considering: return .consider
-    case .shortlisted: return .schedule
-    case .scheduled: return entry.dayNumber != nil ? .scheduled : .schedule
-    case .done: return .scheduled
-    case .skipped: return .consider
-    case .declined: return nil
-    }
-  }
-
-  var isFiltering: Bool {
-    selectedRegionID != nil || !selectedKinds.isEmpty || !selectedTagIDs.isEmpty
-      || !includeVisited || showMatchesOnly
-  }
-
-  /// Human-readable summary of the active filters, for the reminder bar.
-  var filterSummary: String {
-    var parts: [String] = []
-    if let region = selectedRegion { parts.append(region.name) }
-    if !selectedKinds.isEmpty {
-      parts.append(selectedKinds.map(\.label).sorted().joined(separator: ", "))
-    }
-    if !selectedTagIDs.isEmpty {
-      let names = sortedTags.filter { tagIndex.effectiveSelection(selectedTagIDs).contains($0.id) }
-        .map(\.name)
-      parts.append(names.joined(separator: ", "))
-    }
-    if !includeVisited { parts.append("hiding visited") }
-    if showMatchesOnly { parts.append("matches only") }
-    return parts.joined(separator: " · ")
-  }
-
-  func toggleKind(_ kind: IdeaKind) {
-    if selectedKinds.contains(kind) {
-      selectedKinds.remove(kind)
-    } else {
-      selectedKinds.insert(kind)
-    }
-  }
-
-  func toggleTag(_ id: Tag.ID) {
-    if selectedTagIDs.contains(id) {
-      selectedTagIDs.remove(id)
-    } else {
-      selectedTagIDs.insert(id)
-    }
-  }
-
-  func clearFilters() {
-    selectedRegionID = nil
-    selectedKinds = []
-    selectedTagIDs = []
-    includeVisited = true
-    showMatchesOnly = false
-  }
-
   // Region management writes live in IdeasListModel+Taxonomy.swift.
 
   func task() async {
@@ -509,4 +477,114 @@ final class IdeasListModel {
     }
   }
 
+}
+
+extension IdeasListModel {
+  func activeTripStage(for idea: Idea) -> TripPullStage? {
+    guard let tripID = activeTripID,
+      let entry = tripIdeas.first(where: { $0.tripID == tripID && $0.ideaID == idea.id })
+    else { return nil }
+    switch entry.status {
+    case .considering: return .consider
+    case .shortlisted: return .schedule
+    case .scheduled: return entry.dayNumber != nil ? .scheduled : .schedule
+    case .done: return .scheduled
+    case .skipped: return .consider
+    case .declined: return nil
+    }
+  }
+
+  /// The active trip's display stages, derived once for consumers that filter a
+  /// batch of ideas (rather than rescanning every TripIdea for every idea).
+  private var activeTripStagesByIdea: [Idea.ID: TripPullStage] {
+    guard let tripID = activeTripID else { return [:] }
+    var result: [Idea.ID: TripPullStage] = [:]
+    for entry in tripIdeas where entry.tripID == tripID {
+      guard let ideaID = entry.ideaID, result[ideaID] == nil else { continue }
+      switch entry.status {
+      case .considering: result[ideaID] = .consider
+      case .shortlisted: result[ideaID] = .schedule
+      case .scheduled: result[ideaID] = entry.dayNumber != nil ? .scheduled : .schedule
+      case .done: result[ideaID] = .scheduled
+      case .skipped: result[ideaID] = .consider
+      case .declined: break
+      }
+    }
+    return result
+  }
+
+  var isFiltering: Bool {
+    selectedRegionID != nil || !selectedKinds.isEmpty || !selectedKindGroups.isEmpty
+      || !effectiveSelectedTagIDs.isEmpty || !includeVisited || showMatchesOnly
+      || scheduleFilter != nil
+  }
+
+  var effectiveSelectedTagIDs: Set<Tag.ID> {
+    tagIndex.effectiveSelection(selectedTagIDs)
+  }
+
+  /// Human-readable summary of the active filters, for the reminder bar.
+  var filterSummary: String {
+    let index = tagIndex
+    let effectiveTagIDs = index.effectiveSelection(selectedTagIDs)
+    var parts: [String] = []
+    if let region = selectedRegion { parts.append(region.name) }
+    if !selectedKinds.isEmpty {
+      parts.append(selectedKinds.map(\.label).sorted().joined(separator: ", "))
+    }
+    if !selectedKindGroups.isEmpty {
+      parts.append(
+        IdeaKindGroup.allCases.filter(selectedKindGroups.contains).map(\.label).joined(separator: ", ")
+      )
+    }
+    if !effectiveTagIDs.isEmpty {
+      let names = index.tags.filter { effectiveTagIDs.contains($0.id) }.map(\.name)
+      parts.append(names.joined(separator: ", "))
+    }
+    if let scheduleFilter { parts.append(scheduleFilter.label) }
+    if !includeVisited { parts.append("hiding visited") }
+    if showMatchesOnly { parts.append("matches only") }
+    return parts.joined(separator: " · ")
+  }
+
+  func toggleKind(_ kind: IdeaKind) {
+    if selectedKinds.contains(kind) {
+      selectedKinds.remove(kind)
+    } else {
+      selectedKinds.insert(kind)
+    }
+  }
+
+  func toggleKindGroup(_ group: IdeaKindGroup) {
+    if selectedKindGroups.contains(group) {
+      selectedKindGroups.remove(group)
+    } else {
+      selectedKindGroups.insert(group)
+    }
+  }
+
+  func toggleScheduleFilter(_ filter: ScheduleFilter) {
+    scheduleFilter = scheduleFilter == filter ? nil : filter
+  }
+
+  func toggleTag(_ id: Tag.ID) {
+    let index = tagIndex
+    selectedTagIDs = index.effectiveSelection(selectedTagIDs)
+    guard let selectedID = index.survivorIDByTagID[id] else { return }
+    if selectedTagIDs.contains(selectedID) {
+      selectedTagIDs.remove(selectedID)
+    } else {
+      selectedTagIDs.insert(selectedID)
+    }
+  }
+
+  func clearFilters() {
+    selectedRegionID = nil
+    selectedKinds = []
+    selectedKindGroups = []
+    selectedTagIDs = []
+    scheduleFilter = nil
+    includeVisited = true
+    showMatchesOnly = false
+  }
 }

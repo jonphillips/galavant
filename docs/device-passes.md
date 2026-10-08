@@ -28,6 +28,9 @@ reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT
   sync and opening Settings → Tags. Rename a tag onto an existing name (different case) and confirm
   the alert says it will merge before you save. SwiftUI may not refresh an alert message while you
   type, so if the note doesn't appear, say so.
+- On iPad and iPhone, Ideas → Denmark: tap Food, then Food + Stay, then Other; confirm the list and
+  map pins narrow together. Tap Scheduled, then Not scheduled. Switch to All and confirm the stage
+  capsules disappear and the kind selection stays.
 - Re-copy the project instructions (now v2) into the ChatGPT project.
 - On a trip, Seed from Conversation → paste the brief into the Denmark conversation → paste the
   reply back → review → Import; check the founding document, stays, rings and Ruled out on iPhone

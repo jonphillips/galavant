@@ -3,6 +3,19 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## Ideas quick filters (`effort/idea-quick-filters`) — 2026-10-08
+
+- Added Food, Stay and Other quick filters to the Ideas list and map, plus Scheduled / Not scheduled
+  filters while a trip is active. Group filters combine with OR, other filters combine with AND, and
+  selecting All clears the trip-stage filter while preserving kind groups.
+- Normalized tag selection to canonical IDs for filter state and menu checkmarks. No schema, migration,
+  sync or contract change. Added the iPhone/iPad verification gate.
+- **Verification.** `scripts/check-drift.sh` passed SwiftLint, all GalavantLibrary suites (791 tests,
+  7 known issues), and the GalavantUITests build. Headless `GalavantTests` passed 37 tests. Device
+  follow-up: on iPad and iPhone, Ideas → Denmark: tap Food, then Food + Stay, then Other; confirm the
+  list and map pins narrow together. Tap Scheduled, then Not scheduled. Switch to All and confirm the
+  stage capsules disappear and the kind selection stays.
+
 ## Tag management and Idea row tags (`effort/tag-management`) — 2026-10-08
 
 - Moved tag convergence, rename/merge, deletion and unused-tag cleanup into `GalavantSchema`; added
