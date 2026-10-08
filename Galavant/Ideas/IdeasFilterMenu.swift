@@ -9,6 +9,8 @@ struct IdeasFilterMenu: View {
   @Binding var managingRegions: Bool
 
   var body: some View {
+    let tagIndex = model.tagIndex
+    let selectedTagIDs = tagIndex.effectiveSelection(model.selectedTagIDs)
     Menu {
       // A trip capsule supplies the geography; the manual region picker only
       // applies to the eternal "All" pool.
@@ -44,11 +46,11 @@ struct IdeasFilterMenu: View {
         }
       }
       Menu("Tags") {
-        ForEach(model.sortedTags) { tag in
+        ForEach(tagIndex.tags) { tag in
           Button {
             model.toggleTag(tag.id)
           } label: {
-            checked(tag.name, on: model.effectiveSelectedTagIDs.contains(tag.id))
+            checked(tag.name, on: selectedTagIDs.contains(tag.id))
           }
         }
       }

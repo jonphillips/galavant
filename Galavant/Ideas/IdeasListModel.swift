@@ -19,6 +19,9 @@ final class IdeasListModel {
   @ObservationIgnored @FetchAll(MapRegion.order(by: \.name)) var regions
   @ObservationIgnored @FetchAll(Tag.order(by: \.name)) var tags
   @ObservationIgnored @FetchAll(IdeaTag.all) var ideaTags
+  @ObservationIgnored private var cachedTagIndex: TagIndex?
+  @ObservationIgnored private var cachedTags: [Tag] = []
+  @ObservationIgnored private var cachedIdeaTags: [IdeaTag] = []
   @ObservationIgnored @FetchAll(Trip.all) var trips
   @ObservationIgnored @FetchAll(TripIdea.all) var tripIdeas
   @ObservationIgnored @FetchAll(TripRegion.all) var tripRegions
@@ -75,7 +78,18 @@ final class IdeasListModel {
   /// — the Ideas screen's launchpad half (BACKLOG "Ideas list trip-awareness").
   var activeTripID: Trip.ID?
 
-  var tagIndex: TagIndex { TagIndex(tags: tags, ideaTags: ideaTags) }
+  var tagIndex: TagIndex {
+    let currentTags = tags
+    let currentIdeaTags = ideaTags
+    if currentTags == cachedTags, currentIdeaTags == cachedIdeaTags, let cachedTagIndex {
+      return cachedTagIndex
+    }
+    let index = TagIndex(tags: currentTags, ideaTags: currentIdeaTags)
+    cachedTags = currentTags
+    cachedIdeaTags = currentIdeaTags
+    cachedTagIndex = index
+    return index
+  }
 
   var sortedTags: [Tag] { tagIndex.tags }
 
@@ -484,14 +498,7 @@ extension IdeasListModel {
     guard let tripID = activeTripID,
       let entry = tripIdeas.first(where: { $0.tripID == tripID && $0.ideaID == idea.id })
     else { return nil }
-    switch entry.status {
-    case .considering: return .consider
-    case .shortlisted: return .schedule
-    case .scheduled: return entry.dayNumber != nil ? .scheduled : .schedule
-    case .done: return .scheduled
-    case .skipped: return .consider
-    case .declined: return nil
-    }
+    return TripPullStage(status: entry.status, dayNumber: entry.dayNumber)
   }
 
   /// The active trip's display stages, derived once for consumers that filter a
@@ -499,15 +506,11 @@ extension IdeasListModel {
   private var activeTripStagesByIdea: [Idea.ID: TripPullStage] {
     guard let tripID = activeTripID else { return [:] }
     var result: [Idea.ID: TripPullStage] = [:]
+    var seenIdeaIDs: Set<Idea.ID> = []
     for entry in tripIdeas where entry.tripID == tripID {
-      guard let ideaID = entry.ideaID, result[ideaID] == nil else { continue }
-      switch entry.status {
-      case .considering: result[ideaID] = .consider
-      case .shortlisted: result[ideaID] = .schedule
-      case .scheduled: result[ideaID] = entry.dayNumber != nil ? .scheduled : .schedule
-      case .done: result[ideaID] = .scheduled
-      case .skipped: result[ideaID] = .consider
-      case .declined: break
+      guard let ideaID = entry.ideaID, seenIdeaIDs.insert(ideaID).inserted else { continue }
+      if let stage = TripPullStage(status: entry.status, dayNumber: entry.dayNumber) {
+        result[ideaID] = stage
       }
     }
     return result

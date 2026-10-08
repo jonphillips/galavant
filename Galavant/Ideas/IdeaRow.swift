@@ -10,6 +10,17 @@ import UIKit
 enum TripPullStage: Equatable {
   case consider, schedule, scheduled
 
+  init?(status: TripIdeaStatus, dayNumber: Int?) {
+    switch status {
+    case .considering: self = .consider
+    case .shortlisted: self = .schedule
+    case .scheduled: self = dayNumber != nil ? .scheduled : .schedule
+    case .done: self = .scheduled
+    case .skipped: self = .consider
+    case .declined: return nil
+    }
+  }
+
   var label: String {
     switch self {
     case .consider: "Consider"
