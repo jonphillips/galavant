@@ -3,6 +3,21 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## Travel profile wiring (`effort/travel-profile`) — 2026-10-08
+
+- Added Settings → Library → Taste Profile, with the shared profile's first line as its subtitle and
+  the current planner's overlay in the editor. ChatGPT seed and recommendation briefs, plus each new
+  in-app chat prompt, now render the shared profile and known planner overlays through one pure helper.
+- First writes to synced `travelProfiles`; no migration or contract-version change. The Production
+  schema deploy and two-device TestFlight verification remain owed in `device-passes.md` before any
+  TestFlight build from this code.
+- **Verification.** `scripts/check-drift.sh` passed SwiftLint, all GalavantLibrary suites (795 tests,
+  7 known issues), and the GalavantUITests build. Headless `GalavantTests` passed 37 tests. Device
+  follow-up: save a household profile and planner overlay on a development build with sync on; confirm
+  `travelPartyID`, `plannerID` and `preferences` in the Development schema; deploy to Production before
+  archiving TestFlight; edit on one device and confirm sync, then check Discuss and a recommendation
+  brief include the taste lines.
+
 ## Ideas quick filters (`effort/idea-quick-filters`) — 2026-10-08
 
 - Added Food, Stay and Other quick filters to the Ideas list and map, plus Scheduled / Not scheduled

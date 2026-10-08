@@ -67,24 +67,38 @@ extension TravelProfile {
 }
 
 extension TravelProfile {
-  // MARK: - Read-model helpers (pure, ADR-0015 §3)
+  // MARK: - Prompt rendering (pure, ADR-0015 §3)
 
-  /// Assemble "shared household profile + this planner's overlay" from a
-  /// pre-fetched array. When `plannerID` is nil, returns only the shared profile.
-  /// Non-empty parts are joined with a blank line so the prompt has natural
-  /// paragraph breaks. Pure — no I/O.
-  public static func assembledProfile(
+  /// Render the household profile and each known planner's overlay as stable
+  /// prompt lines. Empty text and overlays for missing planners are omitted.
+  public static func promptLines(
     travelPartyID: TravelParty.ID,
-    plannerID: Planner.ID?,
-    from profiles: [TravelProfile]
-  ) -> String {
-    let shared = profiles
-      .first { $0.travelPartyID == travelPartyID && $0.plannerID == nil }?
-      .preferences ?? ""
-    guard let plannerID else { return shared }
-    let overlay = profiles
-      .first { $0.travelPartyID == travelPartyID && $0.plannerID == plannerID }?
-      .preferences ?? ""
-    return [shared, overlay].filter { !$0.isEmpty }.joined(separator: "\n\n")
+    profiles: [TravelProfile],
+    planners: [Planner]
+  ) -> [String] {
+    func trimmed(_ text: String) -> String {
+      text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    var lines: [String] = []
+    if let shared = profiles.first(where: { $0.travelPartyID == travelPartyID && $0.plannerID == nil }) {
+      let preferences = trimmed(shared.preferences)
+      if !preferences.isEmpty { lines.append("Our travel taste: \(preferences)") }
+    }
+
+    let plannerByID = Dictionary(planners.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    let overlays = profiles.compactMap { profile -> (Planner, String)? in
+      guard profile.travelPartyID == travelPartyID,
+            let plannerID = profile.plannerID,
+            let planner = plannerByID[plannerID]
+      else { return nil }
+      let preferences = trimmed(profile.preferences)
+      return preferences.isEmpty ? nil : (planner, preferences)
+    }.sorted { lhs, rhs in
+      if lhs.0.displayName == rhs.0.displayName { return lhs.0.id.uuidString < rhs.0.id.uuidString }
+      return lhs.0.displayName < rhs.0.displayName
+    }
+    lines.append(contentsOf: overlays.map { "\($0.0.displayName)'s taste: \($0.1)" })
+    return lines
   }
 }

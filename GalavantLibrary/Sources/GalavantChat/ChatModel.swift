@@ -1,7 +1,9 @@
 import Dependencies
 import Foundation
+import GalavantSchema
 import LLMClientKit
 import Observation
+import SQLiteData
 
 /// One displayed chat turn. Ephemeral (ADR-0017 §4) — held in memory for the
 /// session, never persisted or CloudKit-synced.
@@ -45,6 +47,7 @@ public final class ChatModel {
   @ObservationIgnored @Dependency(\.modelClient) private var modelClient
   @ObservationIgnored @Dependency(\.apiKeyStore) private var apiKeyStore
   @ObservationIgnored @Dependency(\.chatInstructions) private var chatInstructions
+  @ObservationIgnored @Dependency(\.defaultDatabase) private var database
   @ObservationIgnored private let tools: ChatToolExecutor
 
   /// Hard cap on tool-loop turns per message, so a misbehaving model can't spin.
@@ -166,10 +169,20 @@ public final class ChatModel {
 
   // MARK: - Helpers
 
-  /// The system prompt: persona + the serialized on-screen context. The taste
-  /// profile (ADR-0015) is the `ModelClient` boundary's job to inject, not the
-  /// panel's (ADR-0017 §2) — so it isn't re-plumbed here.
+  /// The system prompt: persona, shared travel taste, then serialized context.
   func systemPrompt() -> String {
+    let tasteLines: [String] = (try? database.read { db -> [String] in
+      guard let party = try TravelParty.order(by: \.id).fetchOne(db) else { return [] }
+      let profiles = try TravelProfile.where { $0.travelPartyID.eq(party.id) }.fetchAll(db)
+      let planners = try Planner.where { $0.travelPartyID.eq(party.id) }.fetchAll(db)
+      return TravelProfile.promptLines(
+        travelPartyID: party.id, profiles: profiles, planners: planners)
+    }) ?? []
+    let taste = tasteLines.isEmpty ? "" : """
+      The travel party's standing taste (use it to shape suggestions; don't recite it):
+      \(tasteLines.joined(separator: "\n"))
+
+      """
     let base = """
       You are a concise, helpful travel-planning assistant inside a private app for \
       two people planning trips together. Discuss what the user is looking at, \
@@ -183,7 +196,7 @@ public final class ChatModel {
       any place or reference you name so the user can tap through. Do not use headings, \
       tables, horizontal rules, or bold section labels; the panel is narrow.
 
-      \(context.serialized())
+      \(taste)\(context.serialized())
       """
     let custom = chatInstructions.current().trimmingCharacters(in: .whitespacesAndNewlines)
     guard !custom.isEmpty else { return base }

@@ -228,6 +228,26 @@ struct RecommendationHandoffTests {
     ])
   }
 
+  @Test func tasteLinesFollowTripAndTripNotesInBrief() {
+    let handoff = session()
+    let lines = ["Our travel taste: relaxed luxury", "Jon's taste: food first"]
+    let actual = RecommendationHandoffContract.brief(
+      session: handoff,
+      tripName: "Denmark",
+      tripNotes: "Keep it relaxed.",
+      plan: plan(),
+      tasteLines: lines)
+
+    #expect(actual.split(separator: "\n") == [
+      Substring(handoff.header),
+      "Trip: Denmark",
+      "Trip notes: Keep it relaxed.",
+      "Our travel taste: relaxed luxury",
+      "Jon's taste: food first",
+      "Ask: Recommend candidate places that fit this trip. Give options with a useful locality, search hint, and concise rationale."
+    ])
+  }
+
   @Test func decodesCandidateFixtureWithoutLosingAdvisoryFields() throws {
     let fixture = try #require(
       Bundle.module.url(forResource: "recommendation-candidates", withExtension: "json")
@@ -259,6 +279,11 @@ struct RecommendationHandoffTests {
     let brief = RecommendationHandoffContract.seedBrief(
       session: handoff, tripName: "Denmark", plan: plan(lengthInDays: 13)
     )
+    #expect(brief == [
+      handoff.header,
+      "Trip: Denmark",
+      "Ask: Seed this Galavant trip from our conversation so far, using the seed format in the project instructions. That format replaces the candidate-places format for this reply."
+    ].joined(separator: "\n"))
     #expect(brief.contains(handoff.header))
     #expect(brief.contains("Trip: Denmark"))
     #expect(brief.contains("using the seed format in the project instructions"))
@@ -266,6 +291,19 @@ struct RecommendationHandoffTests {
     #expect(RecommendationHandoffContract.marker.version == "v2")
     #expect(RecommendationHandoffContract.projectInstructions.contains("GV-CONTRACT: v2\n[{"))
     #expect(RecommendationHandoffContract.projectInstructions.contains("GV-CONTRACT: v2\", then a narrative"))
+  }
+
+  @Test func tasteLinesFollowTripInSeedBrief() {
+    let handoff = HandoffSession(
+      sourceType: "trip", sourceID: UUID(), taskType: RecommendationHandoffTask.seedTrip,
+      scopeKey: nil, exportedPrompt: "")
+    let brief = RecommendationHandoffContract.seedBrief(
+      session: handoff, tripName: "Denmark", plan: plan(),
+      tasteLines: ["Our travel taste: relaxed luxury"])
+
+    #expect(brief.split(separator: "\n").contains("Our travel taste: relaxed luxury"))
+    #expect(brief.range(of: "Trip: Denmark")!.lowerBound
+      < brief.range(of: "Our travel taste: relaxed luxury")!.lowerBound)
   }
 
   @Test func bookAheadAcceptsBooleansAndKnownStringsWithoutRejectingDrift() throws {

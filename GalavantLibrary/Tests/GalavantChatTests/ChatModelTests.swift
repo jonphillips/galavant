@@ -1,14 +1,18 @@
 import Dependencies
+import DependenciesTestSupport
 import Foundation
 import LLMClientKit
 import GalavantSchema
+import SQLiteData
 import Synchronization
 import Testing
 
 @testable import GalavantChat
 
 @MainActor
-@Suite struct ChatModelTests {
+@Suite(.dependencies { try $0.bootstrapDatabase() })
+struct ChatModelTests {
+  @Dependency(\.defaultDatabase) var database
   /// A context to talk about — a simple idea screen.
   private var ideaContext: ChatContext {
     .idea(ResolvedIdeaContext(idea: Idea(id: UUID(), name: "Noma", kind: .food)))
@@ -106,6 +110,31 @@ import Testing
       let prompt = ChatModel(context: ideaContext, tools: ToolRecorder()).systemPrompt()
       #expect(!prompt.contains("standing instructions"))
     }
+  }
+
+  @Test("system prompt includes the shared taste and known planner overlays")
+  func tasteProfileInSystemPrompt() async throws {
+    try await database.write { db in
+      let partyID = try TravelParty.ensureDefault(in: db).id
+      let plannerID = UUID()
+      try Planner.insert {
+        Planner.Draft(id: plannerID, displayName: "Jon", travelPartyID: partyID)
+      }.execute(db)
+      try TravelProfile.setPreferences("Relaxed luxury", travelPartyID: partyID, in: db)
+      try TravelProfile.setPreferences(
+        "Food first", travelPartyID: partyID, plannerID: plannerID, in: db)
+    }
+
+    let prompt = ChatModel(context: ideaContext, tools: ToolRecorder()).systemPrompt()
+    #expect(prompt.contains("The travel party's standing taste (use it to shape suggestions; don't recite it):"))
+    #expect(prompt.contains("Our travel taste: Relaxed luxury"))
+    #expect(prompt.contains("Jon's taste: Food first"))
+  }
+
+  @Test("system prompt omits the taste sentence when no profile is set")
+  func noTasteProfileInSystemPrompt() {
+    let prompt = ChatModel(context: ideaContext, tools: ToolRecorder()).systemPrompt()
+    #expect(!prompt.contains("standing taste"))
   }
 
   @Test("frontier chat enables server-side web search; on-device does not")

@@ -1,6 +1,6 @@
 # Effort — Travel profile: a Settings entry, and the ChatGPT briefs and chat read it
 
-**Status:** Queued (2026-10-08) · **Summary:** the taste profile already has storage, an editor and an
+**Status:** Done (2026-10-08) · **Summary:** the taste profile already has storage, an editor and an
 assembly helper, but nothing presents the editor and nothing reads the profile. Settings gets a **Taste
 Profile** row. The outbound ChatGPT seed and recommendation briefs, and the in-app chat system prompt,
 include the profile. **This is the first write to the synced `travelProfiles` table, so its Production

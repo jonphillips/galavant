@@ -55,8 +55,14 @@ public enum RecommendationHandoffTask {
 public enum RecommendationHandoffContract {
   public static let marker = HandoffContractMarker(prefix: "GV-CONTRACT", version: "v2")
 
-  public static func seedBrief(session: HandoffSession, tripName: String, plan: TripPlan) -> String {
+  public static func seedBrief(
+    session: HandoffSession,
+    tripName: String,
+    plan: TripPlan,
+    tasteLines: [String] = []
+  ) -> String {
     var lines = [session.header, "Trip: \(tripName)"]
+    lines.append(contentsOf: tasteLines)
     let stops = stopSummary(plan: plan)
     if !stops.isEmpty {
       lines.append("Stops so far:")
@@ -71,7 +77,8 @@ public enum RecommendationHandoffContract {
     session: HandoffSession,
     tripName: String,
     tripNotes: String,
-    plan: TripPlan
+    plan: TripPlan,
+    tasteLines: [String] = []
   ) -> String {
     let trimmedNotes = tripNotes.trimmingCharacters(in: .whitespacesAndNewlines)
     var lines = [
@@ -79,6 +86,7 @@ public enum RecommendationHandoffContract {
       "Trip: \(tripName)",
     ]
     if !trimmedNotes.isEmpty { lines.append("Trip notes: \(trimmedNotes)") }
+    lines.append(contentsOf: tasteLines)
     let stops = stopSummary(plan: plan)
     if !stops.isEmpty {
       lines.append("Stops so far:")
