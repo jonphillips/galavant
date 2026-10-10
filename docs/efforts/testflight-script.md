@@ -190,9 +190,63 @@ App Store Connect. Turning feedback into issues or briefs is the architect's job
 commands for 3–9, including the `asc` lines. It writes the notes file from step 9 (and the
 sanitized, capped text it would send) without sending, copying or tagging. It changes nothing.
 
+### Documentation (jon-platform PR)
+
+The script is release tooling that holds a credential and has recovery paths, so it ships with three
+layers of documentation. Each fact lives in exactly one of them; the others link to it.
+
+1. **Header comment in the script, written for agents.** Follow `plan-pr`'s header:
+   - what the script does, as the numbered steps above, one line each;
+   - every mode and flag with a one-line example: default, `--bump`, `--dry-run`, `--no-upload`,
+     `--resume`, `--feedback`, `--help`;
+   - the exit codes. 0 means done, including the case where the notes ended up on the clipboard. Each
+     preflight, gate, verify or processing stop has its own documented code. Any nonzero exit after
+     step 6 means *"uploaded; use `--resume`"*;
+   - **What it never does:**
+     - skip the schema gate;
+     - upload with `asc`;
+     - call an `asc web` command or any other private endpoint;
+     - write to App Store Connect except What to Test;
+     - push to `main` except through the `--bump` PR;
+     - tag a build that hasn't processed;
+   - a pointer to the runbook (layer 3) for setup and recovery.
+2. **`testflight --help` / `-h`** prints that header's usage block. Extract it from the comment (for
+   example with `sed` between two marker lines) so the text exists only once. No jon-platform script
+   has `--help` yet, so this sets the pattern. An unknown flag prints the same
+   block to stderr and exits 2. Add a `testflight` line to the `scripts/` list in jon-platform
+   `README.md`, next to `plan-pr`, as one line in the same style.
+3. **A runbook for Jon, at `jon-platform/docs/ios/testflight.md`.** Index it in `README.md`'s `docs/ios/`
+   list. Sections:
+   - **One-time setup.** The single home for these steps; Galavant's device-passes item links here and
+     doesn't repeat them:
+     - the `cktool` management token;
+     - `brew install asc && brew pin asc`;
+     - creating the App Store Connect Team key: where it lives in App Store Connect, the App Manager
+       role, `asc auth login --name jon-team …`, `asc auth status --validate`, then deleting the `.p8`;
+     - the `~/code/bin` symlink.
+   - **Releasing.** The normal run, with and without `--bump`. What a good run's output looks like. How
+     long each phase takes.
+   - **When it stops.** A table: the message (or exit code) → what it means → what to do. Rows:
+     - one-time setup missing;
+     - CI not green;
+     - the build-number guard;
+     - a schema diff;
+     - an export verify failure;
+     - processing `INVALID`/`FAILED`;
+     - still processing at 45 minutes (`--resume`);
+     - What to Test fell back to the clipboard.
+   - **Reading feedback.** What `--feedback` writes and what to do with it.
+   - **`testflight.conf` reference.** Every key: what it's for, whether it's required, and an example.
+     A new app needs only this section.
+   - **Maintenance.**
+     - Upgrading `asc`: read its release notes for the commands the script uses, `brew unpin`,
+       upgrade, re-pin, edit `ASC_VERSION`, then a `--dry-run`.
+     - Rotating or revoking the API key. It's a team key, so it affects every app.
+     - Why it's built this way: Xcode uploads, `asc` uses only the public API. Link this brief's
+       2026-10-10 decisions rather than restating them.
+
 **Also in the jon-platform PR:**
 - `shellcheck` clean.
-- A usage section where jon-platform documents its scripts (follow `plan-pr` and `check-handoff`).
 - A `SEAM-LEDGER.md` note that this is shared release tooling with Galavant as the first consumer and
   Yes Chef next, so add a `testflight.conf` there when it starts shipping TestFlight builds. The note
   should also say that `asc` is a pinned external dependency limited to the public API, and that the
@@ -202,12 +256,14 @@ sanitized, capped text it would send) without sending, copying or tagging. It ch
 
 ## 2. Galavant adopts it (Galavant PR)
 
-- `testflight.conf` as above, at the repo root.
+- `testflight.conf` as above, at the repo root. Its first line is a comment linking the runbook's
+  `testflight.conf` reference.
 - `build/testflight/` added to `.gitignore`.
 - `project.yml`: a comment beside `CURRENT_PROJECT_VERSION` saying it's a floor that `testflight`
   overrides from git at archive time. Leave the value as it is.
 - `AGENTS.md` § Production: *"Release with `testflight` from a clean `main`; it gates on schema parity,
-  verifies the export, and tags only a processed build. Never hand-bump `CURRENT_PROJECT_VERSION`."*
+  verifies the export, and tags only a processed build. Never hand-bump `CURRENT_PROJECT_VERSION`.
+  Setup and recovery: jon-platform `docs/ios/testflight.md`."*
 - `PROD-CUTOVER.md` § After the cutover: the schema-deploy rule notes that `testflight` now enforces it.
 
 ## Verification
@@ -216,6 +272,10 @@ The executor can't upload, can't reach the CloudKit management API, and has no A
 key, so it doesn't try. **It never runs an `asc` command that writes.**
 
 - `shellcheck` is clean on the script.
+- `testflight --help` prints the header's usage block, and `testflight --bogus` prints it to stderr and
+  exits 2. Every flag the script parses appears in `--help`. Every stop message the script can print
+  has a row in the runbook's "When it stops" table. Check both by grepping, not by eye, and list any
+  gaps in the PR.
 - Run `testflight --dry-run` in Galavant. The expected stop is preflight's *"One-time setup missing:"*
   list (`asc`, its auth, the `cktool` token, whichever are absent), with each documented fix. Paste the
   output into the PR.
@@ -246,14 +306,9 @@ key, so it doesn't try. **It never runs an `asc` command that writes.**
   - adds a DONE-LOG entry;
   - marks this brief Done in `docs/efforts/README.md`;
   - adds to `docs/device-passes.md`, at the top (a held gate, not a verification gate):
-    - **One-time:**
-      - `xcrun cktool save-token --type management`;
-      - `brew install asc && brew pin asc`, and confirm `asc --version` matches `ASC_VERSION`;
-      - in App Store Connect → Users and Access → Integrations → Team Keys, create a key with the App
-        Manager role, then run `asc auth login --name jon-team --key-id … --issuer-id …
-        --private-key ~/Downloads/AuthKey_….p8`, then `asc auth status --validate`, then delete the
-        `.p8`;
-      - symlink `testflight` into `~/code/bin`.
+    - **One-time:** follow jon-platform `docs/ios/testflight.md` § One-time setup (the `cktool`
+      token, `asc` installed and pinned, the API key, the symlink). `testflight --dry-run` from clean
+      `main` must report nothing missing.
     - **First real run:** `testflight` from clean `main`. Confirm:
       - the schema gate and the build-number guard pass;
       - the verify table is all pass;
