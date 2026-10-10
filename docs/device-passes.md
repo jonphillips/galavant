@@ -23,6 +23,7 @@ reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT
 
 ## Verification gates (decision gates, not a build queue)
 
+- **Galavant Dev:** Xcode Run on the iPhone: "Galavant Dev", with the DEV icon, installs **next to** TestFlight Galavant; both open their own libraries; the share sheet lists both; Galavant Dev's Settings shows "CloudKit Development"; Weather loads in Galavant Dev (WeatherKit on the new App ID).
 - Move a linked trip event to another trip day in Calendar, run Reconcile Calendar, and confirm it
   shows as a linked match (not "No Itinerary Match") with the Plan Repair at the top of the sheet.
 - On one device, add a trip document and confirm it appears on the other after sync; delete the trip and confirm the document is removed.

@@ -12,11 +12,18 @@ import Foundation
 public enum DatabaseChange {
   // A plain `String` (Sendable) so the Darwin teardown closure can reference it;
   // bridged to `CFString` at each call site.
-  private static let darwinName = "com.jonphillips.galavant.databaseDidChange"
+  private static var darwinName: String? {
+    GalavantStorage.appGroupID.map(notificationName(appGroupID:))
+  }
+
+  public static func notificationName(appGroupID: String) -> String {
+    "\(appGroupID).databaseDidChange"
+  }
 
   /// Post from the writing process (the share extension) right after a successful
   /// commit to the shared database.
   public static func post() {
+    guard let darwinName else { return }
     CFNotificationCenterPostNotification(
       CFNotificationCenterGetDarwinNotifyCenter(),
       CFNotificationName(rawValue: darwinName as CFString),
@@ -29,6 +36,10 @@ public enum DatabaseChange {
   /// consuming task is cancelled.
   public static var notifications: AsyncStream<Void> {
     AsyncStream { continuation in
+      guard let darwinName else {
+        continuation.finish()
+        return
+      }
       // The Darwin callback is a context-free C function pointer, so smuggle the
       // continuation through the observer pointer.
       let observer = Unmanaged.passRetained(Box(continuation)).toOpaque()

@@ -3,6 +3,21 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## Galavant Dev variant (`effort/galavant-dev-variant`) — 2026-10-08
+
+- Debug now builds **Galavant Dev** with separate app and share-extension bundle IDs, a separate
+  app group, display name, and DEV-badged icon. It shares the real iCloud container and therefore
+  uses CloudKit Development. Release keeps the production identity.
+- The database-change Darwin notification is scoped to the configured app group. Debug backup
+  exports use the `Galavant Dev` display name and `Galavant-Dev-Backup-` filename prefix, so they
+  are clearly distinguished from TestFlight backups. Missing `GalavantAppGroupID` reports an issue
+  and fails store opening; no production app-group fallback remains.
+- **Verification.** `scripts/check-drift.sh` passed SwiftLint, all GalavantLibrary suites (800
+  tests, 9 known issues), and the GalavantUITests build. Headless `GalavantTests` passed 41 tests.
+  Generic iOS Debug and Release builds passed. Device follow-up: after portal setup, confirm
+  Galavant Dev installs next to TestFlight Galavant, both open their own libraries, the share sheet
+  lists both, Settings shows "CloudKit Development", and Weather loads in Galavant Dev.
+
 ## Taste Profile identity (`effort/taste-profile-identity`) — 2026-10-08
 
 - The Taste Profile editor now keeps **Your overlay** visible when this device has no valid planner

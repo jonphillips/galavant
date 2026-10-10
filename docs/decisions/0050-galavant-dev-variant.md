@@ -1,7 +1,6 @@
 # ADR-0050: Galavant Dev — Debug builds get their own app identity, and share the CloudKit container
 
-*Status: **proposed** — 2026-10-08, from a design conversation with Jon after the Production cutover.
-Ratified when Jon merges the plan PR that adds it. Builds on
+*Status: **accepted** — 2026-10-08. Builds on
 [ADR-0049](0049-backup-restore-and-production-cutover.md) (Production cutover) and
 [ADR-0006](0006-naming.md) (naming). Effort: [`galavant-dev-variant`](../efforts/galavant-dev-variant.md).*
 
@@ -79,3 +78,8 @@ the container.
 - **OQ1 — When to reset the Development environment.** It's the rollback copy until the M5 gate passes on
   Production. After that, a reset makes Galavant Dev light. The reset also resets the Development schema
   to Production's, which is harmless: deploys only add.
+- **OQ2 — Refuse cross-environment restores outright?** Debug backups are named `Galavant-Dev-Backup-…`
+  and say "Galavant Dev", so a mix-up is visible, but the production importer still *accepts* a
+  Development library. A hard refusal needs an environment marker written into the backup and checked on
+  restore. That's a CloudSyncKit (jon-platform) change, shared with Yes Chef. Decide when Yes Chef adopts
+  its own dev variant.

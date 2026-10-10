@@ -21,9 +21,17 @@ public enum GalavantCloudSync {
   )
 
   /// Per-app identity and migration entry point for CloudSyncKit's shared backup flow.
+#if DEBUG
+  private static let backupDisplayName = "Galavant Dev"
+  private static let backupFilenamePrefix = "Galavant-Dev-Backup-"
+#else
+  private static let backupDisplayName = "Galavant"
+  private static let backupFilenamePrefix = "Galavant-Backup-"
+#endif
+
   public static let databaseBackupConfiguration = DatabaseBackupConfiguration(
-    displayName: "Galavant",
-    backupFilenamePrefix: "Galavant-Backup-",
+    displayName: backupDisplayName,
+    backupFilenamePrefix: backupFilenamePrefix,
     preRestoreFilenamePrefix: "Galavant-PreRestore-",
     restoreStagingFilenamePrefix: "Galavant-Restore-",
     identifyingTableNames: ["travelParties", "ideas"],
