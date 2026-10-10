@@ -1,11 +1,10 @@
-# Next Up — Galavant Dev: Debug builds get their own bundle ID, app group, name and icon
+# Next Up — `testflight`: one command from main to a verified TestFlight upload
 
-**Slices:** effort `galavant-dev-variant` (one PR, branch `effort/galavant-dev-variant`)
-**Briefs:** `docs/efforts/galavant-dev-variant.md`
+**Slices:** effort `testflight-script`: two PRs on branch `effort/testflight-script`, jon-platform
+first, then Galavant
+**Briefs:** `docs/efforts/testflight-script.md`
 **Done when:** per the brief's "Done when"; verification per `docs/verification.md`.
-**Owed:** Jon's one-time portal setup (`.dev` App IDs, app group, container assignment, WeatherKit in
-both tabs) before his first device run. Identifiers and entitlements change, so the architect
-escalates the PR to Jon before merge.
-**Notes:** ADR-0050. Release must be unchanged: prove it with the Debug/Release identity table in the
-PR. The container stays the same; the app group never falls back to production. Start from a fresh
-`main`.
+**Owed:** Jon's one-time `cktool` management token and `~/code/bin` symlink, then the first real
+run. Release tooling with `--admin` merges, so the architect escalates both PRs to Jon before merge.
+**Notes:** The build number comes from git and is never committed. The schema gate has no skip
+flag. Verify the export *before* upload (two-phase export). Start from a fresh `main` in both repos.

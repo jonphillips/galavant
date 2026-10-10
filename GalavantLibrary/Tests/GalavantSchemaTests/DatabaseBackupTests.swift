@@ -16,7 +16,13 @@ struct DatabaseBackupTests {
 
   @Test func configurationIdentifiesGalavantAndDeclaresRegisteredSchemaVersion() throws {
     let configuration = GalavantCloudSync.databaseBackupConfiguration
+#if DEBUG
+    #expect(configuration.displayName == "Galavant Dev")
+    #expect(configuration.backupFilenamePrefix == "Galavant-Dev-Backup-")
+#else
     #expect(configuration.displayName == "Galavant")
+    #expect(configuration.backupFilenamePrefix == "Galavant-Backup-")
+#endif
     #expect(configuration.identifyingTableNames == ["travelParties", "ideas"])
     // The facade derives this version directly from the registered list, so it cannot drift.
     #expect(configuration.declaredSchemaVersion == GalavantDatabaseMigrations.makeMigrator().migrations.count)
@@ -27,7 +33,7 @@ struct DatabaseBackupTests {
     let otherDatabase = try DatabaseQueue(path: nonGalavantURL.path)
     try otherDatabase.write { db in try db.execute(sql: "CREATE TABLE recipes (id TEXT)") }
     try otherDatabase.close()
-    #expect(throws: DatabaseBackup.BackupError.notAppBackup("Galavant")) {
+    #expect(throws: DatabaseBackup.BackupError.notAppBackup(configuration.displayName)) {
       try DatabaseBackup.validateAppSchema(in: nonGalavantURL, configuration: configuration)
     }
   }

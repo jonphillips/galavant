@@ -61,7 +61,7 @@ targets:
         com.apple.developer.icloud-container-identifiers: [iCloud.com.jonphillips.galavant]
         com.apple.developer.icloud-services: [CloudKit]
         com.apple.developer.weatherkit: true
-        com.apple.security.application-groups: [group.com.jonphillips.galavant]
+        com.apple.security.application-groups: [$(GALAVANT_APP_GROUP)]
     # Keep the Unsplash Client-ID in a machine-local xcconfig. XcodeGen attaches
     # it to both app configurations; the file is intentionally gitignored.
     configFiles:
@@ -73,7 +73,8 @@ targets:
         UILaunchScreen: {}
         UIBackgroundModes: [remote-notification]
         CKSharingSupported: true
-        CFBundleDisplayName: Galavant
+        CFBundleDisplayName: $(GALAVANT_DISPLAY_NAME)
+        GalavantAppGroupID: $(GALAVANT_APP_GROUP)
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         # HTTPS only, no custom crypto: exempt. Answers App Store Connect's export
@@ -141,9 +142,20 @@ targets:
         product: Sharing
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.jonphillips.galavant
+        PRODUCT_BUNDLE_IDENTIFIER: $(GALAVANT_BUNDLE_ID)
         TARGETED_DEVICE_FAMILY: "1,2"
         CODE_SIGN_ENTITLEMENTS: Galavant/Galavant.entitlements
+      configs:
+        Debug:
+          GALAVANT_BUNDLE_ID: com.jonphillips.galavant.dev
+          GALAVANT_APP_GROUP: group.com.jonphillips.galavant.dev
+          GALAVANT_DISPLAY_NAME: Galavant Dev
+          ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon-Dev
+        Release:
+          GALAVANT_BUNDLE_ID: com.jonphillips.galavant
+          GALAVANT_APP_GROUP: group.com.jonphillips.galavant
+          GALAVANT_DISPLAY_NAME: Galavant
+          ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
   GalavantShare:
     type: app-extension
     platform: iOS
@@ -163,7 +175,8 @@ targets:
     info:
       path: GalavantShare/Info.plist
       properties:
-        CFBundleDisplayName: Galavant
+        CFBundleDisplayName: $(GALAVANT_DISPLAY_NAME)
+        GalavantAppGroupID: $(GALAVANT_APP_GROUP)
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:
@@ -179,9 +192,18 @@ targets:
             NSExtensionJavaScriptPreprocessingFile: ExtensionPreProcessing
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.jonphillips.galavant.share
+        PRODUCT_BUNDLE_IDENTIFIER: $(GALAVANT_BUNDLE_ID).share
         CODE_SIGN_ENTITLEMENTS: GalavantShare/GalavantShare.entitlements
         GENERATE_INFOPLIST_FILE: NO
+      configs:
+        Debug:
+          GALAVANT_BUNDLE_ID: com.jonphillips.galavant.dev
+          GALAVANT_APP_GROUP: group.com.jonphillips.galavant.dev
+          GALAVANT_DISPLAY_NAME: Galavant Dev
+        Release:
+          GALAVANT_BUNDLE_ID: com.jonphillips.galavant
+          GALAVANT_APP_GROUP: group.com.jonphillips.galavant
+          GALAVANT_DISPLAY_NAME: Galavant
   GalavantUITests:
     type: bundle.ui-testing
     platform: iOS

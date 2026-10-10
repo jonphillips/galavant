@@ -93,6 +93,9 @@ struct SettingsScreen: View {
 
       #if DEBUG
       Section("Developer") {
+        Text("Galavant Dev · CloudKit Development")
+          .font(.caption)
+          .foregroundStyle(.secondary)
         NavigationLink {
           WeatherDebugView()
         } label: {

@@ -21,12 +21,15 @@ extension RecentTripStore: DependencyKey {
     // `UserDefaults` isn't Sendable, so resolve the app-group suite inside each
     // closure (cheap) rather than capturing one instance.
     read: {
-      UserDefaults(suiteName: GalavantStorage.appGroupID)?
+      guard let appGroupID = GalavantStorage.appGroupID else { return nil }
+      return UserDefaults(suiteName: appGroupID)?
         .string(forKey: recentTripKey)
         .flatMap(UUID.init(uuidString:))
     },
     record: { id in
-      guard let defaults = UserDefaults(suiteName: GalavantStorage.appGroupID) else { return }
+      guard let appGroupID = GalavantStorage.appGroupID,
+        let defaults = UserDefaults(suiteName: appGroupID)
+      else { return }
       if let id {
         defaults.set(id.uuidString, forKey: recentTripKey)
       } else {

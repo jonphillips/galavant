@@ -1,7 +1,6 @@
 # ADR-0050: Galavant Dev — Debug builds get their own app identity, and share the CloudKit container
 
-*Status: **proposed** — 2026-10-08, from a design conversation with Jon after the Production cutover.
-Ratified when Jon merges the plan PR that adds it. Builds on
+*Status: **accepted** — 2026-10-08. Builds on
 [ADR-0049](0049-backup-restore-and-production-cutover.md) (Production cutover) and
 [ADR-0006](0006-naming.md) (naming). Effort: [`galavant-dev-variant`](../efforts/galavant-dev-variant.md).*
 
