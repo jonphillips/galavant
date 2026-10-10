@@ -4,6 +4,13 @@ Jon's checklist: real-device and distribution gates. **Not executor work; the ex
 reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT_HANDOFF.md` on
 2026-09-29 (jon-platform ADR-0005). When a gate clears, delete it and note it in `DONE-LOG.md`.
 
+- **TestFlight release workflow — held gate.**
+  - **One-time:** follow [jon-platform's TestFlight runbook](https://github.com/jonphillips/jon-platform/blob/main/docs/ios/testflight.md) § One-time setup
+    (the `cktool` token, `asc` installed and pinned, the API key, and the symlink). From clean `main`,
+    `testflight --dry-run` must report no setup missing.
+  - **First real run:** run `testflight` from clean `main`. Confirm the schema gate and build-number
+    guard pass; the export verification table is all pass; processing finishes before the build is
+    tagged; What to Test appears in TestFlight on the phone; and `testflight --feedback` writes a file.
 - **Production cutover — Phase 6 left.** Phases 1–5 done 2026-10-08: TestFlight on Production, iPhone
   carried the library, a fresh iPad pulled it. Remaining: add Wendy as an internal TestFlight tester,
   then run Phase 6 of [`PROD-CUTOVER.md`](PROD-CUTOVER.md) (she installs clean, accepts the travel-party
