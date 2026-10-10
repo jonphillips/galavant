@@ -7,15 +7,17 @@ History, newest first. The PR that completes a dispatch adds its entry naming it
 
 - Added Galavant's `testflight.conf`, ignored local archives/exports/recovery state, and documented
   git-derived `CURRENT_PROJECT_VERSION` as a floor override. The shared `testflight` command checks
-  schema parity, verifies the export before Xcode upload, then waits for processing before tagging
-  and setting What to Test. Setup and recovery live in jon-platform `docs/ios/testflight.md`.
+  CloudKit Schema Language parity, verifies the unpacked IPA before Xcode upload, and, after a
+  `--bump` merge, waits up to 20 minutes for CI on the new `main` commit before continuing. It then
+  waits for processing before tagging and setting What to Test. Setup and recovery live in
+  jon-platform `docs/ios/testflight.md`.
 - Updated the Production release rule and held device gate. The first real release remains owed after
   Jon completes the one-time setup and device checks.
 - **Verification.** `scripts/check-drift.sh` passed: SwiftLint (0 violations), GalavantLibrary
   suites (800 tests, 9 known issues), and the GalavantUITests build. The shared `testflight` shell
   fixture tests and shellcheck passed. Stubbed `testflight --dry-run` reported the missing `asc`
-  install and `cktool` management token together; the API-key auth check runs once `asc` is installed.
-  The real setup, CloudKit schema gate, upload, and device checks remain owed.
+  install; after setup, the read-only Development schema export checks the `cktool` token. The real
+  setup, CloudKit schema gate, upload, and device checks remain owed.
 
 ## Galavant Dev variant (`effort/galavant-dev-variant`) — 2026-10-08
 
