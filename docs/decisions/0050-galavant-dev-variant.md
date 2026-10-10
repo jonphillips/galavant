@@ -78,3 +78,8 @@ the container.
 - **OQ1 — When to reset the Development environment.** It's the rollback copy until the M5 gate passes on
   Production. After that, a reset makes Galavant Dev light. The reset also resets the Development schema
   to Production's, which is harmless: deploys only add.
+- **OQ2 — Refuse cross-environment restores outright?** Debug backups are named `Galavant-Dev-Backup-…`
+  and say "Galavant Dev", so a mix-up is visible, but the production importer still *accepts* a
+  Development library. A hard refusal needs an environment marker written into the backup and checked on
+  restore. That's a CloudSyncKit (jon-platform) change, shared with Yes Chef. Decide when Yes Chef adopts
+  its own dev variant.
