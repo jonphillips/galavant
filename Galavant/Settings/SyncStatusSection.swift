@@ -51,6 +51,7 @@ private struct SyncStatusDot: View {
     case .disabled: .secondary
     case .localOnly: .orange
     case .syncing, .downloading: .blue
+    case .needsAttention: .orange
     case .upToDate: .green
     case .error: .red
     }
@@ -113,6 +114,11 @@ struct SyncStatusDetailView: View {
     case let .localOnly(reason): reason
     case let .syncing(pending): "\(pending) change\(pending == 1 ? "" : "s") uploading"
     case .downloading: "Downloading changes from iCloud"
+    case let .needsAttention(notUploaded, notApplied):
+      [
+        notUploaded > 0 ? "\(notUploaded) not uploaded" : nil,
+        notApplied > 0 ? "\(notApplied) couldn’t be saved here" : nil,
+      ].compactMap(\.self).joined(separator: " · ")
     case let .error(message): message
     case .disabled, .upToDate: nil
     }
@@ -128,6 +134,8 @@ struct SyncStatusDetailView: View {
       "Uploading recent changes to iCloud."
     case .downloading:
       "Downloading changes from iCloud. A first sync of a large pool can take a while — iCloud drip-feeds it and it will finish on its own; keep this device on Wi-Fi and power."
+    case .needsAttention:
+      "Some changes haven’t reached iCloud, or changes from iCloud couldn’t be saved on this device. This clears once they sync; if it stays, something is stuck."
     case .upToDate:
       "Your ideas and trips are synced with your travel party over iCloud."
     case .error:
