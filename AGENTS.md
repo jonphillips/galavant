@@ -45,6 +45,10 @@ and ADR-0005. Jon approves plans (merges plan PRs) and decides escalations.
 Galavant ships from TestFlight on CloudKit **Production** (`docs/PROD-CUTOVER.md`, ADR-0049). The
 library on Jon's devices is real data now, so:
 
+- Release with `testflight` from a clean `main`; it gates on schema parity, verifies the export, and
+  tags only a processed build. Never hand-bump `CURRENT_PROJECT_VERSION`. Setup and recovery:
+  jon-platform `docs/ios/testflight.md`.
+
 - **Schema deploys are permanent and additive.** Record types and fields can be added to Production,
   never removed. A slice that adds a synced table or column, or is the first to write one, says so in
   its brief. Its NEXT_UP **Owed** line names the deploy: push the field from a development build, then
