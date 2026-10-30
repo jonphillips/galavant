@@ -307,11 +307,14 @@ struct RecommendationHandoffTests {
     #expect(prose.note == "Before the list.\n\nAfter the list.")
 
     let fenced = try TripCandidate.decodeReturn("Here it is:\n```json\n[{\"name\":\"Plose\"}]\n```\nThat’s all.")
-    #expect(fenced.note == "Here it is:\n\nThat's all.")
+    #expect(fenced.note == "Here it is:\n\nThat’s all.")
 
-    let wrapped = try TripCandidate.decodeReturn("{\"summary\":\"Look north for more places.\",\"places\":[{\"name\":\"Plose\"}],\"follow_up\":\"Save them for later.\"}")
+    let wrapped = try TripCandidate.decodeReturn("{\"summary\":\"Look north for more places.\",\"candidates\":[{\"name\":\"Plose\"}],\"follow_up\":\"Save them for later.\"}")
     #expect(wrapped.candidates.only?.name == "Plose")
     #expect(wrapped.note == "summary: Look north for more places.\nfollow_up: Save them for later.")
+
+    let curly = try TripCandidate.decodeReturn("{\"summary\":\"Try the “northern” loop.\",\"recommendations\":[{\"name\":\"Plose\"}]}")
+    #expect(curly.note == "summary: Try the “northern” loop.")
 
     let nested = try TripCandidate.decodeReturn("{\"summary\":\"Try the north.\",\"details\":{\"area\":\"north\"},\"places\":[{\"name\":\"Plose\"}]}")
     #expect(nested.note == "summary: Try the north.")
@@ -391,7 +394,7 @@ struct RecommendationHandoffTests {
   }
 
   @Test func ignoresAStrayOpeningBracketBeforeTheCandidateArray() throws {
-      let candidates = try TripCandidate.decodeReturn(
+    let candidates = try TripCandidate.decodeReturn(
       "The output has a stray [ in this sentence.\n[{\"name\": \"Plose\"}]"
     )
 

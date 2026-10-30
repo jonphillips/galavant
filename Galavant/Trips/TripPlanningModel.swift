@@ -59,8 +59,7 @@ final class TripPlanningModel {
   var destination: Destination?
   var recommendationReview: [RecommendationCandidateDraft] = []
   var recommendationHandoffError: String?
-  /// Non-blocking heads-up when a paste imported despite a dropped token or an
-  /// out-of-date contract marker (warn-not-block, ADR-0036 handoff ergonomics).
+  /// Captures the paste warning, surrounding Chat note, and one-time save state.
   var recommendationHandoffPaste = RecommendationHandoffPaste()
   var pendingRecommendationReconcile: ResolveReconcile.Collision?
   var calendarLocalState: CalendarReconciliationLocalState

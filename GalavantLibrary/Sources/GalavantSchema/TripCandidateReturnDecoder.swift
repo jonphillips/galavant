@@ -7,25 +7,44 @@ public struct TripCandidateReturn: Equatable, Sendable {
 
 enum TripCandidateReturnDecoder {
   static func decode(_ text: String) throws -> TripCandidateReturn {
-    let cleaned = removingCodeFenceLines(from: normalizeQuotes(in: text))
-    if let entries = topLevelObjectEntries(in: cleaned),
-      let places = entries.first(where: { $0.key == "places" })?.value,
-      let candidates = decodeCandidates(places)
+    let pasted = removingCodeFenceLines(from: text)
+    if let result = try objectReturn(in: pasted) ?? arrayReturn(in: pasted) { return result }
+
+    let normalized = normalizeQuotes(in: pasted)
+    if normalized != pasted,
+      let result = try objectReturn(in: normalized) ?? arrayReturn(in: normalized)
     {
-      guard !candidates.isEmpty else { throw TripCandidateDecodeError.emptyCandidates }
-      let notes = entries.compactMap { entry -> String? in
-        guard entry.key != "places", let note = try? JSONDecoder().decode(String.self, from: Data(entry.value.utf8))
-        else { return nil }
-        let value = note.trimmingCharacters(in: .whitespacesAndNewlines)
-        return value.isEmpty ? nil : "\(entry.key): \(value)"
-      }
-      return TripCandidateReturn(candidates: candidates, note: notes.isEmpty ? nil : notes.joined(separator: "\n"))
+      return result
     }
 
-    guard let array = jsonArraySlice(in: cleaned) else { throw TripCandidateDecodeError.missingJSONArray }
+    guard let array = jsonArraySlice(in: normalized) else { throw TripCandidateDecodeError.missingJSONArray }
     guard let candidates = decodeCandidates(array) else { throw TripCandidateDecodeError.malformedJSON }
     guard !candidates.isEmpty else { throw TripCandidateDecodeError.emptyCandidates }
-    let surroundingText = String(cleaned.replacingOccurrences(of: array, with: ""))
+    let surroundingText = String(normalized.replacingOccurrences(of: array, with: ""))
+    let note = removingJSONFragments(from: surroundingText)
+    return TripCandidateReturn(candidates: candidates, note: note.nonEmpty)
+  }
+
+  private static func objectReturn(in text: String) throws -> TripCandidateReturn? {
+    guard let entries = topLevelObjectEntries(in: text),
+      let candidateIndex = entries.indices.first(where: { decodeCandidates(entries[$0].value) != nil }),
+      let candidates = decodeCandidates(entries[candidateIndex].value)
+    else { return nil }
+    guard !candidates.isEmpty else { throw TripCandidateDecodeError.emptyCandidates }
+    let notes = entries.enumerated().compactMap { index, entry -> String? in
+      guard index != candidateIndex,
+        let note = try? JSONDecoder().decode(String.self, from: Data(entry.value.utf8))
+      else { return nil }
+      let value = note.trimmingCharacters(in: .whitespacesAndNewlines)
+      return value.isEmpty ? nil : "\(entry.key): \(value)"
+    }
+    return TripCandidateReturn(candidates: candidates, note: notes.isEmpty ? nil : notes.joined(separator: "\n"))
+  }
+
+  private static func arrayReturn(in text: String) throws -> TripCandidateReturn? {
+    guard let array = jsonArraySlice(in: text), let candidates = decodeCandidates(array) else { return nil }
+    guard !candidates.isEmpty else { throw TripCandidateDecodeError.emptyCandidates }
+    let surroundingText = String(text.replacingOccurrences(of: array, with: ""))
     let note = removingJSONFragments(from: removingCodeFenceLines(from: surroundingText))
     return TripCandidateReturn(candidates: candidates, note: note.nonEmpty)
   }

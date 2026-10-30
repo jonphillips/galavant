@@ -391,8 +391,12 @@ private struct RecommendationHandoffDoor: View {
     // control below the fold, where it reads as missing.
     VStack(spacing: 0) {
       if let note {
-        ChatHandoffNote(note: note, isSaved: noteSaved, save: saveNote)
-          .padding(.horizontal)
+        VStack(alignment: .leading, spacing: 8) {
+          Text("Chat also said")
+            .font(.headline)
+          ChatHandoffNote(note: note, isSaved: noteSaved, save: saveNote)
+        }
+        .padding(.horizontal)
       }
       ContentUnavailableView {
         Label("Ask ChatGPT or Claude", systemImage: "sparkles")
