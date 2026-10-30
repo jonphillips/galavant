@@ -4,10 +4,6 @@ Jon's checklist: real-device and distribution gates. **Not executor work; the ex
 reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT_HANDOFF.md` on
 2026-09-29 (jon-platform ADR-0005). When a gate clears, delete it and note it in `DONE-LOG.md`.
 
-- **TestFlight release workflow — first real run.** One-time setup is done (2026-10-30), and the first
-  run (build 0.2.0 (477)) is in progress. Confirm the schema gate and build-number
-  guard pass; the export verification table is all pass; processing finishes before the build is
-  tagged; What to Test appears in TestFlight on the phone; and `testflight --feedback` writes a file.
 - **Production cutover — the M5 gate left.** Phases 1–5 done 2026-10-08. On 2026-10-30 Wendy installed
   from TestFlight and accepted Jon's share. What's left of Phase 6 of [`PROD-CUTOVER.md`](PROD-CUTOVER.md)
   is the M5 gate below.

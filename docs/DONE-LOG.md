@@ -3,7 +3,7 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
-## Gates cleared: Galavant Dev, travelProfiles schema, TestFlight setup, Wendy's share (`plan/close-dev-and-schema-gates`) — 2026-10-30
+## Gates cleared: Galavant Dev, travelProfiles schema, TestFlight setup and first release, Wendy's share (`plan/close-dev-and-schema-gates`) — 2026-10-30
 
 - **Galavant Dev portal setup and device pass (ADR-0050).** Jon built and installed Galavant Dev.
   `devicectl` shows `com.jonphillips.galavant.dev` installed next to `com.jonphillips.galavant` on the
@@ -12,9 +12,13 @@ History, newest first. The PR that completes a dispatch adds its entry naming it
 - **`travelProfiles` Production schema deploy.** Checked with `cktool export-schema`: Development and
   Production schemas are identical, and Production's `travelProfiles` has `travelPartyID`, `plannerID`
   and `preferences`. The two-device TestFlight check of the profile is now a verification gate.
-- **TestFlight one-time setup.** `testflight` is on PATH, `asc` 5.17.1 matches the pin, and the
-  `cktool` token works. The first real run passed the schema gate and was archiving build 477 when
-  this was written. Its completion gate stays in `device-passes.md`.
+- **TestFlight one-time setup and first release.** `testflight` is on PATH, `asc` 5.17.1 matches the
+  pin, and the `cktool` token works. The first real run shipped **0.2.0 (477)**: the schema gate passed,
+  the build uploaded and processed, the `testflight/0.2.0-477` tag is pushed, and What to Test is set.
+  `testflight --feedback` wrote its file, but only the crash list filled in. The tester-feedback query
+  fails with "AppId is invalid; must be a positive long number": the script passes the bundle ID where
+  `asc testflight feedback list` needs the numeric App Store Connect app ID. That's a jon-platform
+  script fix, not a Galavant gate.
 - **Production cutover Phase 6: Wendy's install and share acceptance.** Jon reports Wendy installed
   from TestFlight, ran the app, and accepted his share. Recorded on his word. She hasn't added content
   yet, so the two-way changes, image round trip and pinned reservation (the M5 gate) stay owed.
