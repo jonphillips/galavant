@@ -5,7 +5,7 @@
 *Summary: correct the Evaluate cockpit's geography — human-facing searches bias
 instead of fence, unresolved candidates get a real display anchor, and the map
 reuses `PlaceSelectionMap` for tap-to-resolve. Implements
-[ADR-0045](../decisions/0045-evaluate-workspace-geographic-model.md).*
+[ADR-0045](../../decisions/0045-evaluate-workspace-geographic-model.md).*
 
 Read first: `Galavant/Trips/RecommendationWorkspaceView.swift` (the map + search +
 Connect controls), `Galavant/Trips/RecommendationWorkspaceModel.swift` and

@@ -2,7 +2,7 @@
 
 *Status: **accepted** — 2026-10-08. Builds on
 [ADR-0049](0049-backup-restore-and-production-cutover.md) (Production cutover) and
-[ADR-0006](0006-naming.md) (naming). Effort: [`galavant-dev-variant`](../efforts/galavant-dev-variant.md).*
+[ADR-0006](0006-naming.md) (naming). Effort: [`galavant-dev-variant`](../efforts/archive/galavant-dev-variant.md).*
 
 ## Context
 

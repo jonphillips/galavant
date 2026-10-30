@@ -11,8 +11,8 @@ the tag half of *"Consolidate remaining management UIs into Settings"*. Follows 
 ## What's there today, and why Jon sees 24 tags on 0 ideas
 
 - **Storage.** `Tag` (`name`, one FK to `TravelParty`) and `IdeaTag` (one FK to `Idea`, plus a loose
-  `tagID`) ([Tag.swift](../../GalavantLibrary/Sources/GalavantSchema/Tag.swift),
-  [IdeaTag.swift](../../GalavantLibrary/Sources/GalavantSchema/IdeaTag.swift)).
+  `tagID`) ([Tag.swift](../../../GalavantLibrary/Sources/GalavantSchema/Tag.swift),
+  [IdeaTag.swift](../../../GalavantLibrary/Sources/GalavantSchema/IdeaTag.swift)).
 - **Surfaces.** Tag editing in the Idea form, including the multi-select `TagPickerView`. Tag labels on
   `IdeaDetailView`. A `TagManagerView` with swipe-to-delete and rename, reached only through **Ideas →
   Filter → Tags → Manage Tags…**, and that entry only shows once a tag exists. Jon didn't know it was
@@ -93,7 +93,7 @@ fine.
 
 ## 4. Tags on Idea rows
 
-`IdeaRow` ([IdeaRow.swift](../../Galavant/Ideas/IdeaRow.swift)) takes `tagNames: [String] = []`. When the
+`IdeaRow` ([IdeaRow.swift](../../../Galavant/Ideas/IdeaRow.swift)) takes `tagNames: [String] = []`. When the
 list isn't empty, show one more line in the text stack, after the region and notes lines: a small tag
 glyph (`Icon.tag`), then the names joined by `" · "`, in `.caption` and `.secondary`, `lineLimit(1)`
 with tail truncation. No chips; the row is already busy. The same line shows in both accessory modes
@@ -133,7 +133,7 @@ with tail truncation. No chips; the row is already busy. The same line shows in 
     # Next Up — Ideas quick filters (Food / Stay / Other, Scheduled / Not scheduled)
 
     **Slices:** effort `idea-quick-filters` (one PR, branch `effort/idea-quick-filters`)
-    **Briefs:** `docs/efforts/idea-quick-filters.md`
+    **Briefs:** `docs/efforts/archive/idea-quick-filters.md`
     **Done when:** per the brief's "Done when"; verification per `docs/verification.md`.
     **Owed:** Jon's device gates in `docs/device-passes.md` (not executor work).
     **Notes:** View filters only: no schema, sync, or persistence. Builds on the tag effort's

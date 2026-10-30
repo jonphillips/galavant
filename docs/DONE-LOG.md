@@ -385,7 +385,7 @@ The shape of a trip — "four nights Loire, three nights Paris, fly home day 8" 
 decided before any stop exists, and Galavant had no surface for it: the only way to
 record a day's region was one menu tap at a time in each day-section header. Slice E
 adds the sketch, a **view + editor over `TripDayRegion` + `Trip.lengthInDays`**
-(ADR-0012) — no new table. Design + sign-off: `docs/efforts/trip-sketch-design.md`.
+(ADR-0012) — no new table. Design + sign-off: `docs/efforts/archive/trip-sketch-design.md`.
 
 - **Pure core.** `TripSketch` (`GalavantSchema`) holds the per-day region array and
   projects contiguous **`DaySpan`s** — adjacent same-region days (and unassigned runs)
@@ -587,7 +587,7 @@ helpers, `legModes`, #83) — shipped and captured nearly all the measured win. 
 declined**: dogfooding a large trip on device was not sluggish, so the cache isn't needed,
 and it would cost a second GRDB observation, duplicate reads, extra post-write
 invalidations, and an accepted one-frame consistency window. The design stays on the shelf
-in [`docs/efforts/plan-memoization.md`](efforts/plan-memoization.md) if a real trip ever
+in [`docs/efforts/archive/plan-memoization.md`](efforts/archive/plan-memoization.md) if a real trip ever
 drags on device — pull it off then, not speculatively.
 
 ## Evaluation cockpit polish — dossier flyover + iPhone parity (ADR-0037) — SHIPPED (2026-08-23)
@@ -623,7 +623,7 @@ written; Jon to release to Codex.
 
 ## Evaluate workspace geographic model (ADR-0045) — SHIPPED (2026-08-23)
 
-All three stacked workstreams from `docs/efforts/evaluate-geographic-model.md` landed,
+All three stacked workstreams from `docs/efforts/archive/evaluate-geographic-model.md` landed,
 fixing the coupled Evaluate-cockpit geography defects in
 [ADR-0045](decisions/0045-evaluate-workspace-geographic-model.md):
 
@@ -660,7 +660,7 @@ Constraint reaping, Calendar commitment timing, the shared ledger, and idempoten
 reconciliation remain centralized in the existing core. Confirmed deletion of a
 promoted event removes Calendar authority but keeps the Galavant stop as an
 unbooked plan, clearing Calendar-derived timing and notes and recording `.unlinked`
-history. See `docs/efforts/calendar-constraint-to-linked-stop.md` and the ADR-0034
+history. See `docs/efforts/archive/calendar-constraint-to-linked-stop.md` and the ADR-0034
 amendment.
 
 Verification: Xcode 27 app build succeeded on iPhone 17 Pro / iOS 27; the filtered
@@ -718,7 +718,7 @@ A follow-up commit stabilized the repair path and cut the reconcile cost:
 Note: EventKit exposes a single time zone per event (departure); a flight's *arrival*
 zone is not in the public API, so a MUC→CLT flight displays instant-correct times in its
 departure zone rather than Apple Calendar's dual GMT+2/EDT labels. Not pursued.
-See `docs/milestones/M7-DOGFOOD.md` Part 3 for the device pass.
+See `docs/milestones/archive/M7-DOGFOOD.md` Part 3 for the device pass.
 
 Granular enhancement notes that have **fully shipped**, kept for history/context
 (not milestone-scoped — see `ROADMAP.md` for those). Companion to

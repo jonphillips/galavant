@@ -70,7 +70,7 @@ Follows `travel-profile-wiring` (#167) and ADR-0015 §3 as amended. It's part of
     # Next Up — Galavant Dev: Debug builds get their own bundle ID, app group, name and icon
 
     **Slices:** effort `galavant-dev-variant` (one PR, branch `effort/galavant-dev-variant`)
-    **Briefs:** `docs/efforts/galavant-dev-variant.md`
+    **Briefs:** `docs/efforts/archive/galavant-dev-variant.md`
     **Done when:** per the brief's "Done when"; verification per `docs/verification.md`.
     **Owed:** Jon's one-time portal setup (`.dev` App IDs, app group, container assignment, WeatherKit in
     both tabs) before his first device run. Identifiers and entitlements change, so the architect

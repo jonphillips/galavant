@@ -164,7 +164,7 @@ counts weren't recorded.
       content yet.
 - [ ] **The M5 gate,** on Production with both phones: share acceptance, changes both ways (create, edit,
       delete), an image round trip, and a pinned reservation keeping its date. The checklist is in
-      `docs/milestones/M5-EXECUTION.md`.
+      `docs/milestones/archive/M5-EXECUTION.md`.
 
 ---
 

@@ -11,36 +11,36 @@ backfilled **on touch**; the table below is the current index.
 
 | Brief | Implements | Status |
 | --- | --- | --- |
-| [logical-uniqueness-dedup.md](logical-uniqueness-dedup.md) | ADR-0008 — sync-dedup convergence hardening | Done (shipped) |
-| [m9-adr0037-evaluation-workspace.md](m9-adr0037-evaluation-workspace.md) | ADR-0036/0037 — recommendation evaluation workspace (Phases 1–4) | Dispatched — P1–2 done; P3 (browser) + P4 (iPhone) built, **layout in active revision** |
-| [trip-view-declutter.md](trip-view-declutter.md) | Trip View / Edit UX declutter | See doc |
-| [plan-memoization.md](plan-memoization.md) | Memoize the planning read model and remove repeated travel-graph derivation | Designed — awaiting approach sign-off |
-| [today-day-preview.md](today-day-preview.md) | ADR-0038 — preview any trip day in Today (start-of-day) | Done(shipped) |
-| [today-execution.md](today-execution.md) | ADR-0039 — Today execution: complete/skip/defer + tap-to-detail | Dispatched |
-| [evaluate-geographic-model.md](evaluate-geographic-model.md) | ADR-0045 — Evaluate geography: biased search, candidate anchors, shared map | WS1 shipped (#93); WS2–3 open |
-| [dogfood-now-and-sketch.md](dogfood-now-and-sketch.md) | Dogfood 2026-09-11 — sense of *now*, device location, stay notes, general connectors, Today non-stop events, trip sketch | Done (all seven slices shipped) |
-| [trip-sketch-design.md](trip-sketch-design.md) | ADR-0012 — trip sketch (days × regions), Slice E of the dogfood brief | Done (shipped) |
-| [evaluate-duplicate-candidate-sets.md](evaluate-duplicate-candidate-sets.md) | Dogfood 2026-09-28 item 2: re-paste duplicates candidates and orphans resolved rows | Done |
-| [booking-scope-4-hint-and-today.md](booking-scope-4-hint-and-today.md) | ADR-0047 Scope 4 — handoff "book ahead" hint seeds To book; Today "Still to book" card | Done (2026-09-29) |
-| [today-day-map.md](today-day-map.md) | Dogfood B2 — a glanceable day map on Today (route, base, next, device in the union frame; ADR-0046 §5) | Done (2026-09-29) |
-| [today-polish.md](today-polish.md) | Review follow-ups from #145/#143 — live-day map keeps the device across a day rollover; `bookingsDue` doc comment | Done (2026-10-04) |
-| [adr-0048-slice-1-declined-and-documents.md](adr-0048-slice-1-declined-and-documents.md) | ADR-0048 Slice 1 — `.declined` status (ruled out, with reason) + synced read-only trip documents | Done (2026-10-04) |
-| [iphone-trip-presentations.md](iphone-trip-presentations.md) | Dogfood 2026-10-06 — trip sheets dropped on iPhone (outer host already presenting); Ideas empty-state overlay covers rows | Done (2026-10-06) |
-| [adr-0048-slice-2-seed-verb.md](adr-0048-slice-2-seed-verb.md) | ADR-0048 Slice 2 — seed verb: contract v2, `SeedReturn` decode, `SeedPlan`, bulk review, one-transaction commit | Done (2026-10-06) |
-| [adr-0048-slice-3-seed-matching.md](adr-0048-slice-3-seed-matching.md) | ADR-0048 Slice 3 — seed matching: saved ideas then map, Confirm Obvious Matches, research notes → `IdeaEvaluation` | Done (2026-10-07) |
-| [adr-0049-s1-backup-restore.md](adr-0049-s1-backup-restore.md) | ADR-0049 S1 — adopt `CloudSyncKit` backup & restore: migrate-by-path, facade config, owner-only Settings Backup section, restore-held sync row | Done (2026-10-07) |
-| [calendar-linked-move-display.md](calendar-linked-move-display.md) | KNOWN-ISSUES — a linked event that moves days classifies as its linked stop; Plan Repair first in the sheet | Done (2026-10-08) |
-| [tag-management.md](tag-management.md) | Settings → Tags (counts, rename, delete, Delete Unused), same-name tag convergence (ADR-0008 pattern), tags on Idea rows | Done (2026-10-08) |
-| [travel-profile-wiring.md](travel-profile-wiring.md) | ADR-0015 §3 (amended) — Taste Profile in Settings; ChatGPT briefs + chat read it; first `travelProfiles` write | Done (2026-10-08) |
-| [idea-quick-filters.md](idea-quick-filters.md) | Jon 2026-10-08 — Ideas filter capsules: Food / Stay / Other (kind groups) and, on a trip, Scheduled / Not scheduled | Done (2026-10-08) |
-| [taste-profile-identity.md](taste-profile-identity.md) | Follow-up to #167 — Taste Profile explains a missing device identity and links to Planners; Planners gains "This is me"; stale editor doc comment | Done (2026-10-08) |
-| [galavant-dev-variant.md](galavant-dev-variant.md) | ADR-0050 — Debug builds as "Galavant Dev": own bundle IDs, app group, name, icon; same CloudKit container (Development) | Done (2026-10-08) |
-| [testflight-script.md](testflight-script.md) | `testflight` (jon-platform script): preflight, cktool schema gate, optional marketing bump via PR, git-derived build number, archive, verified export, Xcode upload; then pinned `asc` (public API only) waits for processing, tags, sets What to Test; `--resume`, `--feedback` | Done (2026-10-10) |
-| [sync-failure-surfacing.md](sync-failure-surfacing.md) | Follow-up to #176 — feed `syncFailureReport` counts to `SyncHealth`; name stuck rows in the sync detail with Retry (ports Yes Chef's effort) | Done (2026-10-30) |
+| [logical-uniqueness-dedup.md](archive/logical-uniqueness-dedup.md) | ADR-0008 — sync-dedup convergence hardening | Done (shipped) |
+| [m9-adr0037-evaluation-workspace.md](archive/m9-adr0037-evaluation-workspace.md) | ADR-0036/0037 — recommendation evaluation workspace (Phases 1–4) | Dispatched — P1–2 done; P3 (browser) + P4 (iPhone) built, **layout in active revision** |
+| [trip-view-declutter.md](archive/trip-view-declutter.md) | Trip View / Edit UX declutter | See doc |
+| [plan-memoization.md](archive/plan-memoization.md) | Memoize the planning read model and remove repeated travel-graph derivation | Designed — awaiting approach sign-off |
+| [today-day-preview.md](archive/today-day-preview.md) | ADR-0038 — preview any trip day in Today (start-of-day) | Done(shipped) |
+| [today-execution.md](archive/today-execution.md) | ADR-0039 — Today execution: complete/skip/defer + tap-to-detail | Dispatched |
+| [evaluate-geographic-model.md](archive/evaluate-geographic-model.md) | ADR-0045 — Evaluate geography: biased search, candidate anchors, shared map | WS1 shipped (#93); WS2–3 open |
+| [dogfood-now-and-sketch.md](archive/dogfood-now-and-sketch.md) | Dogfood 2026-09-11 — sense of *now*, device location, stay notes, general connectors, Today non-stop events, trip sketch | Done (all seven slices shipped) |
+| [trip-sketch-design.md](archive/trip-sketch-design.md) | ADR-0012 — trip sketch (days × regions), Slice E of the dogfood brief | Done (shipped) |
+| [evaluate-duplicate-candidate-sets.md](archive/evaluate-duplicate-candidate-sets.md) | Dogfood 2026-09-28 item 2: re-paste duplicates candidates and orphans resolved rows | Done |
+| [booking-scope-4-hint-and-today.md](archive/booking-scope-4-hint-and-today.md) | ADR-0047 Scope 4 — handoff "book ahead" hint seeds To book; Today "Still to book" card | Done (2026-09-29) |
+| [today-day-map.md](archive/today-day-map.md) | Dogfood B2 — a glanceable day map on Today (route, base, next, device in the union frame; ADR-0046 §5) | Done (2026-09-29) |
+| [today-polish.md](archive/today-polish.md) | Review follow-ups from #145/#143 — live-day map keeps the device across a day rollover; `bookingsDue` doc comment | Done (2026-10-04) |
+| [adr-0048-slice-1-declined-and-documents.md](archive/adr-0048-slice-1-declined-and-documents.md) | ADR-0048 Slice 1 — `.declined` status (ruled out, with reason) + synced read-only trip documents | Done (2026-10-04) |
+| [iphone-trip-presentations.md](archive/iphone-trip-presentations.md) | Dogfood 2026-10-06 — trip sheets dropped on iPhone (outer host already presenting); Ideas empty-state overlay covers rows | Done (2026-10-06) |
+| [adr-0048-slice-2-seed-verb.md](archive/adr-0048-slice-2-seed-verb.md) | ADR-0048 Slice 2 — seed verb: contract v2, `SeedReturn` decode, `SeedPlan`, bulk review, one-transaction commit | Done (2026-10-06) |
+| [adr-0048-slice-3-seed-matching.md](archive/adr-0048-slice-3-seed-matching.md) | ADR-0048 Slice 3 — seed matching: saved ideas then map, Confirm Obvious Matches, research notes → `IdeaEvaluation` | Done (2026-10-07) |
+| [adr-0049-s1-backup-restore.md](archive/adr-0049-s1-backup-restore.md) | ADR-0049 S1 — adopt `CloudSyncKit` backup & restore: migrate-by-path, facade config, owner-only Settings Backup section, restore-held sync row | Done (2026-10-07) |
+| [calendar-linked-move-display.md](archive/calendar-linked-move-display.md) | KNOWN-ISSUES — a linked event that moves days classifies as its linked stop; Plan Repair first in the sheet | Done (2026-10-08) |
+| [tag-management.md](archive/tag-management.md) | Settings → Tags (counts, rename, delete, Delete Unused), same-name tag convergence (ADR-0008 pattern), tags on Idea rows | Done (2026-10-08) |
+| [travel-profile-wiring.md](archive/travel-profile-wiring.md) | ADR-0015 §3 (amended) — Taste Profile in Settings; ChatGPT briefs + chat read it; first `travelProfiles` write | Done (2026-10-08) |
+| [idea-quick-filters.md](archive/idea-quick-filters.md) | Jon 2026-10-08 — Ideas filter capsules: Food / Stay / Other (kind groups) and, on a trip, Scheduled / Not scheduled | Done (2026-10-08) |
+| [taste-profile-identity.md](archive/taste-profile-identity.md) | Follow-up to #167 — Taste Profile explains a missing device identity and links to Planners; Planners gains "This is me"; stale editor doc comment | Done (2026-10-08) |
+| [galavant-dev-variant.md](archive/galavant-dev-variant.md) | ADR-0050 — Debug builds as "Galavant Dev": own bundle IDs, app group, name, icon; same CloudKit container (Development) | Done (2026-10-08) |
+| [testflight-script.md](archive/testflight-script.md) | `testflight` (jon-platform script): preflight, cktool schema gate, optional marketing bump via PR, git-derived build number, archive, verified export, Xcode upload; then pinned `asc` (public API only) waits for processing, tags, sets What to Test; `--resume`, `--feedback` | Done (2026-10-10) |
+| [sync-failure-surfacing.md](archive/sync-failure-surfacing.md) | Follow-up to #176 — feed `syncFailureReport` counts to `SyncHealth`; name stuck rows in the sync detail with Retry (ports Yes Chef's effort) | Done (2026-10-30) |
 | [seed-handoff-cleanups.md](seed-handoff-cleanups.md) | ADR-0048 follow-ups — the review keeps what Chat said around its places; Ruled out gains Find on Map | Queued (after sync-failure-surfacing) |
 | [visited-rollup.md](visited-rollup.md) | ADR-0004 / ADR-0039 §1 — a finished trip marks its scheduled, not-skipped places visited, once per trip | Queued (after seed-handoff-cleanups) |
 | [adr-0051-s0-identity-readout.md](adr-0051-s0-identity-readout.md) | ADR-0051 Slice 0 — read-only iCloud identity readout in Settings → Planners, to answer OQ1–OQ3 on both phones | Queued (after visited-rollup) |
-| [codex-recommendation-brief-stops.md](codex-recommendation-brief-stops.md) | Recommendation brief stops (moved from `docs/handoffs/`) | See doc |
+| [codex-recommendation-brief-stops.md](archive/codex-recommendation-brief-stops.md) | Recommendation brief stops (moved from `docs/handoffs/`) | See doc |
 
 **Authoring a brief:** add its entry here in the same change (index at creation), give it a
 `Status:` + one-line `Summary:` header, and link the ADR it implements. See `docs/README.md`

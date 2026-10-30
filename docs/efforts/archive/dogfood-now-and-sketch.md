@@ -4,7 +4,7 @@ Status: **Done** — all planned slices shipped; B2 delivered by [`today-day-map
 on 2026-09-29. **Slices A, F, B, C, 0, D and E shipped** (a sense of *now* on the planning surface, PR #115; Today's non-stop
 events, ADR-0038 §10; device location and the blue dot, ADR-0046; heterogeneous connectors
 + the ADR-0046 §5 recentre-on-me gesture; the day-header region chip #119; stay notes #120;
-the trip sketch — days × regions, `docs/efforts/trip-sketch-design.md`) and are retired
+the trip sketch — days × regions, `docs/efforts/archive/trip-sketch-design.md`) and are retired
 from this brief; the only remaining open slice is **B2** (daily map on Today). All
 Claude-executed (Codex is on the separate "cockpit" app — unrelated to this repo's iPhone
 cockpit, which is **Today**).
@@ -24,7 +24,7 @@ the *why*; this brief is the *how*.
 ## Terminology
 
 "Cockpit" now means three things. In **this repo** it only ever means the *iPhone
-cockpit* = **Today** (ADR-0038/0039, `docs/milestones/M10-EXECUTION.md`) or the *evaluation
+cockpit* = **Today** (ADR-0038/0039, `docs/milestones/archive/M10-EXECUTION.md`) or the *evaluation
 cockpit* = **Evaluate**/`RecommendationWorkspace` (ADR-0037). Jon's separate
 **"cockpit" app** is a different codebase entirely and has nothing to do with any
 slice here. Everything in this brief is Galavant, and all of it is Claude's.
@@ -272,7 +272,7 @@ Read first: AGENTS.md, docs/STYLE.md, the ADRs named in the prompt.
 ## Prompt B1 — Device location and the blue dot — SHIPPED
 
 The ADR the prompt asked for is
-[`docs/decisions/0046-device-location-ephemeral-when-in-use.md`](../decisions/0046-device-location-ephemeral-when-in-use.md);
+[`docs/decisions/0046-device-location-ephemeral-when-in-use.md`](../../decisions/0046-device-location-ephemeral-when-in-use.md);
 what was built is in `docs/DONE-LOG.md`. Two notes for B2, the dependent slice:
 
 - The seam it consumes is `LocationClient.updates` (`Galavant/LocationClient.swift`) — an
@@ -368,7 +368,7 @@ table, ADR-0012) — shipped. Pure `TripSketch`/`DaySpan` span core in `Galavant
 `TripSketchSheet` reachable from the trip settings menu and the empty-itinerary CTA;
 per-span "Add lodging" reuses `StaySheet`; regions are attached (not created) inline via
 Edit Trip's Regions picker. Design + Jon's Q1–Q3 sign-off:
-`docs/efforts/trip-sketch-design.md`. What's built is in `docs/DONE-LOG.md`.
+`docs/efforts/archive/trip-sketch-design.md`. What's built is in `docs/DONE-LOG.md`.
 
 ---
 

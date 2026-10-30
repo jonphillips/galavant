@@ -4,10 +4,10 @@
 shown day's numbered route, its lodging base, the next event highlighted, and, on the live day, the
 device's position in the frame. This is the last open slice of
 [the 2026-09-11 dogfood brief](dogfood-now-and-sketch.md) (complaint 1b) and replaces that brief's
-"Prompt B2" draft. Background: [ADR-0046](../decisions/0046-device-location-ephemeral-when-in-use.md)
+"Prompt B2" draft. Background: [ADR-0046](../../decisions/0046-device-location-ephemeral-when-in-use.md)
 §3–§5 (location is asked for on use, never persisted, and may join Today's union frame),
-[ADR-0038](../decisions/0038-journey-today-projections-and-weather.md) (Today is a read-only
-projection), and [ADR-0012](../decisions/0012-per-day-region-framing.md) (framing).
+[ADR-0038](../../decisions/0038-journey-today-projections-and-weather.md) (Today is a read-only
+projection), and [ADR-0012](../../decisions/0012-per-day-region-framing.md) (framing).
 
 No schema change, no sync change, and no new Directions requests.
 
@@ -47,7 +47,7 @@ this dispatch.
 ## Device location
 
 This dispatch doesn't touch `LocationClient`. Extend `DeviceLocationModel`
-([DeviceLocationModel.swift](../../Galavant/DeviceLocationModel.swift)), whose doc comment already
+([DeviceLocationModel.swift](../../../Galavant/DeviceLocationModel.swift)), whose doc comment already
 names the Today map as the surface that consumes the coordinate for itself:
 
 - Add `private(set) var coordinate: (latitude: Double, longitude: Double)?`, or a small `Equatable`
@@ -72,7 +72,7 @@ names the Today map as the surface that consumes the coordinate for itself:
 ## Framing (pure, tested)
 
 Add one pure helper to `MapFraming`
-([MapFraming.swift](../../GalavantLibrary/Sources/GalavantSchema/MapFraming.swift)):
+([MapFraming.swift](../../../GalavantLibrary/Sources/GalavantSchema/MapFraming.swift)):
 
 ```swift
 /// The day map's frame: the day's points, plus the device when it is within

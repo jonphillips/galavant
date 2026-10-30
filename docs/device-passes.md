@@ -50,11 +50,11 @@ reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT
 - **M5 real-device gate.** Phase 6 of `PROD-CUTOVER.md`. TestFlight on both phones, on Production:
   share acceptance passed (Wendy joined 2026-10-18). Still owed: two-way CloudKit changes (Wendy creates, edits and
   deletes; Jon sees it, and back), image/BLOB round-trips, pinned-reservation behavior.
-  Checklist: `docs/milestones/M5-EXECUTION.md`. (The old "manual Calendar export on both devices"
+  Checklist: `docs/milestones/archive/M5-EXECUTION.md`. (The old "manual Calendar export on both devices"
   check was dropped per ADR-0034.)
 - **M4 CloudKit BLOB sync** (ADR-0009 §4): one direction passed 2026-10-08, when the fresh iPad pulled
   the library's images and documents from Production. The round trip (add an image on one device, see it
   on the other) is part of the M5 gate.
-- **Bounded-intelligence gates.** `docs/milestones/M6-EXECUTION.md`: review chat's direct
+- **Bounded-intelligence gates.** `docs/milestones/archive/M6-EXECUTION.md`: review chat's direct
   `create_idea` durable-write authority. A decision gate, not an implementation queue. (`TravelProfile`
   was decided 2026-10-08 and is queued as an effort: the ChatGPT briefs and in-app chat read it.)

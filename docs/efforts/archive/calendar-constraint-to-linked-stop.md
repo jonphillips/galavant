@@ -83,7 +83,7 @@ existing link path.* Almost everything else already exists:
 
 ## Prompt 0 — Extract a reusable POI-selection map
 
-> Read the Shared Context in `docs/efforts/calendar-constraint-to-linked-stop.md`
+> Read the Shared Context in `docs/efforts/archive/calendar-constraint-to-linked-stop.md`
 > first. **Refactor only — behavior-preserving.**
 >
 > Today the "tap a real Apple Maps place → resolve to a `Place` with a

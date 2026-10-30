@@ -12,10 +12,10 @@ ADR-0013 subregion chips and follows their pattern. No ADR: this is a view filte
 
 - Under the trip capsules (`capsuleBar`), `IdeasScreen` shows `subregionBar`: the active trip's regions
   as toggle chips. It only appears when a trip is active and has two or more regions
-  ([IdeasScreen.swift](../../Galavant/Ideas/IdeasScreen.swift)).
+  ([IdeasScreen.swift](../../../Galavant/Ideas/IdeasScreen.swift)).
 - Kind filtering exists, but only in the toolbar **Filter → Kinds** submenu. It's a fine-grained
   multi-select over the 15 `IdeaKind` cases (`IdeasListModel.selectedKinds`, applied in the pure
-  `poolFiltered`, [PoolFiltering.swift](../../GalavantLibrary/Sources/GalavantSchema/PoolFiltering.swift)).
+  `poolFiltered`, [PoolFiltering.swift](../../../GalavantLibrary/Sources/GalavantSchema/PoolFiltering.swift)).
 - `model.filteredIdeas` feeds the list, the map (`PoolMapView`) and the chat context, so one filter
   narrows all three.
 
@@ -126,7 +126,7 @@ part. Select a loser id after convergence, and confirm the survivor reads as sel
     # Next Up — Travel profile: Settings entry + ChatGPT briefs + chat
 
     **Slices:** effort `travel-profile` (one PR, branch `effort/travel-profile`)
-    **Briefs:** `docs/efforts/travel-profile-wiring.md`
+    **Briefs:** `docs/efforts/archive/travel-profile-wiring.md`
     **Done when:** per the brief's "Done when"; verification per `docs/verification.md`.
     **Owed:** FIRST WRITE to the synced `travelProfiles` table. Before the TestFlight build: Jon pushes a
     shared profile and a planner overlay from a development build, confirms every field in the

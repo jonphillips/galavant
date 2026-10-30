@@ -1,7 +1,7 @@
 # Effort — ADR-0048 Slice 1: `.declined` status + trip documents
 
 **Status:** Done (2026-10-04), implementation in `effort/adr-0048-slice-1` · **Summary:** the
-two schema pieces of [ADR-0048](../decisions/0048-trip-seed-handoff.md) (trip seed handoff) that are
+two schema pieces of [ADR-0048](../../decisions/0048-trip-seed-handoff.md) (trip seed handoff) that are
 useful without the seed. One is a way to rule a place out of a trip and keep the reason. The other is
 a synced, read-only Markdown document attached to a trip. **No seed verb, no contract change, no
 matching**; those are Slices 2–3.
@@ -17,12 +17,12 @@ state).
 
 ### Schema (GalavantSchema, test-first)
 
-- Add `case declined = 5` to `TripIdeaStatus` ([TripIdeaStatus.swift](../../GalavantLibrary/Sources/GalavantSchema/TripIdeaStatus.swift)).
+- Add `case declined = 5` to `TripIdeaStatus` ([TripIdeaStatus.swift](../../../GalavantLibrary/Sources/GalavantSchema/TripIdeaStatus.swift)).
   Never renumber. `label` → `"Ruled out"`. `isOnShortlist` → `false`. Update the type's doc comment
   (it currently says `done`/`skipped` are the only terminals).
 - No migration: the column is an `INTEGER` already. Old builds that read a `5` are a real concern
   only across Jon's own devices; note it in the PR and make sure both devices update together.
-- **`TripOperations`** ([TripOperations.swift](../../GalavantLibrary/Sources/GalavantSchema/TripOperations.swift)):
+- **`TripOperations`** ([TripOperations.swift](../../../GalavantLibrary/Sources/GalavantSchema/TripOperations.swift)):
   - `decline(stopID:reason:in:)`: only from `.considering` or `.shortlisted` (a scheduled stop must be
     unscheduled first, the same rule as remove). Sets `.declined`. A non-blank `reason` is appended to
     `inlineNote` as a new paragraph, `"Ruled out: <reason>"`, separated by a blank line (the
@@ -48,7 +48,7 @@ state).
   - The compiler will find the rest. Treat each as off-trip and not visited unless this brief says
     otherwise.
 - **The handoff brief lists what's ruled out.** `RecommendationHandoffContract.brief`
-  ([RecommendationHandoff.swift](../../GalavantLibrary/Sources/GalavantSchema/RecommendationHandoff.swift))
+  ([RecommendationHandoff.swift](../../../GalavantLibrary/Sources/GalavantSchema/RecommendationHandoff.swift))
   gains a section after the stops, present only when non-empty:
   ```
   Already ruled out (don't suggest again):
@@ -81,7 +81,7 @@ ADR-0048 D6 is the spec.
   `createdAt`. `origin: TripDocumentOrigin` is an `Int`-backed enum: `seed = 0`, `pasted = 1`,
   never renumbered. Only `.pasted` is written in this slice.
 - Migration `"Create tripDocuments table (ADR-0048)"`, following the `tripStays` pattern in
-  [Database.swift](../../GalavantLibrary/Sources/GalavantSchema/Database.swift): `STRICT`, `tripID`
+  [Database.swift](../../../GalavantLibrary/Sources/GalavantSchema/Database.swift): `STRICT`, `tripID`
   `REFERENCES "trips"("id") ON DELETE CASCADE`, index on `tripID`.
 - **Register in `GalavantCloudSync.makeSyncEngine`'s `tables:` list.** It is a synced table.
 - `TripDocumentOperations`: `add(tripID:title:body:origin:now:)`, `rename(_:title:)`, `delete(_:)`.

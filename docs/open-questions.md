@@ -53,7 +53,7 @@ re-verification against the release build:
 Both need the sectioned reorder overload, **recorded dead on beta 5; re-verify on Xcode 27.0 release** (#73). Full spec
 with the two paid-for gotchas (no custom `dragContainer`, no long-press `.contextMenu` in
 a reorderable row) and a spike-first plan:
-`docs/efforts/sectioned-reorder-inline-boundaries.md`. Durable fallback if reorder stays
+`docs/efforts/archive/sectioned-reorder-inline-boundaries.md`. Durable fallback if reorder stays
 broken: render the itinerary as `ScrollView`/`LazyVStack` instead of `List`. See
 `docs/KNOWN-ISSUES.md`; menus cover the function meanwhile.
 
@@ -89,7 +89,7 @@ broken: render the itinerary as `ScrollView`/`LazyVStack` instead of `List`. See
 
 Older long-form direction notes, kept only as pointers; the real record is the ADR:
 
-- **AI pool-stocking / discovery pipeline** → ADR-0018 + `docs/milestones/M6-EXECUTION.md` (M6e).
+- **AI pool-stocking / discovery pipeline** → ADR-0018 + `docs/milestones/archive/M6-EXECUTION.md` (M6e).
   The `findPlaces`/`createIdea` App-Intent verb vocabulary is the later composable
   payoff, not a v1 slice. Adjacent long-term bets from the same 2026-06-22 chat (match
   *prediction*, semantic pool search, latent-trip clustering) ripen into their own

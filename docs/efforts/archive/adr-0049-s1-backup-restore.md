@@ -1,7 +1,7 @@
 # Effort — ADR-0049 S1: backup & restore
 
 **Status:** Done (2026-10-07). Shipped in #157; Jon's device pass cleared 2026-10-07. ·
-**Summary:** [ADR-0049](../decisions/0049-backup-restore-and-production-cutover.md) D1–D2. Adopt the
+**Summary:** [ADR-0049](../../decisions/0049-backup-restore-and-production-cutover.md) D1–D2. Adopt the
 `CloudSyncKit` backup and restore: Galavant supplies its constants and a migrate-by-path entry point, and
 Settings gains a Backup section that only the travel party's owner sees. The cutover's re-seed and rollback
 depend on it. No schema change, but it **touches sync**, so the architect escalates the PR to Jon.
@@ -96,7 +96,7 @@ confirmation; Undo last restore returns the previous library.
 
 ## Verification
 
-Per [`../verification.md`](../verification.md). No simulator walkthroughs. Compile, run tests, and hand off.
+Per [`../verification.md`](../../verification.md). No simulator walkthroughs. Compile, run tests, and hand off.
 
 ## Out of scope
 
