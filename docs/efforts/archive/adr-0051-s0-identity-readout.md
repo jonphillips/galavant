@@ -1,13 +1,13 @@
 # Effort — ADR-0051 Slice 0: the iCloud identity readout
 
-**Status:** Ready (2026-10-30) · **Summary:** a read-only section in Settings →
+**Status:** Done (2026-10-30) · **Summary:** a read-only section in Settings →
 Planners that shows this device's iCloud user record name and every travel-party share participant's
 record name, name, lookup info, role, permission and acceptance status, and says whether this device
 appears in the share. It ships in a TestFlight build so Jon and Wendy can each read it on their own
 phones, on Production. Their readings answer ADR-0051 OQ1–OQ3 before Slice 1 adds the schema. No schema,
 migration, sync or contract change, and no writes of any kind.
 
-Implements [ADR-0051](../decisions/0051-planner-identity-from-icloud.md) § Slices, Slice 0. Read the ADR's
+Implements [ADR-0051](../../decisions/0051-planner-identity-from-icloud.md) § Slices, Slice 0. Read the ADR's
 Context and open questions first: this slice exists only to answer them.
 
 ## Today

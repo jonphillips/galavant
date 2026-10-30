@@ -92,7 +92,7 @@ done → visited feedback; ADR-0039 §1 moved the live check-off to a reversible
     # Next Up — ADR-0051 Slice 0: the iCloud identity readout
 
     **Slices:** effort `adr-0051-s0-identity-readout` (one PR, branch `effort/adr-0051-s0-identity-readout`)
-    **Briefs:** `docs/efforts/adr-0051-s0-identity-readout.md`
+    **Briefs:** `docs/efforts/archive/adr-0051-s0-identity-readout.md`
     **Done when:** per the brief's "Done when"; verification per `docs/verification.md`.
     **Owed:** carry over the current **Owed:** line unchanged.
     **Notes:** ADR-0051 (accepted). Read only: no schema, no CloudKit writes, never `share(record:)`.
