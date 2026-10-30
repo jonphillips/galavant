@@ -64,9 +64,9 @@ broken: render the itinerary as `ScrollView`/`LazyVStack` instead of `List`. See
   (region management, sync health, AI). Tag management moves there in effort
   `tag-management` and the travel profile in `travel-profile`. Still to come:
   **planner identity / switching** when that lands.
-- **Planner identity strengthening (Jon, 2026-06-12)** is proposed as ADR-0051 (planner identity from
-  the iCloud account). Slice 0 is a read-only device readout that settles its open questions; it's
-  dispatched once Jon accepts the ADR.
+- **Planner identity strengthening (Jon, 2026-06-12)** is ADR-0051 (accepted 2026-10-30). Slice 0, a
+  read-only device readout that settles its open questions, is queued as effort
+  `adr-0051-s0-identity-readout`.
 
 ## Engineering discipline / small follow-ups
 
