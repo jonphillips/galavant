@@ -10,8 +10,9 @@ order is what it is. The model is Yes Chef's `docs/PROD-CUTOVER.md` (ADR-0056).
 on CloudKit **Production**. Jon's iPhone carried the library across, and a fresh iPad install pulled it
 down from Production and syncs. Backup and restore worked during the run. Two things weren't recorded:
 whether Production seeded in place before a restore (**OQ2 is still open**, see Phase 4b), and the
-dashboard record counts in Phase 5. On 2026-10-30 Wendy installed from TestFlight and accepted Jon's
-share. Next is the M5 gate on two phones. The **After the cutover** rules at the bottom now apply to
+dashboard record counts in Phase 5. Wendy installed from TestFlight and accepted Jon's
+share (the share sheet says she joined 2026-10-18; Jon recorded it 2026-10-30). Next is the M5 gate
+on two phones. The **After the cutover** rules at the bottom now apply to
 every build.
 
 **Not a dispatch.** These are ops steps Jon runs, with the architect, each gated on the one before. Nothing
@@ -155,11 +156,12 @@ counts weren't recorded.
 
 ## Phase 6: Share with Wendy, then the M5 gate *(D3 steps 7–8)*
 
-- [x] **Wendy is an internal TestFlight tester** (the last unchecked precondition above). 2026-10-30.
+- [x] **Wendy is an internal TestFlight tester** (the last unchecked precondition above). Recorded 2026-10-30.
 - [x] **Wendy's phone carries nothing.** If it has ever run a development build, she deletes Galavant
       first. Then she installs from TestFlight and turns on sync.
 - [x] Jon shares the travel party from Settings. The share is created fresh in Production. Wendy accepts.
-      Passed 2026-10-30 (Jon's report). She hasn't added content yet.
+      Passed: the share sheet says Wendy joined 2026-10-18 (recorded 2026-10-30). She hasn't added
+      content yet.
 - [ ] **The M5 gate,** on Production with both phones: share acceptance, changes both ways (create, edit,
       delete), an image round trip, and a pinned reservation keeping its date. The checklist is in
       `docs/milestones/M5-EXECUTION.md`.

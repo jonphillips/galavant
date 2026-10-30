@@ -4,8 +4,8 @@ Jon's checklist: real-device and distribution gates. **Not executor work; the ex
 reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT_HANDOFF.md` on
 2026-09-29 (jon-platform ADR-0005). When a gate clears, delete it and note it in `DONE-LOG.md`.
 
-- **Production cutover — the M5 gate left.** Phases 1–5 done 2026-10-08. On 2026-10-30 Wendy installed
-  from TestFlight and accepted Jon's share. What's left of Phase 6 of [`PROD-CUTOVER.md`](PROD-CUTOVER.md)
+- **Production cutover — the M5 gate left.** Phases 1–5 done 2026-10-08. Wendy installed from
+  TestFlight and accepted Jon's share (she joined 2026-10-18, per the share sheet). What's left of Phase 6 of [`PROD-CUTOVER.md`](PROD-CUTOVER.md)
   is the M5 gate below.
 - **Schema deploy before TestFlight (standing).** A build that adds a synced table or column, or first
   writes one, goes out only after a development build has pushed it and the schema is deployed to
@@ -48,7 +48,7 @@ reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT
   rows, deferred places appear on the Ideas map, research notes show on resolved places, and Evaluate
   opens the leftovers.
 - **M5 real-device gate.** Phase 6 of `PROD-CUTOVER.md`. TestFlight on both phones, on Production:
-  share acceptance passed 2026-10-30. Still owed: two-way CloudKit changes (Wendy creates, edits and
+  share acceptance passed (Wendy joined 2026-10-18). Still owed: two-way CloudKit changes (Wendy creates, edits and
   deletes; Jon sees it, and back), image/BLOB round-trips, pinned-reservation behavior.
   Checklist: `docs/milestones/M5-EXECUTION.md`. (The old "manual Calendar export on both devices"
   check was dropped per ADR-0034.)

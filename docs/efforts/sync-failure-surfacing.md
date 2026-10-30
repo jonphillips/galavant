@@ -101,4 +101,15 @@ so in the PR and rely on the device pass.
     away). Then, in Airplane mode, edit an idea and wait past 30 minutes: the row reads "1 item hasn't
     synced" and the detail names the idea. Turn the network back on: it uploads and returns to "Up to
     date", with or without Retry. The not-applied count is zero, or the detail says what's stuck;*
-  - sets `docs/NEXT_UP.md` to the empty ticket, carrying the **Owed:** line over unchanged.
+  - sets `docs/NEXT_UP.md` to exactly this block:
+
+    ```
+    # Next Up — Keep what Chat said around its places; Find on Map from Ruled out
+
+    **Slices:** effort `seed-handoff-cleanups` (one PR, branch `effort/seed-handoff-cleanups`)
+    **Briefs:** `docs/efforts/seed-handoff-cleanups.md`
+    **Done when:** per the brief's "Done when"; verification per `docs/verification.md`.
+    **Owed:** carry over the current **Owed:** line unchanged.
+    **Notes:** ADR-0048 follow-ups. No schema or contract change. Keep the note extraction pure, in
+    `GalavantSchema`. Start from a fresh `main`.
+    ```

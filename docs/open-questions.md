@@ -21,14 +21,8 @@ matches saved ideas before searching the map. **Slice 0 passed
 (`.declined` + `TripDocument`) shipped in #149. Slice 2 (seed verb) is dispatched; Slice 3 (matching) is
 queued behind it. ADR OQ1–OQ5 stay in the ADR.
 
-- **v1 candidate decode silently drops prose around the array.** `TripCandidate.decodeReturn` slices
-  the first `[{…}]` array, so a `{"summary": …, "places": [ … ]}` reply imports the places and drops
-  `summary` without a word. In ADR-0048 Slice 0 run 1, that summary was the only place the deferred
-  northern-trip places appeared. Options: show the non-array text in the review ("Chat also said: …"),
-  or append it to the handoff record. Small; semantic-fidelity "review-dependent" class.
-
-- **Resolve a ruled-out row.** Ruled-out rows can't reach the Evaluate queue, so an unresolved deferred
-  place never reaches the pool. Offer "Find on Map" from the Ruled out section.
+- **Both follow-ups are queued** as effort `seed-handoff-cleanups`: the review keeps what Chat said
+  around the places array, and Ruled out gains Find on Map.
 
 ### M9 cockpit polish (post-ship follow-ups)
 
@@ -65,19 +59,14 @@ broken: render the itinerary as `ScrollView`/`LazyVStack` instead of `List`. See
 
 ## Designed / deferred (product)
 
-- **Itinerary completion rollup (Jon, 2026-06-13).** Completion should be *inferred*, not
-  tapped: once a trip's day/time passes, flip its non-skipped scheduled ideas'
-  `visited` (the done→visited loop, ADR-0004, moved from per-stop to trip-level). The
-  `TripIdea.markDone` op + test exist; only the trip-level trigger is unbuilt.
+- **Itinerary completion rollup (Jon, 2026-06-13)** is queued as effort `visited-rollup`.
 - **Consolidate remaining management UIs into Settings.** A Settings area now exists
   (region management, sync health, AI). Tag management moves there in effort
   `tag-management` and the travel profile in `travel-profile`. Still to come:
   **planner identity / switching** when that lands.
-- **Planner identity strengthening (Jon, 2026-06-12).** The name-only "Who are you?"
-  prompt is flimsy. Direction (ADR-0008 "future"): derive identity from the accepting
-  Apple ID (unique key + name/email when consented), `displayName` as editable override.
-  Blocked on the M5 real-device share-accept flow. Cheap interim: optional typed
-  `email`/subtitle on `Planner` for picker disambiguation.
+- **Planner identity strengthening (Jon, 2026-06-12)** is ADR-0051 (accepted 2026-10-30). Slice 0, a
+  read-only device readout that settles its open questions, is queued as effort
+  `adr-0051-s0-identity-readout`.
 
 ## Engineering discipline / small follow-ups
 
