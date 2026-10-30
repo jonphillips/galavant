@@ -32,6 +32,9 @@ public struct Trip: Identifiable, Equatable, Hashable, Sendable {
   /// This is a synced trip fact so both planners stop ingesting at the same
   /// historical boundary (ADR-0034 §12).
   public var calendarReconciliationFrozenAt: Date?
+  /// The one-time pool feedback pass for this completed trip. Synced with the
+  /// trip so clearing an idea's Visited flag is not undone by another device.
+  public var visitedRolledUpAt: Date?
   public var travelPartyID: TravelParty.ID?
 
   // MARK: Header image (ADR-0032, "romance")
@@ -62,6 +65,7 @@ public struct Trip: Identifiable, Equatable, Hashable, Sendable {
     lengthInDays: Int = Trip.defaultLengthInDays,
     mainTransportMode: TransportMode? = nil,
     calendarReconciliationFrozenAt: Date? = nil,
+    visitedRolledUpAt: Date? = nil,
     travelPartyID: TravelParty.ID? = nil,
     headerImageURL: String? = nil,
     headerImageColor: String? = nil,
@@ -79,6 +83,7 @@ public struct Trip: Identifiable, Equatable, Hashable, Sendable {
     self.lengthInDays = lengthInDays
     self.mainTransportMode = mainTransportMode?.rawValue
     self.calendarReconciliationFrozenAt = calendarReconciliationFrozenAt
+    self.visitedRolledUpAt = visitedRolledUpAt
     self.travelPartyID = travelPartyID
     self.headerImageURL = headerImageURL
     self.headerImageColor = headerImageColor

@@ -114,6 +114,7 @@
 		9AD630E37AEA708C2B7FF909 /* JourneyViewComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2C9B6BC1F6CC0DC6E898291 /* JourneyViewComponents.swift */; };
 		9C1C9676A64367844856918E /* TripsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC5C21FC298AEA29CFE09DC6 /* TripsScreen.swift */; };
 		9C3779832B3D8728517D947A /* PoolMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1791F203077D8B7907351B9F /* PoolMapView.swift */; };
+		9EE790B1F390F818C44B7408 /* VisitedRollupModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F4C9433A1748FF629E447E0 /* VisitedRollupModel.swift */; };
 		A2C1176CC512E1165C7FA3AE /* TravelProfileEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 549199D3FB7222F5D893194E /* TravelProfileEditView.swift */; };
 		A2E63468073408305AED0762 /* SyncSeedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A1B810182571FD874E4261 /* SyncSeedTests.swift */; };
 		A3E2170E96CDF9C7D76B89E6 /* PlanningRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97954EEA93EDDCB81E746016 /* PlanningRow.swift */; };
@@ -169,6 +170,7 @@
 		EFF6015EBFCC08925785A2EB /* EvaluateScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = D48C8AE52183B8D3DE346D07 /* EvaluateScreen.swift */; };
 		F009B3192D02321202419379 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5AD27A1248EEA1D9B580277 /* ShareViewController.swift */; };
 		F03422C3671BFFD56B78737A /* TripCanvasMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED4DA130D3A7069430825C31 /* TripCanvasMapView.swift */; };
+		F06CF7479CE999735A36DC3B /* VisitedRollupModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 274D2DC49725AD4EE4C36BC0 /* VisitedRollupModelTests.swift */; };
 		F0F29128CE9FDADC85D903E4 /* CalendarReconciliationModel+Ingest.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF9FB1AF2135067DA76F7C0C /* CalendarReconciliationModel+Ingest.swift */; };
 		F17C666C48C89BF844858C54 /* DeviceLocationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BC85EBD5FC9820953D4ED04 /* DeviceLocationModel.swift */; };
 		F236D648886F9BA4EF2CCCCB /* GalavantPlaces in Frameworks */ = {isa = PBXBuildFile; productRef = C94234B5AEF12EA0F921B5B0 /* GalavantPlaces */; };
@@ -238,6 +240,7 @@
 		0CA9E000AA9AEEE1E3D68F79 /* GalavantUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = GalavantUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0E5E2C9449BAC2E031A8745F /* TripHeaderImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripHeaderImageView.swift; sourceTree = "<group>"; };
 		0EFBA67DB304DCD293D72575 /* PlaceIdeaSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceIdeaSheet.swift; sourceTree = "<group>"; };
+		0F4C9433A1748FF629E447E0 /* VisitedRollupModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisitedRollupModel.swift; sourceTree = "<group>"; };
 		0F84BC54D6D414EBFC202ED7 /* TripPlanningModel+Directions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripPlanningModel+Directions.swift"; sourceTree = "<group>"; };
 		14FCDCE6D1ECB6FD141CF7B9 /* TripPlanningModel+Sketch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripPlanningModel+Sketch.swift"; sourceTree = "<group>"; };
 		15F0079F14EE5923209192B1 /* IdeasFilterMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeasFilterMenu.swift; sourceTree = "<group>"; };
@@ -251,6 +254,7 @@
 		231F054781115FFB2833C981 /* TripPlanningModel+Documents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripPlanningModel+Documents.swift"; sourceTree = "<group>"; };
 		24B994A2DC3347E99111DE8F /* BasePin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BasePin.swift; sourceTree = "<group>"; };
 		24FAAF80343489A5540F82DF /* WeatherDebugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherDebugView.swift; sourceTree = "<group>"; };
+		274D2DC49725AD4EE4C36BC0 /* VisitedRollupModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisitedRollupModelTests.swift; sourceTree = "<group>"; };
 		292BC932AEA1B53EB11DA125 /* InterestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterestView.swift; sourceTree = "<group>"; };
 		2B2DC50A26F7695EC3EC536A /* StartDayPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartDayPanel.swift; sourceTree = "<group>"; };
 		2CD37357C07AFC3DAE3CDAE7 /* DemoFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoFixtures.swift; sourceTree = "<group>"; };
@@ -622,6 +626,7 @@
 				C552773D568B292127E75164 /* SettingsModelTests.swift */,
 				58114810B86AFEBF95E05C07 /* TripCanvasPreviewStateTests.swift */,
 				EB7EC4E4FC4F7E11352D4E74 /* TripPlanningSenseOfNowTests.swift */,
+				274D2DC49725AD4EE4C36BC0 /* VisitedRollupModelTests.swift */,
 			);
 			path = GalavantTests;
 			sourceTree = "<group>";
@@ -657,6 +662,7 @@
 				82AECABDADDBF8957A5816F8 /* AppScreen.swift */,
 				4784A4E4DDB7356EEF63A970 /* Binding+Present.swift */,
 				EDA439EDEF5339154F3D8C08 /* PrefersTabNavigation.swift */,
+				0F4C9433A1748FF629E447E0 /* VisitedRollupModel.swift */,
 			);
 			path = Navigation;
 			sourceTree = "<group>";
@@ -980,6 +986,7 @@
 				7AF08E862BDDF4E09803A79E /* SettingsModelTests.swift in Sources */,
 				4C528609E50B3202B6BB33E7 /* TripCanvasPreviewStateTests.swift in Sources */,
 				FB833A8213FBA1E378DDC0D8 /* TripPlanningSenseOfNowTests.swift in Sources */,
+				F06CF7479CE999735A36DC3B /* VisitedRollupModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1117,6 +1124,7 @@
 				66E8ED4BF33E10641C5CA1D9 /* TripsListModel.swift in Sources */,
 				9C1C9676A64367844856918E /* TripsScreen.swift in Sources */,
 				FD69CDFCC58AC4A0FC1967AB /* UnresolvedRecommendationSheet.swift in Sources */,
+				9EE790B1F390F818C44B7408 /* VisitedRollupModel.swift in Sources */,
 				F57648A300EA9E12818CF2AC /* WeatherAttributionLink.swift in Sources */,
 				4B11AB7DFD828A1F103EB408 /* WeatherClient.swift in Sources */,
 				734D683130527266D1AEF8AD /* WeatherDebugView.swift in Sources */,

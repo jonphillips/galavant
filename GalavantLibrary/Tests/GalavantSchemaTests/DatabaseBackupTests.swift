@@ -109,13 +109,19 @@ struct DatabaseBackupTests {
     let oldStore = try DatabaseQueue(path: oldStoreURL.path)
     let migrator = GalavantDatabaseMigrations.makeMigrator()
     try migrator.migrate(oldStore)
-    let latestMigration = try #require(migrator.migrations.last)
+    let previousMigrations = Array(migrator.migrations.suffix(2))
+    let existingTripID = UUID()
     try await oldStore.write { db in
+      try Trip.insert { Trip.Draft(Trip(id: existingTripID, name: "Before roll-up migration")) }
+        .execute(db)
       try db.execute(sql: "DROP TABLE tripDocuments")
-      try db.execute(
-        sql: "DELETE FROM grdb_migrations WHERE identifier = ?",
-        arguments: [latestMigration]
-      )
+      try db.execute(sql: "ALTER TABLE trips DROP COLUMN visitedRolledUpAt")
+      for migration in previousMigrations {
+        try db.execute(
+          sql: "DELETE FROM grdb_migrations WHERE identifier = ?",
+          arguments: [migration]
+        )
+      }
     }
     try oldStore.close()
 
@@ -127,7 +133,7 @@ struct DatabaseBackupTests {
     try source.close()
     let snapshotDatabase = try DatabaseQueue(path: snapshot.fileURL.path)
     try await snapshotDatabase.write { db in
-      try db.execute(sql: "PRAGMA user_version = \(configuration.declaredSchemaVersion - 1)")
+      try db.execute(sql: "PRAGMA user_version = \(configuration.declaredSchemaVersion - 2)")
     }
     try snapshotDatabase.close()
 
@@ -140,6 +146,10 @@ struct DatabaseBackupTests {
     )
     let migrated = try DatabaseQueue(path: prepared.fileURL.path)
     defer { try? migrated.close() }
+    let existingTrip = try await migrated.read { db in
+      try Trip.find(existingTripID).fetchOne(db)
+    }
+    #expect(existingTrip?.visitedRolledUpAt == nil)
     let hasTripDocuments = try await migrated.read { db in
       try Bool.fetchOne(
         db,

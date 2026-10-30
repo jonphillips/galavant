@@ -10,10 +10,14 @@ reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT
 - **Schema deploy before TestFlight (standing).** A build that adds a synced table or column, or first
   writes one, goes out only after a development build has pushed it and the schema is deployed to
   Production. `testflight`'s schema gate enforces this: it refuses to archive unless Development and
-  Production match.
+  Production match. Pending: `trips.visitedRolledUpAt`; a development build with sync on pushes it once
+  a past trip rolls up, then deploy the schema before the next TestFlight build.
 
 ## Verification gates (decision gates, not a build queue)
 
+- **Visited roll-up.** Open the app with a past trip in the library: its scheduled, not-skipped places
+  show Visited in Ideas, and its itinerary still shows every stop. Clear Visited on one of them, relaunch
+  on both devices, and it stays cleared.
 - **Sync failure status and retry.** On both phones and the iPad, Settings → Sync reads "Up to date" on
   the real library (any count here is a finding: report it, don't retry it away). Then, in Airplane
   mode, edit an idea and wait past 30 minutes: the row reads "1 item hasn't synced" and the detail

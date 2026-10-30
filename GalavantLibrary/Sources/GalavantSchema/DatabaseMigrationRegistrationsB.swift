@@ -436,5 +436,11 @@ enum GalavantDatabaseMigrationRegistrationsB {
       .execute(db)
     }
   }
+
+  static func register3(into migrator: inout DatabaseMigrator) {
+    migrator.registerMigration("Add trip visited roll-up marker") { db in
+      try #sql(#"ALTER TABLE "trips" ADD COLUMN "visitedRolledUpAt" TEXT"#).execute(db)
+    }
+  }
 }
 // swiftlint:enable function_body_length

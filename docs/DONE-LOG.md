@@ -3,6 +3,17 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## Visited roll-up (`effort/visited-rollup`) — 2026-10-30
+
+- Past dated trips mark eligible scheduled, day-placed, not-skipped pool ideas as Visited once. Stops
+  and their completion/skip overlays remain unchanged. Alternatives count only when checked off.
+- Added nullable synced `Trip.visitedRolledUpAt` with an additive migration. Development sync must push
+  the field and Production schema must be deployed before the next TestFlight build; the two-device
+  visited roll-up check remains in `docs/device-passes.md`.
+- **Verification.** `scripts/check-drift.sh` passed SwiftLint, all GalavantLibrary suites (809 tests,
+  9 known issues), and the GalavantUITests build. Headless `GalavantTests` passed 43 tests. The
+  Production schema deploy and device pass remain owed.
+
 ## Keep Chat's note and find ruled-out places (`effort/seed-handoff-cleanups`) — 2026-10-30
 
 - Recommendation pastes retain surrounding prose or top-level string notes from a JSON object.
