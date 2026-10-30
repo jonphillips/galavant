@@ -15,6 +15,7 @@ reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT
 
 ## Verification gates (decision gates, not a build queue)
 
+- **After the next TestFlight build, on Jon's phone and on Wendy's:** Settings → Planners → iCloud identity → Copy, and send both readings to the architect, who records OQ1–OQ3 in ADR-0051. Wendy only reads; nothing here changes the share.
 - **Visited roll-up.** Open the app with a past trip in the library: its scheduled, not-skipped places
   show Visited in Ideas, and its itinerary still shows every stop. Clear Visited on one of them, relaunch
   on both devices, and it stays cleared.

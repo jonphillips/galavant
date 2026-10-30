@@ -1,7 +1,7 @@
 # ADR-0051: Planner identity comes from the iCloud account
 
 *Status: **accepted** — 2026-10-30. Slice 0: effort
-[`adr-0051-s0-identity-readout`](../efforts/adr-0051-s0-identity-readout.md). Carries out [ADR-0008](0008-second-device-identity.md) § Future
+[`adr-0051-s0-identity-readout`](../efforts/archive/adr-0051-s0-identity-readout.md). Carries out [ADR-0008](0008-second-device-identity.md) § Future
 ("back planner identity with the CloudKit participant"). Builds on [ADR-0001](0001-cloudkit-instead-of-custom-server.md)
 ("iCloud *is* the identity") and [ADR-0007](0007-attribution-and-sharing-fks.md) (single-FK sharing).
 Unblocked by Wendy accepting the Production travel-party share on her own phone (the share sheet says she

@@ -7,7 +7,7 @@ appears in the share. It ships in a TestFlight build so Jon and Wendy can each r
 phones, on Production. Their readings answer ADR-0051 OQ1–OQ3 before Slice 1 adds the schema. No schema,
 migration, sync or contract change, and no writes of any kind.
 
-Implements [ADR-0051](../decisions/0051-planner-identity-from-icloud.md) § Slices, Slice 0. Read the ADR's
+Implements [ADR-0051](../../decisions/0051-planner-identity-from-icloud.md) § Slices, Slice 0. Read the ADR's
 Context and open questions first: this slice exists only to answer them.
 
 ## Today

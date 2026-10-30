@@ -1,5 +1,10 @@
 import GalavantSchema
 import SwiftUI
+#if os(macOS)
+  import AppKit
+#else
+  import UIKit
+#endif
 
 /// Settings ▸ Planners: the travel party's voters, with rename + delete so stale
 /// or duplicate planner rows can be pruned (dogfood — the extra voters cluttering
@@ -28,8 +33,11 @@ struct PlannerManagementView: View {
           }
         }
       }
+
+      iCloudIdentitySection
     }
     .navigationTitle("Planners")
+    .task { await model.refreshICloudIdentity() }
     .overlay {
       if model.planners.isEmpty {
         ContentUnavailableView(
@@ -79,6 +87,109 @@ struct PlannerManagementView: View {
         Text("Votes and your taste overlay will be \(planner.displayName)'s on this device.")
       }
     }
+  }
+
+  private var iCloudIdentitySection: some View {
+    Section {
+      if let readout = model.iCloudIdentityReadout {
+        Text(readout.summary)
+          .font(.headline)
+          .fixedSize(horizontal: false, vertical: true)
+
+        VStack(alignment: .leading, spacing: 3) {
+          Text("This device")
+            .font(.subheadline)
+          switch readout.deviceIdentity {
+          case let .recordName(recordName):
+            Text(recordName)
+              .font(.caption.monospaced())
+              .foregroundStyle(.secondary)
+              .textSelection(.enabled)
+              .fixedSize(horizontal: false, vertical: true)
+          case let .unavailable(reason):
+            Text("Unavailable: \(reason)")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+              .textSelection(.enabled)
+              .fixedSize(horizontal: false, vertical: true)
+          }
+        }
+
+        switch readout.shareSource {
+        case .notShared:
+          EmptyView()
+        case .server:
+          EmptyView()
+        case let .storedCopy(fetchError):
+          Text("Showing the stored share copy because the server fetch failed: \(fetchError)")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .textSelection(.enabled)
+            .fixedSize(horizontal: false, vertical: true)
+        case let .unavailable(reason):
+          Text("Couldn't read the stored share: \(reason)")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .textSelection(.enabled)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+
+        ForEach(readout.participants, id: \.id) { participant in
+          VStack(alignment: .leading, spacing: 3) {
+            Text(participant.formattedName ?? "Unnamed participant")
+              .font(.body)
+            Text("\(participant.role.rawValue.capitalized) · \(participant.acceptanceStatus.rawValue.capitalized)")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+            Text("Record name: \(participant.recordName ?? "—")")
+              .font(.caption.monospaced())
+              .foregroundStyle(.secondary)
+            Text("Lookup info: \(participant.lookupInfo ?? "—")")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+            Text("Permission: \(participant.permission.rawValue)")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+            if participant.recordName == ICloudIdentityReadout.ownerPlaceholder {
+              Text("CloudKit owner placeholder")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+          }
+          .textSelection(.enabled)
+          .fixedSize(horizontal: false, vertical: true)
+        }
+      } else {
+        HStack {
+          ProgressView()
+          Text("Reading iCloud identity…")
+            .foregroundStyle(.secondary)
+        }
+      }
+    } header: {
+      HStack {
+        Text("iCloud identity")
+        Spacer()
+        Button("Refresh") {
+          Task { await model.refreshICloudIdentity() }
+        }
+        .disabled(model.isRefreshingICloudIdentity)
+        Button("Copy") {
+          guard let text = model.iCloudIdentityReadout?.text else { return }
+          copyToPasteboard(text)
+        }
+        .disabled(model.iCloudIdentityReadout == nil)
+      }
+    }
+  }
+
+  private func copyToPasteboard(_ text: String) {
+    #if os(macOS)
+      NSPasteboard.general.clearContents()
+      NSPasteboard.general.setString(text, forType: .string)
+    #else
+      UIPasteboard.general.string = text
+    #endif
   }
 
   private func row(_ planner: Planner) -> some View {

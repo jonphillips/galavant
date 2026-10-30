@@ -1,3 +1,4 @@
+import CloudKit
 import Dependencies
 import Foundation
 import GalavantSchema
@@ -15,6 +16,8 @@ final class PlannerManagementModel {
   @ObservationIgnored @FetchAll(Planner.order(by: \.displayName)) var planners
   @ObservationIgnored @FetchAll(IdeaInterest.all) var interests
   @ObservationIgnored @Shared(.appStorage("currentPlannerID")) var currentPlannerIDString = ""
+  var iCloudIdentityReadout: ICloudIdentityReadout?
+  var isRefreshingICloudIdentity = false
 
   /// This device's own planner — never deletable from here.
   var currentPlannerID: Planner.ID? { UUID(uuidString: currentPlannerIDString) }
@@ -51,5 +54,117 @@ final class PlannerManagementModel {
         try Planner.deletePlanner(id: planner.id, in: db)
       }
     }
+  }
+
+  func refreshICloudIdentity() async {
+    guard !isRefreshingICloudIdentity else { return }
+    isRefreshingICloudIdentity = true
+    defer { isRefreshingICloudIdentity = false }
+
+    let deviceIdentity: ICloudIdentityReadout.DeviceIdentity
+    do {
+      let recordID = try await CKContainer(identifier: GalavantCloudSync.containerIdentifier)
+        .userRecordID()
+      deviceIdentity = .recordName(recordID.recordName)
+    } catch {
+      deviceIdentity = .unavailable(error.localizedDescription)
+    }
+
+    do {
+      let storedShare = try await database.read { db -> CKShare? in
+        guard let travelParty = try TravelParty.order(by: \.id).fetchOne(db) else { return nil }
+        return try SyncMetadata.find(travelParty.syncMetadataID).fetchOne(db)?.share
+      }
+      guard let storedShare else {
+        iCloudIdentityReadout = ICloudIdentityReadout(
+          deviceIdentity: deviceIdentity,
+          shareSource: .notShared,
+          participants: []
+        )
+        return
+      }
+
+      let database: CKDatabase =
+        storedShare.recordID.zoneID.ownerName == CKCurrentUserDefaultName
+        ? CKContainer(identifier: GalavantCloudSync.containerIdentifier).privateCloudDatabase
+        : CKContainer(identifier: GalavantCloudSync.containerIdentifier).sharedCloudDatabase
+
+      do {
+        let record = try await database.record(for: storedShare.recordID)
+        guard let freshShare = record as? CKShare else {
+          throw ICloudIdentityReadoutError.fetchedRecordWasNotShare
+        }
+        iCloudIdentityReadout = ICloudIdentityReadout(
+          deviceIdentity: deviceIdentity,
+          shareSource: .server,
+          participants: Self.participants(in: freshShare)
+        )
+      } catch {
+        iCloudIdentityReadout = ICloudIdentityReadout(
+          deviceIdentity: deviceIdentity,
+          shareSource: .storedCopy(fetchError: error.localizedDescription),
+          participants: Self.participants(in: storedShare)
+        )
+      }
+    } catch {
+      iCloudIdentityReadout = ICloudIdentityReadout(
+        deviceIdentity: deviceIdentity,
+        shareSource: .unavailable(error.localizedDescription),
+        participants: []
+      )
+    }
+  }
+
+  private static func participants(in share: CKShare) -> [ICloudIdentityReadout.Participant] {
+    var cloudParticipants = share.participants
+    if let currentUser = share.currentUserParticipant,
+      !cloudParticipants.contains(where: { $0.isEqual(currentUser) })
+    {
+      cloudParticipants.append(currentUser)
+    }
+    return cloudParticipants.map { participant in
+      let identity = participant.userIdentity
+      let formattedName = identity.nameComponents.map {
+        PersonNameComponentsFormatter().string(from: $0)
+      }
+      let lookupInfo = [identity.lookupInfo?.emailAddress, identity.lookupInfo?.phoneNumber]
+        .compactMap { $0 }
+        .joined(separator: ", ")
+      let role: ICloudIdentityReadout.Role = switch participant.role {
+      case .owner: .owner
+      case .privateUser: .participant
+      default: .other
+      }
+      let permission: ICloudIdentityReadout.Permission = switch participant.permission {
+      case .readOnly: .readOnly
+      case .readWrite: .readWrite
+      case .none: .none
+      default: .unknown
+      }
+      let acceptanceStatus: ICloudIdentityReadout.AcceptanceStatus = switch participant.acceptanceStatus {
+      case .accepted: .accepted
+      case .pending: .pending
+      case .removed: .removed
+      default: .unknown
+      }
+      return ICloudIdentityReadout.Participant(
+        recordName: identity.userRecordID?.recordName,
+        formattedName: formattedName.flatMap { $0.isEmpty ? nil : $0 },
+        lookupInfo: lookupInfo.isEmpty ? nil : lookupInfo,
+        role: role,
+        permission: permission,
+        acceptanceStatus: acceptanceStatus,
+        hasICloudAccount: identity.hasiCloudAccount,
+        isCurrentUser: share.currentUserParticipant?.isEqual(participant) ?? false
+      )
+    }
+  }
+}
+
+private enum ICloudIdentityReadoutError: Error, LocalizedError {
+  case fetchedRecordWasNotShare
+
+  var errorDescription: String? {
+    "CloudKit returned a record that wasn't a share."
   }
 }

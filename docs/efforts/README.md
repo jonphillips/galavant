@@ -14,7 +14,6 @@ folder listing and `DONE-LOG.md` cover it. A parked brief also gets a candidate 
 
 | Brief | Implements | Status |
 | --- | --- | --- |
-| [adr-0051-s0-identity-readout.md](adr-0051-s0-identity-readout.md) | ADR-0051 Slice 0 — read-only iCloud identity readout in Settings → Planners, to answer OQ1–OQ3 on both phones | Ready (first in queue) |
 
 **Authoring a brief:** add its entry here in the same change (index at creation), give it a
 `Status:` + one-line `Summary:` header, and link the ADR it implements. See `docs/README.md`
