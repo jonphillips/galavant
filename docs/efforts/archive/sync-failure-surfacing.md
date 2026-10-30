@@ -107,7 +107,7 @@ so in the PR and rely on the device pass.
     # Next Up — Keep what Chat said around its places; Find on Map from Ruled out
 
     **Slices:** effort `seed-handoff-cleanups` (one PR, branch `effort/seed-handoff-cleanups`)
-    **Briefs:** `docs/efforts/seed-handoff-cleanups.md`
+    **Briefs:** `docs/efforts/archive/seed-handoff-cleanups.md`
     **Done when:** per the brief's "Done when"; verification per `docs/verification.md`.
     **Owed:** carry over the current **Owed:** line unchanged.
     **Notes:** ADR-0048 follow-ups. No schema or contract change. Keep the note extraction pure, in

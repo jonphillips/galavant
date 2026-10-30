@@ -3,6 +3,16 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## Keep Chat's note and find ruled-out places (`effort/seed-handoff-cleanups`) — 2026-10-30
+
+- Recommendation pastes retain surrounding prose or top-level string notes from a JSON object.
+  The review shows the note, lets Jon save it once to Trip Documents, and clears it when the sheet
+  closes. Unresolved ruled-out stops can open Find on Map; resolving one keeps its declined status
+  and reason while adding the place to the Ideas pool. No schema, migration, or sync contract changed.
+- **Verification.** `scripts/check-drift.sh` passed: SwiftLint (0 violations), all GalavantLibrary
+  suites (805 tests, 9 known issues), and the GalavantUITests build. Headless `GalavantTests` passed
+  42 tests. The device sync and Ruled out flow remain a verification gate.
+
 ## Sync status reports what didn't sync (`effort/sync-failure-surfacing`) — 2026-10-30
 
 - `SyncHealthModel` now feeds the reducer the CloudSyncKit report counts, retains its verdict cache,

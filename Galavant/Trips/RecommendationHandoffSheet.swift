@@ -30,12 +30,18 @@ struct RecommendationHandoffSheet: View {
           RecommendationHandoffDoor(
             copiedBrief: copiedBrief,
             copyBrief: copyBrief,
-            pasteResult: pasteResult
+            pasteResult: pasteResult,
+            note: model.recommendationHandoffPaste.note,
+            noteSaved: model.recommendationHandoffPaste.noteSaved,
+            saveNote: model.saveRecommendationHandoffNote
           )
         } else {
           RecommendationCandidateReview(
             candidates: $model.recommendationReview,
-            commit: { candidate in model.commitRecommendationCandidate(candidate, from: session) }
+            commit: { candidate in model.commitRecommendationCandidate(candidate, from: session) },
+            note: model.recommendationHandoffPaste.note,
+            noteSaved: model.recommendationHandoffPaste.noteSaved,
+            saveNote: model.saveRecommendationHandoffNote
           )
         }
       }
@@ -55,6 +61,7 @@ struct RecommendationHandoffSheet: View {
       }
     }
     .presentationDetents([.medium, .large])
+    .onDisappear { model.clearRecommendationHandoffNote() }
     .alert(
       "Can’t import recommendations",
       isPresented: Binding(
@@ -106,7 +113,7 @@ struct RecommendationHandoffSheet: View {
   private var activeWarning: String? {
     session.taskType == RecommendationHandoffTask.seedTrip
       ? seedReviewModel?.importSummary
-      : model.recommendationHandoffWarning
+      : model.recommendationHandoffPaste.warning
   }
 
   private func clearActiveError() {
@@ -121,7 +128,7 @@ struct RecommendationHandoffSheet: View {
     if session.taskType == RecommendationHandoffTask.seedTrip {
       seedReviewModel?.importSummary = nil
     } else {
-      model.recommendationHandoffWarning = nil
+      model.recommendationHandoffPaste.warning = nil
     }
   }
 }
@@ -374,15 +381,24 @@ private struct RecommendationHandoffDoor: View {
   let copiedBrief: Bool
   let copyBrief: () -> Void
   let pasteResult: ([String]) -> Void
+  let note: String?
+  let noteSaved: Bool
+  let saveNote: () -> Void
 
   var body: some View {
     // The CTAs live in a pinned bottom inset rather than `ContentUnavailableView`'s
     // centered `actions` slot: at the `.medium` detent that slot pushes the paste
     // control below the fold, where it reads as missing.
-    ContentUnavailableView {
-      Label("Ask ChatGPT or Claude", systemImage: "sparkles")
-    } description: {
-      Text("Copy this trip’s brief, have the conversation in your project, then paste the returned candidate JSON here.")
+    VStack(spacing: 0) {
+      if let note {
+        ChatHandoffNote(note: note, isSaved: noteSaved, save: saveNote)
+          .padding(.horizontal)
+      }
+      ContentUnavailableView {
+        Label("Ask ChatGPT or Claude", systemImage: "sparkles")
+      } description: {
+        Text("Copy this trip’s brief, have the conversation in your project, then paste the returned candidate JSON here.")
+      }
     }
     .safeAreaInset(edge: .bottom) {
       VStack(spacing: 12) {
@@ -404,9 +420,17 @@ private struct RecommendationHandoffDoor: View {
 private struct RecommendationCandidateReview: View {
   @Binding var candidates: [RecommendationCandidateDraft]
   let commit: (RecommendationCandidateDraft) -> Void
+  let note: String?
+  let noteSaved: Bool
+  let saveNote: () -> Void
 
   var body: some View {
     List {
+      if let note {
+        Section("Chat also said") {
+          ChatHandoffNote(note: note, isSaved: noteSaved, save: saveNote)
+        }
+      }
       Section {
         Text("Review each proposal before adding it to this trip. Placement hints remain advisory.")
           .font(.footnote)

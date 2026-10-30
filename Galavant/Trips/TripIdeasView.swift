@@ -165,6 +165,11 @@ struct TripIdeasView: View {
                 }
               }
               .contextMenu {
+                if resolved.idea == nil {
+                  Button("Find on Map", systemImage: "magnifyingglass") {
+                    model.destination = .recommendationDetail(resolved.id)
+                  }
+                }
                 Button("Reconsider", systemImage: "arrow.uturn.backward") {
                   model.setStatus(.considering, for: resolved.id)
                 }

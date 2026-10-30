@@ -99,6 +99,28 @@ struct TripPlanningSenseOfNowTests {
     #expect(model.canvasSelectedDay == 4)
   }
 
+  @Test(.dependencies {
+    $0.date = .constant(noon(onDay: 2))
+    $0.uuid = .incrementing
+  })
+  @MainActor
+  func savingRecommendationNoteCreatesOnePastedTripDocument() async throws {
+    let tripID = try await makeTrip(startDate: nil)
+    let model = try await loadedModel(tripID: tripID)
+    model.recommendationHandoffPaste.note = "Look north for the deferred places."
+
+    model.saveRecommendationHandoffNote()
+    model.saveRecommendationHandoffNote()
+
+    let documents = try await database.read { db in
+      try TripDocument.where { $0.tripID.eq(tripID) }.fetchAll(db)
+    }
+    #expect(documents.count == 1)
+    #expect(documents.first?.origin == .pasted)
+    #expect(documents.first?.body == "Look north for the deferred places.")
+    #expect(model.recommendationHandoffPaste.noteSaved)
+  }
+
   @Test(.dependencies { $0.date = .constant(noon(onDay: 2)) })
   @MainActor
   func theItineraryFollowsTheSelectedStayRatherThanToday() async throws {

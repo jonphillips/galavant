@@ -58,6 +58,33 @@ struct RecommendationHandoffTests {
     }
   }
 
+  @Test func resolvingRuledOutUnresolvedStopKeepsItsStatusAndReason() async throws {
+    let result = try await database.write { db -> (TripIdea, Idea?) in
+      let trip = try Trip.create(name: "South Tyrol", in: db)
+      let stop = TripIdea(
+        id: UUID(), tripID: trip.id, ideaID: nil,
+        inlineTitle: "Plose", inlineNote: "Save for a quieter season.", status: .declined
+      )
+      try TripIdea.insert { TripIdea.Draft(stop) }.execute(db)
+      let resolution = try #require(try RecommendationResolution.confirm(
+        candidateStopID: stop.id,
+        capture: Place(
+          id: UUID(), name: "Plose", latitude: 46.7, longitude: 11.7,
+          mapItemIdentifier: "maps:plose"
+        ).ideaCapture(),
+        in: db
+      ))
+      let committed = try #require(try TripIdea.find(stop.id).fetchOne(db))
+      let createdIdea = try Idea.find(resolution.capture.ideaID).fetchOne(db)
+      return (committed, createdIdea)
+    }
+
+    #expect(result.0.status == .declined)
+    #expect(result.0.inlineNote == "Save for a quieter season.")
+    #expect(result.0.ideaID == result.1?.id)
+    #expect(result.1?.name == "Plose")
+  }
+
   private func session() -> HandoffSession {
     HandoffSession(
       sourceType: "trip",
@@ -252,7 +279,7 @@ struct RecommendationHandoffTests {
     let fixture = try #require(
       Bundle.module.url(forResource: "recommendation-candidates", withExtension: "json")
     )
-    let candidates = try TripCandidate.decodeReturn(String(contentsOf: fixture, encoding: .utf8))
+    let candidates = try TripCandidate.decodeReturn(String(contentsOf: fixture, encoding: .utf8)).candidates
     let candidate = try #require(candidates.only)
 
     #expect(candidate.name == "Lumiere Brasserie")
@@ -268,7 +295,26 @@ struct RecommendationHandoffTests {
     let body = "GV-CONTRACT: v1\n[{\"name\":\"Old format place\"}]"
     let routed = try RecommendationHandoffContract.marker.strippingMarker(from: body)
     #expect(routed.warning != nil)
-    #expect(try TripCandidate.decodeReturn(routed.text).only?.name == "Old format place")
+    #expect(try TripCandidate.decodeReturn(routed.text).candidates.only?.name == "Old format place")
+  }
+
+  @Test func keepsTextAroundCandidateArraysAndObjectSummaryInOrder() throws {
+    let bare = try TripCandidate.decodeReturn("[{\"name\":\"Plose\"}]")
+    #expect(bare.candidates.only?.name == "Plose")
+    #expect(bare.note == nil)
+
+    let prose = try TripCandidate.decodeReturn("Before the list.\n[{\"name\":\"Plose\"}]\nAfter the list.")
+    #expect(prose.note == "Before the list.\n\nAfter the list.")
+
+    let fenced = try TripCandidate.decodeReturn("Here it is:\n```json\n[{\"name\":\"Plose\"}]\n```\nThat’s all.")
+    #expect(fenced.note == "Here it is:\n\nThat's all.")
+
+    let wrapped = try TripCandidate.decodeReturn("{\"summary\":\"Look north for more places.\",\"places\":[{\"name\":\"Plose\"}],\"follow_up\":\"Save them for later.\"}")
+    #expect(wrapped.candidates.only?.name == "Plose")
+    #expect(wrapped.note == "summary: Look north for more places.\nfollow_up: Save them for later.")
+
+    let nested = try TripCandidate.decodeReturn("{\"summary\":\"Try the north.\",\"details\":{\"area\":\"north\"},\"places\":[{\"name\":\"Plose\"}]}")
+    #expect(nested.note == "summary: Try the north.")
   }
 
   @Test func seedBriefUsesTripContextAndV2ProjectInstructionsKeepTheCandidateClause() {
@@ -321,7 +367,7 @@ struct RecommendationHandoffTests {
     ]
 
     for (object, expected) in cases {
-      let candidate = try #require(TripCandidate.decodeReturn("[\(object)]").only)
+      let candidate = try #require(TripCandidate.decodeReturn("[\(object)]").candidates.only)
       #expect(candidate.bookAhead == expected)
     }
   }
@@ -345,16 +391,16 @@ struct RecommendationHandoffTests {
   }
 
   @Test func ignoresAStrayOpeningBracketBeforeTheCandidateArray() throws {
-    let candidates = try TripCandidate.decodeReturn(
+      let candidates = try TripCandidate.decodeReturn(
       "The output has a stray [ in this sentence.\n[{\"name\": \"Plose\"}]"
     )
 
-    #expect(candidates.only?.name == "Plose")
+    #expect(candidates.candidates.only?.name == "Plose")
   }
 
   @Test func partialFieldsReachReviewWithoutBlockingIngestion() throws {
     let candidates = try TripCandidate.decodeReturn("[{\"search_hint\": \"Cable car near Brixen\"}]")
-    let candidate = try #require(candidates.only)
+    let candidate = try #require(candidates.candidates.only)
 
     #expect(candidate.name == nil)
     #expect(candidate.searchHint == "Cable car near Brixen")

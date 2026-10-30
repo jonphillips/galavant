@@ -254,74 +254,10 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
     }
   }
 
-  /// Lossless-or-loud boundary: only a complete JSON array enters the review flow.
-  /// Prose around the array and curly quotes are transport noise; malformed JSON is
-  /// a typed error, never an empty candidate set.
-  public static func decodeReturn(_ text: String) throws -> [TripCandidate] {
-    guard let array = jsonArraySlice(in: text) else { throw TripCandidateDecodeError.missingJSONArray }
-    let normalized = array
-      .replacingOccurrences(of: "“", with: "\"")
-      .replacingOccurrences(of: "”", with: "\"")
-      .replacingOccurrences(of: "‘", with: "'")
-      .replacingOccurrences(of: "’", with: "'")
-    guard let candidates = try? JSONDecoder().decode([TripCandidate].self, from: Data(normalized.utf8))
-    else { throw TripCandidateDecodeError.malformedJSON }
-    guard !candidates.isEmpty else { throw TripCandidateDecodeError.emptyCandidates }
-    return candidates
-  }
-
-  private static func jsonArraySlice(in text: String) -> String? {
-    var index = text.startIndex
-    while index < text.endIndex {
-      guard text[index] == "[" else {
-        index = text.index(after: index)
-        continue
-      }
-      let contentsStart = text.index(after: index)
-      guard let firstContent = text[contentsStart...].firstIndex(where: { !$0.isWhitespace }),
-        text[firstContent] == "{" || text[firstContent] == "]"
-      else {
-        index = contentsStart
-        continue
-      }
-      if let close = matchingArrayClose(in: text, openingAt: index) {
-        return String(text[index...close])
-      }
-      index = contentsStart
-    }
-    return nil
-  }
-
-  /// Finds the matching close bracket while honoring JSON strings and escapes, so
-  /// prose with a stray `[` cannot steal the candidate array's closing bracket.
-  private static func matchingArrayClose(in text: String, openingAt open: String.Index) -> String.Index? {
-    var depth = 0
-    var inString = false
-    var escaped = false
-    var index = open
-    while index < text.endIndex {
-      let character = text[index]
-      if inString {
-        if escaped {
-          escaped = false
-        } else if character == "\\" {
-          escaped = true
-        } else if character == "\"" {
-          inString = false
-        }
-      } else {
-        switch character {
-        case "\"": inString = true
-        case "[": depth += 1
-        case "]":
-          depth -= 1
-          if depth == 0 { return index }
-        default: break
-        }
-      }
-      index = text.index(after: index)
-    }
-    return nil
+  /// Decode recommendation candidates while retaining any useful reply text.
+  /// Malformed JSON remains a typed error, never an empty candidate set.
+  public static func decodeReturn(_ text: String) throws -> TripCandidateReturn {
+    try TripCandidateReturnDecoder.decode(text)
   }
 }
 

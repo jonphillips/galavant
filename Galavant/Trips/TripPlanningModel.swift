@@ -12,6 +12,12 @@ struct TripDocumentRow {
   let id: TripDocument.ID
 }
 
+struct RecommendationHandoffPaste {
+  var warning: String?
+  var note: String?
+  var noteSaved = false
+}
+
 /// Owns one trip's planning surface (ADR-0004): the shortlist + considering
 /// pile of pulled ideas, and the filtered pool you pull *from*. Persistence
 /// delegates to the tested `TripIdea` operations; pool scoping reuses the pure
@@ -55,7 +61,7 @@ final class TripPlanningModel {
   var recommendationHandoffError: String?
   /// Non-blocking heads-up when a paste imported despite a dropped token or an
   /// out-of-date contract marker (warn-not-block, ADR-0036 handoff ergonomics).
-  var recommendationHandoffWarning: String?
+  var recommendationHandoffPaste = RecommendationHandoffPaste()
   var pendingRecommendationReconcile: ResolveReconcile.Collision?
   var calendarLocalState: CalendarReconciliationLocalState
 
