@@ -3,7 +3,8 @@
 *Status: **proposed** — 2026-10-30. Carries out [ADR-0008](0008-second-device-identity.md) § Future
 ("back planner identity with the CloudKit participant"). Builds on [ADR-0001](0001-cloudkit-instead-of-custom-server.md)
 ("iCloud *is* the identity") and [ADR-0007](0007-attribution-and-sharing-fks.md) (single-FK sharing).
-Unblocked 2026-10-30, when Wendy accepted the Production travel-party share on her own phone.*
+Unblocked by Wendy accepting the Production travel-party share on her own phone (the share sheet says she
+joined 2026-10-18).*
 
 ## Context
 
@@ -24,7 +25,8 @@ CloudKit already knows who each device belongs to:
   Apple ID within the container, with no permission prompt. It's an opaque key, not personal data.
 - The travel party's `CKShare` (SQLiteData exposes it as `SyncMetadata.share` on the `TravelParty` row)
   lists its participants. Each has a `userIdentity` with a `userRecordID`, and, for an accepted
-  participant, `nameComponents` and `lookupInfo` (email). The share always includes its owner and the
+  participant, `nameComponents` and `lookupInfo` (the email address or phone number the invitation
+  went to). The share always includes its owner and the
   current user. The old discoverability APIs are deprecated since iOS 17 and not used here.
 
 ## Decision
@@ -39,8 +41,8 @@ CloudKit already knows who each device belongs to:
 3. **A claimed planner isn't anyone else's.** The picker marks a planner claimed by another iCloud user,
    and choosing it asks first, as **This is me** does today. Choosing it sets this device's
    `currentPlannerID` only; it never overwrites the other person's claim.
-4. **Names and email come from the share, live.** Settings → Planners shows each claimed planner's
-   participant name and email as a subtitle, read from the share when it's available. They are not copied
+4. **Names and contact come from the share, live.** Settings → Planners shows each claimed planner's
+   participant name, and the email or phone number the invitation used, as a subtitle, read from the share when it's available. They are not copied
    into synced rows; the share already holds them. A new planner's name field is pre-filled from this
    device's own participant name when there is one.
 5. **One planner per iCloud user.** Two planners with the same record name (an offline race) converge to
@@ -56,8 +58,14 @@ CloudKit already knows who each device belongs to:
   person's own device? The owner may appear under the `__defaultOwner__` placeholder on its own device.
   If the names don't match, Decision 1 keys on the share participant's identity instead, and the binding
   has to go through the share.
-- **OQ2 — What does each side see?** Are `nameComponents` and the email filled in, for both the owner and
-  the participant, on each phone?
+  Apple's share sheet doesn't show record names, so only Slice 0 can answer this.
+- **OQ2 — What does each side see?** Are `nameComponents` and the lookup info filled in, for both the
+  owner and the participant, on each phone? **Partly answered 2026-10-30 from Jon's phone** (Settings →
+  Share Travel Party, Apple's share sheet): Wendy appears by full name and photo, with the phone number her
+  invitation went to, "Can edit", and "Joined October 18, 2026". Jon appears by name as Owner. There's no
+  email for Wendy, because the invitation used her phone number. Still open: what Wendy's phone shows for
+  Jon. The participant side can't safely open that sheet today, because the Share button re-saves the
+  share, which only the owner can do.
 - **OQ3 — Does Development differ from Production?** Do record names differ between environments? It only
   matters if Galavant Dev and TestFlight ever need to agree, and their data is separate (ADR-0050), so
   this is a note, not a blocker.
@@ -68,7 +76,7 @@ CloudKit already knows who each device belongs to:
 ## Slices
 
 - **Slice 0 — read-only readout (no schema).** Settings → Planners gains an **iCloud identity** section:
-  this device's record name, and each share participant's record name, name, email, role and acceptance
+  this device's record name, and each share participant's record name, name, lookup info, role and acceptance
   status. It ships in a TestFlight build, so it runs on Production on both phones. Jon and Wendy read it
   on each phone and record the answers to OQ1–OQ3 here.
 - **Slice 1 — claim and bind.** The column, its migration, Decisions 2, 3 and 6, and the Production schema
