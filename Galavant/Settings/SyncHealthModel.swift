@@ -24,6 +24,13 @@ final class SyncHealthModel {
   /// live account/pending signals — never clobbers it, and so it survives until the
   /// next start attempt supersedes it.
   private var lastStartError: String?
+  private var syncFailureReportError: String?
+  private var syncFailureVerdictCache = SyncFailureVerdictCache()
+  private var isRefreshing = false
+  private var refreshRequestedWhileRefreshing = false
+  private(set) var notUploadedRows: [SyncFailureDisplayRow] = []
+  private(set) var retryingRows: Set<String> = []
+  private(set) var retryError: String?
 
   @ObservationIgnored @Dependency(\.defaultDatabase) private var database
   @ObservationIgnored @Dependency(\.defaultSyncEngine) private var syncEngine
@@ -48,6 +55,19 @@ final class SyncHealthModel {
   /// safe to call on appear, on scene `.active`, on `DatabaseChange`, and whenever a
   /// sync cycle ends.
   func refresh() async {
+    guard !isRefreshing else {
+      refreshRequestedWhileRefreshing = true
+      return
+    }
+    isRefreshing = true
+    defer { isRefreshing = false }
+    repeat {
+      refreshRequestedWhileRefreshing = false
+      await refreshOnce()
+    } while refreshRequestedWhileRefreshing
+  }
+
+  private func refreshOnce() async {
     let isManuallyEnabled = GalavantCloudSync.isManuallyEnabled()
     let isEngineRunning = syncEngine.isRunning
     // The download counterpart to the pending (upload) count: true while the engine is
@@ -61,14 +81,122 @@ final class SyncHealthModel {
     // regardless.
     let pending = isManuallyEnabled ? await currentPendingCount() : 0
 
+    let failureReport: SyncFailureReport?
+    if isManuallyEnabled, isEngineRunning {
+      failureReport = await currentSyncFailureReport(
+        isEngineRunning: true,
+        isSendingChanges: syncEngine.isSendingChanges,
+        isFetchingChanges: isFetchingChanges
+      )
+    } else {
+      failureReport = nil
+      syncFailureReportError = nil
+    }
+    if let failureReport {
+      let names = (try? await Self.syncFailureDisplayNames(from: failureReport, in: database)) ?? [:]
+      notUploadedRows = SyncFailureDisplayRows.build(from: failureReport, names: names)
+    } else {
+      notUploadedRows = []
+    }
+
     health = SyncHealth(
       isManuallyEnabled: isManuallyEnabled,
       account: account,
       isEngineRunning: isEngineRunning,
       pendingChangeCount: pending,
       isFetchingChanges: isFetchingChanges,
-      lastError: lastStartError
+      notUploadedCount: failureReport?.notUploadedCount ?? 0,
+      notAppliedCount: failureReport?.notAppliedCount ?? 0,
+      lastError: lastStartError ?? syncFailureReportError
     )
+  }
+
+  func isRetrying(_ row: SyncFailureDisplayRow) -> Bool {
+    retryingRows.contains(row.id)
+  }
+
+  func retry(_ row: SyncFailureDisplayRow) async {
+    guard !row.primaryKeys.isEmpty, retryingRows.insert(row.id).inserted else { return }
+    retryError = nil
+    defer { retryingRows.remove(row.id) }
+    do {
+      let result = try await GalavantCloudSync.requeue(
+        recordType: row.recordType,
+        primaryKeys: row.primaryKeys,
+        in: database,
+        verdictCache: syncFailureVerdictCache
+      )
+      syncFailureVerdictCache = result.verdictCache
+      await refresh()
+    } catch {
+      retryError = "Couldn’t retry \(row.title): \(error.localizedDescription)"
+    }
+  }
+
+  private func currentSyncFailureReport(
+    isEngineRunning: Bool,
+    isSendingChanges: Bool,
+    isFetchingChanges: Bool
+  ) async -> SyncFailureReport? {
+    do {
+      let result = try await GalavantCloudSync.syncFailureReport(
+        in: database,
+        isEngineRunning: isEngineRunning,
+        isSendingChanges: isSendingChanges,
+        isFetchingChanges: isFetchingChanges,
+        verdictCache: syncFailureVerdictCache
+      )
+      syncFailureVerdictCache = result.verdictCache
+      syncFailureReportError = nil
+      return result.report
+    } catch {
+      syncFailureReportError = "Couldn’t check which records have synced."
+      return nil
+    }
+  }
+
+  nonisolated private static func syncFailureDisplayNames(
+    from report: SyncFailureReport,
+    in database: any DatabaseReader
+  ) async throws -> [SyncFailureRecordKey: SyncFailureDisplayName] {
+    try await database.read { db in
+      var names: [SyncFailureRecordKey: SyncFailureDisplayName] = [:]
+      for group in report.notUploaded {
+        guard GalavantCloudSync.syncedTables.recordTypes.contains(group.recordType) else { continue }
+        for key in group.primaryKeys {
+          let rowKey = SyncFailureRecordKey(recordType: group.recordType, primaryKey: key)
+          if group.recordType == "ideas" {
+            if let name = try String.fetchOne(db, sql: "SELECT \"name\" FROM \"ideas\" WHERE \"id\" = ?", arguments: [key]) {
+              names[rowKey] = .idea(name)
+            }
+            continue
+          }
+          if group.recordType == "trips" {
+            if let name = try String.fetchOne(db, sql: "SELECT \"name\" FROM \"trips\" WHERE \"id\" = ?", arguments: [key]) {
+              names[rowKey] = .trip(name)
+            }
+            continue
+          }
+          for column in SyncFailureDisplayRows.parentColumns(for: group.recordType) {
+            let parentKind: SyncFailureDisplayName.Kind = column == "ideaID" ? .idea : .trip
+            guard let parentID = try String.fetchOne(
+              db,
+              sql: "SELECT \"\(column)\" FROM \"\(group.recordType)\" WHERE \"id\" = ?",
+              arguments: [key]
+            ) else { continue }
+            let table = parentKind == .idea ? "ideas" : "trips"
+            guard let name = try String.fetchOne(
+              db,
+              sql: "SELECT \"name\" FROM \"\(table)\" WHERE \"id\" = ?",
+              arguments: [parentID]
+            ) else { break }
+            names[rowKey] = parentKind == .idea ? .idea(name) : .trip(name)
+            break
+          }
+        }
+      }
+      return names
+    }
   }
 
   /// Turn the gate on (the row is the enable affordance when sync is off), start the

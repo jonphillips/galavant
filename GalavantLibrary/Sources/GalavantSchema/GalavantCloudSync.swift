@@ -46,6 +46,19 @@ public enum GalavantCloudSync {
   public typealias StartResult = CloudSync.StartResult
   public typealias PendingRecordZoneRedrainResult = CloudSync.PendingRecordZoneRedrainResult
 
+  /// The synced tables shared by the failure report, retry, and the live engine.
+  private static let syncTables = GalavantSyncTables(
+    containerIdentifier: configuration.containerIdentifier,
+    TravelParty.self, Idea.self, Planner.self, IdeaInterest.self, MapRegion.self, Tag.self,
+    IdeaTag.self, Trip.self, TripIdea.self, CalendarReconciliationLedgerEntry.self,
+    CalendarPlanRepair.self, CalendarPlanRepairResolution.self, CalendarTripConstraint.self,
+    CalendarIgnoredEvent.self, TripRegion.self, ImageAsset.self, RegionImage.self,
+    TripStay.self, TripDocument.self, TripDayRegion.self, TripDayTimeZone.self,
+    TripDayNote.self, TripAlternativeGroup.self, IdeaEvaluation.self, TravelProfile.self
+  )
+
+  public static var syncedTables: SyncedTables { syncTables.syncedTables }
+
   public static var containerIdentifier: String { configuration.containerIdentifier }
 
   // MARK: Enablement gate (forwarded)
@@ -122,6 +135,33 @@ public enum GalavantCloudSync {
     )
   }
 
+  public static func syncFailureReport(
+    in database: any DatabaseWriter,
+    isEngineRunning: Bool,
+    isSendingChanges: Bool,
+    isFetchingChanges: Bool,
+    now: Date = .now,
+    verdictCache: SyncFailureVerdictCache
+  ) async throws -> SyncFailureReportResult {
+    try await CloudSync.syncFailureReport(
+      in: database, tables: syncedTables, isEngineRunning: isEngineRunning,
+      isSendingChanges: isSendingChanges, isFetchingChanges: isFetchingChanges,
+      now: now, verdictCache: verdictCache
+    )
+  }
+
+  public static func requeue(
+    recordType: String,
+    primaryKeys: [String],
+    in database: any DatabaseWriter,
+    verdictCache: SyncFailureVerdictCache
+  ) async throws -> SyncRequeueResult {
+    try await CloudSync.requeue(
+      recordType: recordType, primaryKeys: primaryKeys, tables: syncedTables,
+      in: database, verdictCache: verdictCache
+    )
+  }
+
   // MARK: Engine construction (domain-bound — stays here)
 
   /// Construct the sync engine over galavant's synced tables. This is the one method
@@ -132,36 +172,36 @@ public enum GalavantCloudSync {
     for database: any DatabaseWriter,
     startImmediately: Bool
   ) throws -> SyncEngine {
-    try SyncEngine(
-      for: database,
-      tables:
-        TravelParty.self,
-        Idea.self,
-        Planner.self,
-        IdeaInterest.self,
-        MapRegion.self,
-        Tag.self,
-        IdeaTag.self,
-        Trip.self,
-        TripIdea.self,
-        CalendarReconciliationLedgerEntry.self,
-        CalendarPlanRepair.self,
-        CalendarPlanRepairResolution.self,
-        CalendarTripConstraint.self,
-        CalendarIgnoredEvent.self,
-        TripRegion.self,
-        ImageAsset.self,
-        RegionImage.self,
-        TripStay.self,
-        TripDocument.self,
-        TripDayRegion.self,
-        TripDayTimeZone.self,
-        TripDayNote.self,
-        TripAlternativeGroup.self,
-        IdeaEvaluation.self,
-        TravelProfile.self,
-      containerIdentifier: configuration.containerIdentifier,
-      startImmediately: startImmediately
-    )
+    try syncTables.makeSyncEngine(for: database, startImmediately: startImmediately)
+  }
+}
+
+/// Captures one heterogeneous table-type pack for both matching and engine creation,
+/// so the failure report cannot name a different table set from SQLiteData.
+// The immutable factory captures only table metatypes and a container identifier.
+private struct GalavantSyncTables: @unchecked Sendable {
+  let syncedTables: SyncedTables
+  private let engineFactory: (any DatabaseWriter, Bool) throws -> SyncEngine
+
+  init<each T: PrimaryKeyedTable & SendableMetatype>(
+    containerIdentifier: String,
+    _ tables: repeat (each T).Type
+  ) where repeat (each T).PrimaryKey: SendableMetatype,
+          repeat (each T).PrimaryKey.QueryOutput: IdentifierStringConvertible & SendableMetatype,
+          repeat (each T).TableColumns: SendableMetatype,
+          repeat (each T).TableColumns.PrimaryColumn: WritableTableColumnExpression {
+    syncedTables = SyncedTables(repeat each tables)
+    engineFactory = { database, startImmediately in
+      try SyncEngine(
+        for: database,
+        tables: repeat each tables,
+        containerIdentifier: containerIdentifier,
+        startImmediately: startImmediately
+      )
+    }
+  }
+
+  func makeSyncEngine(for database: any DatabaseWriter, startImmediately: Bool) throws -> SyncEngine {
+    try engineFactory(database, startImmediately)
   }
 }
