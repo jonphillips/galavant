@@ -28,6 +28,7 @@
 		1BA8684F8293D1EBB16FB70C /* BrowserScreenModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC86C99C4DC8F10257E93B99 /* BrowserScreenModel.swift */; };
 		1C3D2E2D9EEF8BC709447AE6 /* PoolMapUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17EBCBAEA0AF8C840A0DA921 /* PoolMapUITests.swift */; };
 		1CBA8CF00327F32A3D5BA465 /* TripSketchSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5887301D517560FA99726141 /* TripSketchSheet.swift */; };
+		23D3E404F6FE187B064457C4 /* ChatHandoffNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB448B3F9BFD7482353055CE /* ChatHandoffNote.swift */; };
 		242EC6987A08C0DCEBF3BC64 /* GalavantPlaces in Frameworks */ = {isa = PBXBuildFile; productRef = 6527A596FFD56B45F77446D0 /* GalavantPlaces */; };
 		25A7842AF8875EEF8BFA2887 /* PrefersTabNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDA439EDEF5339154F3D8C08 /* PrefersTabNavigation.swift */; };
 		28CB0F1054F9EC0012E413AD /* CloudSyncKit in Frameworks */ = {isa = PBXBuildFile; productRef = BAB8971211A0C3E3E9C18A40 /* CloudSyncKit */; };
@@ -341,6 +342,7 @@
 		C552773D568B292127E75164 /* SettingsModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsModelTests.swift; sourceTree = "<group>"; };
 		C5AD27A1248EEA1D9B580277 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		C8BA5355102262E8FF3F053B /* CalendarExportModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarExportModel.swift; sourceTree = "<group>"; };
+		CB448B3F9BFD7482353055CE /* ChatHandoffNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatHandoffNote.swift; sourceTree = "<group>"; };
 		CC16D0C39AA361A09737B45F /* Galavant.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Galavant.entitlements; sourceTree = "<group>"; };
 		CC88DBCF4AB9A9D219BFDFAD /* TodaySupportingViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodaySupportingViews.swift; sourceTree = "<group>"; };
 		CF9FB1AF2135067DA76F7C0C /* CalendarReconciliationModel+Ingest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CalendarReconciliationModel+Ingest.swift"; sourceTree = "<group>"; };
@@ -499,6 +501,7 @@
 			isa = PBXGroup;
 			children = (
 				24B994A2DC3347E99111DE8F /* BasePin.swift */,
+				CB448B3F9BFD7482353055CE /* ChatHandoffNote.swift */,
 				BAA9983C3B6D9D9B731F96F9 /* DayChipBar.swift */,
 				95C568B98EA55277C2DDA065 /* DayPalette.swift */,
 				386282278C0DEBD19BF1925E /* DirectionsClient.swift */,
@@ -1003,6 +1006,7 @@
 				CB26B0D5725B3BB39E4E1839 /* CalendarReconciliationRows.swift in Sources */,
 				1885938610B337356CBBB04F /* CalendarReconciliationSheet.swift in Sources */,
 				4171E2BF905DAB98B77389EB /* CertaintyStyle.swift in Sources */,
+				23D3E404F6FE187B064457C4 /* ChatHandoffNote.swift in Sources */,
 				C7FC1AA264B96268F69FC474 /* ChatPanelView.swift in Sources */,
 				BA6DC33C006D131C9DDA042C /* DayChipBar.swift in Sources */,
 				35E279FA22C85810158AF02C /* DayPalette.swift in Sources */,

@@ -25,9 +25,6 @@ matches saved ideas before searching the map. **Slice 0 passed
 (`.declined` + `TripDocument`) shipped in #149. Slice 2 (seed verb) is dispatched; Slice 3 (matching) is
 queued behind it. ADR OQ1–OQ5 stay in the ADR.
 
-- **Both follow-ups are queued** as effort `seed-handoff-cleanups`: the review keeps what Chat said
-  around the places array, and Ruled out gains Find on Map.
-
 ### M9 cockpit polish (post-ship follow-ups)
 
 M9 (recommendation handoff + evaluation cockpit) and the LLMHandoffKit lift shipped and

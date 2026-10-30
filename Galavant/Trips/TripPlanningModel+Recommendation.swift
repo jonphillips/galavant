@@ -85,7 +85,9 @@ extension TripPlanningModel {
     )
     do {
       try handoffSessionStore.save(session)
-      recommendationHandoffWarning = nil
+      recommendationHandoffPaste.warning = nil
+      recommendationHandoffPaste.note = nil
+      recommendationHandoffPaste.noteSaved = false
       recommendationHandoffError = nil
       destination = .recommendationHandoff(RecommendationHandoffPresentation(session: session))
     } catch {
@@ -121,7 +123,9 @@ extension TripPlanningModel {
     do {
       try handoffSessionStore.save(session)
       recommendationReview = []
-      recommendationHandoffWarning = nil
+      recommendationHandoffPaste.warning = nil
+      recommendationHandoffPaste.note = nil
+      recommendationHandoffPaste.noteSaved = false
       destination = .recommendationHandoff(RecommendationHandoffPresentation(session: session))
     } catch {
       recommendationHandoffError = error.localizedDescription
@@ -166,7 +170,8 @@ extension TripPlanningModel {
 
       let contract = try RecommendationHandoffContract.marker.strippingMarker(from: bodyText)
       if let warning = contract.warning { warnings.append(warning) }
-      let candidates = try TripCandidate.decodeReturn(contract.text)
+      let decoded = try TripCandidate.decodeReturn(contract.text)
+      let candidates = decoded.candidates
       var updatedSession = handoffSessionStore.session(session.id) ?? session
       let merge = try updatedSession.storeRecommendationCandidates(candidates)
       try handoffSessionStore.save(updatedSession)
@@ -189,10 +194,37 @@ extension TripPlanningModel {
       warnings.insert(
         "\(merge.addedCandidates.count) new, \(alreadyOnTrip) already on this trip.", at: 0
       )
-      recommendationHandoffWarning = warnings.joined(separator: "\n\n")
+      recommendationHandoffPaste.warning = warnings.joined(separator: "\n\n")
+      recommendationHandoffPaste.note = decoded.note
+      recommendationHandoffPaste.noteSaved = false
     } catch {
       recommendationHandoffError = error.localizedDescription
     }
+  }
+
+  func saveRecommendationHandoffNote() {
+    guard let note = recommendationHandoffPaste.note, !recommendationHandoffPaste.noteSaved else { return }
+    do {
+      let now = date.now
+      _ = try database.write { db in
+        try TripDocument.add(
+          tripID: tripID,
+          title: "Chat notes — \(now.formatted(date: .abbreviated, time: .omitted))",
+          body: note,
+          origin: .pasted,
+          now: now,
+          in: db
+        )
+      }
+      recommendationHandoffPaste.noteSaved = true
+    } catch {
+      recommendationHandoffError = error.localizedDescription
+    }
+  }
+
+  func clearRecommendationHandoffNote() {
+    recommendationHandoffPaste.note = nil
+    recommendationHandoffPaste.noteSaved = false
   }
 
   var seedPlanContextSnapshot: SeedPlanContext? {
