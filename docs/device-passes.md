@@ -14,6 +14,11 @@ reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT
 
 ## Verification gates (decision gates, not a build queue)
 
+- **Sync failure status and retry.** On both phones and the iPad, Settings → Sync reads "Up to date" on
+  the real library (any count here is a finding: report it, don't retry it away). Then, in Airplane
+  mode, edit an idea and wait past 30 minutes: the row reads "1 item hasn't synced" and the detail
+  names the idea. Turn the network back on: it uploads and returns to "Up to date", with or without
+  Retry. The not-applied count is zero, or the detail says what's stuck.
 - **Travel profile on TestFlight:** edit the profile on one device and confirm it reaches the other;
   then run Discuss and a recommendation brief and confirm the taste lines are in the prompt.
 - Move a linked trip event to another trip day in Calendar, run Reconcile Calendar, and confirm it

@@ -1,6 +1,6 @@
 # Effort — Sync status reports what didn't sync
 
-**Status:** Dispatched (2026-10-30) · **Summary:** #176 taught the Settings sync row the new
+**Status:** Done (2026-10-30) → DONE-LOG · **Summary:** #176 taught the Settings sync row the new
 `.needsAttention` state, but `SyncHealthModel` never feeds `SyncHealth` the two counts behind it, so the
 row can still read "Up to date" while rows have never reached CloudKit. This effort calls
 `CloudSync.syncFailureReport`, passes both counts to the reducer, and lists the stuck rows by name in the

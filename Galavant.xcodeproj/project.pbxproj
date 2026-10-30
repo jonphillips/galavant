@@ -926,8 +926,8 @@
 			targets = (
 				2A483A405202F2FF5C8B5D34 /* Galavant */,
 				6CECB534761064AC5A66DA2C /* GalavantShare */,
-				59EF2448919DADFA674F7E3C /* GalavantTests */,
 				CC0067D58A6E0F559D50EAD5 /* GalavantUITests */,
+				59EF2448919DADFA674F7E3C /* GalavantTests */,
 			);
 		};
 /* End PBXProject section */

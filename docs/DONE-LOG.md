@@ -3,6 +3,17 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## Sync status reports what didn't sync (`effort/sync-failure-surfacing`) — 2026-10-30
+
+- `SyncHealthModel` now feeds the reducer the CloudSyncKit report counts, retains its verdict cache,
+  coalesces overlapping refreshes, and surfaces report errors without hiding a start error. The
+  Settings detail names stuck ideas, trips, and their children, groups rows by parent, and retries
+  selected rows. The engine and failure report share one captured table-type pack. No schema or
+  migration changed.
+- **Verification.** `scripts/check-drift.sh` passed: SwiftLint (0 violations), all GalavantLibrary
+  suites (802 tests, 9 known issues), and the GalavantUITests build. Headless `GalavantTests` passed
+  41 tests. Real-device status and retry behavior remain a verification gate.
+
 ## Gates cleared: Galavant Dev, travelProfiles schema, TestFlight setup and first release, Wendy's share (`plan/close-dev-and-schema-gates`) — 2026-10-30
 
 - **Galavant Dev portal setup and device pass (ADR-0050).** Jon built and installed Galavant Dev.

@@ -77,6 +77,37 @@ struct SyncStatusDetailView: View {
           Text(explanation)
         }
 
+        if model.health.notUploadedCount > 0 {
+          Section {
+            ForEach(model.notUploadedRows) { row in
+              HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                  Text(row.title)
+                  Text(row.detail)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("Retry") {
+                  Task { await model.retry(row) }
+                }
+                .disabled(row.primaryKeys.isEmpty || model.isRetrying(row))
+                if model.isRetrying(row) {
+                  ProgressView()
+                }
+              }
+            }
+            if let retryError = model.retryError {
+              Text(retryError)
+                .foregroundStyle(.red)
+            }
+          } header: {
+            Text("Not uploaded")
+          } footer: {
+            Text("Retry sends the listed rows to iCloud again.")
+          }
+        }
+
         Section {
           Button {
             Task { await primaryAction() }

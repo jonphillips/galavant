@@ -23,7 +23,16 @@ final class SyncHealthModel {
   /// capture theirs). Held separately so a routine `refresh()` — which only reads
   /// live account/pending signals — never clobbers it, and so it survives until the
   /// next start attempt supersedes it.
-  private var lastStartError: String?
+  @ObservationIgnored private var lastStartError: String?
+  @ObservationIgnored private var syncFailureReportError: String?
+  @ObservationIgnored private var syncFailureVerdictCache = SyncFailureVerdictCache()
+  @ObservationIgnored private var isRefreshing = false
+  @ObservationIgnored private var refreshRequestedWhileRefreshing = false
+  /// Coalesced callers wait for the follow-up refresh to finish before returning.
+  @ObservationIgnored private var refreshWaiters: [CheckedContinuation<Void, Never>] = []
+  private(set) var notUploadedRows: [SyncFailureDisplayRow] = []
+  private(set) var retryingRows: Set<String> = []
+  private(set) var retryError: String?
 
   @ObservationIgnored @Dependency(\.defaultDatabase) private var database
   @ObservationIgnored @Dependency(\.defaultSyncEngine) private var syncEngine
@@ -48,6 +57,25 @@ final class SyncHealthModel {
   /// safe to call on appear, on scene `.active`, on `DatabaseChange`, and whenever a
   /// sync cycle ends.
   func refresh() async {
+    guard !isRefreshing else {
+      refreshRequestedWhileRefreshing = true
+      await withCheckedContinuation { refreshWaiters.append($0) }
+      return
+    }
+    isRefreshing = true
+    defer {
+      isRefreshing = false
+      let waiters = refreshWaiters
+      refreshWaiters.removeAll()
+      waiters.forEach { $0.resume() }
+    }
+    repeat {
+      refreshRequestedWhileRefreshing = false
+      await refreshOnce()
+    } while refreshRequestedWhileRefreshing
+  }
+
+  private func refreshOnce() async {
     let isManuallyEnabled = GalavantCloudSync.isManuallyEnabled()
     let isEngineRunning = syncEngine.isRunning
     // The download counterpart to the pending (upload) count: true while the engine is
@@ -61,14 +89,88 @@ final class SyncHealthModel {
     // regardless.
     let pending = isManuallyEnabled ? await currentPendingCount() : 0
 
+    let failureReport: SyncFailureReport?
+    if isManuallyEnabled, isEngineRunning {
+      failureReport = await currentSyncFailureReport(
+        isEngineRunning: true,
+        isSendingChanges: syncEngine.isSendingChanges,
+        isFetchingChanges: isFetchingChanges
+      )
+    } else {
+      failureReport = nil
+      syncFailureReportError = nil
+    }
+    if let failureReport {
+      let names = (try? await Self.syncFailureDisplayNames(from: failureReport, in: database)) ?? [:]
+      notUploadedRows = SyncFailureDisplayRows.build(from: failureReport, names: names)
+    } else {
+      notUploadedRows = []
+    }
+    if notUploadedRows.isEmpty {
+      retryError = nil
+    }
+
     health = SyncHealth(
       isManuallyEnabled: isManuallyEnabled,
       account: account,
       isEngineRunning: isEngineRunning,
       pendingChangeCount: pending,
       isFetchingChanges: isFetchingChanges,
-      lastError: lastStartError
+      notUploadedCount: failureReport?.notUploadedCount ?? 0,
+      notAppliedCount: failureReport?.notAppliedCount ?? 0,
+      lastError: lastStartError ?? syncFailureReportError
     )
+  }
+
+  func isRetrying(_ row: SyncFailureDisplayRow) -> Bool {
+    retryingRows.contains(row.id)
+  }
+
+  func retry(_ row: SyncFailureDisplayRow) async {
+    guard !row.primaryKeys.isEmpty, retryingRows.insert(row.id).inserted else { return }
+    retryError = nil
+    defer { retryingRows.remove(row.id) }
+    do {
+      let result = try await GalavantCloudSync.requeue(
+        recordType: row.recordType,
+        primaryKeys: row.primaryKeys,
+        in: database,
+        verdictCache: syncFailureVerdictCache
+      )
+      syncFailureVerdictCache = result.verdictCache
+      await refresh()
+    } catch {
+      retryError = "Couldn’t retry \(row.title): \(error.localizedDescription)"
+    }
+  }
+
+  private func currentSyncFailureReport(
+    isEngineRunning: Bool,
+    isSendingChanges: Bool,
+    isFetchingChanges: Bool
+  ) async -> SyncFailureReport? {
+    do {
+      let result = try await GalavantCloudSync.syncFailureReport(
+        in: database,
+        isEngineRunning: isEngineRunning,
+        isSendingChanges: isSendingChanges,
+        isFetchingChanges: isFetchingChanges,
+        verdictCache: syncFailureVerdictCache
+      )
+      syncFailureVerdictCache = result.verdictCache
+      syncFailureReportError = nil
+      return result.report
+    } catch {
+      syncFailureReportError = "Couldn’t check which records have synced."
+      return nil
+    }
+  }
+
+  nonisolated private static func syncFailureDisplayNames(
+    from report: SyncFailureReport,
+    in database: any DatabaseWriter
+  ) async throws -> [SyncFailureRecordKey: SyncFailureDisplayName] {
+    try await database.read { db in try SyncFailureDisplayRows.names(from: report, in: db) }
   }
 
   /// Turn the gate on (the row is the enable affordance when sync is off), start the
