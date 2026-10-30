@@ -24,7 +24,7 @@ Memory (`~/.claude`) never tracks status; it defers here. **GitHub PR state is t
 | **[device-passes.md](device-passes.md)** | Jon's real-device and distribution gates | Jon, architect | A gate is owed or clears |
 | **[PROD-CUTOVER.md](PROD-CUTOVER.md)** | The Development → Production cutover runbook (ADR-0049 D3): ops steps, not a dispatch | Jon, architect | A phase is run, or the order changes |
 | **[verification.md](verification.md)** | The standing verification commands and gates | Executor | The pattern changes |
-| **[ROADMAP.md](ROADMAP.md)** | The milestone arc (M0…M10+) and milestone-level status markers | Architect | A milestone changes state |
+| **[ROADMAP.md](ROADMAP.md)** | The milestone arc (M0…M10) in order, and what each is for; not status (ADR-0005 D11) | Architect | A milestone is added or its intent changes |
 | **[DONE-LOG.md](DONE-LOG.md)** | Shipped work, newest first; the completing PR adds its entry naming its branch | Humans; no dispatch reads it | Work merges |
 | **[KNOWN-ISSUES.md](KNOWN-ISSUES.md)** | Known bugs, gaps, and unverified-on-device risks | Before assuming something works; triage | A defect/gap is found or fixed |
 
@@ -38,7 +38,7 @@ Memory (`~/.claude`) never tracks status; it defers here. **GitHub PR state is t
 | **[STYLE.md](STYLE.md)** | App-specific style, on top of `jon-platform/docs/ios/swift-style.md` | — |
 | Design/topic notes: [trip-canvas.md](trip-canvas.md), [trip-time-model.md](trip-time-model.md), [MINING.md](MINING.md), [scraping-enrichment.md](scraping-enrichment.md), [recovered-requirements.md](recovered-requirements.md), [browser-capture-feedback.md](browser-capture-feedback.md) | Deep-dives on a subsystem or feature | *(to get `Status:`/`Summary:` headers on-touch)* |
 | Per-milestone execution briefs: live in [milestones/](milestones/); closed ones such as [M5-EXECUTION.md](milestones/archive/M5-EXECUTION.md), [M6-EXECUTION.md](milestones/archive/M6-EXECUTION.md), [M7-DOGFOOD.md](milestones/archive/M7-DOGFOOD.md) in [milestones/archive/](milestones/archive/) | The working plan for a milestone while it's active | *(moved to `archive/` with `jon-platform/scripts/archive-brief` when the milestone closes)* |
-| Subdirs: [mockups/](mockups), [proposal/](proposal), [reviews/](reviews), [fixtures/](fixtures) | Visual mockups, proposals, review notes, design fixtures (sample handoff returns an ADR is checked against) | — |
+| Subdirs: [mockups/](mockups), [reviews/](reviews), [fixtures/](fixtures), [archive/](archive/) | Visual mockups, review notes, design fixtures (sample handoff returns an ADR is checked against), and finished one-off docs (ADR-0005 D13) | — |
 
 ## Surfaces outside `docs/`
 

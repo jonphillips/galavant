@@ -66,14 +66,18 @@ broken: render the itinerary as `ScrollView`/`LazyVStack` instead of `List`. See
 
 ## Designed / deferred (product)
 
-- **Itinerary completion rollup (Jon, 2026-06-13)** is queued as effort `visited-rollup`.
 - **Consolidate remaining management UIs into Settings.** A Settings area now exists
   (region management, sync health, AI). Tag management moves there in effort
   `tag-management` and the travel profile in `travel-profile`. Still to come:
   **planner identity / switching** when that lands.
-- **Planner identity strengthening (Jon, 2026-06-12)** is ADR-0051 (accepted 2026-10-30). Slice 0, a
-  read-only device readout that settles its open questions, is queued as effort
-  `adr-0051-s0-identity-readout`.
+- **M6 designs the old roadmap marked unbuilt** (as of its 2026-08-09 rebaseline): ADR-0015 source
+  evaluations and a taste profile, ADR-0016 source-aware capture, ADR-0017 the context-aware chat
+  window, ADR-0018 the discovery pipeline (proposed), and ADR-0030 itinerary-aware suggestions
+  (proposed). Parts have shipped since (the travel profile, Discuss), so check each ADR and
+  `DONE-LOG.md` before scheduling one. Slice detail: [the archived roadmap](archive/ROADMAP-2026-10-30.md)
+  and [M6](milestones/archive/M6-EXECUTION.md).
+- **Also deferred in the old roadmap:** tags as first-class (M2), the in-app browser capture flow
+  ported from V2's WebSearch (M4), and M9's two-part return with a synced `Learning` home.
 
 ## Engineering discipline / small follow-ups
 
