@@ -86,4 +86,15 @@ done → visited feedback; ADR-0039 §1 moved the live check-off to a reversible
     past trip in the library: its scheduled, not-skipped places show Visited in Ideas, and its itinerary
     still shows every stop. Clear Visited on one of them, relaunch on both devices, and it stays
     cleared;*
-  - sets `docs/NEXT_UP.md` to the empty ticket, carrying the **Owed:** line over unchanged.
+  - sets `docs/NEXT_UP.md` to exactly this block:
+
+    ```
+    # Next Up — ADR-0051 Slice 0: the iCloud identity readout
+
+    **Slices:** effort `adr-0051-s0-identity-readout` (one PR, branch `effort/adr-0051-s0-identity-readout`)
+    **Briefs:** `docs/efforts/adr-0051-s0-identity-readout.md`
+    **Done when:** per the brief's "Done when"; verification per `docs/verification.md`.
+    **Owed:** carry over the current **Owed:** line unchanged.
+    **Notes:** ADR-0051 (accepted). Read only: no schema, no CloudKit writes, never `share(record:)`.
+    The readout ships in Release builds. Start from a fresh `main`.
+    ```
