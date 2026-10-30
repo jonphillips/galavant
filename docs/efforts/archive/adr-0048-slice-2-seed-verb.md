@@ -1,7 +1,7 @@
 # Effort — ADR-0048 Slice 2: the seed verb (contract v2, decode, plan, bulk review, commit)
 
 **Status:** Done (2026-10-06) · **Summary:** the `seedTrip` handoff from
-[ADR-0048](../decisions/0048-trip-seed-handoff.md): Galavant sends a seed brief, Jon pastes it into
+[ADR-0048](../../decisions/0048-trip-seed-handoff.md): Galavant sends a seed brief, Jon pastes it into
 the existing Chat conversation about the trip, and the narrative + `GV-SEED` + JSON reply becomes a
 founding document plus a trip skeleton in **one reviewed tap**. **Every row lands freeform
 (unresolved).** Matching against saved ideas and the map is Slice 3.
@@ -169,7 +169,7 @@ existing `recommendationMatchingContext`), its stays, the trip-attached `MapRegi
     # Next Up — ADR-0048 Slice 3: seed matching (saved ideas, then the map)
 
     **Slices:** effort `adr-0048-slice-3` (one PR, branch `effort/adr-0048-slice-3`)
-    **Briefs:** `docs/efforts/adr-0048-slice-3-seed-matching.md`
+    **Briefs:** `docs/efforts/archive/adr-0048-slice-3-seed-matching.md`
     **Done when:** per the brief's "Done when"; verification per `docs/verification.md`.
     **Owed:** Jon's device pass in `docs/device-passes.md` (not executor work).
     **Notes:** Matching runs inside the seed review before commit; the human's tap still selects.

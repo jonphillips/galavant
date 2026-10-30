@@ -11,19 +11,19 @@ Implements ADR-0015 §3 as amended 2026-10-08 (named readers, not `ModelClient`-
 
 ## What exists
 
-- **Storage.** `TravelProfile` ([TravelProfile.swift](../../GalavantLibrary/Sources/GalavantSchema/TravelProfile.swift)):
+- **Storage.** `TravelProfile` ([TravelProfile.swift](../../../GalavantLibrary/Sources/GalavantSchema/TravelProfile.swift)):
   one FK to `TravelParty`, and a loose optional `plannerID`. `nil` is the household profile; a set id is
   that planner's overlay. `setPreferences` and `removeProfile` are in
-  [TravelProfileOperations.swift](../../GalavantLibrary/Sources/GalavantSchema/TravelProfileOperations.swift),
+  [TravelProfileOperations.swift](../../../GalavantLibrary/Sources/GalavantSchema/TravelProfileOperations.swift),
   with tests.
 - **Editor.** `TravelProfileEditView` and `TravelProfileEditModel` (`Galavant/Settings/`). It has its own
   `NavigationStack` with Cancel and Save. Nothing presents it.
 - **Assembly helper.** `TravelProfile.assembledProfile(travelPartyID:plannerID:from:)` combines the shared
   profile with **one** planner's overlay. Nothing calls it.
 - **Prompt builders.** `RecommendationHandoffContract.seedBrief` and `.brief`
-  ([RecommendationHandoff.swift](../../GalavantLibrary/Sources/GalavantSchema/RecommendationHandoff.swift)),
+  ([RecommendationHandoff.swift](../../../GalavantLibrary/Sources/GalavantSchema/RecommendationHandoff.swift)),
   called from `TripPlanningModel+Recommendation.swift`. `ChatModel.systemPrompt()`
-  ([ChatModel.swift](../../GalavantLibrary/Sources/GalavantChat/ChatModel.swift)). Its comment says the
+  ([ChatModel.swift](../../../GalavantLibrary/Sources/GalavantChat/ChatModel.swift)). Its comment says the
   profile is "the `ModelClient` boundary's job to inject", but nothing does.
 
 ## 1. One renderer for every reader

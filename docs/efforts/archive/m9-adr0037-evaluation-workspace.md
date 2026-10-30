@@ -6,10 +6,10 @@ one candidate always selected. Selecting drives map + browser; **Use This Place*
 resolves a fuzzy AI suggestion into trustworthy Galavant data while preserving the
 AI's trip rationale; survivors graduate into Ideas or the itinerary.
 
-This brief turns [ADR-0037](../decisions/0037-recommendation-evaluation-workspace.md)'s
+This brief turns [ADR-0037](../../decisions/0037-recommendation-evaluation-workspace.md)'s
 Slice 1–4 into an executable plan. **Read ADR-0037 in full first** — it is the source of
 truth; this brief only pins seams, ordering, and the pure/impure split. ADR-0037 stands on
-[ADR-0036](../decisions/0036-recommendation-handoff.md) (the handoff *substrate*), which is
+[ADR-0036](../../decisions/0036-recommendation-handoff.md) (the handoff *substrate*), which is
 its own handoff.
 
 ---

@@ -11,6 +11,10 @@ retired `CURRENT_HANDOFF.md` and `ROADMAP.md`'s open items.
   non-interactive, so it doesn't fight the scroll view, and has no follow-mode control. If Jon wants to
   pan or zoom on the ground, a tap on the card opening a full-screen interactive day map (with
   `MapUserLocationButton`) is the natural next step. Wait for dogfood evidence before adding it.
+- **Start Day and Calendar out of the trip toolbar.** The one unshipped piece of the archived
+  [`trip-view-declutter.md`](efforts/archive/trip-view-declutter.md) (Phase 3b): Start Day is still a
+  toolbar item in `TripPlanningView`. Its spec is in that brief. Only worth doing if the toolbar
+  feels crowded on device.
 
 ### Trip seed handoff (ADR-0048, accepted 2026-10-04)
 
@@ -39,6 +43,9 @@ are dogfooded (`docs/DONE-LOG.md`). Slices 3 (dossier flyover, #100) and 4 (iPho
 
 ### Pending Xcode 27.0 re-verification — cross-day drag + sectioned inline reorder
 
+*Parked 2026-10-30 (ADR-0005 D10): the brief moved to `efforts/archive/`; un-park it into the
+root as **Designed** when the re-verification passes.*
+
 Within-day drag-to-reorder ships (#72; `dayRank` for Anytime stops per ADR-0033). Two
 related next steps depend on the DnD subsystem; their beta limitations need
 re-verification against the release build:
@@ -53,7 +60,7 @@ re-verification against the release build:
 Both need the sectioned reorder overload, **recorded dead on beta 5; re-verify on Xcode 27.0 release** (#73). Full spec
 with the two paid-for gotchas (no custom `dragContainer`, no long-press `.contextMenu` in
 a reorderable row) and a spike-first plan:
-`docs/efforts/sectioned-reorder-inline-boundaries.md`. Durable fallback if reorder stays
+`docs/efforts/archive/sectioned-reorder-inline-boundaries.md`. Durable fallback if reorder stays
 broken: render the itinerary as `ScrollView`/`LazyVStack` instead of `List`. See
 `docs/KNOWN-ISSUES.md`; menus cover the function meanwhile.
 
@@ -89,7 +96,7 @@ broken: render the itinerary as `ScrollView`/`LazyVStack` instead of `List`. See
 
 Older long-form direction notes, kept only as pointers; the real record is the ADR:
 
-- **AI pool-stocking / discovery pipeline** → ADR-0018 + `docs/milestones/M6-EXECUTION.md` (M6e).
+- **AI pool-stocking / discovery pipeline** → ADR-0018 + `docs/milestones/archive/M6-EXECUTION.md` (M6e).
   The `findPlaces`/`createIdea` App-Intent verb vocabulary is the later composable
   payoff, not a v1 slice. Adjacent long-term bets from the same 2026-06-22 chat (match
   *prediction*, semantic pool search, latent-trip clustering) ripen into their own

@@ -1,6 +1,6 @@
 # Effort — Galavant Dev: Debug builds get their own bundle ID, app group, name and icon
 
-**Status:** Done (2026-10-08) · **Summary:** implements [ADR-0050](../decisions/0050-galavant-dev-variant.md).
+**Status:** Done (2026-10-08) · **Summary:** implements [ADR-0050](../../decisions/0050-galavant-dev-variant.md).
 Xcode Run (Debug) builds **Galavant Dev**, with its own bundle IDs, app group, display name and icon, so
 it can sit next to the TestFlight app on Jon's devices. It still uses the real iCloud container, which
 puts it on CloudKit Development. Release is byte-for-byte unchanged. No schema, migration or sync-model
@@ -46,7 +46,7 @@ are suggestions:
 ## 2. Runtime reads the app group; nothing falls back to production
 
 - `GalavantStorage.appGroupID`
-  ([Database.swift](../../GalavantLibrary/Sources/GalavantSchema/Database.swift)) reads
+  ([Database.swift](../../../GalavantLibrary/Sources/GalavantSchema/Database.swift)) reads
   `Bundle.main.object(forInfoDictionaryKey: "GalavantAppGroupID")`. That's the app's or the extension's
   own `Info.plist`, as appropriate.
 - **A missing or empty key is loud.** Report it with `reportIssue` and fail the store open, with a clear
@@ -100,7 +100,7 @@ new.
 
     **Slices:** effort `testflight-script`: two PRs on branch `effort/testflight-script`, jon-platform
     first, then Galavant
-    **Briefs:** `docs/efforts/testflight-script.md`
+    **Briefs:** `docs/efforts/archive/testflight-script.md`
     **Done when:** per the brief's "Done when"; verification per `docs/verification.md`.
     **Owed:** Jon's one-time `cktool` management token and `~/code/bin` symlink, then the first real
     run. Release tooling with `--admin` merges, so the architect escalates both PRs to Jon before merge.

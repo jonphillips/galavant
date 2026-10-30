@@ -18,8 +18,8 @@ Memory (`~/.claude`) never tracks status; it defers here. **GitHub PR state is t
 | Surface | Holds | Reader | Update when |
 | --- | --- | --- | --- |
 | **[NEXT_UP.md](NEXT_UP.md)** | Exactly one dispatch (ADR-0005 template, ~300 words, replaced wholesale) | **Executor** (its only planning input); architect | The completing PR advances it in plan order; a plan PR sets it otherwise |
-| **[milestones/](milestones/)** | Milestone build orders and execution briefs (M5, M6, M7 dogfood, M10) | Architect; executor only via `NEXT_UP.md` | A milestone is planned or a slice lands (ledger tick) |
-| **[efforts/](efforts/)** | Off-arc briefs (defects, dogfood rounds, features outside a milestone) | Architect; executor only via `NEXT_UP.md` | A brief is written or its status changes |
+| **[milestones/](milestones/)** | Live milestone build orders only; closed ones (M5, M6, M7 dogfood, M10) are in [milestones/archive/](milestones/archive/) | Architect; executor only via `NEXT_UP.md` | A milestone is planned or a slice lands (ledger tick); it moves to `archive/` once its ledger is ticked and owed gates are in `device-passes.md` |
+| **[efforts/](efforts/)** | Live off-arc briefs (defects, dogfood rounds, features outside a milestone); finished, parked, and retired ones are in [efforts/archive/](efforts/archive/) | Architect; executor only via `NEXT_UP.md` | A brief is written, changes status, or moves to `archive/` |
 | **[open-questions.md](open-questions.md)** | Candidates, designed-but-unscheduled work, parked decisions | Architect, Jon — **never the executor** | Anything is noticed, proposed, or parked |
 | **[device-passes.md](device-passes.md)** | Jon's real-device and distribution gates | Jon, architect | A gate is owed or clears |
 | **[PROD-CUTOVER.md](PROD-CUTOVER.md)** | The Development → Production cutover runbook (ADR-0049 D3): ops steps, not a dispatch | Jon, architect | A phase is run, or the order changes |
@@ -33,11 +33,11 @@ Memory (`~/.claude`) never tracks status; it defers here. **GitHub PR state is t
 | Surface | Holds | Index |
 | --- | --- | --- |
 | **[decisions/](decisions)** | ADRs — ratified architecture/product decisions and their rationale (ADR-0001…). Why-of-record. | [decisions/README.md](decisions/README.md) |
-| **[handoff/](efforts)** | Per-effort execution briefs handed to an implementing agent (Codex). Each carries a `Status:` header. | [efforts/README.md](efforts/README.md) |
+| **[efforts/](efforts)** | Per-effort execution briefs handed to the executor (Codex). The root holds live briefs only; the rest are in [efforts/archive/](efforts/archive/). | [efforts/README.md](efforts/README.md) |
 | **[PRODUCT.md](PRODUCT.md)** | Product vision / what Galavant is and is for | — |
 | **[STYLE.md](STYLE.md)** | App-specific style, on top of `jon-platform/docs/ios/swift-style.md` | — |
 | Design/topic notes: [trip-canvas.md](trip-canvas.md), [trip-time-model.md](trip-time-model.md), [MINING.md](MINING.md), [scraping-enrichment.md](scraping-enrichment.md), [recovered-requirements.md](recovered-requirements.md), [browser-capture-feedback.md](browser-capture-feedback.md) | Deep-dives on a subsystem or feature | *(to get `Status:`/`Summary:` headers on-touch)* |
-| Per-milestone execution briefs: [M5-EXECUTION.md](milestones/M5-EXECUTION.md), [M6-EXECUTION.md](milestones/M6-EXECUTION.md), [M7-DOGFOOD.md](milestones/M7-DOGFOOD.md) | The working plan for a milestone while it's active | *(archive/mark Done when the milestone closes)* |
+| Per-milestone execution briefs: live in [milestones/](milestones/); closed ones such as [M5-EXECUTION.md](milestones/archive/M5-EXECUTION.md), [M6-EXECUTION.md](milestones/archive/M6-EXECUTION.md), [M7-DOGFOOD.md](milestones/archive/M7-DOGFOOD.md) in [milestones/archive/](milestones/archive/) | The working plan for a milestone while it's active | *(moved to `archive/` with `jon-platform/scripts/archive-brief` when the milestone closes)* |
 | Subdirs: [mockups/](mockups), [proposal/](proposal), [reviews/](reviews), [fixtures/](fixtures) | Visual mockups, proposals, review notes, design fixtures (sample handoff returns an ADR is checked against) | — |
 
 ## Surfaces outside `docs/`
@@ -54,8 +54,10 @@ Memory (`~/.claude`) never tracks status; it defers here. **GitHub PR state is t
 
 - **Index at creation.** A new decision/design/handoff doc adds its one-line entry here (and
   to its directory index) *in the same change* — the index is kept by ritual, not vigilance.
-- **Self-describing headers.** Decision/design/handoff docs carry `Status:` (Designed /
-  Dispatched / Done→done-log / Superseded-by X) and a one-line `Summary:` so a reader can
-  tell a live doc from a dead one without opening it. Backfill **on touch**, not in a sweep.
+- **Self-describing headers.** Decision and design docs carry `Status:` and a one-line
+  `Summary:` so a reader can tell a live doc from a dead one without opening it. Backfill
+  **on touch**, not in a sweep. Effort and milestone briefs are different: their folder is
+  their status (ADR-0005 D10). A root brief says **Designed**, **Ready**, **Dispatched**, or
+  **Blocked**; anything else moves to `archive/` with `jon-platform/scripts/archive-brief`.
 - **Search before you author.** `grep -ri <topic> docs/` and cross-link before writing a new
   ADR or design note, so you don't rewrite ground an existing doc covers.

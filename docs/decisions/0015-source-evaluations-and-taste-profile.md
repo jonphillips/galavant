@@ -143,7 +143,7 @@ A small record holding free-text preferences, injected into model calls through 
   briefs (ADR-0036/0048), and the in-app chat system prompt (ADR-0017). Extractors and
   `PlaceIntelligence` don't read it. Each reader renders the profile explicitly, so its prompt stays
   testable. A boundary that injects into every call would also reach calls with no use for taste.
-  Brief: `docs/efforts/travel-profile-wiring.md`.
+  Brief: `docs/efforts/archive/travel-profile-wiring.md`.
 
 ## Why this and not the alternatives
 

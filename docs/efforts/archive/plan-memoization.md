@@ -2,7 +2,7 @@
 
 **Status:** Phase 1 implemented on a standalone branch; caching is optional pending device evidence  
 **Summary:** Land the pure one-pass travel graph first, then decide independently whether the remaining model-level construction cost warrants an observation-backed snapshot.  
-**Related:** [CURRENT_HANDOFF](../CURRENT_HANDOFF.md#pending-pr--stable-travel-mode-overrides), [ADR-0038](../decisions/0038-journey-today-projections-and-weather.md), [`TripPlan`](../../GalavantLibrary/Sources/GalavantSchema/TripPlan.swift), [`TripPlanningModel`](../../Galavant/Trips/TripPlanningModel.swift)
+**Related:** [CURRENT_HANDOFF](../CURRENT_HANDOFF.md#pending-pr--stable-travel-mode-overrides), [ADR-0038](../../decisions/0038-journey-today-projections-and-weather.md), [`TripPlan`](../../../GalavantLibrary/Sources/GalavantSchema/TripPlan.swift), [`TripPlanningModel`](../../../Galavant/Trips/TripPlanningModel.swift)
 
 ## Measurement first
 

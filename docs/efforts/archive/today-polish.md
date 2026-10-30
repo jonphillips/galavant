@@ -8,7 +8,7 @@ No schema change, no sync change, and no new Directions requests.
 
 ## 1. The live day's map drops the device at midnight
 
-`TodayDayMapCard` ([TodayDayMapCard.swift](../../Galavant/Today/TodayDayMapCard.swift)) frames the
+`TodayDayMapCard` ([TodayDayMapCard.swift](../../../Galavant/Today/TodayDayMapCard.swift)) frames the
 camera on appear, when `day` changes, and once when the first device fix arrives on the live day
 (the `oldCoordinate == nil` guard). The follow task is keyed on `shouldFollowDevice`, which is
 `isLiveDay && tracking`.
@@ -38,7 +38,7 @@ for this one line. Add a device-pass line instead (below).
 
 ## 2. `TodayProjection.bookingsDue` doc comment
 
-[TodayProjection.swift](../../GalavantLibrary/Sources/GalavantSchema/TodayProjection.swift) documents
+[TodayProjection.swift](../../../GalavantLibrary/Sources/GalavantSchema/TodayProjection.swift) documents
 `bookingsDue` as "Booked work due today or on the next trip day…". It's built from
 `TripBookingRollup.toBook`, so it holds work that's still **to book**. Reword it to say so. For
 example: *"Bookings still to make for today or the next trip day, in trip-rollup order."*
@@ -56,7 +56,7 @@ example: *"Bookings still to make for today or the next trip day, in trip-rollup
     # Next Up — ADR-0048 Slice 1: `.declined` status + trip documents
 
     **Slices:** effort `adr-0048-slice-1` (one PR, branch `effort/adr-0048-slice-1`)
-    **Briefs:** `docs/efforts/adr-0048-slice-1-declined-and-documents.md`
+    **Briefs:** `docs/efforts/archive/adr-0048-slice-1-declined-and-documents.md`
     **Done when:** per the brief's "Done when"; verification per `docs/verification.md`.
     **Owed:** schema + sync change: the architect escalates the PR to Jon before merge. Jon's device
     gates and the CloudKit production promotion in `docs/device-passes.md` (not executor work).

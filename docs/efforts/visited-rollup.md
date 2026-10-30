@@ -1,6 +1,6 @@
 # Effort — Visited roll-up: a finished trip marks its places visited
 
-**Status:** Queued (2026-10-30), behind `seed-handoff-cleanups` · **Summary:** completion should be
+**Status:** Ready (2026-10-30), second in queue, after `seed-handoff-cleanups` · **Summary:** completion should be
 inferred, not tapped (Jon, 2026-06-13). Once a dated trip is over, every idea it had on a day, and that
 wasn't skipped, is marked **visited** in the pool, once per trip. The trip's own record of what was
 planned, done and skipped is left exactly as it is. Adds one nullable synced column, `Trip.visitedRolledUpAt`,

@@ -224,7 +224,7 @@ to avoid a self-conflict; Slice 3 is largely separate.
   Minimal day-header affordance to set/clear a day's zone, separate from "Set region."
   Unit-test the resolver and the own-zone formatting.
 - **Docs.** Update ROADMAP / CURRENT_HANDOFF / DONE-LOG and add dogfood steps to
-  `docs/milestones/M7-DOGFOOD.md` (ignore + un-ignore round trip; hand-link/unlink; RDU flight shows
+  `docs/milestones/archive/M7-DOGFOOD.md` (ignore + un-ignore round trip; hand-link/unlink; RDU flight shows
   Eastern with a zone tag; per-day zone override).
 
 ## Acceptance criteria

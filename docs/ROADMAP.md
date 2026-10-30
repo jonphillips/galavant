@@ -263,7 +263,7 @@ The daily-use implementation band is shipped: **sync health** and **pinned
 reservations**. The one-way **calendar export** also shipped, but its boundary is
 **superseded by ADR-0034** — the calendar story is now *ingest and reconcile* (M7),
 not *mirror out*; the shipped export is demoted to a possible future deliberate
-"Add to Shared Calendar" action, not a milestone gate. See `docs/milestones/M5-EXECUTION.md`
+"Add to Shared Calendar" action, not a milestone gate. See `docs/milestones/archive/M5-EXECUTION.md`
 for the remaining real-device/distribution verification spine.
 
 - ✅ Sync health clearly distinguishes active, local-only, syncing, and error states.
@@ -291,7 +291,7 @@ M6 is no longer a presumed linear build sequence. Its durable posture remains:
 intelligence may capture, refine, and explain, but it does not silently become the
 authority or decide a pull/route (ADR-0004); it remains no-server (ADR-0001). The
 older ADRs record decisions and hypotheses, not a commitment to implement every
-remaining slice unchanged. `docs/milestones/M6-EXECUTION.md` is the current inventory and
+remaining slice unchanged. `docs/milestones/archive/M6-EXECUTION.md` is the current inventory and
 decision-gate brief.
 
 **Current classes of intelligence:**
@@ -323,7 +323,7 @@ Galavant dogfooding earns it.
 
 The entries retained below are an audit trail of the former planned sequence. Their
 old completion markers and suggested build order are not current status or approval
-to implement them. Use the rebaseline above and `docs/milestones/M6-EXECUTION.md` to select any
+to implement them. Use the rebaseline above and `docs/milestones/archive/M6-EXECUTION.md` to select any
 future work; first establish the M5 real-device evidence, then take one decision-gated
 slice only.
 
@@ -373,7 +373,7 @@ slice only.
   the pool; it never pulls onto a trip** (ADR-0004). **Slice 0 is a throwaway spike**
   (behind a small, deletable Ideas-toolbar entry — Jon's call) that gates the rest on
   discovery quality for "all 2–3★ Michelin in the Loire." Brief in
-  `docs/milestones/M6-EXECUTION.md`. **Suggested executor: Opus** — the `web_search` wire change
+  `docs/milestones/archive/M6-EXECUTION.md`. **Suggested executor: Opus** — the `web_search` wire change
   (`AnthropicWire`) is past-cutoff (needs `claude-api`) and the discovery-quality call
   is judgment-heavy.
 - ✅ **M6f — structured weekday hours + the start-day solver (ADR-0029, shipped
@@ -414,7 +414,7 @@ slice only.
 (ADR-0041 — raw-title exact-name promotion + manual link/unlink, trip-scoped synced
 ignores, own-zone absolute display + per-day time-zone overrides, and iCal-notes
 tap-through) landed on `feat/m7-dogfood-followups`. Device/calendar dogfooding is
-ongoing. See `docs/DONE-LOG.md` and `docs/milestones/M7-DOGFOOD.md`.
+ongoing. See `docs/DONE-LOG.md` and `docs/milestones/archive/M7-DOGFOOD.md`.
 
 
 Reverses the shipped M5 calendar boundary: the couple's **existing shared Apple
@@ -431,7 +431,7 @@ are proven locally. Full rationale + acceptance criteria in ADR-0034.
 **ADR-0041 dogfood amendments are implemented on `feat/m7-dogfood-followups`**
 (pending PR/device verification): raw-title exact-name promotion plus manual
 link/unlink, trip-scoped ignored events with conservative reap evidence, and
-own-zone/per-day time-zone display and resolution. Use `docs/milestones/M7-DOGFOOD.md`
+own-zone/per-day time-zone display and resolution. Use `docs/milestones/archive/M7-DOGFOOD.md`
 Part 3 for the focused follow-up pass; the device pass remains Jon's.
 
 - ✅ **Slice 0 — spike (throwaway, gate).** Observed the shared calendar in a dated

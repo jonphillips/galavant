@@ -7,7 +7,7 @@ row can still read "Up to date" while rows have never reached CloudKit. This eff
 sync detail, each with a **Retry**. No schema, migration or contract change. It touches sync, so the
 architect escalates the PR to Jon.
 
-Ports Yes Chef's effort of the same name (`yes-chef/docs/efforts/sync-failure-surfacing.md`, Slice 2,
+Ports Yes Chef's effort of the same name (`yes-chef/docs/efforts/archive/sync-failure-surfacing.md`, Slice 2,
 device-passed 2026-10-26). The package work is done: jon-platform #72, #82, #83 and #84 shipped the signal,
 the `.needsAttention` reducer case, `requeue`, and the false-positive fixes Yes Chef's first device pass
 found (the whole library reading "not synced"; rows rewritten with unchanged values). Read that brief's

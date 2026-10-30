@@ -20,7 +20,7 @@ Reconcile Calendar pass that sees the move:
   (`CalendarReconciliation.planRepairs`). The next pass lists Ruby under **High-Confidence Matches**.
 
 **Cause.** `CalendarReconciliation.candidates`
-([CalendarReconciliation.swift](../../GalavantLibrary/Sources/GalavantSchema/CalendarReconciliation.swift))
+([CalendarReconciliation.swift](../../../GalavantLibrary/Sources/GalavantSchema/CalendarReconciliation.swift))
 classifies each event against the itinerary as it was **before** this pass, and only against stops on the
 event's projected day. Ruby's new day has no Ruby stop yet, so the result is `.unmatched`. Then
 `automaticPlan` applies the move by identity (`linkedStopIndex` → `updateLinkedStop`). The sheet lists
@@ -37,7 +37,7 @@ through to the ladder as today.
 - **Seam.** Give `candidates(for:trip:plan:temporalContext:ignoredSourceIdentityHashes:)` a
   `linkedStops: [CalendarLinkedStop] = []` parameter. Pass `localState.linkedStops` from
   `CalendarReconciliationModel.reconciledCandidates`
-  ([CalendarReconciliationModel+Ingest.swift](../../Galavant/Calendar/CalendarReconciliationModel+Ingest.swift)).
+  ([CalendarReconciliationModel+Ingest.swift](../../../Galavant/Calendar/CalendarReconciliationModel+Ingest.swift)).
   `localState` is already loaded at the top of `reconcileUsing`.
 - **Result shape: your call, within one rule.** The link must stay **evidence of identity, not a new
   match rung**. The suggested shape is `.automatic(stop, basis: .linkedEvent)`, with a new
@@ -54,7 +54,7 @@ through to the ladder as today.
 ## 2. Plan Repair goes first
 
 In `CalendarReconciliationSheet.candidateSections`
-([CalendarReconciliationSheet.swift](../../Galavant/Calendar/CalendarReconciliationSheet.swift)), move the
+([CalendarReconciliationSheet.swift](../../../Galavant/Calendar/CalendarReconciliationSheet.swift)), move the
 **Plan Repair** section above the candidate sections. It goes directly after the frozen and empty states
 and before **High-Confidence Matches**. It's the one section that asks the planner to act. Today it sits
 under **Calendar History**, where a day move's repair is easy to miss. Its rows and actions don't change.
@@ -92,7 +92,7 @@ Model them on the existing reconciliation suites.
     # Next Up — Tag management + tags on Idea rows
 
     **Slices:** effort `tag-management` (one PR, branch `effort/tag-management`)
-    **Briefs:** `docs/efforts/tag-management.md`
+    **Briefs:** `docs/efforts/archive/tag-management.md`
     **Done when:** per the brief's "Done when"; verification per `docs/verification.md`.
     **Owed:** Jon's device gates in `docs/device-passes.md` (not executor work).
     **Notes:** No schema change and no new synced column, so no Production deploy. Tag convergence

@@ -1,6 +1,6 @@
 # Effort — Keep what Chat said around its places; Find on Map from Ruled out
 
-**Status:** Queued (2026-10-30), behind `sync-failure-surfacing` · **Summary:** two small follow-ups
+**Status:** Ready (2026-10-30), first in queue · **Summary:** two small follow-ups
 from the ADR-0048 trip-seed work. (1) A pasted recommendation return keeps only the first JSON array of
 places. Any text around it, including a `summary` field when Chat wraps the array in an object, is
 dropped without a word. The review now shows that text and can save it to the trip's documents. (2)

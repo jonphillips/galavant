@@ -2,14 +2,14 @@
 
 **Status:** Done (2026-09-29) · **Summary:** let a recommendation say "book ahead" so committing
 it seeds `.toBook`, and warn on Today about anything still to book today or tomorrow. Implements
-[ADR-0047](../decisions/0047-trip-booking-status.md) § Scope 4, on top of the shipped core, editors, and
+[ADR-0047](../../decisions/0047-trip-booking-status.md) § Scope 4, on top of the shipped core, editors, and
 display (#136–#138). One dispatch, two parts, one PR (they're small, and batching saves a dispatch).
 
 No schema change: `TripIdea.bookingStatus` / `TripStay.bookingStatus` already exist. No sync change.
 
 ## Part A — the handoff hint
 
-**Contract.** `TripCandidate` ([RecommendationHandoff.swift](../../GalavantLibrary/Sources/GalavantSchema/RecommendationHandoff.swift))
+**Contract.** `TripCandidate` ([RecommendationHandoff.swift](../../../GalavantLibrary/Sources/GalavantSchema/RecommendationHandoff.swift))
 gains `bookAhead: Bool?`, coded as `book_ahead`. Add it to
 `RecommendationHandoffContract.projectInstructions`: list it among the optional fields, add it to the
 example object, and add one sentence of meaning: *"book_ahead is true when the place needs a
@@ -38,7 +38,7 @@ before committing.
 
 ## Part B — Today warning
 
-**Core (pure, tested).** `TodayProjection` ([TodayProjection.swift](../../GalavantLibrary/Sources/GalavantSchema/TodayProjection.swift))
+**Core (pure, tested).** `TodayProjection` ([TodayProjection.swift](../../../GalavantLibrary/Sources/GalavantSchema/TodayProjection.swift))
 gains `bookingsDue: [TripBookingItem]`: the `TripBookingRollup(plan:currentDay:)` **to-book** items
 whose `day` is today's day number or tomorrow's, in the rollup's own order (soonest first). That
 covers stops and stays: an unbooked bed tonight or tomorrow is the costliest miss (ADR-0047 §4).

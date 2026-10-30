@@ -1,6 +1,6 @@
 # ADR-0048: Trip seed handoff — one crossing from an open-ended Chat conversation into a Galavant trip
 
-*Status: **accepted** — 2026-10-04, ratified by Jon merging #147. Slice 1 brief: [`adr-0048-slice-1-declined-and-documents`](../efforts/adr-0048-slice-1-declined-and-documents.md). (Drafted by the architect from a design conversation with Jon;
+*Status: **accepted** — 2026-10-04, ratified by Jon merging #147. Slice 1 brief: [`adr-0048-slice-1-declined-and-documents`](../efforts/archive/adr-0048-slice-1-declined-and-documents.md). (Drafted by the architect from a design conversation with Jon;
 Jon accepted the two defaults below: the seed lands on a trip created first, and deferred places
 go to the pool only). Origin: two documents ChatGPT produced for a real trip after an unformatted
 "getting my bearings" conversation (a research dossier and a current-plan summary for Denmark).
@@ -400,8 +400,8 @@ Found while briefing Slices 2–3 against the code:
   adds none. The normalized kind (D4's synonym table) is shown in the review and, in Slice 3, passed
   as the capture's kind **only when the map result has none**. A resolved place takes its kind from
   the `Idea`.
-- Slice briefs: [Slice 2](../efforts/adr-0048-slice-2-seed-verb.md),
-  [Slice 3](../efforts/adr-0048-slice-3-seed-matching.md).
+- Slice briefs: [Slice 2](../efforts/archive/adr-0048-slice-2-seed-verb.md),
+  [Slice 3](../efforts/archive/adr-0048-slice-3-seed-matching.md).
 
 ## Appendix A — the seed clause for the project instructions (passed Slice 0 on run 2)
 

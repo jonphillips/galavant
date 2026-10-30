@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# The single verification entry point: the triple that docs/milestones/M5-EXECUTION.md and
-# docs/milestones/M6-EXECUTION.md have always asked for (swiftlint / swift test / app
+# The single verification entry point: the triple that docs/milestones/archive/M5-EXECUTION.md and
+# docs/milestones/archive/M6-EXECUTION.md have always asked for (swiftlint / swift test / app
 # build), plus one guarantee they did not cover — that the test target still
 # compiles and links.
 #
