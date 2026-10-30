@@ -14,7 +14,6 @@ folder listing and `DONE-LOG.md` cover it. A parked brief also gets a candidate 
 
 | Brief | Implements | Status |
 | --- | --- | --- |
-| [visited-rollup.md](visited-rollup.md) | ADR-0004 / ADR-0039 §1 — a finished trip marks its scheduled, not-skipped places visited, once per trip | Ready (first in queue) |
 | [adr-0051-s0-identity-readout.md](adr-0051-s0-identity-readout.md) | ADR-0051 Slice 0 — read-only iCloud identity readout in Settings → Planners, to answer OQ1–OQ3 on both phones | Ready (after visited-rollup) |
 
 **Authoring a brief:** add its entry here in the same change (index at creation), give it a

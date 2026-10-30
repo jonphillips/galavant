@@ -83,7 +83,7 @@ tap doesn't write another.
     # Next Up — Visited roll-up: a finished trip marks its places visited
 
     **Slices:** effort `visited-rollup` (one PR, branch `effort/visited-rollup`)
-    **Briefs:** `docs/efforts/visited-rollup.md`
+    **Briefs:** `docs/efforts/archive/visited-rollup.md`
     **Done when:** per the brief's "Done when"; verification per `docs/verification.md`.
     **Owed:** carry over the current **Owed:** line unchanged. This effort adds a synced column, so
     the architect escalates the PR to Jon, and the Production schema deploy comes before the next

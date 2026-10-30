@@ -6,6 +6,7 @@ import SwiftUI
 struct AppContainer: View {
   @State private var router = AppRouter()
   @State private var browserModel = BrowserScreenModel()
+  @State private var visitedRollupModel = VisitedRollupModel()
   @Environment(\.prefersTabNavigation) private var prefersTabNavigation
   @Environment(\.scenePhase) private var scenePhase
   /// Where this scene was, mirrored from the router so it survives iPadOS killing
@@ -67,8 +68,12 @@ struct AppContainer: View {
       // rows undrained. On activation, cycle stop()+start() when the count is non-zero
       // so `start()` re-drains — gated on the count so it fires only right after a share.
       guard phase == .active else { return }
-      Task { _ = await GalavantCloudSync.redrainPendingRecordZoneChangesIfManuallyEnabled() }
+      Task {
+        _ = await GalavantCloudSync.redrainPendingRecordZoneChangesIfManuallyEnabled()
+        await visitedRollupModel.run()
+      }
     }
+    .task { await visitedRollupModel.run() }
   }
 
   /// ⌘1…⌘N jump straight to a section (⌘1 Trips, ⌘4 Evaluate, …) so flipping between

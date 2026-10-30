@@ -114,6 +114,7 @@
 		9AD630E37AEA708C2B7FF909 /* JourneyViewComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2C9B6BC1F6CC0DC6E898291 /* JourneyViewComponents.swift */; };
 		9C1C9676A64367844856918E /* TripsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC5C21FC298AEA29CFE09DC6 /* TripsScreen.swift */; };
 		9C3779832B3D8728517D947A /* PoolMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1791F203077D8B7907351B9F /* PoolMapView.swift */; };
+		9EE790B1F390F818C44B7408 /* VisitedRollupModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F4C9433A1748FF629E447E0 /* VisitedRollupModel.swift */; };
 		A2C1176CC512E1165C7FA3AE /* TravelProfileEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 549199D3FB7222F5D893194E /* TravelProfileEditView.swift */; };
 		A2E63468073408305AED0762 /* SyncSeedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A1B810182571FD874E4261 /* SyncSeedTests.swift */; };
 		A3E2170E96CDF9C7D76B89E6 /* PlanningRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97954EEA93EDDCB81E746016 /* PlanningRow.swift */; };
@@ -238,6 +239,7 @@
 		0CA9E000AA9AEEE1E3D68F79 /* GalavantUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = GalavantUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0E5E2C9449BAC2E031A8745F /* TripHeaderImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripHeaderImageView.swift; sourceTree = "<group>"; };
 		0EFBA67DB304DCD293D72575 /* PlaceIdeaSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceIdeaSheet.swift; sourceTree = "<group>"; };
+		0F4C9433A1748FF629E447E0 /* VisitedRollupModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisitedRollupModel.swift; sourceTree = "<group>"; };
 		0F84BC54D6D414EBFC202ED7 /* TripPlanningModel+Directions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripPlanningModel+Directions.swift"; sourceTree = "<group>"; };
 		14FCDCE6D1ECB6FD141CF7B9 /* TripPlanningModel+Sketch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripPlanningModel+Sketch.swift"; sourceTree = "<group>"; };
 		15F0079F14EE5923209192B1 /* IdeasFilterMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeasFilterMenu.swift; sourceTree = "<group>"; };
@@ -657,6 +659,7 @@
 				82AECABDADDBF8957A5816F8 /* AppScreen.swift */,
 				4784A4E4DDB7356EEF63A970 /* Binding+Present.swift */,
 				EDA439EDEF5339154F3D8C08 /* PrefersTabNavigation.swift */,
+				0F4C9433A1748FF629E447E0 /* VisitedRollupModel.swift */,
 			);
 			path = Navigation;
 			sourceTree = "<group>";
@@ -1117,6 +1120,7 @@
 				66E8ED4BF33E10641C5CA1D9 /* TripsListModel.swift in Sources */,
 				9C1C9676A64367844856918E /* TripsScreen.swift in Sources */,
 				FD69CDFCC58AC4A0FC1967AB /* UnresolvedRecommendationSheet.swift in Sources */,
+				9EE790B1F390F818C44B7408 /* VisitedRollupModel.swift in Sources */,
 				F57648A300EA9E12818CF2AC /* WeatherAttributionLink.swift in Sources */,
 				4B11AB7DFD828A1F103EB408 /* WeatherClient.swift in Sources */,
 				734D683130527266D1AEF8AD /* WeatherDebugView.swift in Sources */,
