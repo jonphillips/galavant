@@ -61,6 +61,7 @@ final class PlannerManagementModel {
     isRefreshingICloudIdentity = true
     defer { isRefreshingICloudIdentity = false }
 
+    let build = Self.buildDescription
     let deviceIdentity: ICloudIdentityReadout.DeviceIdentity
     do {
       let recordID = try await CKContainer(identifier: GalavantCloudSync.containerIdentifier)
@@ -78,30 +79,33 @@ final class PlannerManagementModel {
       guard let storedShare else {
         iCloudIdentityReadout = ICloudIdentityReadout(
           deviceIdentity: deviceIdentity,
+          build: build,
           shareSource: .notShared,
           participants: []
         )
         return
       }
 
-      let database: CKDatabase =
+      let cloudDatabase: CKDatabase =
         storedShare.recordID.zoneID.ownerName == CKCurrentUserDefaultName
         ? CKContainer(identifier: GalavantCloudSync.containerIdentifier).privateCloudDatabase
         : CKContainer(identifier: GalavantCloudSync.containerIdentifier).sharedCloudDatabase
 
       do {
-        let record = try await database.record(for: storedShare.recordID)
+        let record = try await cloudDatabase.record(for: storedShare.recordID)
         guard let freshShare = record as? CKShare else {
           throw ICloudIdentityReadoutError.fetchedRecordWasNotShare
         }
         iCloudIdentityReadout = ICloudIdentityReadout(
           deviceIdentity: deviceIdentity,
+          build: build,
           shareSource: .server,
           participants: Self.participants(in: freshShare)
         )
       } catch {
         iCloudIdentityReadout = ICloudIdentityReadout(
           deviceIdentity: deviceIdentity,
+          build: build,
           shareSource: .storedCopy(fetchError: error.localizedDescription),
           participants: Self.participants(in: storedShare)
         )
@@ -109,6 +113,7 @@ final class PlannerManagementModel {
     } catch {
       iCloudIdentityReadout = ICloudIdentityReadout(
         deviceIdentity: deviceIdentity,
+        build: build,
         shareSource: .unavailable(error.localizedDescription),
         participants: []
       )
@@ -116,13 +121,15 @@ final class PlannerManagementModel {
   }
 
   private static func participants(in share: CKShare) -> [ICloudIdentityReadout.Participant] {
-    var cloudParticipants = share.participants
+    var cloudParticipants: [(participant: CKShare.Participant, onlyCurrentUser: Bool)] =
+      share.participants.map { ($0, false) }
     if let currentUser = share.currentUserParticipant,
-      !cloudParticipants.contains(where: { $0.isEqual(currentUser) })
+      !cloudParticipants.contains(where: { $0.participant.isEqual(currentUser) })
     {
-      cloudParticipants.append(currentUser)
+      cloudParticipants.append((currentUser, true))
     }
-    return cloudParticipants.map { participant in
+    return cloudParticipants.map { entry in
+      let participant = entry.participant
       let identity = participant.userIdentity
       let formattedName = identity.nameComponents.map {
         PersonNameComponentsFormatter().string(from: $0)
@@ -155,9 +162,19 @@ final class PlannerManagementModel {
         permission: permission,
         acceptanceStatus: acceptanceStatus,
         hasICloudAccount: identity.hasiCloudAccount,
-        isCurrentUser: share.currentUserParticipant?.isEqual(participant) ?? false
+        isCurrentUser: share.currentUserParticipant?.isEqual(participant) ?? false,
+        isOnlyCurrentUserParticipant: entry.onlyCurrentUser
       )
     }
+  }
+
+  private static var buildDescription: String {
+    let bundleIdentifier = Bundle.main.bundleIdentifier ?? "unknown bundle"
+    let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+      ?? "unknown version"
+    let buildNumber = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
+      ?? "unknown build"
+    return "\(bundleIdentifier) · \(version) (\(buildNumber))"
   }
 }
 

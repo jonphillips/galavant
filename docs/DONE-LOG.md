@@ -6,7 +6,7 @@ History, newest first. The PR that completes a dispatch adds its entry naming it
 ## iCloud identity readout (`effort/adr-0051-s0-identity-readout`) — 2026-10-30
 
 - Settings → Planners now shows this device's CloudKit user record name and the travel-party share participants' identity, role, permission, and acceptance details. Refresh reads the current share from the correct private or shared database, falling back to SQLiteData's stored share copy when CloudKit fetch fails; Copy exports the full readout. The feature performs no writes and adds no schema or migration.
-- **Verification.** `scripts/check-drift.sh` passed SwiftLint, all GalavantLibrary suites (814 tests, 9 known issues), and the GalavantUITests build. Headless `GalavantTests` passed 43 tests. The Production two-phone readout and OQ1–OQ3 remain a device gate.
+- **Verification.** `scripts/check-drift.sh` passed SwiftLint, all GalavantLibrary suites (816 tests, 9 known issues), and the GalavantUITests build. Headless `GalavantTests` passed 43 tests. The Production two-phone readout and Galavant Dev reading for OQ1–OQ3 remain a device gate.
 
 ## Visited roll-up (`effort/visited-rollup`) — 2026-10-30
 

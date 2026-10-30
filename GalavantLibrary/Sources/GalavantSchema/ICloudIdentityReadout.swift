@@ -49,6 +49,7 @@ public struct ICloudIdentityReadout: Equatable, Sendable {
     public let acceptanceStatus: AcceptanceStatus
     public let hasICloudAccount: Bool
     public let isCurrentUser: Bool
+    public let isOnlyCurrentUserParticipant: Bool
 
     public init(
       recordName: String?,
@@ -58,7 +59,8 @@ public struct ICloudIdentityReadout: Equatable, Sendable {
       permission: Permission,
       acceptanceStatus: AcceptanceStatus,
       hasICloudAccount: Bool,
-      isCurrentUser: Bool
+      isCurrentUser: Bool,
+      isOnlyCurrentUserParticipant: Bool = false
     ) {
       self.recordName = recordName
       self.formattedName = formattedName
@@ -68,23 +70,23 @@ public struct ICloudIdentityReadout: Equatable, Sendable {
       self.acceptanceStatus = acceptanceStatus
       self.hasICloudAccount = hasICloudAccount
       self.isCurrentUser = isCurrentUser
-    }
-
-    public var id: String {
-      recordName ?? "\(formattedName ?? "—")|\(lookupInfo ?? "—")|\(role.rawValue)"
+      self.isOnlyCurrentUserParticipant = isOnlyCurrentUserParticipant
     }
   }
 
   public let deviceIdentity: DeviceIdentity
+  public let build: String
   public let shareSource: ShareSource
   public let participants: [Participant]
 
   public init(
     deviceIdentity: DeviceIdentity,
+    build: String,
     shareSource: ShareSource,
     participants: [Participant]
   ) {
     self.deviceIdentity = deviceIdentity
+    self.build = build
     self.shareSource = shareSource
     self.participants = participants
   }
@@ -112,8 +114,17 @@ public struct ICloudIdentityReadout: Equatable, Sendable {
     return "This device isn't in the share"
   }
 
+  public func matchDescription(for participant: Participant) -> String {
+    switch matchStatus(for: participant) {
+    case .recordName: "record name"
+    case .ownerPlaceholder: "owner placeholder"
+    case .noMatch: "no"
+    }
+  }
+
   public var text: String {
     var lines = [summary]
+    lines.append("Build: \(build)")
     switch deviceIdentity {
     case let .recordName(recordName):
       lines.append("This device record name: \(recordName)")
@@ -140,6 +151,10 @@ public struct ICloudIdentityReadout: Equatable, Sendable {
       lines.append("  Acceptance: \(participant.acceptanceStatus.rawValue)")
       lines.append("  Has iCloud account: \(participant.hasICloudAccount ? "yes" : "no")")
       lines.append("  Current user: \(participant.isCurrentUser ? "yes" : "no")")
+      lines.append("  Matches this device: \(matchDescription(for: participant))")
+      lines.append(
+        "  Listed in share.participants: \(participant.isOnlyCurrentUserParticipant ? "no" : "yes")"
+      )
       if participant.recordName == Self.ownerPlaceholder {
         lines.append("  Owner placeholder: yes")
       }

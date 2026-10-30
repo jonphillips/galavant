@@ -134,13 +134,22 @@ struct PlannerManagementView: View {
             .fixedSize(horizontal: false, vertical: true)
         }
 
-        ForEach(readout.participants, id: \.id) { participant in
+        ForEach(Array(readout.participants.enumerated()), id: \.offset) { entry in
+          let participant = entry.element
           VStack(alignment: .leading, spacing: 3) {
             Text(participant.formattedName ?? "Unnamed participant")
               .font(.body)
             Text("\(participant.role.rawValue.capitalized) · \(participant.acceptanceStatus.rawValue.capitalized)")
               .font(.caption)
               .foregroundStyle(.secondary)
+            Text("Matches this device: \(readout.matchDescription(for: participant))")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+            if participant.isOnlyCurrentUserParticipant {
+              Text("Listed in share.participants: no")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
             Text("Record name: \(participant.recordName ?? "—")")
               .font(.caption.monospaced())
               .foregroundStyle(.secondary)

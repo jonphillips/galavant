@@ -43,6 +43,7 @@ struct ICloudIdentityReadoutTests {
   func noShare() {
     let readout = ICloudIdentityReadout(
       deviceIdentity: .recordName("user-1"),
+      build: "com.example.galavant · 1.0 (1)",
       shareSource: .notShared,
       participants: []
     )
@@ -73,6 +74,48 @@ struct ICloudIdentityReadoutTests {
     #expect(readout.text.contains("Acceptance: pending"))
     #expect(readout.text.contains("Has iCloud account: no"))
     #expect(readout.text.contains("Current user: no"))
+    #expect(readout.text.contains("Matches this device: no"))
+    #expect(readout.text.contains("Listed in share.participants: yes"))
+    #expect(readout.text.contains("Build: com.example.galavant · 1.0 (1)"))
+  }
+
+  @Test("reports each participant's match case")
+  func participantMatchText() {
+    let matchingRecordName = participant(recordName: "user-1")
+    let ownerPlaceholder = participant(
+      recordName: ICloudIdentityReadout.ownerPlaceholder,
+      isCurrentUser: true
+    )
+    let noMatch = participant(recordName: "user-2")
+    let readout = readout(
+      device: .recordName("user-1"),
+      participants: [matchingRecordName, ownerPlaceholder, noMatch]
+    )
+
+    #expect(readout.matchDescription(for: matchingRecordName) == "record name")
+    #expect(readout.matchDescription(for: ownerPlaceholder) == "owner placeholder")
+    #expect(readout.matchDescription(for: noMatch) == "no")
+    #expect(readout.text.contains("Matches this device: record name"))
+    #expect(readout.text.contains("Matches this device: owner placeholder"))
+    #expect(readout.text.contains("Matches this device: no"))
+  }
+
+  @Test("marks a current-user participant omitted from the participants list")
+  func currentUserOnlyParticipant() {
+    let participant = ICloudIdentityReadout.Participant(
+      recordName: "user-1",
+      formattedName: "Jon",
+      lookupInfo: nil,
+      role: .owner,
+      permission: .readWrite,
+      acceptanceStatus: .accepted,
+      hasICloudAccount: true,
+      isCurrentUser: true,
+      isOnlyCurrentUserParticipant: true
+    )
+    let readout = readout(device: .recordName("user-1"), participants: [participant])
+
+    #expect(readout.text.contains("Listed in share.participants: no"))
   }
 
   private func participant(
@@ -97,6 +140,7 @@ struct ICloudIdentityReadoutTests {
   ) -> ICloudIdentityReadout {
     ICloudIdentityReadout(
       deviceIdentity: device,
+      build: "com.example.galavant · 1.0 (1)",
       shareSource: .server,
       participants: participants
     )
