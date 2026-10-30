@@ -37,6 +37,8 @@ backfilled **on touch**; the table below is the current index.
 | [galavant-dev-variant.md](galavant-dev-variant.md) | ADR-0050 — Debug builds as "Galavant Dev": own bundle IDs, app group, name, icon; same CloudKit container (Development) | Done (2026-10-08) |
 | [testflight-script.md](testflight-script.md) | `testflight` (jon-platform script): preflight, cktool schema gate, optional marketing bump via PR, git-derived build number, archive, verified export, Xcode upload; then pinned `asc` (public API only) waits for processing, tags, sets What to Test; `--resume`, `--feedback` | Done (2026-10-10) |
 | [sync-failure-surfacing.md](sync-failure-surfacing.md) | Follow-up to #176 — feed `syncFailureReport` counts to `SyncHealth`; name stuck rows in the sync detail with Retry (ports Yes Chef's effort) | Dispatched (2026-10-30) |
+| [seed-handoff-cleanups.md](seed-handoff-cleanups.md) | ADR-0048 follow-ups — the review keeps what Chat said around its places; Ruled out gains Find on Map | Queued (after sync-failure-surfacing) |
+| [visited-rollup.md](visited-rollup.md) | ADR-0004 / ADR-0039 §1 — a finished trip marks its scheduled, not-skipped places visited, once per trip | Queued (after seed-handoff-cleanups) |
 | [codex-recommendation-brief-stops.md](codex-recommendation-brief-stops.md) | Recommendation brief stops (moved from `docs/handoffs/`) | See doc |
 
 **Authoring a brief:** add its entry here in the same change (index at creation), give it a
