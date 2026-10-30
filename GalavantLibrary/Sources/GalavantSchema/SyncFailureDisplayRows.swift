@@ -1,5 +1,6 @@
 import CloudSyncKit
 import Foundation
+import SQLiteData
 
 public struct SyncFailureRecordKey: Hashable, Sendable {
   public var recordType: String
@@ -27,8 +28,55 @@ public struct SyncFailureDisplayRow: Identifiable, Equatable, Sendable {
   public var id: String { "\(recordType):\(primaryKeys.sorted().joined(separator: ",")): \(title)" }
 }
 
-/// Pure naming and grouping for the bounded keys in a sync-failure report.
+/// Names and groups the bounded keys in a sync-failure report.
 public enum SyncFailureDisplayRows {
+  /// Resolve the bounded report keys to their local display names. Table and column
+  /// identifiers come only from the known relationship map below; row values stay bound.
+  public static func names(
+    from report: SyncFailureReport,
+    in db: Database
+  ) throws -> [SyncFailureRecordKey: SyncFailureDisplayName] {
+    var names: [SyncFailureRecordKey: SyncFailureDisplayName] = [:]
+    for group in report.notUploaded {
+      let parentColumns = Self.parentColumns(for: group.recordType)
+      guard group.recordType == "ideas" || group.recordType == "trips" || !parentColumns.isEmpty
+      else { continue }
+
+      for key in group.primaryKeys {
+        let rowKey = SyncFailureRecordKey(recordType: group.recordType, primaryKey: key)
+        if group.recordType == "ideas" || group.recordType == "trips" {
+          let table = group.recordType
+          if let name = try String.fetchOne(
+            db,
+            sql: "SELECT \"name\" FROM \"\(table)\" WHERE \"id\" = ?",
+            arguments: [key.lowercased()]
+          ) {
+            names[rowKey] = group.recordType == "ideas" ? .idea(name) : .trip(name)
+          }
+          continue
+        }
+
+        for column in parentColumns {
+          let parentKind: SyncFailureDisplayName.Kind = column == "ideaID" ? .idea : .trip
+          guard let parentID = try String.fetchOne(
+            db,
+            sql: "SELECT \"\(column)\" FROM \"\(group.recordType)\" WHERE \"id\" = ?",
+            arguments: [key.lowercased()]
+          ) else { continue }
+          let parentTable = parentKind == .idea ? "ideas" : "trips"
+          guard let name = try String.fetchOne(
+            db,
+            sql: "SELECT \"name\" FROM \"\(parentTable)\" WHERE \"id\" = ?",
+            arguments: [parentID]
+          ) else { break }
+          names[rowKey] = parentKind == .idea ? .idea(name) : .trip(name)
+          break
+        }
+      }
+    }
+    return names
+  }
+
   public static func build(
     from report: SyncFailureReport,
     names: [SyncFailureRecordKey: SyncFailureDisplayName]

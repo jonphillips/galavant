@@ -23,11 +23,13 @@ final class SyncHealthModel {
   /// capture theirs). Held separately so a routine `refresh()` — which only reads
   /// live account/pending signals — never clobbers it, and so it survives until the
   /// next start attempt supersedes it.
-  private var lastStartError: String?
-  private var syncFailureReportError: String?
-  private var syncFailureVerdictCache = SyncFailureVerdictCache()
-  private var isRefreshing = false
-  private var refreshRequestedWhileRefreshing = false
+  @ObservationIgnored private var lastStartError: String?
+  @ObservationIgnored private var syncFailureReportError: String?
+  @ObservationIgnored private var syncFailureVerdictCache = SyncFailureVerdictCache()
+  @ObservationIgnored private var isRefreshing = false
+  @ObservationIgnored private var refreshRequestedWhileRefreshing = false
+  /// Coalesced callers wait for the follow-up refresh to finish before returning.
+  @ObservationIgnored private var refreshWaiters: [CheckedContinuation<Void, Never>] = []
   private(set) var notUploadedRows: [SyncFailureDisplayRow] = []
   private(set) var retryingRows: Set<String> = []
   private(set) var retryError: String?
@@ -57,10 +59,16 @@ final class SyncHealthModel {
   func refresh() async {
     guard !isRefreshing else {
       refreshRequestedWhileRefreshing = true
+      await withCheckedContinuation { refreshWaiters.append($0) }
       return
     }
     isRefreshing = true
-    defer { isRefreshing = false }
+    defer {
+      isRefreshing = false
+      let waiters = refreshWaiters
+      refreshWaiters.removeAll()
+      waiters.forEach { $0.resume() }
+    }
     repeat {
       refreshRequestedWhileRefreshing = false
       await refreshOnce()
@@ -97,6 +105,9 @@ final class SyncHealthModel {
       notUploadedRows = SyncFailureDisplayRows.build(from: failureReport, names: names)
     } else {
       notUploadedRows = []
+    }
+    if notUploadedRows.isEmpty {
+      retryError = nil
     }
 
     health = SyncHealth(
@@ -157,46 +168,9 @@ final class SyncHealthModel {
 
   nonisolated private static func syncFailureDisplayNames(
     from report: SyncFailureReport,
-    in database: any DatabaseReader
+    in database: any DatabaseWriter
   ) async throws -> [SyncFailureRecordKey: SyncFailureDisplayName] {
-    try await database.read { db in
-      var names: [SyncFailureRecordKey: SyncFailureDisplayName] = [:]
-      for group in report.notUploaded {
-        guard GalavantCloudSync.syncedTables.recordTypes.contains(group.recordType) else { continue }
-        for key in group.primaryKeys {
-          let rowKey = SyncFailureRecordKey(recordType: group.recordType, primaryKey: key)
-          if group.recordType == "ideas" {
-            if let name = try String.fetchOne(db, sql: "SELECT \"name\" FROM \"ideas\" WHERE \"id\" = ?", arguments: [key]) {
-              names[rowKey] = .idea(name)
-            }
-            continue
-          }
-          if group.recordType == "trips" {
-            if let name = try String.fetchOne(db, sql: "SELECT \"name\" FROM \"trips\" WHERE \"id\" = ?", arguments: [key]) {
-              names[rowKey] = .trip(name)
-            }
-            continue
-          }
-          for column in SyncFailureDisplayRows.parentColumns(for: group.recordType) {
-            let parentKind: SyncFailureDisplayName.Kind = column == "ideaID" ? .idea : .trip
-            guard let parentID = try String.fetchOne(
-              db,
-              sql: "SELECT \"\(column)\" FROM \"\(group.recordType)\" WHERE \"id\" = ?",
-              arguments: [key]
-            ) else { continue }
-            let table = parentKind == .idea ? "ideas" : "trips"
-            guard let name = try String.fetchOne(
-              db,
-              sql: "SELECT \"name\" FROM \"\(table)\" WHERE \"id\" = ?",
-              arguments: [parentID]
-            ) else { break }
-            names[rowKey] = parentKind == .idea ? .idea(name) : .trip(name)
-            break
-          }
-        }
-      }
-      return names
-    }
+    try await database.read { db in try SyncFailureDisplayRows.names(from: report, in: db) }
   }
 
   /// Turn the gate on (the row is the enable affordance when sync is off), start the

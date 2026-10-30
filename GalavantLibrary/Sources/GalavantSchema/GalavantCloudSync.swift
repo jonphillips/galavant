@@ -178,10 +178,9 @@ public enum GalavantCloudSync {
 
 /// Captures one heterogeneous table-type pack for both matching and engine creation,
 /// so the failure report cannot name a different table set from SQLiteData.
-// The immutable factory captures only table metatypes and a container identifier.
-private struct GalavantSyncTables: @unchecked Sendable {
+private struct GalavantSyncTables: Sendable {
   let syncedTables: SyncedTables
-  private let engineFactory: (any DatabaseWriter, Bool) throws -> SyncEngine
+  private let engineFactory: @Sendable (any DatabaseWriter, Bool) throws -> SyncEngine
 
   init<each T: PrimaryKeyedTable & SendableMetatype>(
     containerIdentifier: String,
