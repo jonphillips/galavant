@@ -1,6 +1,6 @@
 # Effort — ADR-0051 Slice 0: the iCloud identity readout
 
-**Status:** Ready (2026-10-30), third in queue, after `visited-rollup` · **Summary:** a read-only section in Settings →
+**Status:** Ready (2026-10-30) · **Summary:** a read-only section in Settings →
 Planners that shows this device's iCloud user record name and every travel-party share participant's
 record name, name, lookup info, role, permission and acceptance status, and says whether this device
 appears in the share. It ships in a TestFlight build so Jon and Wendy can each read it on their own

@@ -28,17 +28,17 @@ and ADR-0005. Jon approves plans (merges plan PRs) and decides escalations.
 - `docs/NEXT_UP.md` — the one dispatch; start here (executor: your only planning
   input — empty → stop and ask). Verification: `docs/verification.md`. The architect
   also reads `docs/open-questions.md` (candidates; the executor never does).
-  `docs/ROADMAP.md` (44 KB) and `docs/DONE-LOG.md` (75 KB) are grepped for the
+  `docs/DONE-LOG.md` (75 KB) and `docs/archive/` are grepped for the
   section you need, never read whole.
 
-## Stack (see ADR-0001/0002)
+## Stack
 
-- SwiftUI multiplatform (iPhone/iPad/Mac), `@Observable` feature models
-- SQLiteData for persistence + CloudKit sync (no server, no custom sync engine, no auth)
-- swift-navigation enum-Destination pattern for navigation/sheets
-- **No TCA.** Point-Free libraries yes, Composable Architecture no.
-- Database lives in the app group container (share extension writes to it)
-- Reusable modules go in the local SPM package, with tests
+The house stack, from jon-platform `AGENTS.md` and `docs/ios/`, bound here by ADR-0001 and
+ADR-0002. What's Galavant's own:
+
+- SwiftUI multiplatform (iPhone/iPad/Mac).
+- The database lives in the app group container, because the share extension writes to it.
+- Reusable modules go in the local SPM package, with tests.
 
 ## Production (since 2026-10-08)
 
