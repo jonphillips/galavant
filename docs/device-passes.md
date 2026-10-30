@@ -4,33 +4,23 @@ Jon's checklist: real-device and distribution gates. **Not executor work; the ex
 reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT_HANDOFF.md` on
 2026-09-29 (jon-platform ADR-0005). When a gate clears, delete it and note it in `DONE-LOG.md`.
 
-- **TestFlight release workflow — held gate.**
-  - **One-time:** follow [jon-platform's TestFlight runbook](https://github.com/jonphillips/jon-platform/blob/main/docs/ios/testflight.md) § One-time setup
-    (the `cktool` token, `asc` installed and pinned, the API key, and the symlink). From clean `main`,
-    `testflight --dry-run` must report no setup missing.
-  - **First real run:** run `testflight` from clean `main`. Confirm the schema gate and build-number
-    guard pass; the export verification table is all pass; processing finishes before the build is
-    tagged; What to Test appears in TestFlight on the phone; and `testflight --feedback` writes a file.
+- **TestFlight release workflow — first real run.** One-time setup is done (2026-10-30), and the first
+  run (build 0.2.0 (477)) is in progress. Confirm the schema gate and build-number
+  guard pass; the export verification table is all pass; processing finishes before the build is
+  tagged; What to Test appears in TestFlight on the phone; and `testflight --feedback` writes a file.
 - **Production cutover — Phase 6 left.** Phases 1–5 done 2026-10-08: TestFlight on Production, iPhone
   carried the library, a fresh iPad pulled it. Remaining: add Wendy as an internal TestFlight tester,
   then run Phase 6 of [`PROD-CUTOVER.md`](PROD-CUTOVER.md) (she installs clean, accepts the travel-party
   share), which is the M5 gate below.
 - **Schema deploy before TestFlight (standing).** A build that adds a synced table or column, or first
   writes one, goes out only after a development build has pushed it and the schema is deployed to
-  Production. For `travelProfiles`: on a development build with sync on, save a household profile and
-  your overlay (so `plannerID` holds a value). In the CloudKit console, confirm `travelProfiles` has
-  `travelPartyID`, `plannerID` and `preferences`. Deploy the schema to Production, then archive the
-  TestFlight build. On TestFlight, edit the profile on one device and confirm it reaches the other;
-  then run Discuss and a recommendation brief and confirm the taste lines are in the prompt.
-- **Galavant Dev portal setup (one-time, before the `galavant-dev-variant` device pass, ADR-0050).**
-  Register App IDs `com.jonphillips.galavant.dev` and `com.jonphillips.galavant.dev.share` and the app
-  group `group.com.jonphillips.galavant.dev`; assign the existing container `iCloud.com.jonphillips.galavant`
-  to both. Enable **WeatherKit** on the `.dev` app ID in **both** Capabilities and App Services.
-  Automatic signing creates most of it on the first Run; WeatherKit it won't.
+  Production. `testflight`'s schema gate enforces this: it refuses to archive unless Development and
+  Production match.
 
 ## Verification gates (decision gates, not a build queue)
 
-- **Galavant Dev:** Xcode Run on the iPhone: "Galavant Dev", with the DEV icon, installs **next to** TestFlight Galavant; both open their own libraries; the share sheet lists both; Galavant Dev's Settings shows "CloudKit Development"; Weather loads in Galavant Dev (WeatherKit on the new App ID).
+- **Travel profile on TestFlight:** edit the profile on one device and confirm it reaches the other;
+  then run Discuss and a recommendation brief and confirm the taste lines are in the prompt.
 - Move a linked trip event to another trip day in Calendar, run Reconcile Calendar, and confirm it
   shows as a linked match (not "No Itinerary Match") with the Plan Repair at the top of the sheet.
 - On one device, add a trip document and confirm it appears on the other after sync; delete the trip and confirm the document is removed.

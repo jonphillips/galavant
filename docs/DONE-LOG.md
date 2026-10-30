@@ -3,6 +3,19 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## Gates cleared: Galavant Dev, travelProfiles schema, TestFlight setup (`plan/close-dev-and-schema-gates`) — 2026-10-30
+
+- **Galavant Dev portal setup and device pass (ADR-0050).** Jon built and installed Galavant Dev.
+  `devicectl` shows `com.jonphillips.galavant.dev` installed next to `com.jonphillips.galavant` on the
+  iPhone. Separate libraries, the share sheet, "CloudKit Development" in Settings and Weather are
+  confirmed on Jon's word.
+- **`travelProfiles` Production schema deploy.** Checked with `cktool export-schema`: Development and
+  Production schemas are identical, and Production's `travelProfiles` has `travelPartyID`, `plannerID`
+  and `preferences`. The two-device TestFlight check of the profile is now a verification gate.
+- **TestFlight one-time setup.** `testflight` is on PATH, `asc` 5.17.1 matches the pin, and the
+  `cktool` token works. The first real run passed the schema gate and was archiving build 477 when
+  this was written. Its completion gate stays in `device-passes.md`.
+
 ## TestFlight release workflow (`effort/testflight-script`) — 2026-10-10
 
 - Added Galavant's `testflight.conf`, ignored local archives/exports/recovery state, and documented
