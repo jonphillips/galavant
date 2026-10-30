@@ -3,7 +3,7 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
-## Gates cleared: Galavant Dev, travelProfiles schema, TestFlight setup (`plan/close-dev-and-schema-gates`) — 2026-10-30
+## Gates cleared: Galavant Dev, travelProfiles schema, TestFlight setup, Wendy's share (`plan/close-dev-and-schema-gates`) — 2026-10-30
 
 - **Galavant Dev portal setup and device pass (ADR-0050).** Jon built and installed Galavant Dev.
   `devicectl` shows `com.jonphillips.galavant.dev` installed next to `com.jonphillips.galavant` on the
@@ -15,6 +15,9 @@ History, newest first. The PR that completes a dispatch adds its entry naming it
 - **TestFlight one-time setup.** `testflight` is on PATH, `asc` 5.17.1 matches the pin, and the
   `cktool` token works. The first real run passed the schema gate and was archiving build 477 when
   this was written. Its completion gate stays in `device-passes.md`.
+- **Production cutover Phase 6: Wendy's install and share acceptance.** Jon reports Wendy installed
+  from TestFlight, ran the app, and accepted his share. Recorded on his word. She hasn't added content
+  yet, so the two-way changes, image round trip and pinned reservation (the M5 gate) stay owed.
 
 ## TestFlight release workflow (`effort/testflight-script`) — 2026-10-10
 

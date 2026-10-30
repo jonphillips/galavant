@@ -8,10 +8,9 @@ reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT
   run (build 0.2.0 (477)) is in progress. Confirm the schema gate and build-number
   guard pass; the export verification table is all pass; processing finishes before the build is
   tagged; What to Test appears in TestFlight on the phone; and `testflight --feedback` writes a file.
-- **Production cutover — Phase 6 left.** Phases 1–5 done 2026-10-08: TestFlight on Production, iPhone
-  carried the library, a fresh iPad pulled it. Remaining: add Wendy as an internal TestFlight tester,
-  then run Phase 6 of [`PROD-CUTOVER.md`](PROD-CUTOVER.md) (she installs clean, accepts the travel-party
-  share), which is the M5 gate below.
+- **Production cutover — the M5 gate left.** Phases 1–5 done 2026-10-08. On 2026-10-30 Wendy installed
+  from TestFlight and accepted Jon's share. What's left of Phase 6 of [`PROD-CUTOVER.md`](PROD-CUTOVER.md)
+  is the M5 gate below.
 - **Schema deploy before TestFlight (standing).** A build that adds a synced table or column, or first
   writes one, goes out only after a development build has pushed it and the schema is deployed to
   Production. `testflight`'s schema gate enforces this: it refuses to archive unless Development and
@@ -48,7 +47,8 @@ reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT
   rows, deferred places appear on the Ideas map, research notes show on resolved places, and Evaluate
   opens the leftovers.
 - **M5 real-device gate.** Phase 6 of `PROD-CUTOVER.md`. TestFlight on both phones, on Production:
-  travel-party share acceptance, two-way CloudKit changes, image/BLOB round-trips, pinned-reservation behavior.
+  share acceptance passed 2026-10-30. Still owed: two-way CloudKit changes (Wendy creates, edits and
+  deletes; Jon sees it, and back), image/BLOB round-trips, pinned-reservation behavior.
   Checklist: `docs/milestones/M5-EXECUTION.md`. (The old "manual Calendar export on both devices"
   check was dropped per ADR-0034.)
 - **M4 CloudKit BLOB sync** (ADR-0009 §4): one direction passed 2026-10-08, when the fresh iPad pulled

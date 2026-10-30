@@ -6,12 +6,13 @@ sharing the travel party with Wendy. This is ADR-0049 S2, the runbook for
 [ADR-0049](decisions/0049-backup-restore-and-production-cutover.md) D3. Read the ADR first for *why* the
 order is what it is. The model is Yes Chef's `docs/PROD-CUTOVER.md` (ADR-0056).
 
-**Status (2026-10-08): Phases 1–5 done; Phase 6 open.** Galavant runs from TestFlight on CloudKit
-**Production**. Jon's iPhone carried the library across, and a fresh iPad install pulled it down from
-Production and syncs. Backup and restore worked during the run. Two things weren't recorded: whether
-Production seeded in place before a restore (**OQ2 is still open**, see Phase 4b), and the dashboard
-record counts in Phase 5. Next is Phase 6: Wendy installs, accepts the travel-party share, and the M5
-gate runs on two phones. The **After the cutover** rules at the bottom now apply to every build.
+**Status (2026-10-30): Phases 1–5 done; Phase 6 down to the M5 gate.** Galavant runs from TestFlight
+on CloudKit **Production**. Jon's iPhone carried the library across, and a fresh iPad install pulled it
+down from Production and syncs. Backup and restore worked during the run. Two things weren't recorded:
+whether Production seeded in place before a restore (**OQ2 is still open**, see Phase 4b), and the
+dashboard record counts in Phase 5. On 2026-10-30 Wendy installed from TestFlight and accepted Jon's
+share. Next is the M5 gate on two phones. The **After the cutover** rules at the bottom now apply to
+every build.
 
 **Not a dispatch.** These are ops steps Jon runs, with the architect, each gated on the one before. Nothing
 here is Codex work. If a step turns up a code change (a schema leftover that has to go, an entitlement
@@ -34,7 +35,7 @@ re-pushes the whole library as authoritative. In-place seeding is an optimizatio
 - [x] **No identifier changes.** The bundle ids (`com.jonphillips.galavant`, `com.jonphillips.galavant.share`),
       the container (`iCloud.com.jonphillips.galavant`) and the app group (`group.com.jonphillips.galavant`)
       stay as they are. The local carry depends on all of them.
-- [ ] App Store Connect has the Galavant app record, and both Jon's and Wendy's Apple IDs are internal
+- [x] App Store Connect has the Galavant app record, and both Jon's and Wendy's Apple IDs are internal
       TestFlight testers (ADR-0005).
 - [ ] **Ask Yes Chef first.** If Yes Chef has run its ADR-0056 Phase 4 dry run, its answer to "does
       Production seed in place?" applies here too (shared OQ, ADR-0049 OQ2). Read it before Phase 4.
@@ -154,10 +155,11 @@ counts weren't recorded.
 
 ## Phase 6: Share with Wendy, then the M5 gate *(D3 steps 7–8)*
 
-- [ ] **Wendy is an internal TestFlight tester** (the last unchecked precondition above).
-- [ ] **Wendy's phone carries nothing.** If it has ever run a development build, she deletes Galavant
+- [x] **Wendy is an internal TestFlight tester** (the last unchecked precondition above). 2026-10-30.
+- [x] **Wendy's phone carries nothing.** If it has ever run a development build, she deletes Galavant
       first. Then she installs from TestFlight and turns on sync.
-- [ ] Jon shares the travel party from Settings. The share is created fresh in Production. Wendy accepts.
+- [x] Jon shares the travel party from Settings. The share is created fresh in Production. Wendy accepts.
+      Passed 2026-10-30 (Jon's report). She hasn't added content yet.
 - [ ] **The M5 gate,** on Production with both phones: share acceptance, changes both ways (create, edit,
       delete), an image round trip, and a pinned reservation keeping its date. The checklist is in
       `docs/milestones/M5-EXECUTION.md`.
