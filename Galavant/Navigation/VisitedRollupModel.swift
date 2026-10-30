@@ -8,6 +8,10 @@ import SQLiteData
 @MainActor
 @Observable
 final class VisitedRollupModel {
+  /// UTC+14 to UTC−12 is the widest civil offset gap: 26 hours. Looking ahead
+  /// by that amount avoids geocoding trips that cannot yet be past in any zone.
+  private static let maximumTimeZoneOffsetDifference: TimeInterval = 26 * 60 * 60
+
   @ObservationIgnored @Dependency(\.defaultDatabase) private var database
   @ObservationIgnored @Dependency(\.defaultSyncEngine) private var syncEngine
   @ObservationIgnored @Dependency(\.placeMatcher) private var placeMatcher
@@ -19,6 +23,11 @@ final class VisitedRollupModel {
     do {
       let trips = try await database.read { db in try Trip.all.fetchAll(db) }
       for trip in trips where trip.visitedRolledUpAt == nil {
+        guard trip.startDate != nil,
+          trip.isPast(
+            at: now.addingTimeInterval(Self.maximumTimeZoneOffsetDifference),
+            calendar: .current)
+        else { continue }
         let tripCalendar = await calendar(for: trip)
         guard trip.isPast(at: now, calendar: tripCalendar), isSafeToWrite else { continue }
         try await database.write { db in

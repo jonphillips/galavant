@@ -11,7 +11,7 @@ History, newest first. The PR that completes a dispatch adds its entry naming it
   the field and Production schema must be deployed before the next TestFlight build; the two-device
   visited roll-up check remains in `docs/device-passes.md`.
 - **Verification.** `scripts/check-drift.sh` passed SwiftLint, all GalavantLibrary suites (809 tests,
-  9 known issues), and the GalavantUITests build. Headless `GalavantTests` passed 42 tests. The
+  9 known issues), and the GalavantUITests build. Headless `GalavantTests` passed 43 tests. The
   Production schema deploy and device pass remain owed.
 
 ## Keep Chat's note and find ruled-out places (`effort/seed-handoff-cleanups`) — 2026-10-30

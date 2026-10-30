@@ -64,6 +64,12 @@ struct VisitedRollupTests {
       try TripIdea.insert { TripIdea.Draft(stop) }.execute(db)
       return (trip.id, idea.id, stop.id)
     }
+    let beforePlan = try await database.read { db -> TripPlan in
+      let idea = try Idea.find(ideaID).fetchOne(db)!
+      let stop = try TripIdea.find(stopID).fetchOne(db)!
+      return TripPlan(entries: [stop], ideasByID: [ideaID: idea], lengthInDays: 1)
+    }
+    let beforeItinerary = beforePlan.itinerary.map { $0.stops.map(\.entry) }
 
     try await database.write { db in
       try Trip.rollUpVisited(tripID: tripID, now: now, calendar: calendar, in: db)
@@ -75,11 +81,13 @@ struct VisitedRollupTests {
         try TripIdea.find(stopID).fetchOne(db)!
       )
     }
+    let afterPlan = TripPlan(entries: [first.2], ideasByID: [ideaID: first.0], lengthInDays: 1)
     #expect(first.0.visited)
     #expect(first.1.visitedRolledUpAt == now)
     #expect(first.2.status == .scheduled)
     #expect(first.2.completedAt == now)
     #expect(first.2.skippedAt == nil)
+    #expect(afterPlan.itinerary.map { $0.stops.map(\.entry) } == beforeItinerary)
 
     try await database.write { db in
       try Idea.find(ideaID).update { $0.visited = #bind(false) }.execute(db)
