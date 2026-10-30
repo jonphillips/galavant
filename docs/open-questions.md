@@ -11,6 +11,10 @@ retired `CURRENT_HANDOFF.md` and `ROADMAP.md`'s open items.
   non-interactive, so it doesn't fight the scroll view, and has no follow-mode control. If Jon wants to
   pan or zoom on the ground, a tap on the card opening a full-screen interactive day map (with
   `MapUserLocationButton`) is the natural next step. Wait for dogfood evidence before adding it.
+- **Start Day and Calendar out of the trip toolbar.** The one unshipped piece of the archived
+  [`trip-view-declutter.md`](efforts/archive/trip-view-declutter.md) (Phase 3b): Start Day is still a
+  toolbar item in `TripPlanningView`. Its spec is in that brief. Only worth doing if the toolbar
+  feels crowded on device.
 
 ### Trip seed handoff (ADR-0048, accepted 2026-10-04)
 
@@ -38,6 +42,9 @@ are dogfooded (`docs/DONE-LOG.md`). Slices 3 (dossier flyover, #100) and 4 (iPho
   repo/PR (like the WebExtractorKit lift's still-open yes-chef rewire).
 
 ### Pending Xcode 27.0 re-verification — cross-day drag + sectioned inline reorder
+
+*Parked 2026-10-30 (ADR-0005 D10): the brief moved to `efforts/archive/`; un-park it into the
+root as **Designed** when the re-verification passes.*
 
 Within-day drag-to-reorder ships (#72; `dayRank` for Anytime stops per ADR-0033). Two
 related next steps depend on the DnD subsystem; their beta limitations need
