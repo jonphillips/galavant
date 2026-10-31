@@ -15,6 +15,7 @@ reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT
 
 ## Verification gates (decision gates, not a build queue)
 
+- **Launch-lock crash (`launch-lock-suspension`).** After the TestFlight build that carries it: no new `0xdead10cc` in `testflight --feedback` over a week of normal use, including background pushes from Wendy's edits.
 - **After the next TestFlight build, on Jon's phone and on Wendy's:** Settings → Planners → iCloud identity → Copy, and send both readings to the architect, who records OQ1–OQ3 in ADR-0051. Plus one reading from Galavant Dev on Jon's phone, for OQ3. Wendy only reads; nothing here changes the share.
 - **Visited roll-up.** Open the app with a past trip in the library: its scheduled, not-skipped places
   show Visited in Ideas, and its itinerary still shows every stop. Clear Visited on one of them, relaunch

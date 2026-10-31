@@ -1,5 +1,7 @@
-# Next Up — Nothing dispatched
+# Next Up — Don't get killed holding the database lock
 
-Nothing dispatched.
-
-**Owed:** Production cutover Phase 6's M5 gate (Wendy), planning-chrome iPad verification, and stay-grouped day lens iPad review; see `device-passes.md`.
+**Slices:** effort `launch-lock-suspension`
+**Briefs:** [docs/efforts/launch-lock-suspension.md](efforts/launch-lock-suspension.md)
+**Done when:** per the brief
+**Owed:** see [device-passes.md](device-passes.md)
+**Notes:** Crash fix from TestFlight 0.2.0 (2), `0xdead10cc` at launch. No schema, migration or sync-contract change. Live shared store only; leave test and restore databases alone.

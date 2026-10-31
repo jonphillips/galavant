@@ -14,6 +14,7 @@ folder listing and `DONE-LOG.md` cover it. A parked brief also gets a candidate 
 
 | Brief | Implements | Status |
 | --- | --- | --- |
+| [launch-lock-suspension.md](launch-lock-suspension.md) | TestFlight crash `0xdead10cc` (no ADR) | Ready |
 
 **Authoring a brief:** add its entry here in the same change (index at creation), give it a
 `Status:` + one-line `Summary:` header, and link the ADR it implements. See `docs/README.md`
