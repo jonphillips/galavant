@@ -14,7 +14,7 @@ struct TripItineraryView: View {
   /// whole trip.
   var focusedDay: Int?
   var tripTimeZone: TimeZone?
-  var onScrolledPastHeader: ((Bool) -> Void)?
+  var onScrollOffsetChanged: ((CGFloat) -> Void)?
   @State private var selectedCalendarConstraint: CalendarTripConstraint?
   @State private var pendingStopRemoval: PendingStopRemoval?
   /// The first placement on the live day should *already be there* rather than
@@ -41,10 +41,10 @@ struct TripItineraryView: View {
   var body: some View {
     ScrollViewReader { proxy in
       content
-        .onScrollGeometryChange(for: Bool.self) { geometry in
-          geometry.contentOffset.y + geometry.contentInsets.top > 40
-        } action: { _, scrolled in
-          onScrolledPastHeader?(scrolled)
+        .onScrollGeometryChange(for: CGFloat.self) { geometry in
+          geometry.contentOffset.y + geometry.contentInsets.top
+        } action: { _, offset in
+          onScrollOffsetChanged?(offset)
         }
         // Selecting a stop on the map scrolls the matching row into view (the
         // map→list half of the shared selection; list→map is the tap below).

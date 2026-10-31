@@ -61,6 +61,11 @@ struct TripDetailContent: View {
     .onChange(of: model.sheetTab) { _, tab in
       if tab == .ideas { headerCollapsed = false }
     }
+    .onChange(of: headerCollapsed) { oldValue, newValue in
+      if usesColumn {
+        print("[StayTapFreezeProbe] headerCollapsed \(oldValue) -> \(newValue)")
+      }
+    }
     .task(id: tripTimeZoneTaskID) {
       guard let trip = model.trip else {
         tripTimeZone = nil
@@ -151,7 +156,16 @@ struct TripDetailContent: View {
           bookingByRow: bookingByRow,
           focusedDay: model.canvasSelectedDay,
           tripTimeZone: tripTimeZone,
-          onScrolledPastHeader: { headerCollapsed = $0 }
+          onScrollOffsetChanged: { offset in
+            let shouldCollapse = offset > 40
+            if usesColumn {
+              print(
+                "[StayTapFreezeProbe] offset=\(offset), headerCollapsed=\(headerCollapsed), "
+                  + "next=\(shouldCollapse)"
+              )
+            }
+            headerCollapsed = shouldCollapse
+          }
         )
       case .ideas:
         TripIdeasView(model: model, showsInlineAdd: !usesColumn, usesColumn: usesColumn)
