@@ -15,6 +15,7 @@ reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT
 
 ## Verification gates (decision gates, not a build queue)
 
+- **Stay-tap freeze (`stay-tap-freeze`).** On iPad and iPhone, tap each stay label on the Eastern France trip, then a day, then All: no freeze, no header flicker, and the list lands on the stay's first day.
 - **Launch-lock crash (`launch-lock-suspension`).** After the TestFlight build that carries it: no new `0xdead10cc` in `testflight --feedback` over a week of normal use, including background pushes from Wendy's edits.
 - **After the next TestFlight build, on Jon's phone and on Wendy's:** Settings → Planners → iCloud identity → Copy, and send both readings to the architect, who records OQ1–OQ3 in ADR-0051. Plus one reading from Galavant Dev on Jon's phone, for OQ3. Wendy only reads; nothing here changes the share.
 - **Visited roll-up.** Open the app with a past trip in the library: its scheduled, not-skipped places

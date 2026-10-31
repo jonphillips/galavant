@@ -1,7 +1,7 @@
-# Next Up — Don't get killed holding the database lock
+# Next Up — Tapping a stay freezes the planning column
 
-**Slices:** effort `launch-lock-suspension`
-**Briefs:** [docs/efforts/launch-lock-suspension.md](efforts/launch-lock-suspension.md)
+**Slices:** effort `stay-tap-freeze`
+**Briefs:** [docs/efforts/stay-tap-freeze.md](efforts/stay-tap-freeze.md)
 **Done when:** per the brief
 **Owed:** see [device-passes.md](device-passes.md)
-**Notes:** Crash fix from TestFlight 0.2.0 (2), `0xdead10cc` at launch. No schema, migration or sync-contract change. Live shared store only; leave test and restore databases alone.
+**Notes:** Confirm the header-collapse loop before fixing it. No schema, sync or contract change. `launch-lock-suspension` is next in the efforts index.
