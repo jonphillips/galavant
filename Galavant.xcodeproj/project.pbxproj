@@ -23,6 +23,7 @@
 		147CD23F2142334FE14A3928 /* TripPlanningModel+Booking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E5272AC4D331B81C40BD5FD /* TripPlanningModel+Booking.swift */; };
 		163235D89FEB136F5C5F73ED /* PoolIdentityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00154E6FD53486C6ECD8CBD9 /* PoolIdentityUITests.swift */; };
 		164623B0ED0CE24B42E3FA51 /* JourneyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58883EC5A8F26B4F3E007652 /* JourneyView.swift */; };
+		178D860C2EADAD6D273440AC /* CustomDump in Frameworks */ = {isa = PBXBuildFile; productRef = 5232614EDD023F2649AD2B01 /* CustomDump */; };
 		1885938610B337356CBBB04F /* CalendarReconciliationSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8222730CCB5C86C21DC2B8F8 /* CalendarReconciliationSheet.swift */; };
 		1AF90BB39A9A3751AA9A22E2 /* Icon.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF388F1C56D173F7C5F3079C /* Icon.swift */; };
 		1BA8684F8293D1EBB16FB70C /* BrowserScreenModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC86C99C4DC8F10257E93B99 /* BrowserScreenModel.swift */; };
@@ -32,6 +33,8 @@
 		242EC6987A08C0DCEBF3BC64 /* GalavantPlaces in Frameworks */ = {isa = PBXBuildFile; productRef = 6527A596FFD56B45F77446D0 /* GalavantPlaces */; };
 		25A7842AF8875EEF8BFA2887 /* PrefersTabNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDA439EDEF5339154F3D8C08 /* PrefersTabNavigation.swift */; };
 		28CB0F1054F9EC0012E413AD /* CloudSyncKit in Frameworks */ = {isa = PBXBuildFile; productRef = BAB8971211A0C3E3E9C18A40 /* CloudSyncKit */; };
+		293097626F732F5C439CDED6 /* TripHeaderCollapseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09A2D2014788CFB053BBCAC9 /* TripHeaderCollapseTests.swift */; };
+		2A529BE475DBEC4E0C4271E9 /* TripPlanningModel+TimeZone.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B3A0934D19A4107062838DF /* TripPlanningModel+TimeZone.swift */; };
 		2BCD153BD1286735123E24B7 /* TripHeaderImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E5E2C9449BAC2E031A8745F /* TripHeaderImageView.swift */; };
 		31E7698A7F0335B2B8A738B6 /* TripPlanningStaySheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD6CFE9865ECF5709A038E9C /* TripPlanningStaySheets.swift */; };
 		35E279FA22C85810158AF02C /* DayPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95C568B98EA55277C2DDA065 /* DayPalette.swift */; };
@@ -236,6 +239,7 @@
 		0875A7B522AB4118B114C638 /* TripPlanningModel+DaySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripPlanningModel+DaySheet.swift"; sourceTree = "<group>"; };
 		0875D5B7D1A0BAAA7A6A2F1C /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		08F3A8C38B6B2977E3D8153F /* TripPlanningView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripPlanningView.swift; sourceTree = "<group>"; };
+		09A2D2014788CFB053BBCAC9 /* TripHeaderCollapseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripHeaderCollapseTests.swift; sourceTree = "<group>"; };
 		0A8181602270C693F3DBB397 /* BrowserScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserScreen.swift; sourceTree = "<group>"; };
 		0CA9E000AA9AEEE1E3D68F79 /* GalavantUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = GalavantUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0E5E2C9449BAC2E031A8745F /* TripHeaderImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripHeaderImageView.swift; sourceTree = "<group>"; };
@@ -310,6 +314,7 @@
 		8885060D462E6E53320A2831 /* ShareSeedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSeedTests.swift; sourceTree = "<group>"; };
 		891C5DF7F4A25741DE3421FD /* StructuredHoursEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StructuredHoursEditor.swift; sourceTree = "<group>"; };
 		895F90CCD6B6EE453DBD785D /* PoolFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoolFlowUITests.swift; sourceTree = "<group>"; };
+		8B3A0934D19A4107062838DF /* TripPlanningModel+TimeZone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripPlanningModel+TimeZone.swift"; sourceTree = "<group>"; };
 		8DC1E6463D9CC2DF49548F37 /* SyncStatusSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatusSection.swift; sourceTree = "<group>"; };
 		91589ABCCE6CEFC2EC1F72F4 /* ReorderDifference+Apply.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ReorderDifference+Apply.swift"; sourceTree = "<group>"; };
 		92BBE67122AFC3C8773380D0 /* JourneyImagePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyImagePanel.swift; sourceTree = "<group>"; };
@@ -437,6 +442,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A6E6DE98160B52B068BB18D5 /* DependenciesTestSupport in Frameworks */,
+				178D860C2EADAD6D273440AC /* CustomDump in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -555,6 +561,7 @@
 				47B9767D73E65C3D4D10CC30 /* TripPlanningModel+Recommendation.swift */,
 				72A6C6AEFAD6483C0E0AF70C /* TripPlanningModel+Scheduling.swift */,
 				14FCDCE6D1ECB6FD141CF7B9 /* TripPlanningModel+Sketch.swift */,
+				8B3A0934D19A4107062838DF /* TripPlanningModel+TimeZone.swift */,
 				74F16970DCFE2E14E475DB66 /* TripPlanningSheets.swift */,
 				DD6CFE9865ECF5709A038E9C /* TripPlanningStaySheets.swift */,
 				08F3A8C38B6B2977E3D8153F /* TripPlanningView.swift */,
@@ -624,6 +631,7 @@
 				F751F213140FE74EA9BCE772 /* IdeasQuickFilterTests.swift */,
 				C552773D568B292127E75164 /* SettingsModelTests.swift */,
 				58114810B86AFEBF95E05C07 /* TripCanvasPreviewStateTests.swift */,
+				09A2D2014788CFB053BBCAC9 /* TripHeaderCollapseTests.swift */,
 				EB7EC4E4FC4F7E11352D4E74 /* TripPlanningSenseOfNowTests.swift */,
 				274D2DC49725AD4EE4C36BC0 /* VisitedRollupModelTests.swift */,
 			);
@@ -832,6 +840,7 @@
 			name = GalavantTests;
 			packageProductDependencies = (
 				BD0B4611AC664044BD5BEBD1 /* DependenciesTestSupport */,
+				5232614EDD023F2649AD2B01 /* CustomDump */,
 			);
 			productName = GalavantTests;
 			productReference = 9FEEBBB70BFDC82C3176AA53 /* GalavantTests.xctest */;
@@ -919,6 +928,7 @@
 			packageReferences = (
 				C5B07CA52890645ABF015544 /* XCRemoteSwiftPackageReference "sqlite-data" */,
 				3D0FC9D09FB137795B0DD611 /* XCRemoteSwiftPackageReference "swift-case-paths" */,
+				37A81F998453E490129AFFDF /* XCRemoteSwiftPackageReference "swift-custom-dump" */,
 				72A7015AEBE6B87356CCFD60 /* XCRemoteSwiftPackageReference "swift-dependencies" */,
 				E0CE6503B137FDB710DCCCFE /* XCRemoteSwiftPackageReference "swift-navigation" */,
 				13970F0E37C9FD2AC7DDBCFD /* XCRemoteSwiftPackageReference "swift-sharing" */,
@@ -986,6 +996,7 @@
 				50EEE42D97D8F60341A052BC /* IdeasQuickFilterTests.swift in Sources */,
 				7AF08E862BDDF4E09803A79E /* SettingsModelTests.swift in Sources */,
 				4C528609E50B3202B6BB33E7 /* TripCanvasPreviewStateTests.swift in Sources */,
+				293097626F732F5C439CDED6 /* TripHeaderCollapseTests.swift in Sources */,
 				FB833A8213FBA1E378DDC0D8 /* TripPlanningSenseOfNowTests.swift in Sources */,
 				F06CF7479CE999735A36DC3B /* VisitedRollupModelTests.swift in Sources */,
 			);
@@ -1116,6 +1127,7 @@
 				67E36BA27F8A9760AAC49994 /* TripPlanningModel+Recommendation.swift in Sources */,
 				8B65E5CA383B4D16F3685A39 /* TripPlanningModel+Scheduling.swift in Sources */,
 				F81B39732D548EBD5BB015F9 /* TripPlanningModel+Sketch.swift in Sources */,
+				2A529BE475DBEC4E0C4271E9 /* TripPlanningModel+TimeZone.swift in Sources */,
 				C4D03D83083C9022183ABEF2 /* TripPlanningModel.swift in Sources */,
 				A4CB29CDDE7511750823B841 /* TripPlanningSheets.swift in Sources */,
 				31E7698A7F0335B2B8A738B6 /* TripPlanningStaySheets.swift in Sources */,
@@ -1525,6 +1537,14 @@
 				minimumVersion = 2.0.0;
 			};
 		};
+		37A81F998453E490129AFFDF /* XCRemoteSwiftPackageReference "swift-custom-dump" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pointfreeco/swift-custom-dump";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
 		3D0FC9D09FB137795B0DD611 /* XCRemoteSwiftPackageReference "swift-case-paths" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/pointfreeco/swift-case-paths";
@@ -1581,6 +1601,11 @@
 		4D543244A7EA1E4F10D196DF /* WebExtractorKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = WebExtractorKit;
+		};
+		5232614EDD023F2649AD2B01 /* CustomDump */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 37A81F998453E490129AFFDF /* XCRemoteSwiftPackageReference "swift-custom-dump" */;
+			productName = CustomDump;
 		};
 		5A93A34322120B8F1DC99E7B /* Sharing */ = {
 			isa = XCSwiftPackageProductDependency;

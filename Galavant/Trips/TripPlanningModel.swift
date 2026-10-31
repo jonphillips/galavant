@@ -198,7 +198,7 @@ final class TripPlanningModel {
   var calendarPlanRepairs: [CalendarPlanRepair] {
     allCalendarPlanRepairs.filter { $0.tripID == tripID }
   }
-  private var ideaByID: [Idea.ID: Idea] {
+  var ideaByID: [Idea.ID: Idea] {
     Dictionary(ideas.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
   }
   private var regionByID: [MapRegion.ID: MapRegion] {
