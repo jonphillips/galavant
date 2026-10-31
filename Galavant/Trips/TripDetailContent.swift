@@ -9,6 +9,13 @@ enum TripHeaderCollapse {
   }
 }
 
+private struct TripTimeZoneTaskID: Equatable {
+  let tripID: Trip.ID
+  let startDate: Date?
+  let regionIDs: [MapRegion.ID]
+  let scheduledStopCoordinates: [TripCoordinate]
+}
+
 /// The list-based second projection of the trip canvas (M3d) — the same shared
 /// selection as the map, shown as a list. A segmented control swaps between the
 /// **Itinerary** (the day timeline, focused to the day chip's lens) and **Ideas**
@@ -30,10 +37,12 @@ struct TripDetailContent: View {
   @State private var headerCollapsed = false
   @State private var tripTimeZone: TimeZone?
 
-  private var tripTimeZoneTaskID: String {
-    let regions = model.tripRegionIDs.map(\.uuidString).sorted().joined(separator: ",")
-    let startDate = model.trip?.startDate.map { String($0.timeIntervalSince1970) } ?? "undated"
-    return "\(model.tripID)-\(startDate)-\(regions)-\(model.tripTimeZoneCoordinateKey)"
+  private var tripTimeZoneTaskID: TripTimeZoneTaskID {
+    TripTimeZoneTaskID(
+      tripID: model.tripID,
+      startDate: model.trip?.startDate,
+      regionIDs: model.tripRegionIDs.sorted { $0.uuidString < $1.uuidString },
+      scheduledStopCoordinates: model.plan.scheduledStopCoordinates)
   }
 
   var body: some View {

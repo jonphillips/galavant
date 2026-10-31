@@ -285,6 +285,43 @@ import Testing
     #expect(p.itinerary[1].stops.map { $0.idea!.id } == [id])
   }
 
+  @Test func scheduledStopCoordinatesMatchResolvedPlacedItineraryStops() {
+    let winnerIdeaID = UUID()
+    let loserIdeaID = UUID()
+    let ordinaryIdeaID = UUID()
+    let orphanIdeaID = UUID()
+    let shortlistedIdeaID = UUID()
+    let unplacedIdeaID = UUID()
+    let groupID = UUID()
+    var winner = entry(idea: winnerIdeaID, status: .scheduled, schedule: .day(1))
+    winner.alternativeGroupID = groupID
+    var loser = entry(idea: loserIdeaID, status: .scheduled, schedule: .day(1))
+    loser.alternativeGroupID = groupID
+    loser.isActive = false
+    let ordinary = entry(idea: ordinaryIdeaID, status: .scheduled, schedule: .day(1))
+    let orphan = entry(idea: orphanIdeaID, status: .scheduled, schedule: .day(1))
+    let shortlisted = entry(idea: shortlistedIdeaID, status: .shortlisted, schedule: .day(1))
+    let unplaced = entry(idea: unplacedIdeaID, status: .scheduled, schedule: .unscheduled)
+    let freeform = freeformEntry(
+      title: "Train to Aarhus", latitude: 9, longitude: 10, schedule: .day(2))
+    let p = plan(
+      [winner, loser, ordinary, orphan, shortlisted, unplaced, freeform],
+      ideas: [
+        idea(winnerIdeaID, lat: 1, lon: 2),
+        idea(loserIdeaID, lat: 90, lon: 91),
+        idea(ordinaryIdeaID, lat: 3, lon: 4),
+        idea(shortlistedIdeaID, lat: 5, lon: 6),
+        idea(unplacedIdeaID, lat: 7, lon: 8),
+      ]
+    )
+
+    #expect(p.scheduledStopCoordinates == [
+      TripCoordinate(latitude: 1, longitude: 2),
+      TripCoordinate(latitude: 3, longitude: 4),
+      TripCoordinate(latitude: 9, longitude: 10),
+    ])
+  }
+
   // MARK: - Travel connector tests
 
   @Test func allLegsCoversEveryConsecutiveLocatedPair() {

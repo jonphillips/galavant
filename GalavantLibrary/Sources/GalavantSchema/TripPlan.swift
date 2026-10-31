@@ -357,6 +357,14 @@ public struct TripPlan: Equatable, Sendable {
     }
   }
 
+  /// Coordinates for the resolved, placed itinerary stops, without building
+  /// day buckets or ordering each day. Kept in the same order as `entries`.
+  public var scheduledStopCoordinates: [TripCoordinate] {
+    effectiveResolvedStops
+      .filter { $0.entry.status == .scheduled && $0.entry.dayNumber != nil }
+      .compactMap(\.coordinate)
+  }
+
   /// True once at least one stop is scheduled — drives the empty state.
   public var hasScheduledStops: Bool {
     effectiveResolvedStops.contains { $0.entry.status == .scheduled }
