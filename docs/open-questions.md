@@ -7,6 +7,9 @@ retired `CURRENT_HANDOFF.md` and `ROADMAP.md`'s open items.
 
 ## Candidates
 
+- **Galavant's own accent.** Galavant and Cockpit's chrome both read as system blue, so the family
+  doesn't look deliberate (2026-10-31 review). Picking Galavant's accent belongs to its foundation slice
+  (jon-platform `ui-and-platforms.md` § Visual craft), not to a polish effort. Jon's call.
 - **Full-screen day map from Today.** The Today map card (effort `today-day-map`) is deliberately
   non-interactive, so it doesn't fight the scroll view, and has no follow-mode control. If Jon wants to
   pan or zoom on the ground, a tap on the card opening a full-screen interactive day map (with
