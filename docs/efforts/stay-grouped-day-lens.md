@@ -4,7 +4,7 @@ Status: Ready
 Summary: The hotel row folds into the day row: each stay becomes a labeled group of the days slept there, its label filters to the stay, and the separate lodging strip goes away.
 
 Implements: jon-platform `docs/ios/ui-and-platforms.md` § Controls, and the 2026-10-31 canvas review with
-Jon. Queued after [planning-chrome-alignment.md](planning-chrome-alignment.md), which removes the day-chip
+Jon. Queued after [planning-chrome-alignment.md](archive/planning-chrome-alignment.md), which removes the day-chip
 color dots this effort builds on. No schema change.
 
 ## Why

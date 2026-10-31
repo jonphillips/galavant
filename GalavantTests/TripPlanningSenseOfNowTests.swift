@@ -1,6 +1,7 @@
 import Dependencies
 import DependenciesTestSupport
 import Foundation
+import GalavantAI
 import GalavantSchema
 import SQLiteData
 import Testing
@@ -46,6 +47,38 @@ struct TripPlanningSenseOfNowTests {
     let model = TripPlanningModel(tripID: tripID)
     try await model.$trips.load()
     return model
+  }
+
+  private func recommendationSession(tripID: Trip.ID) -> HandoffSession {
+    HandoffSession(
+      sourceType: "trip",
+      sourceID: tripID,
+      taskType: RecommendationHandoffTask.candidatePlaces,
+      exportedPrompt: "")
+  }
+
+  @Test
+  @MainActor
+  func emptyRecommendationPasteShowsWarning() async throws {
+    let tripID = try await makeTrip(startDate: nil)
+    let model = try await loadedModel(tripID: tripID)
+
+    model.pasteRecommendationResult(nil, for: recommendationSession(tripID: tripID))
+
+    #expect(model.recommendationHandoffPaste.warning?.contains("Clipboard is empty") == true)
+  }
+
+  @Test
+  @MainActor
+  func invalidRecommendationPasteShowsWarning() async throws {
+    let tripID = try await makeTrip(startDate: nil)
+    let model = try await loadedModel(tripID: tripID)
+
+    model.pasteRecommendationResult(
+      "this is not a recommendation result", for: recommendationSession(tripID: tripID))
+
+    #expect(model.recommendationHandoffPaste.warning?.contains("could not be imported") == true)
+    #expect(model.recommendationHandoffError == nil)
   }
 
   @Test(.dependencies { $0.date = .constant(noon(onDay: 3)) })

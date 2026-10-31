@@ -5,7 +5,7 @@ Summary: Trip planning adopts the house control conventions: one AI menu, day co
 
 Implements: jon-platform `docs/ios/ui-and-platforms.md` § Controls (adopted 2026-10-31). Follows the
 2026-10-31 design review of the trip canvas with Jon. No schema change. Sibling effort, queued next:
-[stay-grouped-day-lens.md](stay-grouped-day-lens.md).
+[stay-grouped-day-lens.md](../stay-grouped-day-lens.md).
 
 ## Scope
 
@@ -80,7 +80,7 @@ the image.
 ## Done when
 
 - One AI menu in the trip toolbar on iPad and iPhone, with all trailing items present while
-  the chat inspector is open (iPad screenshot in the PR).
+  the chat inspector is open.
 - No color dot on day chips. Sequence badges in the list are neutral. Map pins and routes are
   still per-day colors, and days 1 and 6 are visibly different.
 - No **+** in day headers. Add a stop at the end of every day, including empty days.
@@ -89,10 +89,13 @@ the image.
 - Stop rows have no pencil. The context menu reaches edit and every `StopMenu` action, and the time
   label opens the time menu.
 - The hero image collapses on scroll and returns at the top.
-- `scripts/check-drift.sh` green. Before/after iPad screenshots of the canvas in the PR.
+- `scripts/check-drift.sh` green.
+
+Review note (2026-10-31): The screenshot criteria were struck per architect review; iPad
+verification will be tracked in `device-passes.md`.
 
 ## Out of scope
 
-- The hotel row and how days are grouped by stay → [stay-grouped-day-lens.md](stay-grouped-day-lens.md).
+- The hotel row and how days are grouped by stay → [stay-grouped-day-lens.md](../stay-grouped-day-lens.md).
 - Galavant's own accent color. It is still system blue, which is a foundation-slice decision
   (jon-platform § Visual craft) and is in `open-questions.md`.

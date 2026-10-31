@@ -2,6 +2,7 @@ import GalavantChat
 import GalavantSchema
 import SwiftUI
 import SwiftUINavigation
+import UIKit
 
 /// One trip's planning surface, map-first (M3d, docs/trip-canvas.md): the home is
 /// the **canvas** — a map of the scheduled stops with day chips on top. The list
@@ -69,7 +70,7 @@ struct TripPlanningView: View {
       // The chat inspector attaches *inside* this container, as a child of the
       // toolbar host — not as a sibling modifier on `layout`. An `.inspector`
       // resolved at the same view as `.toolbar` drops all but one trailing item on
-      // iPad (Recommend silently vanished next to Discuss); nesting it strictly
+      // iPad; nesting it strictly
       // below the toolbar host, as IdeasScreen does, keeps every item.
       // (docs/KNOWN-ISSUES.md)
       tripLayout(bookingRollup: bookingRollup, bookingByRow: bookingByRow, plan: plan)
@@ -78,8 +79,8 @@ struct TripPlanningView: View {
     .navigationBarTitleDisplayMode(.inline)
     // One ToolbarItemGroup, not two ToolbarItems: buried under the presentation
     // hosts' `.sheet` wrappers, the chat `.inspector` merges the trip's toolbar and
-    // keeps only a single *item* — a second `ToolbarItem` (Recommend) silently
-    // vanished. A group is one contribution carrying both buttons, so both survive.
+    // keeps only a single *item*. A group is one contribution, so every trailing
+    // action, including the Hand off menu, survives.
     // (docs/KNOWN-ISSUES.md)
     .toolbar {
       ToolbarItemGroup(placement: .topBarTrailing) {
@@ -128,16 +129,24 @@ struct TripPlanningView: View {
               systemImage: "clock.arrow.trianglehead.2.counterclockwise.rotate.90")
           }
         }
-        Button {
-          model.startRecommendationHandoff()
+        Menu {
+          Button {
+            model.startRecommendationHandoff()
+          } label: {
+            Icon.recommend.label("Hand off")
+          }
+          Button {
+            pasteRecommendationFromClipboard()
+          } label: {
+            Icon.paste.label("Paste")
+          }
+          Button {
+            showingChat.toggle()
+          } label: {
+            Label("Ask now", systemImage: showingChat ? Icon.checkmark.systemName : Icon.recommend.systemName)
+          }
         } label: {
-          Icon.recommend.label("Recommend")
-        }
-        // Discuss this trip's itinerary with the model (ADR-0017).
-        Button {
-          showingChat = true
-        } label: {
-          Icon.chat.label("Discuss")
+          Icon.handoff.label("Hand off")
         }
       }
     }
@@ -177,6 +186,17 @@ struct TripPlanningView: View {
   private func handleCanvasSelection(_ id: TripIdea.ID?) {
     guard id != nil, model.sheetTab == .itinerary else { return }
     if !usesColumn, sheetDetent == Self.peek { sheetDetent = .medium }
+  }
+
+  private func pasteRecommendationFromClipboard() {
+    let pasted = UIPasteboard.general.string
+    if case let .recommendationHandoff(presentation)? = model.destination {
+      model.pasteRecommendationResult(pasted, for: presentation.session)
+      return
+    }
+    model.startRecommendationHandoff()
+    guard case let .recommendationHandoff(presentation)? = model.destination else { return }
+    model.pasteRecommendationResult(pasted, for: presentation.session)
   }
 
   /// The iPhone itinerary is already a presentation. Dismiss it before asking

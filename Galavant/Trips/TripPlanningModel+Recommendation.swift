@@ -143,11 +143,18 @@ extension TripPlanningModel {
   }
 
   func pasteRecommendationResult(
-    _ strings: [String], for session: HandoffSession, seedReviewModel: SeedReviewModel? = nil
+    _ pasted: String?, for session: HandoffSession, seedReviewModel: SeedReviewModel? = nil
   ) {
-    guard let pasted = strings.first else { return }
+    guard let pasted, !pasted.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+      if session.taskType == RecommendationHandoffTask.seedTrip {
+        seedReviewModel?.error = "Clipboard is empty. Copy a trip seed result, then paste it here."
+      } else {
+        recommendationHandoffPaste.warning = "Clipboard is empty. Copy a recommendation result, then paste it here."
+      }
+      return
+    }
     if session.taskType == RecommendationHandoffTask.seedTrip {
-      seedReviewModel?.paste(strings, for: session, context: seedPlanContextSnapshot)
+      seedReviewModel?.paste([pasted], for: session, context: seedPlanContextSnapshot)
       return
     }
     do {
@@ -198,7 +205,7 @@ extension TripPlanningModel {
       recommendationHandoffPaste.note = decoded.note
       recommendationHandoffPaste.noteSaved = false
     } catch {
-      recommendationHandoffError = error.localizedDescription
+      recommendationHandoffPaste.warning = "This clipboard content could not be imported: \(error.localizedDescription)"
     }
   }
 

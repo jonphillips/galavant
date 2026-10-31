@@ -4,20 +4,11 @@ struct SectionHeader: View {
   let label: String
   let day: Int?
   let model: TripPlanningModel
+  var tripTimeZone: TimeZone?
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
-      HStack {
-        Text(label)
-        Spacer()
-        Button {
-          model.addToSectionTapped(day: day)
-        } label: {
-          Icon.add.image
-        }
-        .buttonStyle(.borderless)
-        .accessibilityLabel("Add to \(label)")
-      }
+      Text(label)
       if let day, let note = model.dayNote(forDay: day) {
         Text(note)
           .font(.subheadline)
@@ -33,7 +24,7 @@ struct SectionHeader: View {
             DayRegionMenu(day: day, model: model)
           }
           if model.showsDayTimeZoneMenu(forDay: day) {
-            DayTimeZoneMenu(day: day, model: model)
+            DayTimeZoneMenu(day: day, model: model, defaultZone: tripTimeZone)
           }
         }
       }
@@ -83,6 +74,7 @@ struct DayRegionMenu: View {
       HStack(spacing: 5) {
         Icon.map.image.imageScale(.medium)
         Text(assigned?.name ?? "Set region").lineLimit(1)
+        Icon.menuDisclosure.image.font(.caption2)
       }
       .font(.subheadline)
       .foregroundStyle(assigned == nil ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
@@ -97,18 +89,31 @@ struct DayRegionMenu: View {
 struct DayTimeZoneMenu: View {
   let day: Int
   let model: TripPlanningModel
+  var defaultZone: TimeZone?
 
   var body: some View {
     let assigned = model.dayTimeZone(forDay: day)
+    let defaultAbbreviation = defaultZone?.abbreviation(for: model.trip?.date(forDay: day) ?? .now)
+      ?? defaultZone?.identifier
     return Menu {
-      Button("Use trip default") { model.setDayTimeZone(nil, forDay: day) }
+      Button {
+        model.setDayTimeZone(nil, forDay: day)
+      } label: {
+        if assigned == nil, let defaultAbbreviation {
+          Label("Trip default (\(defaultAbbreviation))", systemImage: Icon.checkmark.systemName)
+        } else if assigned == nil {
+          Icon.checkmark.label("Trip default")
+        } else {
+          Text(defaultAbbreviation.map { "Trip default (\($0))" } ?? "Trip default")
+        }
+      }
       Divider()
       ForEach(TimeZone.knownTimeZoneIdentifiers.sorted(), id: \.self) { identifier in
         Button {
           model.setDayTimeZone(identifier, forDay: day)
         } label: {
           if identifier == assigned?.identifier {
-            Label(identifier, systemImage: "checkmark")
+            Label(identifier, systemImage: Icon.checkmark.systemName)
           } else {
             Text(identifier)
           }
@@ -116,11 +121,15 @@ struct DayTimeZoneMenu: View {
       }
     } label: {
       HStack(spacing: 5) {
-        Image(systemName: "clock")
-        Text(assigned?.identifier ?? "Default").lineLimit(1)
+        Icon.timeOfDay.image
+        if let assigned {
+          Text(assigned.abbreviation(for: model.trip?.date(forDay: day) ?? .now) ?? assigned.identifier)
+            .lineLimit(1)
+        }
+        Icon.menuDisclosure.image.font(.caption2)
       }
       .font(.subheadline)
-      .foregroundStyle(assigned == nil ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
+      .foregroundStyle(assigned == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tint))
       .padding(.horizontal, 11)
       .padding(.vertical, 6)
       .background(Capsule().fill(Color(.tertiarySystemFill)))

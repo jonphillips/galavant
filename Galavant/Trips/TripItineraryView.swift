@@ -13,6 +13,8 @@ struct TripItineraryView: View {
   /// When set, render only this day's stops (the canvas day lens). Nil = the
   /// whole trip.
   var focusedDay: Int?
+  var tripTimeZone: TimeZone?
+  var onScrolledPastHeader: ((Bool) -> Void)?
   @State private var selectedCalendarConstraint: CalendarTripConstraint?
   @State private var pendingStopRemoval: PendingStopRemoval?
   /// The first placement on the live day should *already be there* rather than
@@ -39,6 +41,11 @@ struct TripItineraryView: View {
   var body: some View {
     ScrollViewReader { proxy in
       content
+        .onScrollGeometryChange(for: Bool.self) { geometry in
+          geometry.contentOffset.y + geometry.contentInsets.top > 40
+        } action: { _, scrolled in
+          onScrolledPastHeader?(scrolled)
+        }
         // Selecting a stop on the map scrolls the matching row into view (the
         // map→list half of the shared selection; list→map is the tap below).
         .onChange(of: model.canvasSelectedStopID) { _, id in
@@ -83,8 +90,8 @@ struct TripItineraryView: View {
     }
   }
 
-  /// One day's stops, for the canvas's day lens. Its header "+" adds straight
-  /// onto this day.
+  /// One day's stops, for the canvas's day lens. Its trailing Add a stop row adds
+  /// straight onto this day.
   private func focusedDayList(_ day: Int) -> some View {
     let plan = model.plan
     let stops = plan.itinerary.first(where: { $0.number == day })?.stops ?? []
@@ -113,11 +120,13 @@ struct TripItineraryView: View {
           .reorderable()
           ForEach(cells.tail) { item in itineraryRow(item, sequence: sequence) }
         }
+        addStopRow(for: day)
       } header: {
         SectionHeader(
           label: dayLabel(day, trip: model.trip),
           day: day,
-          model: model)
+          model: model,
+          tripTimeZone: tripTimeZone)
       }
     }
     // No custom `dragContainer`: `reorderContainer` is already its own drag
@@ -232,8 +241,8 @@ struct TripItineraryView: View {
 
   /// The whole trip: the dayless bucket (only while it holds something — a stop
   /// reaches it by being demoted via `StopMenu`; an empty bucket is just hidden),
-  /// then every day, each section's "+" adding a shortlisted idea straight into
-  /// it. (Dragging stops between days is parked — List drag-and-drop times out on
+  /// then every day, each section's Add a stop row adding a shortlisted idea
+  /// straight into it. (Dragging stops between days is parked — List drag-and-drop times out on
   /// Xcode 27 beta 1; the `StopMenu`'s Move-to-Day / To-Be-Scheduled covers it.
   /// See KNOWN-ISSUES.)
   private var fullItinerary: some View {
@@ -274,15 +283,27 @@ struct TripItineraryView: View {
           } else {
             ForEach(items) { item in itineraryRow(item, sequence: sequence) }
           }
+          addStopRow(for: day.number)
         } header: {
           SectionHeader(
             label: dayLabel(day.number, trip: model.trip),
             day: day.number,
-            model: model)
+            model: model,
+            tripTimeZone: tripTimeZone)
             .id(DayAnchor.day(day.number))
         }
       }
     }
+  }
+
+  private func addStopRow(for day: Int) -> some View {
+    Button {
+      model.addToSectionTapped(day: day)
+    } label: {
+      Icon.add.label("Add a stop")
+        .foregroundStyle(.tint)
+    }
+    .buttonStyle(.plain)
   }
 
   /// Before any stop or region exists, the first thing a planner writes down is the

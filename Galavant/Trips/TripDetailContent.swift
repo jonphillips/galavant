@@ -20,6 +20,19 @@ struct TripDetailContent: View {
   let bookingByRow: [TripBookingRow: ResolvedBooking]
   let usesColumn: Bool
   @Binding var showingChat: Bool
+  @State private var headerCollapsed = false
+  @State private var tripTimeZone: TimeZone?
+
+  private var tripTimeZoneTaskID: String {
+    let regions = model.tripRegionIDs.map(\.uuidString).sorted().joined(separator: ",")
+    let coordinates = model.plan.itinerary.flatMap(\.stops).compactMap { stop in
+      guard let latitude = stop.content.latitude, let longitude = stop.content.longitude else {
+        return nil
+      }
+      return "\(latitude),\(longitude)"
+    }.joined(separator: ";")
+    return "\(model.tripID)-\(model.trip?.startDate?.timeIntervalSince1970 ?? 0)-\(regions)-\(coordinates)"
+  }
 
   var body: some View {
     @Bindable var model = model
@@ -44,6 +57,16 @@ struct TripDetailContent: View {
           }
           .chatPanel(isPresented: $showingChat, context: .trip(model.plan))
       }
+    }
+    .onChange(of: model.sheetTab) { _, tab in
+      if tab == .ideas { headerCollapsed = false }
+    }
+    .task(id: tripTimeZoneTaskID) {
+      guard let trip = model.trip else {
+        tripTimeZone = nil
+        return
+      }
+      tripTimeZone = await reconciliationModel.regionTimeZone(for: trip, plan: model.plan)
     }
   }
 
@@ -126,7 +149,9 @@ struct TripDetailContent: View {
           model: model,
           reconciliationModel: reconciliationModel,
           bookingByRow: bookingByRow,
-          focusedDay: model.canvasSelectedDay
+          focusedDay: model.canvasSelectedDay,
+          tripTimeZone: tripTimeZone,
+          onScrolledPastHeader: { headerCollapsed = $0 }
         )
       case .ideas:
         TripIdeasView(model: model, showsInlineAdd: !usesColumn, usesColumn: usesColumn)
@@ -136,8 +161,9 @@ struct TripDetailContent: View {
       VStack(spacing: 0) {
         // The trip's "romance" header remains part of the planning column, but
         // not the compact in-trip surface where vertical space is scarce.
-        if usesColumn, let header = model.trip?.headerImage {
+        if usesColumn, let header = model.trip?.headerImage, !headerCollapsed {
           TripHeaderImageView(image: header)
+            .transition(.move(edge: .top).combined(with: .opacity))
         }
         // The Itinerary adds from each day's "+"; only Ideas has a tab-wide add.
         if usesColumn, model.sheetTab == .ideas {
@@ -162,8 +188,21 @@ struct TripDetailContent: View {
         .padding(.horizontal)
         .padding(.vertical, 8)
         .background(Color(.systemGroupedBackground))
+        if model.sheetTab == .itinerary,
+          model.trip?.certainty.stage == .dated,
+          let tripTimeZone
+        {
+          let zone = tripTimeZone
+          Text("Times in \(zone.abbreviation(for: model.trip?.startDate ?? .now) ?? zone.identifier)")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, 6)
+            .background(Color(.systemGroupedBackground))
+        }
       }
     }
+    .animation(.easeOut(duration: 0.2), value: headerCollapsed)
   }
 }
 

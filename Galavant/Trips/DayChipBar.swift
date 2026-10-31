@@ -4,8 +4,8 @@ import SwiftUI
 /// The day lens for the trip canvas: a horizontal strip of pills — All, then
 /// Day 1…N — overlaid on the top of the map. Selecting one sets
 /// `model.canvasSelectedDay` (nil = All), which filters the map to that day and
-/// frames its stops. Selecting a day also clears the lodging lens. Each day wears
-/// its `DayPalette` colour so the chip, its pins, and its polyline read as one.
+/// frames its stops. Selecting a day also clears the lodging lens. Day color is
+/// reserved for map pins and routes.
 ///
 /// While the trip is underway the live day reads as **Today** — a named chip in a
 /// strip of dates, ringed even when it isn't the selected one, so "where I am" and
@@ -21,7 +21,6 @@ struct DayChipBar: View {
       HStack(spacing: 8) {
         chip(
           label: "All",
-          color: nil,
           selected: model.canvasSelectedDay == nil && model.canvasSelectedStayID == nil
         ) {
           model.selectCanvasDay(nil)
@@ -31,7 +30,6 @@ struct DayChipBar: View {
           let isLive = day == liveDay
           chip(
             label: isLive ? "Today" : dateLabel,
-            color: DayPalette.color(forDay: day),
             selected: model.canvasSelectedDay == day,
             isLive: isLive
           ) {
@@ -48,16 +46,12 @@ struct DayChipBar: View {
 
   private func chip(
     label: String,
-    color: Color?,
     selected: Bool,
     isLive: Bool = false,
     action: @escaping () -> Void
   ) -> some View {
     Button(action: action) {
       HStack(spacing: 6) {
-        if let color {
-          Circle().fill(color).frame(width: 10, height: 10)
-        }
         Text(label).font(.subheadline.weight(selected || isLive ? .semibold : .regular))
       }
       .padding(.horizontal, 12)

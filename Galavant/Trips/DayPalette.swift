@@ -1,14 +1,12 @@
 import SwiftUI
 
-/// The colour each itinerary day wears on the trip canvas — pins, polylines, and
-/// day chips all draw from this so a day reads as one colour across the map and
-/// the timeline. A fixed, visually-distinct cycle; days past the cycle length
-/// wrap (a trip rarely runs long enough to repeat a neighbour).
+/// Map pin and route colors distinguish itinerary days. Consecutive days contrast
+/// most; days past the cycle length wrap.
 enum DayPalette {
-  /// Distinct hues, deliberately ordered so adjacent days don't collide.
+  /// Ten hues ordered to keep adjacent days visually distinct.
   static let colors: [Color] = [
-    .red, .blue, .green, .orange, .purple,
-    .pink, .teal, .indigo, .brown, .mint,
+    .red, .blue, .orange, .purple, .green,
+    .cyan, .brown, .pink, .indigo, .yellow,
   ]
 
   /// The colour for a 1-based day number. Out-of-range/zero days clamp to the
