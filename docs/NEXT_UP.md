@@ -1,7 +1,7 @@
-# Next Up — Tapping a stay freezes the planning column
+# Next Up — Don't get killed holding the database lock
 
-**Slices:** effort `stay-tap-freeze`
-**Briefs:** [docs/efforts/stay-tap-freeze.md](efforts/stay-tap-freeze.md)
+**Slices:** effort `launch-lock-suspension`
+**Briefs:** [docs/efforts/launch-lock-suspension.md](efforts/launch-lock-suspension.md)
 **Done when:** per the brief
 **Owed:** see [device-passes.md](device-passes.md)
-**Notes:** Confirm the header-collapse loop before fixing it. No schema, sync or contract change. `launch-lock-suspension` is next in the efforts index.
+**Notes:** Read GRDB's `DatabaseSharing` article before writing code. No schema, migration, sync-contract or UI change. The efforts index is empty after this one.
