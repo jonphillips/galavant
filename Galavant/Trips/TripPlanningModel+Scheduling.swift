@@ -251,7 +251,7 @@ extension TripPlanningModel {
   /// regions, no overrides) hides the chip entirely (item 6 of the dogfood brief).
   func showsDayTimeZoneMenu(forDay day: Int) -> Bool {
     guard trip?.certainty.stage == .dated else { return false }
-    return dayTimeZone(forDay: day) != nil || tripRegions.count >= 2
+    return true
   }
 
   /// Commit a stop to the itinerary without a day — it lands in the "To Be

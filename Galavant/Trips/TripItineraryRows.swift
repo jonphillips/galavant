@@ -140,7 +140,7 @@ struct StopRow: View {
     let ring = model.plan.alternatives(forStop: resolved.id)
     let looseRing = ring.map { isLooseAlternativeSlot($0.activeMember.entry.schedule) } ?? false
     let marker: PlanningRowMarker = sequence[resolved.id].map {
-      .sequence($0, DayPalette.color(forDay: resolved.entry.dayNumber ?? 1))
+      .sequence($0, Color(.secondarySystemFill))
     } ?? .kind
     let looseTitle = looseRing
       ? "\(resolved.content.title) · \(ring?.members.count ?? 0) options"
@@ -194,6 +194,18 @@ struct StopRow: View {
           .disabled(!model.canMoveStopLater(resolved))
         }
       }
+      .contextMenu {
+        if resolved.idea != nil {
+          Button("Edit title and details", systemImage: Icon.edit.systemName) {
+            model.editStop(resolved)
+          }
+        } else {
+          Button("Edit custom stop", systemImage: Icon.edit.systemName) {
+            model.editFreeform(resolved)
+          }
+        }
+        StopMenuActions(model: model, stop: resolved, booking: booking)
+      }
       .id(resolved.id)
     }
   }
@@ -215,23 +227,6 @@ struct StopRowAccessory: View {
         }
         BookingStatusGlyph(booking: booking)
         StopMenu(model: model, stop: resolved, booking: booking)
-      }
-      if resolved.idea != nil {
-        HStack(spacing: 14) {
-          Button { model.editStop(resolved) } label: {
-            Icon.edit.image.foregroundStyle(.secondary)
-          }
-          .buttonStyle(.borderless)
-          .accessibilityLabel("Edit title and details")
-        }
-      } else {
-        HStack(spacing: 14) {
-          Button { model.editFreeform(resolved) } label: {
-            Icon.edit.image.foregroundStyle(.secondary)
-          }
-          .buttonStyle(.borderless)
-          .accessibilityLabel("Edit custom stop")
-        }
       }
     }
   }

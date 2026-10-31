@@ -69,7 +69,7 @@ struct TripPlanningView: View {
       // The chat inspector attaches *inside* this container, as a child of the
       // toolbar host — not as a sibling modifier on `layout`. An `.inspector`
       // resolved at the same view as `.toolbar` drops all but one trailing item on
-      // iPad (Recommend silently vanished next to Discuss); nesting it strictly
+      // iPad; nesting it strictly
       // below the toolbar host, as IdeasScreen does, keeps every item.
       // (docs/KNOWN-ISSUES.md)
       tripLayout(bookingRollup: bookingRollup, bookingByRow: bookingByRow, plan: plan)
@@ -78,8 +78,8 @@ struct TripPlanningView: View {
     .navigationBarTitleDisplayMode(.inline)
     // One ToolbarItemGroup, not two ToolbarItems: buried under the presentation
     // hosts' `.sheet` wrappers, the chat `.inspector` merges the trip's toolbar and
-    // keeps only a single *item* — a second `ToolbarItem` (Recommend) silently
-    // vanished. A group is one contribution carrying both buttons, so both survive.
+    // keeps only a single *item*. A group is one contribution, so every trailing
+    // action, including the Hand off menu, survives.
     // (docs/KNOWN-ISSUES.md)
     .toolbar {
       ToolbarItemGroup(placement: .topBarTrailing) {
@@ -128,16 +128,24 @@ struct TripPlanningView: View {
               systemImage: "clock.arrow.trianglehead.2.counterclockwise.rotate.90")
           }
         }
-        Button {
-          model.startRecommendationHandoff()
+        Menu {
+          Button {
+            model.startRecommendationHandoff()
+          } label: {
+            Icon.recommend.label("Hand off")
+          }
+          Button {
+            model.pasteRecommendationClipboard()
+          } label: {
+            Label("Paste", systemImage: "doc.on.clipboard")
+          }
+          Button {
+            showingChat = true
+          } label: {
+            Label("Ask now", systemImage: showingChat ? "checkmark" : "sparkles")
+          }
         } label: {
-          Icon.recommend.label("Recommend")
-        }
-        // Discuss this trip's itinerary with the model (ADR-0017).
-        Button {
-          showingChat = true
-        } label: {
-          Icon.chat.label("Discuss")
+          Icon.handoff.label("Hand off")
         }
       }
     }

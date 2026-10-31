@@ -4,6 +4,7 @@ import GalavantAI
 import GalavantPlaces
 import GalavantSchema
 import SQLiteData
+import UIKit
 
 /// The external-LLM recommendation handoff surface (ADR-0036): export a brief,
 /// paste the round-tripped result back as reviewable candidates, and commit the
@@ -132,6 +133,31 @@ extension TripPlanningModel {
     }
   }
 
+  func pasteRecommendationClipboard() {
+    if case let .recommendationHandoff(presentation)? = destination {
+      pasteRecommendationClipboard(for: presentation.session)
+      return
+    }
+    startRecommendationHandoff()
+    guard case let .recommendationHandoff(presentation)? = destination else { return }
+    pasteRecommendationClipboard(for: presentation.session)
+  }
+
+  func pasteRecommendationClipboard(
+    for session: HandoffSession, seedReviewModel: SeedReviewModel? = nil
+  ) {
+    let clipboard = UIPasteboard.general.string
+    if session.taskType == RecommendationHandoffTask.seedTrip {
+      if let clipboard, !clipboard.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        seedReviewModel?.paste([clipboard], for: session, context: seedPlanContextSnapshot)
+      } else {
+        seedReviewModel?.error = "Clipboard is empty. Copy a trip seed result, then paste it here."
+      }
+    } else {
+      pasteRecommendationResult(clipboard.map { [$0] } ?? [], for: session)
+    }
+  }
+
   private func tasteLines(for trip: Trip) -> [String] {
     guard let partyID = trip.travelPartyID else { return [] }
     return (try? database.read { db in
@@ -145,7 +171,10 @@ extension TripPlanningModel {
   func pasteRecommendationResult(
     _ strings: [String], for session: HandoffSession, seedReviewModel: SeedReviewModel? = nil
   ) {
-    guard let pasted = strings.first else { return }
+    guard let pasted = strings.first, !pasted.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+      recommendationHandoffPaste.warning = "Clipboard is empty. Copy a recommendation result, then paste it here."
+      return
+    }
     if session.taskType == RecommendationHandoffTask.seedTrip {
       seedReviewModel?.paste(strings, for: session, context: seedPlanContextSnapshot)
       return
@@ -198,7 +227,7 @@ extension TripPlanningModel {
       recommendationHandoffPaste.note = decoded.note
       recommendationHandoffPaste.noteSaved = false
     } catch {
-      recommendationHandoffError = error.localizedDescription
+      recommendationHandoffPaste.warning = "This clipboard content could not be imported: \(error.localizedDescription)"
     }
   }
 

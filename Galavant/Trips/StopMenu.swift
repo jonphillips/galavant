@@ -2,11 +2,42 @@ import GalavantSchema
 import SwiftUI
 
 /// The time menu on an itinerary stop: set or move its day, or set its time of day.
-/// Shared by the canvas timeline (one focused day) and the full day-by-day itinerary.
+/// The same actions are available from the row's context menu.
 struct StopMenu: View {
   let model: TripPlanningModel
   let stop: ResolvedStop
-  /// Resolved in the one-pass trip rollup that drives the row glyph.
+  let booking: ResolvedBooking?
+
+  private var schedule: Schedule { stop.entry.schedule }
+
+  var body: some View {
+    Menu {
+      StopMenuActions(model: model, stop: stop, booking: booking)
+    } label: {
+      timeLabel
+    }
+  }
+
+  @ViewBuilder private var timeLabel: some View {
+    switch schedule {
+    case .timed:
+      Text(schedule.display)
+        .font(.subheadline.monospaced())
+        .foregroundStyle(.primary)
+        .fixedSize(horizontal: true, vertical: false)
+    case let .daypart(_, part):
+      Text(part.label).font(.subheadline).foregroundStyle(.secondary)
+    case .day:
+      Icon.timeOfDay.image.font(.subheadline).foregroundStyle(.tertiary)
+    case .unscheduled:
+      Icon.timeOfDay.image.font(.subheadline).foregroundStyle(.tertiary)
+    }
+  }
+}
+
+struct StopMenuActions: View {
+  let model: TripPlanningModel
+  let stop: ResolvedStop
   let booking: ResolvedBooking?
 
   private var schedule: Schedule { stop.entry.schedule }
@@ -18,7 +49,7 @@ struct StopMenu: View {
   var body: some View {
     let placed = schedule.dayNumber != nil
     let day = schedule.dayNumber ?? 1
-    Menu {
+    Group {
       if placed, !calendarLinked {
         Menu("Time of Day") {
           Button {
@@ -54,10 +85,6 @@ struct StopMenu: View {
           model.toggleBookingStatus(for: stop)
         }
       }
-      // Non-drag intra-day reorder (ADR-0033 Slice 4). Only a bare `.day` Anytime
-      // stop carries a hand-order (`dayRank`); timed/dayparted stops are pinned by
-      // their schedule, so the affordance appears only for those. Drag-to-reorder
-      // in the day lens proved unreliable, so this is the durable way to reorder.
       if case .day = schedule {
         Divider()
         Button("Move Earlier in Day", systemImage: Icon.moveEarlier.systemName) {
@@ -86,29 +113,6 @@ struct StopMenu: View {
           }
         }
       }
-    } label: {
-      timeLabel
-    }
-  }
-
-  /// The stop's time, in one vocabulary: an exact clock range reads as a hard
-  /// constraint (mono, primary); a daypart is a soft bucket (secondary); a stop
-  /// placed on a day with no time-of-day shows a faint clock affordance to set
-  /// one (the bare-`.day` "Anytime" word is dropped — it was just noise). An
-  /// unplaced stop offers "Set day".
-  @ViewBuilder private var timeLabel: some View {
-    switch schedule {
-    case .timed:
-      Text(schedule.display)
-        .font(.subheadline.monospaced())
-        .foregroundStyle(.primary)
-        .fixedSize(horizontal: true, vertical: false)
-    case let .daypart(_, part):
-      Text(part.label).font(.subheadline).foregroundStyle(.secondary)
-    case .day:
-      Icon.timeOfDay.image.font(.subheadline).foregroundStyle(.tertiary)
-    case .unscheduled:
-      Icon.schedule.label("Set day").font(.subheadline)
     }
   }
 }

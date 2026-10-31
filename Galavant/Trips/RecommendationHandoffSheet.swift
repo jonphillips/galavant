@@ -1,7 +1,6 @@
 import GalavantAI
 import GalavantSchema
 import SwiftUI
-import UIKit
 
 /// The everyday external-LLM door for one recommendation handoff. It intentionally
 /// stops at candidate review; resolution and the ADR-0037 workspace arrive later.
@@ -30,7 +29,7 @@ struct RecommendationHandoffSheet: View {
           RecommendationHandoffDoor(
             copiedBrief: copiedBrief,
             copyBrief: copyBrief,
-            pasteResult: pasteResult,
+            pasteResult: pasteClipboard,
             note: model.recommendationHandoffPaste.note,
             noteSaved: model.recommendationHandoffPaste.noteSaved,
             saveNote: model.saveRecommendationHandoffNote
@@ -92,7 +91,9 @@ struct RecommendationHandoffSheet: View {
     if session.taskType == RecommendationHandoffTask.seedTrip {
       return seedReviewModel?.plan == nil ? "Seed from Conversation" : "Review Trip Seed"
     }
-    return model.recommendationReview.isEmpty ? "Get Recommendations" : "Review Candidates"
+    return model.recommendationReview.isEmpty
+      ? "Hand off · Get Recommendations"
+      : "Hand off · Review Candidates"
   }
 
   private func copyBrief() {
@@ -100,8 +101,8 @@ struct RecommendationHandoffSheet: View {
     copiedBrief = true
   }
 
-  private func pasteResult(_ values: [String]) {
-    model.pasteRecommendationResult(values, for: session, seedReviewModel: seedReviewModel)
+  private func pasteClipboard() {
+    model.pasteRecommendationClipboard(for: session, seedReviewModel: seedReviewModel)
   }
 
   private var activeError: String? {
@@ -380,7 +381,7 @@ private struct SeedReviewSheet: View {
 private struct RecommendationHandoffDoor: View {
   let copiedBrief: Bool
   let copyBrief: () -> Void
-  let pasteResult: ([String]) -> Void
+  let pasteResult: () -> Void
   let note: String?
   let noteSaved: Bool
   let saveNote: () -> Void
@@ -412,8 +413,11 @@ private struct RecommendationHandoffDoor: View {
         }
         .buttonStyle(.borderedProminent)
 
-        PasteButton(payloadType: String.self, onPaste: pasteResult)
-          .labelStyle(.titleAndIcon)
+        Button(action: pasteResult) {
+          Label("Paste", systemImage: "doc.on.clipboard")
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
       }
       .padding()
       .background(.bar)
