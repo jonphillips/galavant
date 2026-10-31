@@ -1,5 +1,7 @@
-# Next Up — Nothing dispatched
+# Next Up — Tapping a stay freezes the planning column
 
-Nothing dispatched.
-
-**Owed:** Production cutover Phase 6's M5 gate (Wendy), planning-chrome iPad verification, and stay-grouped day lens iPad review; see `device-passes.md`.
+**Slices:** effort `stay-tap-freeze`
+**Briefs:** [docs/efforts/stay-tap-freeze.md](efforts/stay-tap-freeze.md)
+**Done when:** per the brief
+**Owed:** see [device-passes.md](device-passes.md)
+**Notes:** Confirm the header-collapse loop before fixing it. No schema, sync or contract change. `launch-lock-suspension` is next in the efforts index.
