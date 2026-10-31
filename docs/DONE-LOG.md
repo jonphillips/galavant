@@ -3,6 +3,21 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## Stay-tap freeze (`effort/stay-tap-freeze-probe`) — 2026-10-31
+
+- Tapping a stay label on iPad no longer freezes the planning column. A temporary probe confirmed
+  the loop before the fix: 59 offset samples alternating 0.0 ↔ 318.5, 59 header-state transitions,
+  and 90 SwiftUI observation-feedback warnings. The hero image now sits above the itinerary list,
+  outside its `safeAreaInset`, so hiding it can't change the scroll measurement. The collapse rule
+  `TripHeaderCollapse.next` adds hysteresis: collapse past 40 pt, expand only at the top. The
+  time-zone task keys on `TripPlan.scheduledStopCoordinates` instead of rebuilding the itinerary on
+  every body pass, and the centroid reads the same list. No schema, sync or contract change.
+- **Verification.** `scripts/check-drift.sh` passed; headless `GalavantTests` passed 48 tests,
+  including the hysteresis tests. The architect ran `TripPlanTests` on `490627e`: 41 passed, including
+  `scheduledStopCoordinatesMatchResolvedPlacedItineraryStops`. The iPad/iPhone stay-tap check and
+  the § 4 capsule styling check remain in `device-passes.md`. The architect wrote this handoff at
+  Jon's request after PR 193 merged.
+
 ## Stay-grouped day lens (`effort/stay-grouped-day-lens`) — 2026-10-31
 
 - The canvas now has one lens strip: stay labels group the days slept there, and day labels remain
