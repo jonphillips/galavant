@@ -42,6 +42,7 @@
 		3E3D5D4D88C8064A2EBEDD04 /* WeatherKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D40170C4D56FC7F76E1992FF /* WeatherKit.framework */; };
 		3E5E8AEE7E095AEC4C47F3EE /* SwiftUINavigation in Frameworks */ = {isa = PBXBuildFile; productRef = A0C2774E35241633FE89B7A7 /* SwiftUINavigation */; };
 		3EDB2F53DE374A714AA098AC /* AppRouterRestoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEB9FE1134450C94085E1FB2 /* AppRouterRestoreTests.swift */; };
+		407B199EC388C21756846793 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 43C9DB72ED6526F651BBDC72 /* AppIcon.icon */; };
 		41630279DF880FB556B178CF /* StopMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = B15DFF6883F3077AA8D6C591 /* StopMenu.swift */; };
 		4171E2BF905DAB98B77389EB /* CertaintyStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DD1C2B139D03095F082D99E /* CertaintyStyle.swift */; };
 		42B830C11BA948FC11994428 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE86BAB449019EA409EB6C42 /* TodayView.swift */; };
@@ -270,6 +271,7 @@
 		3F02C470667EF6E9AC8AC761 /* IdeaDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaDetailView.swift; sourceTree = "<group>"; };
 		409050F2DDFD762C631818CF /* IdeaCoordinate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaCoordinate.swift; sourceTree = "<group>"; };
 		43AABFB8B03E2303AECAF355 /* GalavantApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GalavantApp.swift; sourceTree = "<group>"; };
+		43C9DB72ED6526F651BBDC72 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		43D5D11997CB5E747A590622 /* CaptureExtraction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureExtraction.swift; sourceTree = "<group>"; };
 		4784A4E4DDB7356EEF63A970 /* Binding+Present.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Binding+Present.swift"; sourceTree = "<group>"; };
 		47B9767D73E65C3D4D10CC30 /* TripPlanningModel+Recommendation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripPlanningModel+Recommendation.swift"; sourceTree = "<group>"; };
@@ -691,6 +693,7 @@
 		BDAA34A104A70523CB975F25 /* Galavant */ = {
 			isa = PBXGroup;
 			children = (
+				43C9DB72ED6526F651BBDC72 /* AppIcon.icon */,
 				080E46AACA8A4087FB22F116 /* Assets.xcassets */,
 				2CD37357C07AFC3DAE3CDAE7 /* DemoFixtures.swift */,
 				5BC85EBD5FC9820953D4ED04 /* DeviceLocationModel.swift */,
@@ -954,6 +957,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				407B199EC388C21756846793 /* AppIcon.icon in Resources */,
 				A784199C3F004D6FA2D80B05 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
