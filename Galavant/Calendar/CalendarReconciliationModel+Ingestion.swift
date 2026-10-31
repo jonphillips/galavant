@@ -153,15 +153,10 @@ extension CalendarReconciliationModel {
       return await placeMatcher.timeZone(
         latitude: box.centerLatitude, longitude: box.centerLongitude)
     }
-    let coordinates: [(latitude: Double, longitude: Double)] = plan?.itinerary.flatMap(\.stops).compactMap {
-      guard let latitude = $0.content.latitude, let longitude = $0.content.longitude else {
-        return nil
-      }
-      return (latitude: latitude, longitude: longitude)
-    } ?? []
+    let coordinates = plan?.scheduledStopCoordinates ?? []
     guard !coordinates.isEmpty else { return nil }
-    let latitude = coordinates.map(\.0).reduce(0, +) / Double(coordinates.count)
-    let longitude = coordinates.map(\.1).reduce(0, +) / Double(coordinates.count)
+    let latitude = coordinates.map(\.latitude).reduce(0, +) / Double(coordinates.count)
+    let longitude = coordinates.map(\.longitude).reduce(0, +) / Double(coordinates.count)
     return await placeMatcher.timeZone(latitude: latitude, longitude: longitude)
   }
 

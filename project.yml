@@ -40,6 +40,9 @@ packages:
   swift-sharing:
     url: https://github.com/pointfreeco/swift-sharing
     from: 2.0.0
+  swift-custom-dump:
+    url: https://github.com/pointfreeco/swift-custom-dump
+    from: 1.0.0
 targets:
   Galavant:
     type: application
@@ -224,6 +227,8 @@ targets:
       - target: Galavant
       - package: swift-dependencies
         product: DependenciesTestSupport
+      - package: swift-custom-dump
+        product: CustomDump
 schemes:
   Galavant:
     build:
