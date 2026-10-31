@@ -90,6 +90,20 @@ public struct ResolvedStay: Identifiable, Equatable, Sendable {
   }
 }
 
+/// A contiguous run of canvas days owned by the same stay, or without a stay.
+/// The first day is the stable identity, including when overlaps split one stay
+/// into two separate groups.
+public struct StayDayGroup: Identifiable, Equatable, Sendable {
+  public let stay: ResolvedStay?
+  public fileprivate(set) var days: [Int]
+  public var id: Int { days[0] }
+
+  fileprivate init(stay: ResolvedStay?, days: [Int]) {
+    self.stay = stay
+    self.days = days
+  }
+}
+
 /// One itinerary day with its resolved stops, pre-ordered (see `TripPlan`).
 public struct ResolvedDay: Identifiable, Equatable, Sendable {
   public var number: Int
@@ -389,18 +403,44 @@ public struct TripPlan: Equatable, Sendable {
   /// On the final trip day, when there is no night, the checkout stay owns it.
   /// If overlapping stays claim the same night, the later check-in wins.
   public func stayID(owningDay day: Int) -> TripStay.ID? {
-    guard day >= 1, day <= lengthInDays else { return nil }
+    Self.stayID(owningDay: day, lengthInDays: lengthInDays, stays: stays)
+  }
 
-    let resolved = stays
-    if day == lengthInDays {
-      return resolved
-        .filter { $0.stay.checkOutDay == day }
-        .max { $0.stay.checkInDay < $1.stay.checkInDay }?
-        .id
+  /// The contiguous day groups rendered by the canvas lens. Resolves and sorts
+  /// stays once, then assigns the entire trip in one pass.
+  public func stayDayGroups() -> [StayDayGroup] {
+    guard lengthInDays > 0 else { return [] }
+    let resolvedStays = stays
+    var groups: [StayDayGroup] = []
+
+    for day in 1...lengthInDays {
+      let stayID = Self.stayID(owningDay: day, lengthInDays: lengthInDays, stays: resolvedStays)
+      let stay = stayID.flatMap { id in resolvedStays.first { $0.id == id } }
+      if let last = groups.indices.last, groups[last].stay?.id == stay?.id {
+        groups[last].days.append(day)
+      } else {
+        groups.append(StayDayGroup(stay: stay, days: [day]))
+      }
     }
 
-    return resolved
+    return groups
+  }
+
+  private static func stayID(
+    owningDay day: Int,
+    lengthInDays: Int,
+    stays: [ResolvedStay]
+  ) -> TripStay.ID? {
+    guard day >= 1, day <= lengthInDays else { return nil }
+
+    let overnightStay = stays
       .filter { $0.stay.nights.contains(day) }
+      .max { $0.stay.checkInDay < $1.stay.checkInDay }
+    if let overnightStay { return overnightStay.id }
+
+    guard day == lengthInDays else { return nil }
+    return stays
+      .filter { $0.stay.checkOutDay == day }
       .max { $0.stay.checkInDay < $1.stay.checkInDay }?
       .id
   }

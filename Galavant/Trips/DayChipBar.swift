@@ -2,28 +2,14 @@ import GalavantSchema
 import SwiftUI
 
 /// One horizontal lens strip: All, then day groups labeled by the stay slept in
-/// that night. Day color remains reserved for map pins and routes.
+/// that night. The live day reads as Today and keeps its ring even when it isn't
+/// selected, so the user's position stays distinct from the chosen lens. Day
+/// color remains reserved for map pins and routes.
 struct DayChipBar: View {
   let model: TripPlanningModel
   let bookingByRow: [TripBookingRow: ResolvedBooking]
 
-  private var dayCount: Int { max(1, model.trip?.lengthInDays ?? 1) }
-
-  private var groups: [CanvasDayGroup] {
-    let plan = model.plan
-    var groups: [CanvasDayGroup] = []
-    for day in 1...dayCount {
-      let stay = plan.stayID(owningDay: day).flatMap { id in
-        plan.stays.first { $0.id == id }
-      }
-      if groups.last?.stay?.id == stay?.id, !groups.isEmpty {
-        groups[groups.count - 1].days.append(day)
-      } else {
-        groups.append(CanvasDayGroup(stay: stay, days: [day]))
-      }
-    }
-    return groups
-  }
+  private var groups: [StayDayGroup] { model.plan.stayDayGroups() }
 
   var body: some View {
     let liveDay = model.liveDay
@@ -48,6 +34,7 @@ struct DayChipBar: View {
             }
             ForEach(group.days, id: \.self) { day in
               let dateLabel = dayChipLabel(day, trip: model.trip)
+              let fullLabel = dayAccessibilityLabel(day, trip: model.trip)
               let isLive = day == liveDay
               chip(
                 label: isLive ? "Today" : dateLabel,
@@ -56,7 +43,7 @@ struct DayChipBar: View {
               ) {
                 model.selectCanvasDay(day)
               }
-              .accessibilityLabel(dayAccessibilityLabel(day, trip: model.trip))
+              .accessibilityLabel(isLive ? "Today, \(fullLabel)" : fullLabel)
             }
           }
           if group.id != groups.last?.id {
@@ -131,10 +118,4 @@ struct DayChipBar: View {
     }
     .buttonStyle(.plain)
   }
-}
-
-private struct CanvasDayGroup: Identifiable {
-  var stay: ResolvedStay?
-  var days: [Int]
-  var id: String { stay.map { "stay-\($0.id)" } ?? "unstayed-\(days[0])" }
 }

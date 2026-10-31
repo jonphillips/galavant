@@ -10,8 +10,8 @@ History, newest first. The PR that completes a dispatch adds its entry naming it
   lodging strip is removed. Day ownership is a pure `TripPlan` projection, including move days,
   checkout day, and overlapping stays. No schema or migration changed.
 - **Verification.** `scripts/check-drift.sh` passed SwiftLint (0 violations), all GalavantLibrary
-  suites (609 tests, 9 known issues), and the GalavantUITests build. The focused TripStay suite
-  passed 40 tests with 1 known issue. The grouped-lens iPad review remains in `device-passes.md`;
+  suites (613 tests, 9 known issues), and the GalavantUITests build. The focused TripStay suite
+  passed 44 tests with 1 known issue. The grouped-lens iPad review remains in `device-passes.md`;
   the repo verification rule reserves device screenshots and walkthroughs for Jon.
 
 ## Planning chrome alignment (`effort/planning-chrome-alignment`) — 2026-10-31

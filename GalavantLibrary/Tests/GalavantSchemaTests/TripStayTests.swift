@@ -177,6 +177,41 @@ import Testing
     #expect(p.stayID(owningDay: 2) == b.id)
   }
 
+  @Test func stayDayGroupsCombineContiguousDaysWithOneOwner() {
+    let a = stay(title: "A", checkIn: 1, checkOut: 3)
+    let b = stay(title: "B", checkIn: 3, checkOut: 5)
+    let groups = plan(stays: [a, b], ideas: []).stayDayGroups()
+
+    #expect(groups.map(\.days) == [[1, 2], [3, 4, 5]])
+    #expect(groups.map { $0.stay?.id } == [a.id, b.id])
+  }
+
+  @Test func stayDayGroupsKeepArrivalAndMiddleDaysUnstayed() {
+    let a = stay(title: "A", checkIn: 2, checkOut: 3)
+    let b = stay(title: "B", checkIn: 4, checkOut: 5)
+    let groups = plan(stays: [a, b], ideas: []).stayDayGroups()
+
+    #expect(groups.map(\.days) == [[1], [2], [3], [4, 5]])
+    #expect(groups.map { $0.stay?.id } == [nil, a.id, nil, b.id])
+  }
+
+  @Test func overlappingStayGroupsCanSplitWithDistinctStableIDs() {
+    let a = stay(title: "A", checkIn: 1, checkOut: 6)
+    let b = stay(title: "B", checkIn: 3, checkOut: 4)
+    let groups = plan(stays: [a, b], ideas: [], lengthInDays: 6).stayDayGroups()
+
+    #expect(groups.map(\.days) == [[1, 2], [3], [4, 5, 6]])
+    #expect(groups.map(\.id) == [1, 3, 4])
+    #expect(groups.map { $0.stay?.id } == [a.id, b.id, a.id])
+  }
+
+  @Test func finalDayUsesAnOvernightStayBeforeCheckoutFallback() {
+    let a = stay(title: "A", checkIn: 1, checkOut: 7)
+    let p = plan(stays: [a], ideas: [], lengthInDays: 5)
+
+    #expect(p.stayID(owningDay: 5) == a.id)
+  }
+
   @Test func freeformStayResolvesWithoutCoordinate() {
     let s = stay(title: "Airbnb — conf #1234", checkIn: 1, checkOut: 3)
     let p = plan(stays: [s], ideas: [])
