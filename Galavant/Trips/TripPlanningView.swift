@@ -2,6 +2,7 @@ import GalavantChat
 import GalavantSchema
 import SwiftUI
 import SwiftUINavigation
+import UIKit
 
 /// One trip's planning surface, map-first (M3d, docs/trip-canvas.md): the home is
 /// the **canvas** — a map of the scheduled stops with day chips on top. The list
@@ -135,14 +136,14 @@ struct TripPlanningView: View {
             Icon.recommend.label("Hand off")
           }
           Button {
-            model.pasteRecommendationClipboard()
+            pasteRecommendationFromClipboard()
           } label: {
-            Label("Paste", systemImage: "doc.on.clipboard")
+            Icon.paste.label("Paste")
           }
           Button {
-            showingChat = true
+            showingChat.toggle()
           } label: {
-            Label("Ask now", systemImage: showingChat ? "checkmark" : "sparkles")
+            Label("Ask now", systemImage: showingChat ? Icon.checkmark.systemName : Icon.recommend.systemName)
           }
         } label: {
           Icon.handoff.label("Hand off")
@@ -185,6 +186,17 @@ struct TripPlanningView: View {
   private func handleCanvasSelection(_ id: TripIdea.ID?) {
     guard id != nil, model.sheetTab == .itinerary else { return }
     if !usesColumn, sheetDetent == Self.peek { sheetDetent = .medium }
+  }
+
+  private func pasteRecommendationFromClipboard() {
+    let pasted = UIPasteboard.general.string
+    if case let .recommendationHandoff(presentation)? = model.destination {
+      model.pasteRecommendationResult(pasted, for: presentation.session)
+      return
+    }
+    model.startRecommendationHandoff()
+    guard case let .recommendationHandoff(presentation)? = model.destination else { return }
+    model.pasteRecommendationResult(pasted, for: presentation.session)
   }
 
   /// The iPhone itinerary is already a presentation. Dismiss it before asking

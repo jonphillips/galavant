@@ -4,7 +4,7 @@ struct SectionHeader: View {
   let label: String
   let day: Int?
   let model: TripPlanningModel
-  var tripTimeZone: TimeZone = CalendarReconciliationModel.storageTimeZone
+  var tripTimeZone: TimeZone?
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
@@ -74,7 +74,7 @@ struct DayRegionMenu: View {
       HStack(spacing: 5) {
         Icon.map.image.imageScale(.medium)
         Text(assigned?.name ?? "Set region").lineLimit(1)
-        Image(systemName: "chevron.down").font(.caption2)
+        Icon.menuDisclosure.image.font(.caption2)
       }
       .font(.subheadline)
       .foregroundStyle(assigned == nil ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
@@ -89,20 +89,22 @@ struct DayRegionMenu: View {
 struct DayTimeZoneMenu: View {
   let day: Int
   let model: TripPlanningModel
-  var defaultZone: TimeZone = CalendarReconciliationModel.storageTimeZone
+  var defaultZone: TimeZone?
 
   var body: some View {
     let assigned = model.dayTimeZone(forDay: day)
-    let defaultAbbreviation = defaultZone.abbreviation(for: model.trip?.date(forDay: day) ?? .now)
-      ?? defaultZone.identifier
+    let defaultAbbreviation = defaultZone?.abbreviation(for: model.trip?.date(forDay: day) ?? .now)
+      ?? defaultZone?.identifier
     return Menu {
       Button {
         model.setDayTimeZone(nil, forDay: day)
       } label: {
-        if assigned == nil {
+        if assigned == nil, let defaultAbbreviation {
           Label("Trip default (\(defaultAbbreviation))", systemImage: Icon.checkmark.systemName)
+        } else if assigned == nil {
+          Icon.checkmark.label("Trip default")
         } else {
-          Text("Trip default (\(defaultAbbreviation))")
+          Text(defaultAbbreviation.map { "Trip default (\($0))" } ?? "Trip default")
         }
       }
       Divider()
@@ -111,7 +113,7 @@ struct DayTimeZoneMenu: View {
           model.setDayTimeZone(identifier, forDay: day)
         } label: {
           if identifier == assigned?.identifier {
-            Label(identifier, systemImage: "checkmark")
+            Label(identifier, systemImage: Icon.checkmark.systemName)
           } else {
             Text(identifier)
           }
@@ -119,12 +121,12 @@ struct DayTimeZoneMenu: View {
       }
     } label: {
       HStack(spacing: 5) {
-        Image(systemName: "clock")
+        Icon.timeOfDay.image
         if let assigned {
           Text(assigned.abbreviation(for: model.trip?.date(forDay: day) ?? .now) ?? assigned.identifier)
             .lineLimit(1)
         }
-        Image(systemName: "chevron.down").font(.caption2)
+        Icon.menuDisclosure.image.font(.caption2)
       }
       .font(.subheadline)
       .foregroundStyle(assigned == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tint))

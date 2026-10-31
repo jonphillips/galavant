@@ -25,7 +25,13 @@ struct TripDetailContent: View {
 
   private var tripTimeZoneTaskID: String {
     let regions = model.tripRegionIDs.map(\.uuidString).sorted().joined(separator: ",")
-    return "\(model.tripID)-\(model.trip?.startDate?.timeIntervalSince1970 ?? 0)-\(regions)"
+    let coordinates = model.plan.itinerary.flatMap(\.stops).compactMap { stop in
+      guard let latitude = stop.content.latitude, let longitude = stop.content.longitude else {
+        return nil
+      }
+      return "\(latitude),\(longitude)"
+    }.joined(separator: ";")
+    return "\(model.tripID)-\(model.trip?.startDate?.timeIntervalSince1970 ?? 0)-\(regions)-\(coordinates)"
   }
 
   var body: some View {
@@ -144,7 +150,7 @@ struct TripDetailContent: View {
           reconciliationModel: reconciliationModel,
           bookingByRow: bookingByRow,
           focusedDay: model.canvasSelectedDay,
-          tripTimeZone: tripTimeZone ?? CalendarReconciliationModel.storageTimeZone,
+          tripTimeZone: tripTimeZone,
           onScrolledPastHeader: { headerCollapsed = $0 }
         )
       case .ideas:
@@ -155,9 +161,9 @@ struct TripDetailContent: View {
       VStack(spacing: 0) {
         // The trip's "romance" header remains part of the planning column, but
         // not the compact in-trip surface where vertical space is scarce.
-        if usesColumn, let header = model.trip?.headerImage {
-          TripHeaderImageView(image: header, height: headerCollapsed ? 0 : nil)
-            .animation(.easeOut(duration: 0.2), value: headerCollapsed)
+        if usesColumn, let header = model.trip?.headerImage, !headerCollapsed {
+          TripHeaderImageView(image: header)
+            .transition(.move(edge: .top).combined(with: .opacity))
         }
         // The Itinerary adds from each day's "+"; only Ideas has a tab-wide add.
         if usesColumn, model.sheetTab == .ideas {
@@ -182,8 +188,11 @@ struct TripDetailContent: View {
         .padding(.horizontal)
         .padding(.vertical, 8)
         .background(Color(.systemGroupedBackground))
-        if model.trip?.certainty.stage == .dated {
-          let zone = tripTimeZone ?? CalendarReconciliationModel.storageTimeZone
+        if model.sheetTab == .itinerary,
+          model.trip?.certainty.stage == .dated,
+          let tripTimeZone
+        {
+          let zone = tripTimeZone
           Text("Times in \(zone.abbreviation(for: model.trip?.startDate ?? .now) ?? zone.identifier)")
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -193,6 +202,7 @@ struct TripDetailContent: View {
         }
       }
     }
+    .animation(.easeOut(duration: 0.2), value: headerCollapsed)
   }
 }
 

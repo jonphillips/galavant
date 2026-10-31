@@ -3,6 +3,16 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## Planning chrome alignment (`effort/planning-chrome-alignment`) — 2026-10-31
+
+- Trip planning now uses one Hand off menu, map-only day colors, quieter day headers and stop rows,
+  and a collapsing itinerary hero image. Empty and invalid recommendation pastes surface warnings;
+  their UI actions read the clipboard and pass text into the model. No schema or scheduling
+  semantics changed. The iPad verification moved to `device-passes.md` per architect review.
+- **Verification.** `scripts/check-drift.sh` passed SwiftLint, all GalavantLibrary suites, and the
+  GalavantUITests build. Headless `GalavantTests` passed 45 tests after adding empty and invalid
+  clipboard coverage. UI tests were compiled and linked but not run.
+
 ## iCloud identity readout (`effort/adr-0051-s0-identity-readout`) — 2026-10-30
 
 - Settings → Planners now shows this device's CloudKit user record name and the travel-party share participants' identity, role, permission, and acceptance details. Refresh reads the current share from the correct private or shared database, falling back to SQLiteData's stored share copy when CloudKit fetch fails; Copy exports the full readout. The feature performs no writes and adds no schema or migration.

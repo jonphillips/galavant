@@ -13,7 +13,7 @@ struct TripItineraryView: View {
   /// When set, render only this day's stops (the canvas day lens). Nil = the
   /// whole trip.
   var focusedDay: Int?
-  var tripTimeZone: TimeZone = CalendarReconciliationModel.storageTimeZone
+  var tripTimeZone: TimeZone?
   var onScrolledPastHeader: ((Bool) -> Void)?
   @State private var selectedCalendarConstraint: CalendarTripConstraint?
   @State private var pendingStopRemoval: PendingStopRemoval?
@@ -42,7 +42,7 @@ struct TripItineraryView: View {
     ScrollViewReader { proxy in
       content
         .onScrollGeometryChange(for: Bool.self) { geometry in
-          geometry.contentOffset.y > 40
+          geometry.contentOffset.y + geometry.contentInsets.top > 40
         } action: { _, scrolled in
           onScrolledPastHeader?(scrolled)
         }

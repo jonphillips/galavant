@@ -102,7 +102,8 @@ struct RecommendationHandoffSheet: View {
   }
 
   private func pasteClipboard() {
-    model.pasteRecommendationClipboard(for: session, seedReviewModel: seedReviewModel)
+    let pasted = UIPasteboard.general.string
+    model.pasteRecommendationResult(pasted, for: session, seedReviewModel: seedReviewModel)
   }
 
   private var activeError: String? {
@@ -414,7 +415,7 @@ private struct RecommendationHandoffDoor: View {
         .buttonStyle(.borderedProminent)
 
         Button(action: pasteResult) {
-          Label("Paste", systemImage: "doc.on.clipboard")
+          Icon.paste.label("Paste")
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.bordered)

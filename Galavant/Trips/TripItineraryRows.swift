@@ -140,7 +140,7 @@ struct StopRow: View {
     let ring = model.plan.alternatives(forStop: resolved.id)
     let looseRing = ring.map { isLooseAlternativeSlot($0.activeMember.entry.schedule) } ?? false
     let marker: PlanningRowMarker = sequence[resolved.id].map {
-      .sequence($0, Color(.secondarySystemFill))
+      .sequence($0)
     } ?? .kind
     let looseTitle = looseRing
       ? "\(resolved.content.title) · \(ring?.members.count ?? 0) options"

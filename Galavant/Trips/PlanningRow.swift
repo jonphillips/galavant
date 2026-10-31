@@ -4,13 +4,12 @@ import UIKit
 
 /// The leading glyph a `PlanningRow` shows. `.kind` (the default) is the idea's
 /// category icon — what every pool/shortlist/Add-Ideas row wears. `.sequence`
-/// draws a day-coloured `SequencePin`, used only by the day-itinerary timeline so
-/// a located stop's row number matches its map pin (the unlocated rows there stay
-/// on `.kind`, since they have no pin).
+/// draws a neutral `SequencePin` in the day-itinerary timeline. Map pins retain
+/// day colors.
 enum PlanningRowMarker {
   case kind
   case image(Data?)
-  case sequence(Int, Color)
+  case sequence(Int)
 }
 
 /// A planning-screen row: a leading marker, a name/subtitle, and a caller-supplied
@@ -119,9 +118,9 @@ struct PlanningRow<Trailing: View>: View {
           .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
           .accessibilityHidden(true)
       }
-    case let .sequence(number, color):
+    case let .sequence(number):
       VStack(spacing: 3) {
-        SequencePin(number: number, color: color)
+        SequencePin(number: number, color: .clear, style: .neutral)
         if let symbol = content.idea?.kind?.systemImage {
           Image(systemName: symbol)
             .font(.caption2)

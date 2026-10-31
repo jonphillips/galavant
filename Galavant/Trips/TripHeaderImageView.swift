@@ -8,7 +8,6 @@ import SwiftUI
 /// Unsplash" — as real, UTM-tagged links, per the API guidelines.
 struct TripHeaderImageView: View {
   let image: TripHeaderImage
-  var height: CGFloat? = nil
 
   private static let height: CGFloat = 160
 
@@ -18,7 +17,7 @@ struct TripHeaderImageView: View {
 
   var body: some View {
     Color.clear
-    .frame(height: height ?? Self.height)
+    .frame(height: Self.height)
     .frame(maxWidth: .infinity)
     .background { placeholder.allowsHitTesting(false) }
     .overlay {

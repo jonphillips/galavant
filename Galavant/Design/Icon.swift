@@ -19,6 +19,7 @@ enum Icon {
   // Status / controls
   case checkmark      // selected / confirmed
   case disclosure     // row chevron
+  case menuDisclosure // opens a menu
   case filterActive   // filter control, engaged
   case manage         // manage / adjust (regions, tags)
   case tagPicker      // open the multi-select tag picker
@@ -31,6 +32,7 @@ enum Icon {
   case chat           // open the context-aware chat panel (ADR-0017)
   case recommend      // external recommendation handoff (ADR-0036)
   case handoff        // open the recommendation handoff menu
+  case paste          // paste text from the clipboard
   case journey        // whole-trip anticipation surface
   case alternatives   // an itinerary slot with interchangeable options (ADR-0035)
   case cycleAlternative // rotate the active option in an alternatives ring (ADR-0035)
@@ -83,6 +85,7 @@ enum Icon {
     case .revert: "arrow.uturn.backward"
     case .checkmark: "checkmark"
     case .disclosure: "chevron.right"
+    case .menuDisclosure: "chevron.down"
     case .filterActive: "line.3.horizontal.decrease.circle.fill"
     case .manage: "slider.horizontal.3"
     case .tagPicker: "checklist"
@@ -122,6 +125,7 @@ enum Icon {
     case .chat: "bubble.left.and.text.bubble.right"
     case .recommend: "sparkles"
     case .handoff: "sparkles.square.filled.on.square"
+    case .paste: "doc.on.clipboard"
     case .journey: "map"
     case .alternatives: "arrow.triangle.2.circlepath"
     case .cycleAlternative: "arrow.triangle.2.circlepath"

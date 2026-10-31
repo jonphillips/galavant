@@ -86,6 +86,9 @@ struct StopMenuActions: View {
         }
       }
       if case .day = schedule {
+        // Non-drag intra-day reorder (ADR-0033 Slice 4). Only a bare `.day`
+        // Anytime stop carries a hand-order; timed/dayparted stops are pinned by
+        // their schedule. This remains the reliable reorder path for those stops.
         Divider()
         Button("Move Earlier in Day", systemImage: Icon.moveEarlier.systemName) {
           model.moveStopEarlier(stop)
