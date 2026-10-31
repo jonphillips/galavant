@@ -297,15 +297,14 @@ struct TripPlanningView: View {
   /// The map plus its lodging/day lens strips — the left/full-bleed surface in both
   /// layouts.
   private func canvas(bookingByRow: [TripBookingRow: ResolvedBooking]) -> some View {
-    // Day chips sit in a real VStack row ABOVE the map, not a `.safeAreaInset` or
+    // Day lenses sit in a real VStack row ABOVE the map, not a `.safeAreaInset` or
     // `.overlay` over it. MapKit's `Map` ignores a layout inset and draws its
     // interactive surface full-bleed under the chips, and its tap recognizer then
     // eats the chip taps (drags still scroll — only the discrete tap is lost). A
     // stacked row gives the map a bounded frame it can't reach past, so the chips
     // stay tappable. (docs/KNOWN-ISSUES.md)
     VStack(spacing: 0) {
-      LodgingCapsuleBar(model: model, bookingByRow: bookingByRow)
-      DayChipBar(model: model)
+      DayChipBar(model: model, bookingByRow: bookingByRow)
       TripCanvasMapView(model: model, bottomInsetFraction: bottomInsetFraction)
     }
   }

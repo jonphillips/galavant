@@ -147,6 +147,36 @@ import Testing
     #expect(p.stays(coveringDay: 4).map(\.id) == [b.id])
   }
 
+  @Test func canvasDayBelongsToStaySleptInThatNightOnMoveDay() {
+    let a = stay(title: "A", checkIn: 1, checkOut: 3)
+    let b = stay(title: "B", checkIn: 3, checkOut: 5)
+    let p = plan(stays: [a, b], ideas: [])
+
+    #expect(p.stayID(owningDay: 3) == b.id)
+  }
+
+  @Test func finalCanvasDayBelongsToTheStayCheckedOutOf() {
+    let a = stay(title: "A", checkIn: 1, checkOut: 5)
+    let p = plan(stays: [a], ideas: [], lengthInDays: 5)
+
+    #expect(p.stayID(owningDay: 5) == a.id)
+  }
+
+  @Test func canvasDayWithoutAStayIsUnowned() {
+    let a = stay(title: "A", checkIn: 2, checkOut: 4)
+    let p = plan(stays: [a], ideas: [])
+
+    #expect(p.stayID(owningDay: 1) == nil)
+  }
+
+  @Test func laterCheckInWinsWhenStaysOverlapThatNight() {
+    let a = stay(title: "A", checkIn: 1, checkOut: 4)
+    let b = stay(title: "B", checkIn: 2, checkOut: 5)
+    let p = plan(stays: [a, b], ideas: [])
+
+    #expect(p.stayID(owningDay: 2) == b.id)
+  }
+
   @Test func freeformStayResolvesWithoutCoordinate() {
     let s = stay(title: "Airbnb — conf #1234", checkIn: 1, checkOut: 3)
     let p = plan(stays: [s], ideas: [])

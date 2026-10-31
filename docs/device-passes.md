@@ -31,6 +31,9 @@ reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT
   readable. Scroll the itinerary: the hero image and its photo credit collapse together and come back
   at the top. This replaces the brief's simulator-screenshot criteria, which were struck in the PR 189
   review.
+- **Stay-grouped day lens (iPad):** on the Eastern France trip, check the one-strip layout and
+  stay/day grouping; repeat on a trip with an unstayed arrival day. Confirm stay and day selection
+  filter the canvas as expected and VoiceOver announces the full stay and date labels.
 - **Travel profile on TestFlight:** edit the profile on one device and confirm it reaches the other;
   then run Discuss and a recommendation brief and confirm the taste lines are in the prompt.
 - Move a linked trip event to another trip day in Calendar, run Reconcile Calendar, and confirm it

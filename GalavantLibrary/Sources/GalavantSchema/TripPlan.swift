@@ -385,6 +385,26 @@ public struct TripPlan: Equatable, Sendable {
     stays.filter { $0.stay.covers(day: day) }
   }
 
+  /// The stay that owns a day in the canvas lens: the stay slept in that night.
+  /// On the final trip day, when there is no night, the checkout stay owns it.
+  /// If overlapping stays claim the same night, the later check-in wins.
+  public func stayID(owningDay day: Int) -> TripStay.ID? {
+    guard day >= 1, day <= lengthInDays else { return nil }
+
+    let resolved = stays
+    if day == lengthInDays {
+      return resolved
+        .filter { $0.stay.checkOutDay == day }
+        .max { $0.stay.checkInDay < $1.stay.checkInDay }?
+        .id
+    }
+
+    return resolved
+      .filter { $0.stay.nights.contains(day) }
+      .max { $0.stay.checkInDay < $1.stay.checkInDay }?
+      .id
+  }
+
   /// Stays flagged as overlapping another stay (sharing a night) — advisory only,
   /// surfaced like the gap-conflict family, never blocked (ADR-0011 §6). Computed
   /// over the *resolvable* stays so a dropped orphan never raises a phantom flag.

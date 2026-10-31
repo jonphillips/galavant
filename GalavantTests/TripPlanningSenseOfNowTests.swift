@@ -25,6 +25,19 @@ struct TripPlanningSenseOfNowTests {
     return Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: dayDate)!
   }
 
+  @Test
+  func dayChipLabelsUseWeekdayAndAddMonthAtMonthBoundary() {
+    let startDate = Calendar.current.date(
+      from: DateComponents(year: 2026, month: 5, day: 30))!
+    let trip = Trip(
+      id: UUID(), name: "France", certaintyStage: .dated,
+      startDate: startDate, lengthInDays: 5)
+
+    #expect(dayChipLabel(1, trip: trip) == "Sat 30")
+    #expect(dayChipLabel(3, trip: trip) == "Jun 1")
+    #expect(dayAccessibilityLabel(1, trip: trip) == "Saturday May 30")
+  }
+
   private func makeTrip(startDate: Date?, lengthInDays: Int = 5) async throws -> Trip.ID {
     let tripID = UUID()
     try await database.write { db in
