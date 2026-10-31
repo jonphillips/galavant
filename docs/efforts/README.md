@@ -14,6 +14,8 @@ folder listing and `DONE-LOG.md` cover it. A parked brief also gets a candidate 
 
 | Brief | Implements | Status |
 | --- | --- | --- |
+| [planning-chrome-alignment.md](planning-chrome-alignment.md) | jon-platform `ui-and-platforms.md` § Controls | Ready |
+| [stay-grouped-day-lens.md](stay-grouped-day-lens.md) | jon-platform `ui-and-platforms.md` § Controls | Ready |
 
 **Authoring a brief:** add its entry here in the same change (index at creation), give it a
 `Status:` + one-line `Summary:` header, and link the ADR it implements. See `docs/README.md`
