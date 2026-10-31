@@ -3,6 +3,17 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## Stay-grouped day lens (`effort/stay-grouped-day-lens`) — 2026-10-31
+
+- The canvas now has one lens strip: stay labels group the days slept there, and day labels remain
+  compact across a month boundary. Stay/day selection stays mutually exclusive; the separate
+  lodging strip is removed. Day ownership is a pure `TripPlan` projection, including move days,
+  checkout day, and overlapping stays. No schema or migration changed.
+- **Verification.** `scripts/check-drift.sh` passed SwiftLint (0 violations), all GalavantLibrary
+  suites (613 tests, 9 known issues), and the GalavantUITests build. The focused TripStay suite
+  passed 44 tests with 1 known issue. The grouped-lens iPad review remains in `device-passes.md`;
+  the repo verification rule reserves device screenshots and walkthroughs for Jon.
+
 ## Planning chrome alignment (`effort/planning-chrome-alignment`) — 2026-10-31
 
 - Trip planning now uses one Hand off menu, map-only day colors, quieter day headers and stop rows,

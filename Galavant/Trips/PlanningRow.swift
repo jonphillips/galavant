@@ -141,23 +141,26 @@ func dayLabel(_ number: Int, trip: Trip?) -> String {
     + date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
 }
 
-/// Compact day label for the chip strip: "M 8/24" on a dated trip, "Day N"
-/// when undated. The ambiguous Tuesday/Thursday and Saturday/Sunday initials
-/// expand to two letters while the other weekdays stay at one.
+/// Compact day label for the canvas strip: "Sat 22", or "Jun 1" when the day
+/// falls in a different month from the trip's first day.
 func dayChipLabel(_ number: Int, trip: Trip?) -> String {
   guard let date = trip?.date(forDay: number) else { return "Day \(number)" }
-  let weekday = switch Calendar.current.component(.weekday, from: date) {
-  case 1: "Su"
-  case 2: "M"
-  case 3: "Tu"
-  case 4: "W"
-  case 5: "Th"
-  case 6: "F"
-  case 7: "Sa"
-  default: ""
+  guard let firstDay = trip?.date(forDay: 1) else {
+    return date.formatted(.dateTime.weekday(.abbreviated).day())
   }
-  let monthDay = date.formatted(.dateTime.month(.defaultDigits).day())
-  return "\(weekday) \(monthDay)"
+  let calendar = Calendar.current
+  let sameMonth = calendar.component(.year, from: date) == calendar.component(.year, from: firstDay)
+    && calendar.component(.month, from: date) == calendar.component(.month, from: firstDay)
+  return sameMonth
+    ? date.formatted(.dateTime.weekday(.abbreviated).day())
+    : date.formatted(.dateTime.month(.abbreviated).day())
+}
+
+func dayAccessibilityLabel(_ number: Int, trip: Trip?) -> String {
+  guard let date = trip?.date(forDay: number) else { return "Day \(number)" }
+  let weekday = date.formatted(.dateTime.weekday(.wide))
+  let monthAndDay = date.formatted(.dateTime.month(.wide).day())
+  return "\(weekday) \(monthAndDay)"
 }
 
 struct AlternativeSlotControls: View {

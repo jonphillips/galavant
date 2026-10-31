@@ -1,7 +1,5 @@
-# Next Up — Stay-grouped day lens
+# Next Up — Nothing dispatched
 
-**Slices:** effort `stay-grouped-day-lens`
-**Briefs:** [docs/efforts/stay-grouped-day-lens.md](efforts/stay-grouped-day-lens.md)
-**Done when:** per the brief
-**Owed:** Production cutover Phase 6's M5 gate (Wendy) and planning-chrome iPad verification; see `device-passes.md`.
-**Notes:** Presentation only, no schema. Preserve mutually exclusive stay and day selection.
+Nothing dispatched.
+
+**Owed:** Production cutover Phase 6's M5 gate (Wendy), planning-chrome iPad verification, and stay-grouped day lens iPad review; see `device-passes.md`.

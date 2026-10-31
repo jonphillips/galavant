@@ -5,7 +5,7 @@ Summary: Trip planning adopts the house control conventions: one AI menu, day co
 
 Implements: jon-platform `docs/ios/ui-and-platforms.md` § Controls (adopted 2026-10-31). Follows the
 2026-10-31 design review of the trip canvas with Jon. No schema change. Sibling effort, queued next:
-[stay-grouped-day-lens.md](../stay-grouped-day-lens.md).
+[stay-grouped-day-lens.md](stay-grouped-day-lens.md).
 
 ## Scope
 
@@ -96,6 +96,6 @@ verification will be tracked in `device-passes.md`.
 
 ## Out of scope
 
-- The hotel row and how days are grouped by stay → [stay-grouped-day-lens.md](../stay-grouped-day-lens.md).
+- The hotel row and how days are grouped by stay → [stay-grouped-day-lens.md](stay-grouped-day-lens.md).
 - Galavant's own accent color. It is still system blue, which is a foundation-slice decision
   (jon-platform § Visual craft) and is in `open-questions.md`.
