@@ -144,7 +144,7 @@ struct TripDetailContent: View {
           reconciliationModel: reconciliationModel,
           bookingByRow: bookingByRow,
           focusedDay: model.canvasSelectedDay,
-          tripTimeZone: tripTimeZone ?? .current,
+          tripTimeZone: tripTimeZone ?? CalendarReconciliationModel.storageTimeZone,
           onScrolledPastHeader: { headerCollapsed = $0 }
         )
       case .ideas:
@@ -183,7 +183,7 @@ struct TripDetailContent: View {
         .padding(.vertical, 8)
         .background(Color(.systemGroupedBackground))
         if model.trip?.certainty.stage == .dated {
-          let zone = tripTimeZone ?? .current
+          let zone = tripTimeZone ?? CalendarReconciliationModel.storageTimeZone
           Text("Times in \(zone.abbreviation(for: model.trip?.startDate ?? .now) ?? zone.identifier)")
             .font(.caption)
             .foregroundStyle(.secondary)

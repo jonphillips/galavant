@@ -13,7 +13,7 @@ struct TripItineraryView: View {
   /// When set, render only this day's stops (the canvas day lens). Nil = the
   /// whole trip.
   var focusedDay: Int?
-  var tripTimeZone: TimeZone = .current
+  var tripTimeZone: TimeZone = CalendarReconciliationModel.storageTimeZone
   var onScrolledPastHeader: ((Bool) -> Void)?
   @State private var selectedCalendarConstraint: CalendarTripConstraint?
   @State private var pendingStopRemoval: PendingStopRemoval?

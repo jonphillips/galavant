@@ -4,7 +4,7 @@ struct SectionHeader: View {
   let label: String
   let day: Int?
   let model: TripPlanningModel
-  var tripTimeZone: TimeZone = .current
+  var tripTimeZone: TimeZone = CalendarReconciliationModel.storageTimeZone
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
@@ -89,7 +89,7 @@ struct DayRegionMenu: View {
 struct DayTimeZoneMenu: View {
   let day: Int
   let model: TripPlanningModel
-  var defaultZone: TimeZone = .current
+  var defaultZone: TimeZone = CalendarReconciliationModel.storageTimeZone
 
   var body: some View {
     let assigned = model.dayTimeZone(forDay: day)
