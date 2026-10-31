@@ -2,7 +2,7 @@
 
 **Status:** Ready · **Summary:** On the TestFlight build with the stay-grouped lens, tapping a stay
 label in the day strip turns the capsule dark and freezes the app, every time. Jon reported it
-2026-10-31. The likely cause is a feedback loop that #189 added: the itinerary collapses the trip header
+2026-10-31, on iPad only. The likely cause is a feedback loop that #189 added: the itinerary collapses the trip header
 based on a scroll measurement that the header's own removal changes. A stay tap is the one lens tap
 that programmatically scrolls the whole-trip list, so it starts the loop. Make the collapse
 measurement independent of the header, add hysteresis, and stop rebuilding the plan on every body
@@ -34,8 +34,8 @@ Galavant crash log either, which fits a hang that was force-quit.
 breakpoint, and tap a stay on an iPad trip with a header image. A stream of alternating values
 confirms the loop. If the value doesn't alternate, stop and post what you saw as a
 `question-for-architect` before changing anything. Take a Time Profiler or hang trace on the
-tap if you can. Say in the PR which of these you used. If the freeze also happens on iPhone (no header
-there), the loop isn't the whole story: say so in the PR.
+tap if you can. Say in the PR which of these you used. Jon confirmed the freeze is iPad only, where the header
+shows. That fits the loop.
 
 ## 1. Measure past the header, not including it
 
