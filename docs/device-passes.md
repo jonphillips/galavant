@@ -24,6 +24,13 @@ reads this file.** `NEXT_UP.md`'s **Owed** line points here. Moved from `CURRENT
   mode, edit an idea and wait past 30 minutes: the row reads "1 item hasn't synced" and the detail
   names the idea. Turn the network back on: it uploads and returns to "Up to date", with or without
   Retry. The not-applied count is zero, or the detail says what's stuck.
+- **Planning chrome alignment (PR 189), on the iPad:** open a dated trip with the chat inspector
+  open, and check that every trailing toolbar item is there, including the Hand off menu. Hand off →
+  Paste with an empty clipboard shows a warning, not nothing. Day 1 and day 6 pins and routes are
+  clearly different colors on the map in light and dark mode. List sequence badges are neutral and
+  readable. Scroll the itinerary: the hero image and its photo credit collapse together and come back
+  at the top. This replaces the brief's simulator-screenshot criteria, which were struck in the PR 189
+  review.
 - **Travel profile on TestFlight:** edit the profile on one device and confirm it reaches the other;
   then run Discuss and a recommendation brief and confirm the taste lines are in the prompt.
 - Move a linked trip event to another trip day in Calendar, run Reconcile Calendar, and confirm it
