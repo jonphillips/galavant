@@ -145,7 +145,7 @@ struct SyncStatusDetailView: View {
     case let .localOnly(reason): reason
     case let .syncing(pending): "\(pending) change\(pending == 1 ? "" : "s") uploading"
     case .downloading: "Downloading changes from iCloud"
-    case let .needsAttention(notUploaded, notApplied):
+    case let .needsAttention(notUploaded, notApplied, _):
       [
         notUploaded > 0 ? "\(notUploaded) not uploaded" : nil,
         notApplied > 0 ? "\(notApplied) couldn’t be saved here" : nil,
