@@ -403,6 +403,33 @@ Found while briefing Slices 2–3 against the code:
 - Slice briefs: [Slice 2](../efforts/archive/adr-0048-slice-2-seed-verb.md),
   [Slice 3](../efforts/archive/adr-0048-slice-3-seed-matching.md).
 
+## Amendment 2 — the seed is a Hand off purpose, and `GV-SEED` is a delimiter, not a gate (2026-11-02)
+
+From dogfooding (Jon, 2026-11-02). The trip's top-right **Hand off** menu and the **Seed from
+Conversation** row in Ideas looked like two unrelated AI doors. Seed JSON pasted through the
+menu's Paste went to the candidate decoder and failed. JSON pasted into the seed sheet without
+its `GV-SEED` line was rejected even when it was a valid seed.
+
+- **The seed moves into the Hand off menu.** Following jon-platform `ui-and-platforms.md`
+  § "The AI entry point" (several purposes → a submenu), the menu's **Hand off** item becomes a
+  submenu with **Get Recommendations** (ADR-0036) and **Summarize Conversation** (this ADR). Each
+  opens its sheet titled "Hand off · <purpose>". The Ideas row is removed. D1 is otherwise
+  unchanged: the seed still starts from a trip and makes a normal `seedTrip` session.
+- **One Paste for both.** The menu's **Paste** routes by what was pasted: a `GV-HANDOFF` token
+  that names a stored session for this trip uses that session and its task; otherwise a `GV-SEED`
+  line, or a JSON object with `bases` or `places`, is a seed; anything else goes to recommendations,
+  as today. This is still trip-scoped and session-backed, so it is not the tokenless "import
+  research" door rejected above.
+- **D2 amended: a missing `GV-SEED` line warns and proceeds.** The line only marks where the
+  narrative ends. The JSON decode is what keeps half a seed out. When the line is missing, the text
+  before the JSON object is the narrative, which may be empty and then falls back to `summary` as
+  before. The review's Notes say the line was missing. No JSON object, malformed JSON, or no valid
+  bases or places still **stops the whole paste and writes nothing**.
+- **The contract doesn't change.** The brief and Appendix A still ask for `GV-SEED`, and no
+  marker version changes. The decoder now accepts more than the contract asks for, which matches
+  ADR-0036 Amendment 1's stance on the token and marker.
+- Brief: [`hand-off-purposes`](../efforts/hand-off-purposes.md).
+
 ## Appendix A — the seed clause for the project instructions (passed Slice 0 on run 2)
 
 ```
