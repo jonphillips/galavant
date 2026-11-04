@@ -4,7 +4,7 @@
 (RunningBoard): iOS suspended it while it held a lock on the App Group SQLite store. Galavant has no
 suspension handling. Make the app and the share extension release the store before they're suspended
 and resume it when they come back, and protect the launch bootstrap with a background-time assertion.
-No schema, migration, sync-contract or UI change.
+No schema, migration, sync-contract or UI change, but the sync engine now stops when background time runs out (§ 2).
 
 Evidence: TestFlight crash submission `AO5RTPQ8jcuDxz8g0jgndtM` (2026-10-29, iPhone18,1, iOS 27.2). The
 log is local to the architect's checkout and isn't committed. Mechanism per GRDB's `DatabaseSharing`
@@ -42,20 +42,39 @@ article, § "How to limit the 0xDEAD10CC exception".
 - Read GRDB's article first. A suspended database throws `SQLITE_INTERRUPT` / `SQLITE_ABORT` on writes,
   but WAL reads keep working.
 
-## 2. The app posts suspend and resume
+## 2. Never suspend a database a running sync engine can write to
 
-- Post `Database.suspendNotification` when the app is about to be suspended, and
-  `Database.resumeNotification` when it comes back. Put this in one small, injectable piece of the app
-  target that the delegates call, not in views. Cover:
-  - scene → background (`sceneDidEnterBackground`) and the expiration handler of any background task
-    from § 3: **suspend**.
-  - scene → foreground (`sceneWillEnterForeground`): **resume**.
-  - every background-mode entry point that touches the store, including
-    `application(_:didReceiveRemoteNotification:fetchCompletionHandler:)` if SQLiteData's engine routes
-    pushes through the app delegate. Find out how it receives them and say how in the PR: **resume** on
-    entry, then **suspend** again before calling the completion handler.
-- A background launch never gets a "did enter background" callback, so § 3 is what covers the crash
-  above. § 2 covers the lock being held at a normal backgrounding.
+*Amended 2026-11-04, answering the questions on #197. The first version of this section said to suspend on
+background and bracket remote pushes. Pushes can't be bracketed, and suspending under a running engine can lose
+records.*
+
+**Why.** SQLiteData's `CKSyncEngine` delegate receives events itself. Neither the app nor SQLiteData has a
+`didReceiveRemoteNotification`, so nothing can resume the database before an event arrives. And
+`handleFetchedRecordZoneChanges` and `handleStateUpdate` both wrap their writes in `withErrorReporting`. So a batch
+that hits a suspended database fails quietly, and `handleEvent` returns normally. `CKSyncEngine`'s in-memory state has
+already moved past that batch, and the next state update after a resume saves it. The records are then never fetched
+again. A crash is the better failure: its transaction rolls back and the engine refetches from its saved state.
+
+**The rule:** the order is always **stop the engine, then suspend** and **resume, then start the engine**.
+
+Put this in one small injectable piece of the app target, driven by a pure plan in `GalavantLibrary` (see Tests):
+
+- **The app enters the background:** begin a background task, and do nothing else. The engine keeps running, so an
+  edit made just before leaving still uploads and in-flight writes finish.
+- **That task's expiration handler:** `syncEngine.stop()`, then post `suspendNotification`, then end the task.
+- **The app will enter the foreground:** end any task, post `resumeNotification`, then, if this controller stopped the
+  engine, restart it with `GalavantCloudSync.startIfManuallyEnabled()`. The existing redrain on activation stays.
+- **A background launch:** when launch finishes in the background (`applicationState == .background`), treat it as
+  entering the background. The engine catches up, then the expiration handler stops it.
+- **A push that thaws a suspended process:** nothing happens. The engine is stopped, so no event can arrive, and it
+  catches up from its saved state on the next foreground. **Don't add a remote-notification delegate.**
+
+Use `UIApplication.didEnterBackgroundNotification` and `willEnterForegroundNotification`, **not** scene callbacks: on
+iPad, one window going to the background doesn't mean the app is about to be suspended.
+
+**The trade-off, accepted:** background sync now lasts as long as iOS's background task, about 30 seconds, and a cold
+background launch still catches up. After that, another device's edits wait until this one comes to the foreground.
+`UIBackgroundModes: [remote-notification]` stays, because foreground delivery and those cold launches use it.
 
 ## 3. Hold background time across the launch bootstrap
 
@@ -65,18 +84,22 @@ article, § "How to limit the 0xDEAD10CC exception".
   `ProcessInfo.processInfo.performExpiringActivity(withReason:)` if `UIApplication.shared` isn't safe
   to use from `App.init`. Say which you used, and why, in the PR.
 - If a write is interrupted by suspension during bootstrap, it must **not** reach the `try!`. Treat
-  `SQLITE_INTERRUPT` / `SQLITE_ABORT` from sync-engine setup like the existing "CloudKit sync
-  unavailable" path (`reportIssue`, stay local-only for this launch) and retry the engine setup on the
-  next resume. Migration failures still fail loudly as today. Don't widen what's caught.
-- Measure how long the launch bootstrap takes on a real store with a signpost or log line around
-  migrate and `makeSyncEngine`, and put the number in the PR. If trigger setup is a large share of it,
-  note that in the PR as a question for the architect. Don't restructure SQLiteData's setup here.
+  `SQLITE_INTERRUPT` / `SQLITE_ABORT` from sync-engine setup like the existing "CloudKit sync unavailable" path
+  (`reportIssue`, stay local-only for this launch). Retry the engine setup on the next resume if that works without
+  re-preparing dependencies; if it doesn't, the next launch retries, and the PR says which. Migration failures still
+  fail loudly as today. Don't widen what's caught.
+- Log how long migrate and `makeSyncEngine` each take, as `Logger` lines at `.notice` with public values, so a
+  TestFlight build reports them on a real store. **The measurement is Jon's** (see the device gate), because the real
+  store is only on his devices. Don't restructure SQLiteData's setup here.
 
 ## 4. The share extension
 
-- The extension writes to the same store and can be suspended when the host app goes away. Make it
-  observe suspension too (§ 1 covers its bootstrap), and post `suspendNotification` right before
-  `completeRequest` and on any cancel or dismissal path. It never needs to resume.
+- The extension writes to the same store and can be suspended when the host app goes away. Make it observe suspension
+  too (§ 1 covers its bootstrap), and post `suspendNotification` right before `completeRequest`, on every exit path
+  (`finish()` covers both save and cancel, because `CaptureConfirmView` calls `onClose` for both).
+- **Post `resumeNotification` at the start of each request,** in `viewDidLoad`. iOS can reuse the process for the next
+  share (that's why `didBootstrap` exists), so without this the second share would hit a suspended database. Its engine
+  is constructed stopped and never started, so the § 2 ordering doesn't apply here.
 
 ## Tests
 
@@ -86,16 +109,19 @@ article, § "How to limit the 0xDEAD10CC exception".
    what makes this testable.
 2. Sync-engine setup that throws `SQLITE_INTERRUPT` or `SQLITE_ABORT` degrades to local-only without
    throwing out of `bootstrapDatabase`. A migration error still throws.
+3. The pure plan from § 2: given each event, it returns its effects in order. Background begins a task and neither stops
+   nor suspends. Expiration is stop, then suspend, then end. Foreground is end, resume, then start, and it starts only if
+   the plan stopped the engine. Expiration then foreground, foreground with no expiration, and a repeated event are all
+   covered.
 
 **App:** compile only. Suspension timing can't be unit-tested.
 
 ## Done when
 
-- §§ 1–4 are in, tests 1–2 pass, the build is green, and the PR states the measured bootstrap time and
-  how remote pushes reach the app.
-- No schema, migration or sync-contract change.
+- §§ 1–4 are in, tests 1–3 pass, the build is green, and the bootstrap timings are logged.
+- No schema or migration change, and no change to what syncs. § 2 changes only when the engine runs.
 
 ## Device gate (Jon, not executor)
 
-Recorded in `device-passes.md`: after the next TestFlight build, no new `0xdead10cc` in
-`testflight --feedback` for a week of normal use, including background pushes from Wendy's edits.
+Recorded in `device-passes.md`: no new `0xdead10cc` over a week, catching up after the app has been in the background,
+and the logged bootstrap timings.
