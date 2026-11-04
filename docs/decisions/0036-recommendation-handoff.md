@@ -15,6 +15,9 @@ dedup / `mapItemIdentifier` **is** the resolution path), and the Ideas shopping 
 processed in is its own decision (**ADR-0037**, stacked on this one; D8). Cross-app: the
 handoff **core lifts to a shared jon-platform package**; see §The lift.*
 
+> **Amended by [ADR-0052](0052-chat-access-over-mcp.md):** a set staged through the MCP tool imports on one tap instead of D4's
+> row-grain review. The paste door keeps D4.
+
 > **Vocabulary.** A **recommendation handoff** is a device-local, trackable session that
 > starts from a Galavant trip context (a day, a lodging stay, a transfer, or the whole
 > trip), moves an exported **brief** into a native LLM app (ChatGPT/Claude), lets the
