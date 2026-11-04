@@ -16,6 +16,7 @@ folder listing and `DONE-LOG.md` cover it. A parked brief also gets a candidate 
 | --- | --- | --- |
 | [launch-lock-suspension.md](launch-lock-suspension.md) | TestFlight crash `0xdead10cc` (no ADR) | Ready |
 | [hand-off-purposes.md](hand-off-purposes.md) | [ADR-0048 Amendment 2](../decisions/0048-trip-seed-handoff.md) | Ready |
+| [handoff-menu-adoption.md](handoff-menu-adoption.md) | jon-platform `docs/ios/ui-and-platforms.md` § The AI entry point | Blocked |
 | [chat-access.md](chat-access.md) | [ADR-0052](../decisions/0052-chat-access-over-mcp.md), jon-platform ADR-0009 | Ready |
 
 **Authoring a brief:** add its entry here in the same change (index at creation), give it a

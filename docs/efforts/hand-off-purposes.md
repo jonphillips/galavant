@@ -3,7 +3,8 @@
 **Status:** Ready · **Summary:** Seed from Conversation moves from the Ideas list into the trip's Hand
 off menu as **Summarize Conversation**, beside **Get Recommendations**. The menu's single Paste works
 out which of the two a pasted reply is, and a seed pasted without its `GV-SEED` line imports with a
-warning instead of being rejected. Implements [ADR-0048 Amendment 2](../decisions/0048-trip-seed-handoff.md).
+warning instead of being rejected. The menu takes the house AI label and icons, and Discuss leaves the Ideas
+screen. Implements [ADR-0048 Amendment 2](../decisions/0048-trip-seed-handoff.md).
 No schema, migration, sync-contract, or handoff-contract change.
 
 ## Today
@@ -81,23 +82,37 @@ same code. `pasteRecommendationResult(_:for:seedReviewModel:)` loses its optiona
 ### 4. The menu and the sheet titles
 
 - Toolbar menu (keep the single `ToolbarItemGroup`, per `docs/KNOWN-ISSUES.md`):
-  - **Hand off** becomes a submenu, `Icon.recommend` as today, holding **Get Recommendations**
-    (`startRecommendationHandoff`) and **Summarize Conversation** (`startSeedHandoff`), in that order.
-  - **Paste** and **Ask now** are unchanged in label, icon, and order.
+  - The menu's own label becomes **AI** with a new `Icon.ai` (`sparkles`), per jon-platform
+    `docs/ios/ui-and-platforms.md` § The AI entry point. It was "Hand off" with `Icon.handoff`.
+  - **Hand off** becomes a submenu with `Icon.handoff` (`sparkles.square.filled.on.square`), not
+    `Icon.recommend`, holding **Get Recommendations** (`startRecommendationHandoff`) and **Summarize
+    Conversation** (`startSeedHandoff`), in that order.
+  - **Paste** is unchanged in label, icon, and order.
+  - **Ask now** keeps its label and order. Its icon becomes a new `Icon.askNow`
+    (`text.bubble.badge.sparkles`), and it still swaps to the checkmark while chat is open.
+  - `Icon.recommend` stays `sparkles` for the Evaluate surfaces.
 - Sheet door titles: "Hand off · Get Recommendations" (already) and **"Hand off · Summarize
   Conversation"** (was "Seed from Conversation"). Leave the review titles alone.
 - Remove the **Seed from Conversation** button from `TripIdeasView`. Documents stays in its section.
 
+### 5. Remove Discuss from the Ideas screen
+
+Jon's call, 2026-11-04; see [ADR-0017's amendment](../decisions/0017-context-aware-chat-window.md). In
+`IdeasScreen.swift`, remove the toolbar button, `showingChat`, the `.chatPanel` modifier and its
+comment, and `poolChatContext`. Delete `Icon.chat`, which has no other use. **Keep** `ChatContext.pool`,
+`PoolContext` and their tests in `GalavantChat`, so this stays cheap to bring back.
+
 ## Out of scope
 
 The brief and project-instruction text (still asks for `GV-SEED`), any contract marker version, the
-Evaluate Recommendations row, and the Evaluate screen.
+Evaluate Recommendations row, the Evaluate screen, and the shared `HandoffMenu` view (brief
+[`handoff-menu-adoption`](handoff-menu-adoption.md)).
 
 ## Done when
 
 - `swift test` for `GalavantSchema` is green with the step 1 and 2 tests; the app builds
   (`quiet-run`, compile only, no simulator walkthrough).
 - The Ideas list has no seed row. The Hand off submenu has both purposes. Paste is the only paste
-  entry outside the sheets.
+  entry outside the sheets. The menu reads AI with `sparkles`, and the Ideas toolbar has no Discuss.
 - `docs/device-passes.md` keeps the **Hand off purposes** gate (added with this brief) until Jon
   clears it.
