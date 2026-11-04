@@ -1,12 +1,16 @@
 # Galavant — Product Brief
 
-*Last updated: 2026-06-10*
+*Last updated: 2026-11-04*
 
 ## What it is
 
-A private travel-planning app for **two people — Jon and his wife** — built around a
-long-lived shared pool of travel ideas that feeds dated, curated trips. Never going
-to the App Store; distributed to exactly two phones (plus iPads/Macs) via TestFlight.
+A private travel app for **two people — Jon and his wife** — built around a long-lived
+shared pool of places. It's a personal knowledge base of where we've been, what we thought,
+and what we might want next, and it feeds dated, curated trips. Never going to the App Store;
+distributed to exactly two phones (plus iPads/Macs) via TestFlight.
+
+Two loops share that pool, and neither serves the other: **explore → keep → remember**
+(below) and **collect → pull → schedule**.
 
 ## The core loop: collect → pull → schedule
 
@@ -27,6 +31,21 @@ to the App Store; distributed to exactly two phones (plus iPads/Macs) via TestFl
 actual Copenhagen trip pulls the 12 that fit; the Skagen beaches stay in the pool,
 unconsumed, for a someday-Jutland trip. After the trip, "done" and "skipped" statuses
 flow back to the pool so future trips see an honest picture.
+
+## The other loop: explore → keep → remember (ADR-0053)
+
+Browsing, judging, and remembering places are worth doing with no trip in sight.
+
+1. **Explore** — see what's noteworthy somewhere, in a region guide over the pool. An external
+   list, such as a Michelin selection, can sit beside our own places without entering the pool.
+2. **Keep** — saving a place is one deliberate tap. An idea is a place we hold an opinion about,
+   and that includes a hotel we hated.
+3. **Remember** — **taste notes** record what happened and why, in our own words, for restaurants,
+   hotels, and everything else. Galavant owns that evidence, so it doesn't stay in a chat
+   assistant's history. The assistant does the interpreting, fresh each time, and we can see what
+   it predicted next to what actually happened.
+
+No scores, no social layer, and no attempt to catalog the world.
 
 ## Scoping the pool: map-and-filter as the "guide" (the Virginia case)
 

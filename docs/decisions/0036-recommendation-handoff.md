@@ -171,6 +171,9 @@ precise position.
 
 ### D7 — Learnings are the designed-but-deferred second half
 
+*Taste learnings now live in taste notes ([ADR-0053](0053-taste-record-and-region-guide.md) D2 and D4). This section's lifted
+`Learning` table was never built.*
+
 A region session yields two things: **candidate places** (this ADR) and durable **travel
 learnings** established in discussion ("the Plose cable car closes Mondays"; "Bolzano is
 the rainy-day fallback"). Yes-chef gives learnings a synced `Learning` table with a
