@@ -3,6 +3,15 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## Tidied device-passes.md (`plan/device-passes-tidy`) — 2026-11-04
+
+- **Result:** Split the file into Owed now, Held and Older, added how entries get added and cleared, and moved the
+  production cutover and schema-deploy notes into a standing state and rule. Gates for work that isn't built yet
+  (hand-off purposes, chat access, launch lock) are now Held. The identity readings gate no longer says "after the
+  next TestFlight build", because 0.2.0-486 and later carry the readout. No pass was removed.
+- **Verification:** Docs only. A script confirmed every other gate line moved unchanged; `check-handoff --strict` ran
+  on the branch.
+
 ## Stay-tap freeze (`effort/stay-tap-freeze-probe`) — 2026-10-31
 
 - Tapping a stay label on iPad no longer freezes the planning column. A temporary probe confirmed
