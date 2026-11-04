@@ -62,3 +62,4 @@ at creation). See `docs/README.md` (the atlas) and `jon-platform/docs/agent-work
 | [0050](0050-galavant-dev-variant.md) | Galavant Dev — Debug builds get their own bundle ID and app group, and share the CloudKit container |
 | [0051](0051-planner-identity-from-icloud.md) | Planner identity comes from the iCloud account |
 | [0052](0052-chat-access-over-mcp.md) | Chat assistants stage trip options into Evaluate through a local MCP server |
+| [0053](0053-taste-record-and-region-guide.md) | Galavant keeps the taste record, and a region guide is where it's read |

@@ -172,7 +172,8 @@ Same three-PR order as S1 for the shared part.
   `YesChefMCP/main.swift`, with their tests. Yes Chef adopts them, with no behavior change. Its export gets the same device check.
 - **`GalavantChatExport` (schema), version 1:** `generatedAt`, `device`, and trips, each with ID, name, dates, notes, stops, stays,
   ruled-out places, taste lines, and considering and shortlisted titles. Reuse `stopSummary` and the ruled-out summary (make it internal)
-  so a brief and `get_trip` can't disagree. A newer version is a typed error. No images, sync metadata, or file paths.
+  so a brief and `get_trip` can't disagree. If `taste-notes` has landed, taste lines include `TasteNote.promptLines`; if not, that
+  effort adds them. A newer version is a typed error. No images, sync metadata, or file paths.
 - **Builder and writer in the app:** on background and from a **Refresh** in Settings, gated by the Chat Access switch. Run the read
   off the main actor under a background-task assertion, using what `launch-lock-suspension` added. Build each trip's plan **once**:
   `TripPlan` rebuilds on each access, which caused the August itinerary hang.

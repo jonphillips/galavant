@@ -1,7 +1,8 @@
 # ADR-0018: AI pool-stocking — the discovery pipeline
 
 *Status: proposed — 2026-06-23 (the slice-0 spike gates final acceptance; see
-Consequences)*
+Consequences). **§3 and "Add all" are superseded by [ADR-0053](0053-taste-record-and-region-guide.md) D6:** a discovered
+place isn't an `Idea` until someone keeps it, and external conversation comes first, with `PlaceDiscoveryClient` parked.*
 
 ## Context
 
