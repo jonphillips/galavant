@@ -126,3 +126,13 @@ top-level nav section.
 - **Open at build:** the exact v1 tool set; whether on-device tier supports enough
   tool-use to be useful or is chat-only with frontier carrying tools; chat persistence;
   per-screen invocation affordances.
+
+## Amendment 1 — pool chat leaves the Ideas screen, for now (2026-11-04)
+
+The house rule now says a screen that offers chat also offers a hand-off prompt, and a standalone chat button isn't allowed
+(jon-platform `docs/ios/ui-and-platforms.md` § The AI entry point). The Ideas screen's **Discuss** button has no hand-off
+prompt behind it, and the app's AI work has moved well past it. Jon's call: remove the button rather than build a prompt to
+justify it. Chat stays on the trip.
+
+`ChatContext.pool` and `PoolContext` stay in `GalavantChat`, so bringing it back means building the screen's hand-off prompt
+and adopting the shared menu. Built in `hand-off-purposes`.
