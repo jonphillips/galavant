@@ -50,7 +50,8 @@ final class DatabaseSuspensionController: NSObject {
       default: break
       }
     }
-    logger.notice("Background time expired; engine quiet: \(quiet, privacy: .public)")
+    let outcome = quiet ? "suspended" : "busy"
+    logger.notice("Background time expired: \(outcome, privacy: .public)")
   }
 
   @objc private func enterForeground() {

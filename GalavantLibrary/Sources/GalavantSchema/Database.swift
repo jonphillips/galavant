@@ -146,6 +146,7 @@ extension DependencyValues {
         defaultSyncEngine = try makeSyncEngine(database, startImmediately)
         syncEngineAvailable = true
       } catch {
+        if syncStartGate.shouldExitBootstrap(for: error) { throw error }
         reportIssue("CloudKit sync unavailable; running local-only: \(error)")
       }
     }

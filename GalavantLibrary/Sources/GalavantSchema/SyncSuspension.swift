@@ -1,5 +1,6 @@
 import Dependencies
 import Foundation
+import GRDB
 import Synchronization
 
 /// Lifecycle decisions are independent of UIKit and the sync engine.
@@ -112,6 +113,11 @@ public final class SyncStartGate: Sendable {
       state.plan.bootstrapExpired()
       perform()
     }
+  }
+
+  public func shouldExitBootstrap(for error: any Error) -> Bool {
+    guard let error = error as? DatabaseError, error.isInterruptionError else { return false }
+    return state.withLock { $0.plan.isExpired }
   }
 
   public func repeatBootstrapSuspensionIfExpired(perform: () -> Void) {

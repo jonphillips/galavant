@@ -1,6 +1,7 @@
 import CloudKit
 import Dependencies
 import GalavantSchema
+import OSLog
 import SQLiteData
 import SwiftUI
 import Synchronization
@@ -31,9 +32,18 @@ struct GalavantApp: App {
       }
     }
     activityReady.wait()
-    try! prepareDependencies {
-      $0.syncStartGate = gate
-      try $0.bootstrapDatabase()
+    do {
+      try prepareDependencies {
+        $0.syncStartGate = gate
+        try $0.bootstrapDatabase()
+      }
+    } catch {
+      if gate.shouldExitBootstrap(for: error) {
+        Logger(subsystem: "com.jonphillips.galavant", category: "Bootstrap")
+          .notice("Bootstrap expired and database setup was interrupted; exiting for a clean launch")
+        exit(0)
+      }
+      fatalError("Database bootstrap failed: \(error)")
     }
     bootstrapFinished.withLock { $0 = true }
     activityFinished.signal()

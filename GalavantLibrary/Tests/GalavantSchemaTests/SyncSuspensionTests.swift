@@ -100,13 +100,41 @@ struct SyncSuspensionTests {
     expectNoDifference(calls.withLock { $0 }, ["stop", "start"])
   }
 
-  @Test func interruptedSyncSetupDegradesButMigrationFailureEscapes() throws {
+  @Test func bootstrapInterruptionsAfterExpirationEscape() throws {
     for code: ResultCode in [.SQLITE_INTERRUPT, .SQLITE_ABORT] {
+      for duringMigration in [true, false] {
+        var dependencies = DependencyValues()
+        let gate = SyncStartGate()
+        gate.bootstrapExpired(perform: {})
+        dependencies.syncStartGate = gate
+        #expect(gate.shouldExitBootstrap(for: DatabaseError(resultCode: code)))
+        #expect(throws: DatabaseError.self) {
+          try dependencies.bootstrapDatabase(
+            syncMode: .configured(startImmediately: false),
+            migrate: { _ in
+              if duringMigration { throw DatabaseError(resultCode: code) }
+            },
+            makeSyncEngine: { _, _ in throw DatabaseError(resultCode: code) }
+          )
+        }
+        #expect(!dependencies.syncEngineAvailable)
+      }
+    }
+  }
+
+  @Test func bootstrapPreservesOtherFailureBehavior() throws {
+    struct SetupError: Error {}
+    struct MigrationError: Error {}
+    for expired in [false, true] {
       var dependencies = DependencyValues()
+      let gate = SyncStartGate()
+      if expired { gate.bootstrapExpired(perform: {}) }
+      dependencies.syncStartGate = gate
+      #expect(!gate.shouldExitBootstrap(for: SetupError()))
       withKnownIssue {
         try dependencies.bootstrapDatabase(
           syncMode: .configured(startImmediately: false), migrate: { _ in },
-          makeSyncEngine: { _, _ in throw DatabaseError(resultCode: code) }
+          makeSyncEngine: { _, _ in throw SetupError() }
         )
       }
       #expect(!dependencies.syncEngineAvailable)
@@ -114,15 +142,24 @@ struct SyncSuspensionTests {
         try Int.fetchOne(db, sql: "SELECT 1")
       }
       #expect(result == 1)
+      #expect(throws: MigrationError.self) {
+        try dependencies.bootstrapDatabase(
+          syncMode: .configured(startImmediately: false),
+          migrate: { _ in throw MigrationError() },
+          makeSyncEngine: { _, _ in fatalError("Migration failure must prevent setup") }
+        )
+      }
     }
-    struct MigrationError: Error {}
-    var dependencies = DependencyValues()
-    #expect(throws: MigrationError.self) {
-      try dependencies.bootstrapDatabase(
-        syncMode: .configured(startImmediately: false),
-        migrate: { _ in throw MigrationError() },
-        makeSyncEngine: { _, _ in fatalError("Migration failure must prevent setup") }
-      )
+    for code: ResultCode in [.SQLITE_INTERRUPT, .SQLITE_ABORT] {
+      var dependencies = DependencyValues()
+      #expect(!dependencies.syncStartGate.shouldExitBootstrap(for: DatabaseError(resultCode: code)))
+      withKnownIssue {
+        try dependencies.bootstrapDatabase(
+          syncMode: .configured(startImmediately: false), migrate: { _ in },
+          makeSyncEngine: { _, _ in throw DatabaseError(resultCode: code) }
+        )
+      }
+      #expect(!dependencies.syncEngineAvailable)
     }
   }
 }
