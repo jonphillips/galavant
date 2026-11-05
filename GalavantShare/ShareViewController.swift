@@ -2,6 +2,7 @@ import Dependencies
 import GalavantCaptureUI
 import GalavantPlaces
 import GalavantSchema
+import SQLiteData
 import SwiftUI
 import UIKit
 import os
@@ -21,6 +22,7 @@ final class ShareViewController: UIViewController {
 
   override func viewDidLoad() {
     super.viewDidLoad()
+    NotificationCenter.default.post(name: Database.resumeNotification, object: nil)
     if !Self.didBootstrap {
       Self.didBootstrap = true
       do {
@@ -56,6 +58,7 @@ final class ShareViewController: UIViewController {
   }
 
   private func finish() {
+    NotificationCenter.default.post(name: Database.suspendNotification, object: nil)
     extensionContext?.completeRequest(returningItems: nil)
   }
 }
