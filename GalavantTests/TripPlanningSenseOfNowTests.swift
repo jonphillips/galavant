@@ -156,6 +156,25 @@ struct TripPlanningSenseOfNowTests {
 
   @Test
   @MainActor
+  func pasteSeedWithTypographicQuotesInsideStringsKeepsEveryPlace() async throws {
+    let tripID = try await makeTrip(startDate: nil)
+    let model = try await loadedModel(tripID: tripID)
+    model.pasteButtonTapped("""
+      {"summary":"The “northern” loop", "bases":[{"name":"Aarhus","check_in_day":1,"check_out_day":2}],
+       "places":[{"name":"ARoS","why":"the “best” museum"},{"name":"Second"}]}
+      """)
+    guard case let .recommendationHandoff(presentation) = model.destination else {
+      Issue.record("Expected a handoff sheet")
+      return
+    }
+    let seed = try #require(presentation.seedReview?.plan?.seed)
+    #expect(seed.bases.map(\.name) == ["Aarhus"])
+    #expect(seed.places.map(\.candidate.name) == ["ARoS", "Second"])
+    #expect(seed.places.first?.candidate.why == "the “best” museum")
+  }
+
+  @Test
+  @MainActor
   func pasteCandidateArrayOpensRecommendationReview() async throws {
     let tripID = try await makeTrip(startDate: nil)
     let model = try await loadedModel(tripID: tripID)

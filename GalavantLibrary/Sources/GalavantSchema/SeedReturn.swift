@@ -102,8 +102,7 @@ public struct SeedReturn: Equatable, Sendable {
         .replacingOccurrences(of: "```", with: "")
         .trimmingCharacters(in: .whitespacesAndNewlines)
     }
-    let normalized = Self.normalizeQuotes(object)
-    guard let root = (try? JSONSerialization.jsonObject(with: Data(normalized.utf8))) as? [String: Any]
+    guard let root = Self.parseObject(object)
     else { throw SeedReturnDecodeError.malformedJSON }
 
     let seedTrip = decodeTrip(root)
@@ -183,7 +182,14 @@ public struct SeedReturn: Equatable, Sendable {
     return (places, warnings)
   }
 
-  fileprivate static func normalizeQuotes(_ text: String) -> String {
+  fileprivate static func parseObject(_ text: String) -> [String: Any]? {
+    let normalized = normalizeQuotes(text)
+    return [normalized, text].lazy.compactMap {
+      (try? JSONSerialization.jsonObject(with: Data($0.utf8))) as? [String: Any]
+    }.first
+  }
+
+  private static func normalizeQuotes(_ text: String) -> String {
     text
       .replacingOccurrences(of: "“", with: "\"")
       .replacingOccurrences(of: "”", with: "\"")
@@ -285,21 +291,19 @@ public enum HandoffReturnKind: Equatable, Sendable {
       .contains(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines) == "GV-SEED" }) {
       return .seedTrip
     }
-    let normalized = SeedReturn.normalizeQuotes(body)
-    var index = normalized.startIndex
-    while index < normalized.endIndex {
-      if normalized[index] == "[" {
-        let next = normalized[normalized.index(after: index)...].first(where: { !$0.isWhitespace })
-        if next == "{" || next == "]" { return .candidatePlaces }
-      } else if normalized[index] == "{" {
-        guard let object = SeedReturn.jsonObjectSlice(in: String(normalized[index...])),
-          let data = object.data(using: .utf8),
-          let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+    var index = body.startIndex
+    while index < body.endIndex {
+      if body[index] == "[" {
+        let next = body[body.index(after: index)...].first(where: { !$0.isWhitespace })
+        if next == "{" { return .candidatePlaces }
+      } else if body[index] == "{" {
+        guard let object = SeedReturn.jsonObjectSlice(in: String(body[index...])),
+          let root = SeedReturn.parseObject(object),
           root.keys.contains("bases") || root.keys.contains("places")
         else { return .candidatePlaces }
         return .seedTrip
       }
-      index = normalized.index(after: index)
+      index = body.index(after: index)
     }
     return .candidatePlaces
   }

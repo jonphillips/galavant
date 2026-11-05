@@ -68,6 +68,26 @@ struct SeedReturnTests {
     #expect(HandoffReturnKind.classify("[{\"places\":[]}]") == .candidatePlaces)
   }
 
+  @Test func preservesTypographicQuotesInsideValidJSON() throws {
+    let json = """
+      {"summary":"The “northern” loop", "bases":[{"name":"Aarhus","check_in_day":1,"check_out_day":2}],
+       "places":[{"name":"ARoS","why":"the “best” museum"},{"name":"Second"}]}
+      """
+    #expect(HandoffReturnKind.classify(json) == .seedTrip)
+    #expect(HandoffReturnKind.classify("- [ ] check dates\n" + json) == .seedTrip)
+    for text in [json, "GV-SEED\n" + json] {
+      let seed = try SeedReturn.decode(text)
+      #expect(seed.bases.map(\.name) == ["Aarhus"])
+      #expect(seed.places.map(\.candidate.name) == ["ARoS", "Second"])
+      #expect(seed.places.first?.candidate.why == "the “best” museum")
+    }
+    let curly = "{“places”:[{“name”:“First”}]}"
+    #expect(HandoffReturnKind.classify(curly) == .seedTrip)
+    #expect(try SeedReturn.decode(curly).places.first?.candidate.name == "First")
+    #expect(HandoffReturnKind.classify("{\"summary\":\"Try the “northern” loop.\",\"recommendations\":[{\"name\":\"Plose\"}]}") == .candidatePlaces)
+    #expect(throws: SeedReturnDecodeError.malformedJSON) { try SeedReturn.decode("{bad}") }
+  }
+
   @Test func acceptsWhitespaceAroundSeedMarker() throws {
     for marker in ["GV-SEED ", "  GV-SEED"] {
       let text = "Notes\n" + marker + "\n{\"places\":[{}]}"
