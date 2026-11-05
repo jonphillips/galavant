@@ -129,11 +129,11 @@ much smaller window, and it loses nothing.
   it's quiet here. The launch start is then denied, and the next foreground starts it. Prefer
   `ProcessInfo.processInfo.performExpiringActivity(withReason:)` if `UIApplication.shared` isn't safe
   to use from `App.init`. Say which you used, and why, in the PR.
-- If a write is interrupted by suspension during bootstrap, it must **not** reach the `try!`. Treat
-  `SQLITE_INTERRUPT` / `SQLITE_ABORT` from sync-engine setup like the existing "CloudKit sync unavailable" path
-  (`reportIssue`, stay local-only for this launch). Retry the engine setup on the next resume if that works without
-  re-preparing dependencies; if it doesn't, the next launch retries, and the PR says which. Migration failures still
-  fail loudly as today. Don't widen what's caught.
+- If migration or sync-engine setup throws `SQLITE_INTERRUPT` / `SQLITE_ABORT` after bootstrap expiration,
+  rethrow from the library; the app logs that bootstrap expired and exits, so the next open starts clean. A running
+  local-only process cannot safely continue: interrupted setup leaves the connection without sync triggers, and
+  later starts do not backfill its missed edits. Other migration errors still fail loudly, and other setup errors
+  retain the existing reported local-only fallback. Do not widen what the app catches.
 - Log how long migrate and `makeSyncEngine` each take, as `Logger` lines at `.notice` with public values, so a
   TestFlight build reports them on a real store. **The measurement is Jon's** (see the device gate), because the real
   store is only on his devices. Don't restructure SQLiteData's setup here.
@@ -153,8 +153,8 @@ much smaller window, and it loses nothing.
 1. The live-store configuration has `observesSuspensionNotifications == true`. Test, preview and
    restore-candidate configurations don't. Pull the configuration choice into a pure function if that's
    what makes this testable.
-2. Sync-engine setup that throws `SQLITE_INTERRUPT` or `SQLITE_ABORT` degrades to local-only without
-   throwing out of `bootstrapDatabase`. A migration error still throws.
+2. After expiration, interruptions in migration and sync-engine setup both propagate out of `bootstrapDatabase`.
+   A plain migration error still throws, and a non-interrupt setup error still reports and stays local-only.
 3. The pure plan from § 2: given each event and whether the engine is quiet, it returns its effects in order.
    Background begins a task and neither stops nor suspends. An invalid task runs expiration. Quiet expiration is stop,
    then suspend, then end. Busy expiration only ends. Foreground is end, then resume only if the plan suspended, then

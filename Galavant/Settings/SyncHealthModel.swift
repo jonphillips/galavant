@@ -36,6 +36,7 @@ final class SyncHealthModel {
 
   @ObservationIgnored @Dependency(\.defaultDatabase) private var database
   @ObservationIgnored @Dependency(\.defaultSyncEngine) private var syncEngine
+  @ObservationIgnored @Dependency(\.syncEngineAvailable) private var syncEngineAvailable
 
   init() {
     health = SyncHealth(
@@ -51,7 +52,7 @@ final class SyncHealthModel {
   /// Live-observed sync activity. Reading the `SyncEngine`'s observable getter from
   /// the view lets a `.onChange` drive a `refresh()` the moment a sync cycle finishes,
   /// so the row flips from "Syncing…" to "Up to date" as the pending count drains.
-  var isSynchronizing: Bool { syncEngine.isSynchronizing }
+  var isSynchronizing: Bool { syncEngineAvailable && syncEngine.isSynchronizing }
 
   /// Gather the live signals and fold them into `health`. Cheap and idempotent —
   /// safe to call on appear, on scene `.active`, on `DatabaseChange`, and whenever a
@@ -77,7 +78,7 @@ final class SyncHealthModel {
 
   private func refreshOnce() async {
     let isManuallyEnabled = GalavantCloudSync.isManuallyEnabled()
-    let isEngineRunning = syncEngine.isRunning
+    let isEngineRunning = syncEngineAvailable && syncEngine.isRunning
     // The download counterpart to the pending (upload) count: true while the engine is
     // pulling changes down. Without it a fresh device pulling a large pool reads
     // "Up to date" the instant the first batch lands (jon-platform ADR-0028). Only

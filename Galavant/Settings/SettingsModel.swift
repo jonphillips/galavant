@@ -18,6 +18,7 @@ final class SettingsModel {
 
   @ObservationIgnored @Dependency(\.defaultDatabase) private var database
   @ObservationIgnored @Dependency(\.defaultSyncEngine) private var syncEngine
+  @ObservationIgnored @Dependency(\.syncEngineAvailable) private var syncEngineAvailable
   func refreshTravelProfile() async {
     do {
       let party = try await database.write { db in
@@ -41,6 +42,10 @@ final class SettingsModel {
   }
 
   func shareTravelPartyButtonTapped() async {
+    guard syncEngineAvailable else {
+      reportIssue("Sync engine unavailable; sharing requires another launch")
+      return
+    }
     await withErrorReporting {
       let travelParty = try await database.write { db in
         try TravelParty.ensureDefault(in: db)

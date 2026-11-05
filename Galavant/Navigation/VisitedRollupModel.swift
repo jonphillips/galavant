@@ -14,6 +14,7 @@ final class VisitedRollupModel {
 
   @ObservationIgnored @Dependency(\.defaultDatabase) private var database
   @ObservationIgnored @Dependency(\.defaultSyncEngine) private var syncEngine
+  @ObservationIgnored @Dependency(\.syncEngineAvailable) private var syncEngineAvailable
   @ObservationIgnored @Dependency(\.placeMatcher) private var placeMatcher
   @ObservationIgnored @Dependency(\.date.now) private var now
 
@@ -41,7 +42,7 @@ final class VisitedRollupModel {
 
   private var isSafeToWrite: Bool {
     !GalavantCloudSync.isManuallyEnabled()
-      || (syncEngine.isRunning && !syncEngine.isFetchingChanges)
+      || (syncEngineAvailable && syncEngine.isRunning && !syncEngine.isFetchingChanges)
   }
 
   private func calendar(for trip: Trip) async -> Calendar {
