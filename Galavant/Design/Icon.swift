@@ -29,7 +29,8 @@ enum Icon {
   case browser        // the in-app web browser section (ADR-0023)
   case aiOnDevice     // on-device (private) AI tier
   case aiFrontier     // frontier (networked, BYO-key) AI tier
-  case chat           // open the context-aware chat panel (ADR-0017)
+  case ai             // AI menu
+  case askNow         // open context-aware chat
   case recommend      // external recommendation handoff (ADR-0036)
   case handoff        // open the recommendation handoff menu
   case paste          // paste text from the clipboard
@@ -122,7 +123,8 @@ enum Icon {
     case .tag: "tag"
     case .travelParty: "person.2"
     case .emptyPool: "tray"
-    case .chat: "bubble.left.and.text.bubble.right"
+    case .ai: "sparkles"
+    case .askNow: "text.bubble.badge.sparkles"
     case .recommend: "sparkles"
     case .handoff: "sparkles.square.filled.on.square"
     case .paste: "doc.on.clipboard"

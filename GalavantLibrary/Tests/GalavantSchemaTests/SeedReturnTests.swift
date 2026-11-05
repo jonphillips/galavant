@@ -35,12 +35,28 @@ struct SeedReturnTests {
   @Test func fallsBackToSummaryAndFailsLoudlyForIncompleteSeeds() throws {
     let seed = try SeedReturn.decode("GV-SEED\n{\"summary\":\"A useful summary\",\"places\":[{}]}")
     #expect(seed.narrative == "A useful summary")
-    #expect(throws: SeedReturnDecodeError.missingSeedMarker) { try SeedReturn.decode("{}") }
+    #expect(throws: SeedReturnDecodeError.emptySeed) { try SeedReturn.decode("{}") }
     #expect(throws: SeedReturnDecodeError.missingJSONObject) { try SeedReturn.decode("GV-SEED\nNo JSON") }
     #expect(throws: SeedReturnDecodeError.malformedJSON) { try SeedReturn.decode("GV-SEED\n{bad}") }
     #expect(throws: SeedReturnDecodeError.emptySeed) { try SeedReturn.decode("GV-SEED\n{}") }
     let tripSummary = try SeedReturn.decode("GV-SEED\n{\"trip\":{\"summary\":\"Trip fallback\"},\"places\":[{}]}")
     #expect(tripSummary.narrative == "Trip fallback")
+  }
+
+  @Test func acceptsMissingMarkerAndClassifiesReturns() throws {
+    let json = "{\"summary\":\"Summary\",\"places\":[{}]}"
+    let bare = try SeedReturn.decode(json)
+    #expect(bare.narrative == "Summary")
+    #expect(bare.warnings == ["No GV-SEED line — imported the JSON anyway."])
+    #expect(try SeedReturn.decode("Some notes\n" + json).narrative == "Some notes")
+    #expect(try SeedReturn.decode("```json\n" + json + "\n```").narrative == "Summary")
+    #expect(throws: SeedReturnDecodeError.malformedJSON) { try SeedReturn.decode("{bad}") }
+    #expect(throws: SeedReturnDecodeError.missingJSONObject) { try SeedReturn.decode("No JSON") }
+    #expect(HandoffReturnKind.classify("GV-SEED\n[]") == .seedTrip)
+    #expect(HandoffReturnKind.classify(json) == .seedTrip)
+    #expect(HandoffReturnKind.classify("{\"bases\":[]}") == .seedTrip)
+    #expect(HandoffReturnKind.classify("[{\"places\":[]}]") == .candidatePlaces)
+    #expect(HandoffReturnKind.classify("Plain prose") == .candidatePlaces)
   }
 
   @Test func keepsCRLFPastesAndWarnsForNonObjectArrayElements() throws {

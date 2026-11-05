@@ -258,7 +258,7 @@ private struct TripDetailPresentationHost<Content: View>: View {
         TripDocumentsSheet(tripID: model.tripID)
       }
       .sheet(item: $model.destination.recommendationHandoff, id: \.id) { presentation in
-        RecommendationHandoffSheet(model: model, session: presentation.session)
+        RecommendationHandoffSheet(model: model, session: presentation.session, seedReviewModel: presentation.seedReview)
       }
       .sheet(item: $model.destination.recommendationWorkspace, id: \.id) { presentation in
         // Presented modally from a trip, so it supplies its own nav bar + Done. The

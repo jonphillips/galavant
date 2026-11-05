@@ -12,6 +12,7 @@ import SQLiteData
 /// live in the tested schema core.
 struct RecommendationHandoffPresentation: Identifiable {
   let session: HandoffSession
+  let seedReview: SeedReviewModel?
   var id: HandoffSession.ID { session.id }
 }
 
@@ -89,7 +90,7 @@ extension TripPlanningModel {
       recommendationHandoffPaste.note = nil
       recommendationHandoffPaste.noteSaved = false
       recommendationHandoffError = nil
-      destination = .recommendationHandoff(RecommendationHandoffPresentation(session: session))
+      destination = .recommendationHandoff(RecommendationHandoffPresentation(session: session, seedReview: SeedReviewModel()))
     } catch {
       recommendationHandoffError = error.localizedDescription
     }
@@ -126,7 +127,7 @@ extension TripPlanningModel {
       recommendationHandoffPaste.warning = nil
       recommendationHandoffPaste.note = nil
       recommendationHandoffPaste.noteSaved = false
-      destination = .recommendationHandoff(RecommendationHandoffPresentation(session: session))
+      destination = .recommendationHandoff(RecommendationHandoffPresentation(session: session, seedReview: nil))
     } catch {
       recommendationHandoffError = error.localizedDescription
     }
@@ -142,8 +143,33 @@ extension TripPlanningModel {
     }) ?? []
   }
 
+  func pasteButtonTapped(_ pasted: String?) {
+    if case let .recommendationHandoff(presentation)? = destination {
+      pasteRecommendationResult(pasted, for: presentation.session, seedReviewModel: presentation.seedReview)
+      return
+    }
+    let routed = pasted.flatMap { try? HandoffRouting.route($0) }
+    if let routed, let session = handoffSessionStore.session(routed.sessionID), session.sourceID == tripID {
+      recommendationReview = []
+      recommendationHandoffPaste.warning = nil
+      recommendationHandoffPaste.note = nil
+      recommendationHandoffPaste.noteSaved = false
+      let presentation = RecommendationHandoffPresentation(
+        session: session,
+        seedReview: session.taskType == RecommendationHandoffTask.seedTrip ? SeedReviewModel() : nil
+      )
+      destination = .recommendationHandoff(presentation)
+    } else if HandoffReturnKind.classify(routed?.text ?? pasted ?? "") == .seedTrip {
+      startSeedHandoff()
+    } else {
+      startRecommendationHandoff()
+    }
+    guard case let .recommendationHandoff(presentation)? = destination else { return }
+    pasteRecommendationResult(pasted, for: presentation.session, seedReviewModel: presentation.seedReview)
+  }
+
   func pasteRecommendationResult(
-    _ pasted: String?, for session: HandoffSession, seedReviewModel: SeedReviewModel? = nil
+    _ pasted: String?, for session: HandoffSession, seedReviewModel: SeedReviewModel?
   ) {
     guard let pasted, !pasted.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
       if session.taskType == RecommendationHandoffTask.seedTrip {

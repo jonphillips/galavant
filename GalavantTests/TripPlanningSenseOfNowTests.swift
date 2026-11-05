@@ -76,7 +76,7 @@ struct TripPlanningSenseOfNowTests {
     let tripID = try await makeTrip(startDate: nil)
     let model = try await loadedModel(tripID: tripID)
 
-    model.pasteRecommendationResult(nil, for: recommendationSession(tripID: tripID))
+    model.pasteRecommendationResult(nil, for: recommendationSession(tripID: tripID), seedReviewModel: nil)
 
     #expect(model.recommendationHandoffPaste.warning?.contains("Clipboard is empty") == true)
   }
@@ -88,7 +88,7 @@ struct TripPlanningSenseOfNowTests {
     let model = try await loadedModel(tripID: tripID)
 
     model.pasteRecommendationResult(
-      "this is not a recommendation result", for: recommendationSession(tripID: tripID))
+      "this is not a recommendation result", for: recommendationSession(tripID: tripID), seedReviewModel: nil)
 
     #expect(model.recommendationHandoffPaste.warning?.contains("could not be imported") == true)
     #expect(model.recommendationHandoffError == nil)

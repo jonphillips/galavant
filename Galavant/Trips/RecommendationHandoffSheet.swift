@@ -9,15 +9,7 @@ struct RecommendationHandoffSheet: View {
   let session: HandoffSession
   @Environment(\.dismiss) private var dismiss
   @State private var copiedBrief = false
-  @State private var seedReviewModel: SeedReviewModel?
-
-  init(model: TripPlanningModel, session: HandoffSession) {
-    self.model = model
-    self.session = session
-    _seedReviewModel = State(
-      initialValue: session.taskType == RecommendationHandoffTask.seedTrip ? SeedReviewModel() : nil
-    )
-  }
+  let seedReviewModel: SeedReviewModel?
 
   var body: some View {
     @Bindable var model = model
@@ -89,7 +81,7 @@ struct RecommendationHandoffSheet: View {
 
   private var navigationTitle: String {
     if session.taskType == RecommendationHandoffTask.seedTrip {
-      return seedReviewModel?.plan == nil ? "Seed from Conversation" : "Review Trip Seed"
+      return seedReviewModel?.plan == nil ? "Hand off · Summarize Conversation" : "Review Trip Seed"
     }
     return model.recommendationReview.isEmpty
       ? "Hand off · Get Recommendations"
