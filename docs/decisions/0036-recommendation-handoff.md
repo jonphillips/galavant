@@ -15,6 +15,9 @@ dedup / `mapItemIdentifier` **is** the resolution path), and the Ideas shopping 
 processed in is its own decision (**ADR-0037**, stacked on this one; D8). Cross-app: the
 handoff **core lifts to a shared jon-platform package**; see §The lift.*
 
+> **Amended by [ADR-0052](0052-chat-access-over-mcp.md):** a set staged through the MCP tool imports on one tap instead of D4's
+> row-grain review. The paste door keeps D4.
+
 > **Vocabulary.** A **recommendation handoff** is a device-local, trackable session that
 > starts from a Galavant trip context (a day, a lodging stay, a transfer, or the whole
 > trip), moves an exported **brief** into a native LLM app (ChatGPT/Claude), lets the
@@ -167,6 +170,9 @@ write to a specific slot. This is why Jon's brief was right that placement must 
 precise position.
 
 ### D7 — Learnings are the designed-but-deferred second half
+
+*Taste learnings now live in taste notes ([ADR-0053](0053-taste-record-and-region-guide.md) D2 and D4). This section's lifted
+`Learning` table was never built.*
 
 A region session yields two things: **candidate places** (this ADR) and durable **travel
 learnings** established in discussion ("the Plose cable car closes Mondays"; "Bolzano is

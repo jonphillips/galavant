@@ -10,6 +10,9 @@ bar (ADR-0025), the capture region-biased matcher and dedup (ADR-0016 / ADR-0019
 alternatives ring (ADR-0035), and the row-grain review from ADR-0036. Holds ADR-0004's
 explicit-pull invariant — the model proposes; the human's tap is the only write.*
 
+> **Extended by [ADR-0052](0052-chat-access-over-mcp.md):** a staged set from chat is D8's second feed, and it appears in
+> Evaluate as a From Chat row before it's imported.
+
 > **Vocabulary.** A **candidate** is one fuzzy AI suggestion from a handoff return
 > (ADR-0036) — a freeform `.considering` `TripIdea`. The **set** is all candidates from one
 > handoff. **Resolution** is confirming a candidate against a real map place (**Use This
