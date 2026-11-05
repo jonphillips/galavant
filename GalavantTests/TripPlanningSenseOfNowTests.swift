@@ -76,7 +76,7 @@ struct TripPlanningSenseOfNowTests {
     let tripID = try await makeTrip(startDate: nil)
     let model = try await loadedModel(tripID: tripID)
 
-    model.pasteRecommendationResult(nil, for: recommendationSession(tripID: tripID))
+    model.pasteRecommendationResult(nil, for: recommendationSession(tripID: tripID), seedReviewModel: nil)
 
     #expect(model.recommendationHandoffPaste.warning?.contains("Clipboard is empty") == true)
   }
@@ -88,9 +88,105 @@ struct TripPlanningSenseOfNowTests {
     let model = try await loadedModel(tripID: tripID)
 
     model.pasteRecommendationResult(
-      "this is not a recommendation result", for: recommendationSession(tripID: tripID))
+      "this is not a recommendation result", for: recommendationSession(tripID: tripID), seedReviewModel: nil)
 
     #expect(model.recommendationHandoffPaste.warning?.contains("could not be imported") == true)
+    #expect(model.recommendationHandoffError == nil)
+  }
+
+  @Test
+  @MainActor
+  func pasteRoutesSeedAndReusesItsSession() async throws {
+    let tripID = try await makeTrip(startDate: nil)
+    let session = HandoffSession(
+      sourceType: "trip", sourceID: tripID, taskType: RecommendationHandoffTask.seedTrip, exportedPrompt: "")
+    try await withDependencies {
+      $0.handoffSessionStore.session = { $0 == session.id ? session : nil }
+    } operation: {
+      let model = try await loadedModel(tripID: tripID)
+      model.pasteButtonTapped("GV-HANDOFF: \(session.id)\n{\"places\":[{\"name\":\"A place\"}]}")
+      guard case let .recommendationHandoff(presentation) = model.destination else {
+        Issue.record("Expected a handoff sheet")
+        return
+      }
+      #expect(presentation.session.id == session.id)
+      #expect(presentation.seedReview?.plan?.seed.places.count == 1)
+      #expect(presentation.seedReview?.plan?.seed.warnings.contains(where: { $0.contains("different handoff") }) == false)
+    }
+  }
+
+  @Test
+  @MainActor
+  func pasteClassifiesSeedWhenTokenBelongsToAnotherTrip() async throws {
+    let tripID = try await makeTrip(startDate: nil)
+    let session = HandoffSession(
+      sourceType: "trip", sourceID: UUID(), taskType: RecommendationHandoffTask.seedTrip, exportedPrompt: "")
+    try await withDependencies {
+      $0.handoffSessionStore.session = { $0 == session.id ? session : nil }
+    } operation: {
+      let model = try await loadedModel(tripID: tripID)
+      model.pasteButtonTapped("GV-HANDOFF: \(session.id)\n{\"places\":[{\"name\":\"A place\"}]}")
+      guard case let .recommendationHandoff(presentation) = model.destination else {
+        Issue.record("Expected a handoff sheet")
+        return
+      }
+      #expect(presentation.session.id != session.id)
+      #expect(presentation.session.sourceID == tripID)
+      #expect(presentation.seedReview?.plan?.seed.warnings.contains(where: { $0.contains("different handoff") }) == true)
+    }
+  }
+
+  @Test
+  @MainActor
+  func pasteCurlyQuotedSeedKeepsEveryPlace() async throws {
+    let tripID = try await makeTrip(startDate: nil)
+    let model = try await loadedModel(tripID: tripID)
+    model.pasteButtonTapped("""
+      {“bases”:[{“name”:“Aarhus”,“check_in_day”:1,“check_out_day”:2}],
+       “places”:[{“name”:“First”},{“name”:“Second”}]}
+      """)
+    guard case let .recommendationHandoff(presentation) = model.destination else {
+      Issue.record("Expected a handoff sheet")
+      return
+    }
+    let seed = try #require(presentation.seedReview?.plan?.seed)
+    #expect(seed.bases.map(\.name) == ["Aarhus"])
+    #expect(seed.places.map(\.candidate.name) == ["First", "Second"])
+  }
+
+  @Test
+  @MainActor
+  func pasteSeedWithTypographicQuotesInsideStringsKeepsEveryPlace() async throws {
+    let tripID = try await makeTrip(startDate: nil)
+    let model = try await loadedModel(tripID: tripID)
+    model.pasteButtonTapped("""
+      {"summary":"The “northern” loop", "bases":[{"name":"Aarhus","check_in_day":1,"check_out_day":2}],
+       "places":[{"name":"ARoS","why":"the “best” museum"},{"name":"Second"}]}
+      """)
+    guard case let .recommendationHandoff(presentation) = model.destination else {
+      Issue.record("Expected a handoff sheet")
+      return
+    }
+    let seed = try #require(presentation.seedReview?.plan?.seed)
+    #expect(seed.bases.map(\.name) == ["Aarhus"])
+    #expect(seed.places.map(\.candidate.name) == ["ARoS", "Second"])
+    #expect(seed.places.first?.candidate.why == "the “best” museum")
+  }
+
+  @Test
+  @MainActor
+  func pasteCandidateArrayOpensRecommendationReview() async throws {
+    let tripID = try await makeTrip(startDate: nil)
+    let model = try await loadedModel(tripID: tripID)
+    model.recommendationHandoffError = "Previous error"
+    model.pasteButtonTapped("Try these [top picks]: [{\"name\":\"First\"},{\"name\":\"Second\"}]")
+    guard case let .recommendationHandoff(presentation) = model.destination else {
+      Issue.record("Expected a handoff sheet")
+      return
+    }
+    #expect(presentation.session.taskType == RecommendationHandoffTask.candidatePlaces)
+    #expect(presentation.seedReview == nil)
+    #expect(model.recommendationReview.map(\.name) == ["First", "Second"])
     #expect(model.recommendationHandoffError == nil)
   }
 

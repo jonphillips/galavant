@@ -130,23 +130,24 @@ struct TripPlanningView: View {
           }
         }
         Menu {
-          Button {
-            model.startRecommendationHandoff()
+          Menu {
+            Button("Get Recommendations", action: model.startRecommendationHandoff)
+            Button("Summarize Conversation", action: model.startSeedHandoff)
           } label: {
-            Icon.recommend.label("Hand off")
+            Icon.handoff.label("Hand off")
           }
           Button {
-            pasteRecommendationFromClipboard()
+            model.pasteButtonTapped(UIPasteboard.general.string)
           } label: {
             Icon.paste.label("Paste")
           }
           Button {
             showingChat.toggle()
           } label: {
-            Label("Ask now", systemImage: showingChat ? Icon.checkmark.systemName : Icon.recommend.systemName)
+            Label("Ask now", systemImage: showingChat ? Icon.checkmark.systemName : Icon.askNow.systemName)
           }
         } label: {
-          Icon.handoff.label("Hand off")
+          Icon.ai.label("AI")
         }
       }
     }
@@ -186,17 +187,6 @@ struct TripPlanningView: View {
   private func handleCanvasSelection(_ id: TripIdea.ID?) {
     guard id != nil, model.sheetTab == .itinerary else { return }
     if !usesColumn, sheetDetent == Self.peek { sheetDetent = .medium }
-  }
-
-  private func pasteRecommendationFromClipboard() {
-    let pasted = UIPasteboard.general.string
-    if case let .recommendationHandoff(presentation)? = model.destination {
-      model.pasteRecommendationResult(pasted, for: presentation.session)
-      return
-    }
-    model.startRecommendationHandoff()
-    guard case let .recommendationHandoff(presentation)? = model.destination else { return }
-    model.pasteRecommendationResult(pasted, for: presentation.session)
   }
 
   /// The iPhone itinerary is already a presentation. Dismiss it before asking

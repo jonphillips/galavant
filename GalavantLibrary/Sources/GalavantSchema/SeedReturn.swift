@@ -88,22 +88,21 @@ public struct SeedReturn: Equatable, Sendable {
 
   public static func decode(_ text: String) throws -> SeedReturn {
     let lines = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
-    guard let marker = lines
-      .lastIndex(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines) == "GV-SEED" })
-    else { throw SeedReturnDecodeError.missingSeedMarker }
-
-    let narrative = lines[..<marker].joined(separator: "\n")
-      .trimmingCharacters(in: .whitespacesAndNewlines)
-    let tail = lines[(marker + 1)...].joined(separator: "\n")
-    guard let object = Self.jsonObjectSlice(in: tail) else {
+    let marker = lines.lastIndex(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines) == "GV-SEED" })
+    let tail = marker.map { lines[($0 + 1)...].joined(separator: "\n") } ?? text
+    guard let object = Self.jsonObjectSlice(in: tail), let range = tail.range(of: object) else {
       throw SeedReturnDecodeError.missingJSONObject
     }
-    let normalized = object
-      .replacingOccurrences(of: "“", with: "\"")
-      .replacingOccurrences(of: "”", with: "\"")
-      .replacingOccurrences(of: "‘", with: "'")
-      .replacingOccurrences(of: "’", with: "'")
-    guard let root = (try? JSONSerialization.jsonObject(with: Data(normalized.utf8))) as? [String: Any]
+    let narrative: String
+    if let marker {
+      narrative = lines[..<marker].joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+    } else {
+      narrative = String(tail[..<range.lowerBound])
+        .replacingOccurrences(of: "```json", with: "")
+        .replacingOccurrences(of: "```", with: "")
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    guard let root = Self.parseObject(object)
     else { throw SeedReturnDecodeError.malformedJSON }
 
     let seedTrip = decodeTrip(root)
@@ -113,7 +112,7 @@ public struct SeedReturn: Equatable, Sendable {
     let rawPlaces = try objectArray(root, key: "places")
     let (bases, baseWarnings) = decodeBases(rawBases, lengthDays: seedTrip.lengthDays)
     let (places, placeWarnings) = decodePlaces(rawPlaces)
-    let warnings = baseWarnings + placeWarnings
+    let warnings = (marker == nil ? ["No GV-SEED line — imported the JSON anyway."] : []) + baseWarnings + placeWarnings
     guard !bases.isEmpty || !places.isEmpty else { throw SeedReturnDecodeError.emptySeed }
     return SeedReturn(narrative: finalNarrative, trip: seedTrip, bases: bases, places: places, warnings: warnings)
   }
@@ -183,7 +182,22 @@ public struct SeedReturn: Equatable, Sendable {
     return (places, warnings)
   }
 
-  private static func jsonObjectSlice(in text: String) -> String? {
+  fileprivate static func parseObject(_ text: String) -> [String: Any]? {
+    let normalized = normalizeQuotes(text)
+    return [normalized, text].lazy.compactMap {
+      (try? JSONSerialization.jsonObject(with: Data($0.utf8))) as? [String: Any]
+    }.first
+  }
+
+  private static func normalizeQuotes(_ text: String) -> String {
+    text
+      .replacingOccurrences(of: "“", with: "\"")
+      .replacingOccurrences(of: "”", with: "\"")
+      .replacingOccurrences(of: "‘", with: "'")
+      .replacingOccurrences(of: "’", with: "'")
+  }
+
+  fileprivate static func jsonObjectSlice(in text: String) -> String? {
     var index = text.startIndex
     while index < text.endIndex {
       guard text[index] == "{" else {
@@ -226,14 +240,12 @@ public struct SeedReturn: Equatable, Sendable {
 }
 
 public enum SeedReturnDecodeError: Error, Equatable, LocalizedError, Sendable {
-  case missingSeedMarker
   case missingJSONObject
   case malformedJSON
   case emptySeed
 
   public var errorDescription: String? {
     switch self {
-    case .missingSeedMarker: "This result does not contain a GV-SEED marker. Nothing was imported."
     case .missingJSONObject: "This result does not contain a seed JSON object. Nothing was imported."
     case .malformedJSON: "This seed JSON is malformed. Nothing was imported."
     case .emptySeed: "This result has no valid bases or places. Nothing was imported."
@@ -268,5 +280,31 @@ private extension Dictionary where Key == String, Value == Any {
     case "false", "no": false
     default: nil
     }
+  }
+}
+
+public enum HandoffReturnKind: Equatable, Sendable {
+  case candidatePlaces, seedTrip
+
+  public static func classify(_ body: String) -> Self {
+    if body.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
+      .contains(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines) == "GV-SEED" }) {
+      return .seedTrip
+    }
+    var index = body.startIndex
+    while index < body.endIndex {
+      if body[index] == "[" {
+        let next = body[body.index(after: index)...].first(where: { !$0.isWhitespace })
+        if next == "{" { return .candidatePlaces }
+      } else if body[index] == "{" {
+        guard let object = SeedReturn.jsonObjectSlice(in: String(body[index...])),
+          let root = SeedReturn.parseObject(object),
+          root.keys.contains("bases") || root.keys.contains("places")
+        else { return .candidatePlaces }
+        return .seedTrip
+      }
+      index = body.index(after: index)
+    }
+    return .candidatePlaces
   }
 }

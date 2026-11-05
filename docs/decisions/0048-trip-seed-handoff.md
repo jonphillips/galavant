@@ -428,7 +428,7 @@ its `GV-SEED` line was rejected even when it was a valid seed.
 - **The contract doesn't change.** The brief and Appendix A still ask for `GV-SEED`, and no
   marker version changes. The decoder now accepts more than the contract asks for, which matches
   ADR-0036 Amendment 1's stance on the token and marker.
-- Brief: [`hand-off-purposes`](../efforts/hand-off-purposes.md).
+- Brief: [`hand-off-purposes`](../efforts/archive/hand-off-purposes.md).
 
 ## Appendix A — the seed clause for the project instructions (passed Slice 0 on run 2)
 

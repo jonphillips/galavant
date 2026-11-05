@@ -1,6 +1,6 @@
-# Next Up — One Hand off menu: Get Recommendations, Summarize Conversation, one Paste
+# Next Up — Chat access: stage travel options from chat into Evaluate
 
-**Slices:** effort `hand-off-purposes`
-**Briefs:** [docs/efforts/hand-off-purposes.md](efforts/hand-off-purposes.md)
+**Slices:** effort `chat-access`
+**Briefs:** [docs/efforts/chat-access.md](efforts/chat-access.md)
 **Done when:** per the brief
 **Owed:** see [device-passes.md](device-passes.md)

@@ -1,5 +1,4 @@
 import Dependencies
-import GalavantChat
 import GalavantSchema
 import MapKit
 import SQLiteData
@@ -16,7 +15,6 @@ struct IdeasScreen: View {
   @State private var namingRegion = false
   @State private var regionNameDraft = ""
   @State private var managingRegions = false
-  @State private var showingChat = false
   /// The idea whose map pin was last tapped — the list scrolls to and highlights
   /// its row, so the pin and the row read as one selection.
   @State private var focusedIdeaID: Idea.ID?
@@ -32,12 +30,7 @@ struct IdeasScreen: View {
         capsuleBar
       }
       quickFilterBar
-      // The chat inspector is attached *inside* the toolbar-bearing view, not on the
-      // whole screen: an `.inspector` on the detail-root content swallows that view's
-      // `.toolbar` on iPad (the items silently vanish). Nesting it below the toolbar
-      // host keeps both. (docs/KNOWN-ISSUES.md)
       content
-        .chatPanel(isPresented: $showingChat, context: .pool(poolChatContext))
     }
     .navigationTitle("Ideas")
     // Consume an itinerary "Browse ideas for this day" hand-off (ADR-0013): scope to
@@ -76,14 +69,6 @@ struct IdeasScreen: View {
           model.addIdeaButtonTapped()
         } label: {
           Icon.add.label("Add Idea")
-        }
-      }
-      // Discuss the current shopping surface with the model (ADR-0017).
-      ToolbarItem {
-        Button {
-          showingChat = true
-        } label: {
-          Icon.chat.label("Discuss")
         }
       }
     }
@@ -138,20 +123,6 @@ struct IdeasScreen: View {
     .sheet(isPresented: $managingRegions) {
       RegionManagerView(model: model)
     }
-  }
-
-  /// The pool the chat is "looking at" (ADR-0017 §2): the active lens label plus
-  /// the ideas currently visible under it.
-  private var poolChatContext: PoolContext {
-    let lens: String
-    if let tripID = model.activeTripID,
-      let trip = model.capsules.first(where: { $0.id == tripID })
-    {
-      lens = trip.name.isEmpty ? "Active trip" : trip.name
-    } else {
-      lens = "All ideas"
-    }
-    return PoolContext(lens: lens, ideas: model.filteredIdeas)
   }
 
   /// The browse body: list + map side-by-side on iPad (regular width, ADR-0013 —

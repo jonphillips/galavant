@@ -35,12 +35,67 @@ struct SeedReturnTests {
   @Test func fallsBackToSummaryAndFailsLoudlyForIncompleteSeeds() throws {
     let seed = try SeedReturn.decode("GV-SEED\n{\"summary\":\"A useful summary\",\"places\":[{}]}")
     #expect(seed.narrative == "A useful summary")
-    #expect(throws: SeedReturnDecodeError.missingSeedMarker) { try SeedReturn.decode("{}") }
+    #expect(throws: SeedReturnDecodeError.emptySeed) { try SeedReturn.decode("{}") }
     #expect(throws: SeedReturnDecodeError.missingJSONObject) { try SeedReturn.decode("GV-SEED\nNo JSON") }
     #expect(throws: SeedReturnDecodeError.malformedJSON) { try SeedReturn.decode("GV-SEED\n{bad}") }
     #expect(throws: SeedReturnDecodeError.emptySeed) { try SeedReturn.decode("GV-SEED\n{}") }
     let tripSummary = try SeedReturn.decode("GV-SEED\n{\"trip\":{\"summary\":\"Trip fallback\"},\"places\":[{}]}")
     #expect(tripSummary.narrative == "Trip fallback")
+  }
+
+  @Test func acceptsMissingMarkerAndClassifiesReturns() throws {
+    let json = "{\"summary\":\"Summary\",\"places\":[{}]}"
+    let bare = try SeedReturn.decode(json)
+    #expect(bare.narrative == "Summary")
+    #expect(bare.warnings == ["No GV-SEED line — imported the JSON anyway."])
+    #expect(try SeedReturn.decode("Some notes\n" + json).narrative == "Some notes")
+    #expect(try SeedReturn.decode("```json\n" + json + "\n```").narrative == "Summary")
+    #expect(throws: SeedReturnDecodeError.malformedJSON) { try SeedReturn.decode("{bad}") }
+    #expect(throws: SeedReturnDecodeError.missingJSONObject) { try SeedReturn.decode("No JSON") }
+    #expect(HandoffReturnKind.classify("GV-SEED\n[]") == .seedTrip)
+    #expect(HandoffReturnKind.classify(json) == .seedTrip)
+    #expect(HandoffReturnKind.classify("{\"bases\":[]}") == .seedTrip)
+    #expect(HandoffReturnKind.classify("[{\"places\":[]}]") == .candidatePlaces)
+    #expect(HandoffReturnKind.classify("Plain prose") == .candidatePlaces)
+  }
+
+  @Test func classifiesProseAndCurlyQuotedSeedsWithoutMistakingBracketsForArrays() {
+    let seed = "{\"bases\":[],\"places\":[{}]}"
+    #expect(HandoffReturnKind.classify("Here is the seed [from our chat]: " + seed) == .seedTrip)
+    #expect(HandoffReturnKind.classify("Per [the guide](https://x.y): " + seed) == .seedTrip)
+    #expect(HandoffReturnKind.classify("{“bases”:[],“places”:[{}]}") == .seedTrip)
+    #expect(HandoffReturnKind.classify("Try these [top picks]: [{\"name\":\"A\"}]") == .candidatePlaces)
+    #expect(HandoffReturnKind.classify("[{\"places\":[]}]") == .candidatePlaces)
+  }
+
+  @Test func preservesTypographicQuotesInsideValidJSON() throws {
+    let json = """
+      {"summary":"The “northern” loop", "bases":[{"name":"Aarhus","check_in_day":1,"check_out_day":2}],
+       "places":[{"name":"ARoS","why":"the “best” museum"},{"name":"Second"}]}
+      """
+    #expect(HandoffReturnKind.classify(json) == .seedTrip)
+    #expect(HandoffReturnKind.classify("- [ ] check dates\n" + json) == .seedTrip)
+    for text in [json, "GV-SEED\n" + json] {
+      let seed = try SeedReturn.decode(text)
+      #expect(seed.bases.map(\.name) == ["Aarhus"])
+      #expect(seed.places.map(\.candidate.name) == ["ARoS", "Second"])
+      #expect(seed.places.first?.candidate.why == "the “best” museum")
+    }
+    let curly = "{“places”:[{“name”:“First”}]}"
+    #expect(HandoffReturnKind.classify(curly) == .seedTrip)
+    #expect(try SeedReturn.decode(curly).places.first?.candidate.name == "First")
+    #expect(HandoffReturnKind.classify("{\"summary\":\"Try the “northern” loop.\",\"recommendations\":[{\"name\":\"Plose\"}]}") == .candidatePlaces)
+    #expect(throws: SeedReturnDecodeError.malformedJSON) { try SeedReturn.decode("{bad}") }
+  }
+
+  @Test func acceptsWhitespaceAroundSeedMarker() throws {
+    for marker in ["GV-SEED ", "  GV-SEED"] {
+      let text = "Notes\n" + marker + "\n{\"places\":[{}]}"
+      let seed = try SeedReturn.decode(text)
+      #expect(seed.narrative == "Notes")
+      #expect(seed.warnings.isEmpty)
+      #expect(HandoffReturnKind.classify("Notes\n" + marker + "\n[]") == .seedTrip)
+    }
   }
 
   @Test func keepsCRLFPastesAndWarnsForNonObjectArrayElements() throws {
