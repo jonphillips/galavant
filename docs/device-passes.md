@@ -44,7 +44,7 @@ gate enforces this: it refuses to archive unless Development and Production matc
   on both devices, and it stays cleared.
 - **iCloud identity readings (ADR-0051 Slice 0), on Jon's phone and on Wendy's:** TestFlight 0.2.0-486 and later carry the readout. Settings → Planners → iCloud identity → Copy, and send both readings to the architect, who records OQ1–OQ3 in ADR-0051. Plus one reading from Galavant Dev on Jon's phone, for OQ3. Wendy only reads; nothing here changes the share.
 - **Planning chrome alignment (PR 189), on the iPad:** open a dated trip with the chat inspector
-  open, and check that every trailing toolbar item is there, including the Hand off menu. Hand off →
+  open, and check that every trailing toolbar item is there, including the AI menu. AI →
   Paste with an empty clipboard shows a warning, not nothing. Day 1 and day 6 pins and routes are
   clearly different colors on the map in light and dark mode. List sequence badges are neutral and
   readable. Scroll the itinerary: the hero image and its photo credit collapse together and come back
@@ -55,14 +55,14 @@ gate enforces this: it refuses to archive unless Development and Production matc
   filter the canvas as expected and VoiceOver announces the full stay and date labels.
 - **Stay-tap freeze (`stay-tap-freeze`).** On iPad and iPhone, tap each stay label on the Eastern France trip, then a day, then All: no freeze, no header flicker, and the list lands on the stay's first day. Check the selected stay label too: if its fill still renders dark rather than matching the selected day chip, that's a separate styling bug (brief § 4) to send back.
 - **Launch-lock crash (`launch-lock-suspension`).** After the TestFlight build that carries it: no unexplained `0xdead10cc` in `testflight --feedback` over a week of normal use, including background pushes from Wendy's edits. If one appears, read the last expiration log line before it: `busy` is the accepted case, and `suspended` or no line at all is a question to raise. Send the architect a rough count of `busy` against `suspended` too. Leave Galavant in the background for several minutes while Wendy edits a trip, then open it: her edit arrives within a few seconds, and Settings → Sync reads "Up to date". Make an edit and leave at once: it reaches the other device without reopening. Two shares in a row from the share sheet both save. If Galavant ever closes by itself right after you open it, look in Console for "Bootstrap expired and database setup was interrupted". That clean exit won't show up as a crash in `testflight --feedback`. It's only expected on a launch in the background, so seeing it on a launch you started yourself is a question to raise, and so is a close with no such line. Read the bootstrap timings from Console (`migrate` and `makeSyncEngine`) and send them to the architect; if trigger setup is a large share, that's a question to raise.
+- **Hand off purposes (`hand-off-purposes`).** On a trip, the toolbar menu reads AI with `sparkles`, and the three items show different icons. The Ideas toolbar has no Discuss, and its other items are all still there on iPad. Hand off → Summarize Conversation opens "Hand off · Summarize Conversation" and its brief copies. Copy a seed reply's JSON object alone (no `GV-SEED` line, no token) and tap the toolbar Paste: seed review opens with a "No GV-SEED line" note. A full reply with its token goes back into the session it came from. Candidate JSON through the same Paste still lands in candidate review. The Ideas list has no Seed from Conversation row.
 
 ## Held
 
-`hand-off-purposes`, `chat-access` and `taste-notes` aren't built yet. Their gates are written ahead of
-the work, so each moves to **Owed now** when its PR lands.
+`chat-access` and `taste-notes` aren't built yet. Their gates are written ahead of the work, so each
+moves to **Owed now** when its PR lands.
 
 - **Schema deploy: `trips.visitedRolledUpAt` (held ops).** A development build with sync on pushes it once a past trip rolls up, then deploy the schema before the next TestFlight build. TestFlight builds 0.2.0-486 through -494 carry the column, so this may be done. Confirm it in the console, then remove this line.
-- **Hand off purposes (`hand-off-purposes`).** On a trip, the toolbar menu reads AI with `sparkles`, and the three items show different icons. The Ideas toolbar has no Discuss, and its other items are all still there on iPad. Hand off → Summarize Conversation opens "Hand off · Summarize Conversation" and its brief copies. Copy a seed reply's JSON object alone (no `GV-SEED` line, no token) and tap the toolbar Paste: seed review opens with a "No GV-SEED line" note. A full reply with its token goes back into the session it came from. Candidate JSON through the same Paste still lands in candidate review. The Ideas list has no Seed from Conversation row.
 - **Chat access setup (`chat-access` S2).** Jon's ops, once: create a `galavant` tunnel on the OpenAI Platform; run `scripts/install-mcp-helper` per `docs/chat-access-setup.md`; run `mcp-tunnel init galavant … --health-port 8082` and `install-agent galavant`; add the plugin in ChatGPT. If the TestFlight archive fails signing, enable iCloud Documents on both App IDs. Turn on Settings → Chat Access on the iPhone and iPad.
 - **Chat access round trip (`chat-access` S2).** On the iPhone, Hand off → Get Recommendations, and paste the brief into a ChatGPT chat outside any Project. Ask for options and tell it to stage them: ChatGPT asks first, then a From Chat row reaches both devices with the trip name, the count, and a badge on Evaluate. On the iPad, tap it: the workspace opens on the set, and the options are under Consider. Stage a second round from the same chat and tap it: they join the same set with no duplicates. Discard a third staged set: nothing changes on the trip. Ask the chat to stage malformed JSON: it reports the error and nothing appears. On Wendy's phone, once the options sync, they appear under Consider, and Evaluate shows no From Chat section.
 - **Chat access seeds (`chat-access` S3).** Paste the Hand off → Summarize Conversation brief into a planning chat and have it stage the seed. Tap the row: the trip opens with seed review, on iPad and iPhone. Dismiss it: the row stays. Tap again and commit: the row goes.
@@ -85,7 +85,7 @@ the work, so each moves to **Owed now** when its PR lands.
 - On one device, add a trip document and confirm it appears on the other after sync; delete the trip and confirm the document is removed.
 - Rule out a place on one device and confirm it appears under Ruled out on the other.
 - Re-copy the project instructions (now v2) into the ChatGPT project.
-- On a trip, Seed from Conversation → paste the brief into the Denmark conversation → paste the
+- On a trip, AI → Hand off → Summarize Conversation → paste the brief into the Denmark conversation → paste the
   reply back → review → Import; check the founding document, stays, rings and Ruled out on iPhone
   and iPad.
 - Seed the Denmark conversation into a trip that shares a few places with the pool: saved-idea matches
@@ -103,6 +103,6 @@ the work, so each moves to **Owed now** when its PR lands.
   map pins narrow together. Tap Scheduled, then Not scheduled. Switch to All and confirm the stage
   capsules disappear and the kind selection stays.
 - **Travel profile on TestFlight:** edit the profile on one device and confirm it reaches the other;
-  then run Discuss and a recommendation brief and confirm the taste lines are in the prompt.
+  then run AI → Ask now and a recommendation brief and confirm the taste lines are in the prompt.
 - On a device or simulator with no identity, open Settings → Taste Profile: the overlay section
   explains and links to Planners. Mark yourself **This is me**, go back, and the overlay field appears.
