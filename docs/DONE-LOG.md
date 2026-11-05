@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-04 — Protect the shared database at suspension (`effort/launch-lock-suspension`)
+
+- **Result:** Added a serial sync start and redrain gate, quiet-only background suspension, protected bootstrap with timing logs, and extension suspension handling; jon-platform PR #116 supplied the shared start seam.
+- **Verification:** Focused suspension tests, scripts/check-drift.sh, and 48 headless GalavantTests passed; CloudSyncKit verification is recorded on jon-platform PR #116.
+- **Owed:** launch-lock-suspension's device gate, in [device-passes.md](device-passes.md).
+
 ## Tidied device-passes.md (`plan/device-passes-tidy`) — 2026-11-04
 
 - **Result:** Split the file into Owed now, Held and Older, added how entries get added and cleared, and moved the

@@ -96,7 +96,15 @@ public enum GalavantCloudSync {
   // MARK: Start / redrain / pending (forwarded)
 
   public static func startIfManuallyEnabled() async -> StartResult {
-    await CloudSync.startIfManuallyEnabled(configuration: configuration)
+    @Dependency(\.syncEngineAvailable) var available
+    guard available else { return .failed("Sync engine unavailable until next launch") }
+    @Dependency(\.syncStartGate) var gate
+    @Dependency(\.defaultSyncEngine) var engine
+    return await gate.run {
+      await CloudSync.startIfManuallyEnabled(configuration: configuration, startSyncEngine: {
+        try await gate.start { try await engine.start() }
+      })
+    }
   }
 
   public static func redrainPendingRecordZoneChangesIfManuallyEnabled(
@@ -108,12 +116,23 @@ public enum GalavantCloudSync {
     stopSyncEngine: (() -> Void)? = nil,
     startSyncEngine: (() async throws -> Void)? = nil
   ) async -> PendingRecordZoneRedrainResult {
-    await CloudSync.redrainPendingRecordZoneChangesIfManuallyEnabled(
-      configuration: configuration, defaults: defaults, environment: environment,
-      arguments: arguments, database: providedDatabase,
-      accountStatus: providedAccountStatus, stopSyncEngine: stopSyncEngine,
-      startSyncEngine: startSyncEngine
-    )
+    @Dependency(\.syncEngineAvailable) var available
+    guard available else { return .failed("Sync engine unavailable until next launch") }
+    @Dependency(\.syncStartGate) var gate
+    @Dependency(\.defaultSyncEngine) var engine
+    return await gate.run {
+      await CloudSync.redrainPendingRecordZoneChangesIfManuallyEnabled(
+        configuration: configuration, defaults: defaults, environment: environment,
+        arguments: arguments, database: providedDatabase,
+        accountStatus: providedAccountStatus, stopSyncEngine: stopSyncEngine,
+        startSyncEngine: {
+          try await gate.start {
+            if let startSyncEngine { try await startSyncEngine() }
+            else { try await engine.start() }
+          }
+        }
+      )
+    }
   }
 
   public static func pendingRecordZoneChangeCount(in database: any DatabaseWriter) async throws -> Int {

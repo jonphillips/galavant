@@ -102,6 +102,7 @@
 		82FB0503EEB4041AC202479B /* GalavantChat in Frameworks */ = {isa = PBXBuildFile; productRef = 70E3AE87004F856771C63307 /* GalavantChat */; };
 		8522CC9B663EBC7844792507 /* StructuredHoursEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 891C5DF7F4A25741DE3421FD /* StructuredHoursEditor.swift */; };
 		861F0BD9CC28029356E7DF09 /* RecommendationWorkspaceModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0620B4CD2A26F04156B150D3 /* RecommendationWorkspaceModel.swift */; };
+		88B3CF40AF4FFA97C96D8304 /* DatabaseSuspensionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D20525C306E331AAF17BB55 /* DatabaseSuspensionController.swift */; };
 		8B24A218C4BE11BF87CBBFDE /* TodayViewComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDC535E2CCE232C987405FB8 /* TodayViewComponents.swift */; };
 		8B65E5CA383B4D16F3685A39 /* TripPlanningModel+Scheduling.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72A6C6AEFAD6483C0E0AF70C /* TripPlanningModel+Scheduling.swift */; };
 		8C1110FDA05FA4D83DCF9A4F /* IdeasListModel+Taxonomy.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8D1F8D207FE25FE14CCFED7 /* IdeasListModel+Taxonomy.swift */; };
@@ -324,6 +325,7 @@
 		97954EEA93EDDCB81E746016 /* PlanningRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanningRow.swift; sourceTree = "<group>"; };
 		99EE3153CDA64E66C39149A9 /* IdeaFormModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaFormModel.swift; sourceTree = "<group>"; };
 		9C956244AC0CCEFCA45A4128 /* IdeaFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaFormView.swift; sourceTree = "<group>"; };
+		9D20525C306E331AAF17BB55 /* DatabaseSuspensionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseSuspensionController.swift; sourceTree = "<group>"; };
 		9D34C61AE3B675F5D6CCDDDD /* TagPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagPickerView.swift; sourceTree = "<group>"; };
 		9E4F11F80427DFD1A59F56B7 /* RecommendationCandidateStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationCandidateStrip.swift; sourceTree = "<group>"; };
 		9FEEBBB70BFDC82C3176AA53 /* GalavantTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = GalavantTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -697,6 +699,7 @@
 			children = (
 				43C9DB72ED6526F651BBDC72 /* AppIcon.icon */,
 				080E46AACA8A4087FB22F116 /* Assets.xcassets */,
+				9D20525C306E331AAF17BB55 /* DatabaseSuspensionController.swift */,
 				2CD37357C07AFC3DAE3CDAE7 /* DemoFixtures.swift */,
 				5BC85EBD5FC9820953D4ED04 /* DeviceLocationModel.swift */,
 				CC16D0C39AA361A09737B45F /* Galavant.entitlements */,
@@ -1024,6 +1027,7 @@
 				4171E2BF905DAB98B77389EB /* CertaintyStyle.swift in Sources */,
 				23D3E404F6FE187B064457C4 /* ChatHandoffNote.swift in Sources */,
 				C7FC1AA264B96268F69FC474 /* ChatPanelView.swift in Sources */,
+				88B3CF40AF4FFA97C96D8304 /* DatabaseSuspensionController.swift in Sources */,
 				BA6DC33C006D131C9DDA042C /* DayChipBar.swift in Sources */,
 				35E279FA22C85810158AF02C /* DayPalette.swift in Sources */,
 				9515962CEF69E6D64F9B0322 /* DemoFixtures.swift in Sources */,

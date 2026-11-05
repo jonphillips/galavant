@@ -54,6 +54,7 @@ gate enforces this: it refuses to archive unless Development and Production matc
   stay/day grouping; repeat on a trip with an unstayed arrival day. Confirm stay and day selection
   filter the canvas as expected and VoiceOver announces the full stay and date labels.
 - **Stay-tap freeze (`stay-tap-freeze`).** On iPad and iPhone, tap each stay label on the Eastern France trip, then a day, then All: no freeze, no header flicker, and the list lands on the stay's first day. Check the selected stay label too: if its fill still renders dark rather than matching the selected day chip, that's a separate styling bug (brief § 4) to send back.
+- **launch-lock-suspension:** Check for no unexplained 0xdead10cc over a week, foreground catch-up, bootstrap timing logs, and how often expiration finds sync busy. ([brief](efforts/archive/launch-lock-suspension.md))
 
 ## Held
 

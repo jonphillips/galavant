@@ -1,6 +1,7 @@
 import Dependencies
 import Foundation
 import IssueReporting
+import OSLog
 import SQLiteData
 
 public enum GalavantStorage {
@@ -85,7 +86,20 @@ extension DependencyValues {
   public mutating func bootstrapDatabase(
     path: String? = nil, syncMode: GalavantCloudSync.BootstrapMode
   ) throws {
+    try bootstrapDatabase(
+      path: path, syncMode: syncMode,
+      migrate: { try GalavantDatabaseMigrations.makeMigrator().migrate($0) },
+      makeSyncEngine: { try GalavantCloudSync.makeSyncEngine(for: $0, startImmediately: $1) }
+    )
+  }
+
+  mutating func bootstrapDatabase(
+    path: String? = nil, syncMode: GalavantCloudSync.BootstrapMode,
+    migrate: (any DatabaseWriter) throws -> Void,
+    makeSyncEngine: (any DatabaseWriter, Bool) throws -> SyncEngine
+  ) throws {
     @Dependency(\.context) var context
+    syncEngineAvailable = false
     var configuration = Configuration()
     configuration.observesSuspensionNotifications = Self.observesSuspension(
       context: context, path: path
@@ -109,17 +123,28 @@ extension DependencyValues {
       } else {
         try SQLiteData.defaultDatabase(configuration: configuration)
       }
-    let migrator = GalavantDatabaseMigrations.makeMigrator()
-    try migrator.migrate(database)
+    if configuration.observesSuspensionNotifications {
+      syncStartGate.repeatBootstrapSuspensionIfExpired {
+        NotificationCenter.default.post(name: Database.suspendNotification, object: nil)
+      }
+    }
+    let logger = Logger(subsystem: "com.jonphillips.galavant", category: "Bootstrap")
+    let clock = ContinuousClock()
+    do {
+      let start = clock.now
+      defer { logger.notice("Database migration took \(String(describing: start.duration(to: clock.now)), privacy: .public)") }
+      try migrate(database)
+    }
     defaultDatabase = database
     if case let .configured(startImmediately) = syncMode {
       // Degrade to local-only if CloudKit is unavailable (no entitlement in an
       // unsigned dev build, or the user isn't signed into iCloud) rather than
       // crashing the app.
       do {
-        defaultSyncEngine = try GalavantCloudSync.makeSyncEngine(
-          for: database, startImmediately: startImmediately
-        )
+        let start = clock.now
+        defer { logger.notice("Sync engine setup took \(String(describing: start.duration(to: clock.now)), privacy: .public)") }
+        defaultSyncEngine = try makeSyncEngine(database, startImmediately)
+        syncEngineAvailable = true
       } catch {
         reportIssue("CloudKit sync unavailable; running local-only: \(error)")
       }
