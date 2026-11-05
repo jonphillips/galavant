@@ -38,7 +38,7 @@ Foundation, `LLMHandoffKit`, and `swift-dependencies`. Move these from Yes Chef,
 | `ChatAccessContainerClient`: `resolveFolder`, `resolveAndCreateInbox`, `static func live(containerIdentifier:isDevelopment:)`. Its unavailable error takes the app's name | `YesChefApp/ChatAccessFolderClient.swift` |
 | `ChatInboxFileClient`: `read`, `claim(folder, url, kind)`, `maintain(folder, kinds, now)`, `static let live` | `YesChefApp/ChatAccessInboxFileClient.swift` |
 | `ChatInboxWatcher`: `init(folder:)`, `snapshots: AsyncStream<[ChatInboxSnapshot]>`, start and stop. Owns the query and observers, and requests downloads for items that aren't current | the query code in `YesChefApp/ChatAccessInboxModel.swift` |
-| `ChatInboxItemKind` (`fileExtension`, `expiresUnclaimed`, `datesProcessedByClaim`), `ChatInboxSnapshot` (`url`, `name`, `isCurrent`) | `ChatAccessInbox.MetadataSnapshot`, minus `recipeName` |
+| `ChatInboxItemKind` (`fileExtension`, `expiresUnclaimed`, `datesProcessedByClaim`), `ChatInboxSnapshot` (`url`, `name`, `isCurrent`, `downloadError`) | `ChatAccessInbox.MetadataSnapshot`, minus `recipeName` |
 | `ChatInboxRetention`: `interval` (30 days), `expiredUnclaimed`, `expiredProcessed` | `ChatAccessInbox.expired`, `expiredReturns` |
 | `ChatAccessHelperFolder`: `containerURL(for: containerIdentifier, home:)` (`iCloud.a.b` to `~/Library/Mobile Documents/iCloud~a~b`), `existing(containerIdentifier:isDevelopment:) throws` (refuses to create a missing container), `isDevelopment(arguments:)` (`--variant dev`) | `StageContext.stagingFolder`, ADR-0060 D5 |
 
@@ -50,8 +50,8 @@ stays in Yes Chef.**
 Also add `scripts/install-mcp-helper <package-dir> <product>`, which does what `install-yeschef-mcp` does, with a test in
 `scripts/tests/` and a line in `scripts/README.md`. Add the package to `README.md`'s list and a row to `EXTRACTION-NOTES.md`.
 
-**Verification, named in the PR body:** `scripts/quiet-run swift test --package-path packages/ChatAccessKit` and
-`scripts/tests/*.sh` for the new script.
+**Verification, named in the PR body:** `scripts/quiet-run swift test --package-path packages/ChatAccessKit`, the iOS compile
+from `agent-collaboration.md`, and `scripts/tests/*.sh` for the new script.
 
 ### 2. yes-chef: delete the copies and adopt the kit
 
@@ -60,7 +60,15 @@ Branch from a fresh `main` once the package PR merges, after checking that no op
 - Delete what moved, and keep the app's dependency keys as thin wrappers over the kit's `live` values. `ChatAccessInbox`
   keeps only its rows, routing, and names. `ChatAccessInboxModel` keeps everything except the query, which it reads from
   `ChatInboxWatcher`.
-- `scripts/install-yeschef-mcp` becomes a call to the shared script, with the same install path.
+- **Keep what the old query code did, through the watcher:**
+  - `prepare()` calls `start()` every time. A running watcher publishes again and retries downloads, which foregrounding
+    relied on.
+  - Copy `downloadError` into `rowErrors` only for rows that aren't current. Overwriting every row would wipe open and discard
+    errors.
+  - `loadName` used to call `metadataQueryDidChange()` to put names on rows. The model now keeps the latest snapshots and
+    rebuilds rows from those.
+- `scripts/install-yeschef-mcp` becomes a call to the shared script, with the same install path. It keeps its own
+  `old_install_directory` cleanup, which is Yes Chef's alone.
 - **The one behavior change, the Dev fix:** Debug builds pass `isDevelopment: true`. `YesChefMCP/main.swift` reads
   `--variant dev` through `ChatAccessHelperFolder`. Remove the stale comment in `ChatAccessFolderClient`.
 - Add a dated note to ADR-0060: the transport moved to `ChatAccessKit`, and D5 is now true.
@@ -126,13 +134,14 @@ Keep it out of the app's package graph. Server name `galavant`, container `iClou
   and commit both files. **Not published:** no `NSUbiquitousContainers`.
 - **Variant:** Debug is Galavant Dev (ADR-0050), so it passes `isDevelopment: true`.
 - **Settings:** a device-local **Chat Access** switch, off by default, with a short status line. When it's off, the app resolves
-  no container, runs no watcher, and shows nothing in Evaluate.
+  no container, runs no watcher, and shows nothing in Evaluate. `ChatInboxWatcher` is one-shot and has no deinit cleanup, so
+  turning the switch off calls `stop()`, and turning it on makes a new watcher.
 - **`ChatInboxModel`:** thin, `@Observable`, owned by `AppContainer` so the badge works from any section. It holds the watcher,
   reads and validates current files once each, and exposes rows plus `readyCount`. Prepare and maintain on foreground, as
   Yes Chef does, with the `gvreturn` kind (`expiresUnclaimed: true, datesProcessedByClaim: true`). Inject the kit's clients as
   dependencies.
 - **Evaluate:** a **From Chat** section above the queue, plus `.badge(readyCount)` on the Evaluate item. A row shows the trip,
-  count, and staged time, and "Downloading…" while it isn't current. Update the empty state to mention it.
+  count, and staged time, and "Downloading…" while it isn't current, or the snapshot's `downloadError` if it has one. Update the empty state to mention it.
   - **Tap a candidates row:** `apply` in one write, save the session, claim, then set `router.openEvaluateEntry` to the new
     entry. The session is the token's if this device has it for this trip. If not, make one **with the token's ID**, or with a
     new ID when there's no token. If nothing remains to process, say every option is already on the trip and stay on the queue.
