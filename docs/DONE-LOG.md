@@ -3,6 +3,11 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-05 — Hand off purposes (`effort/hand-off-purposes`)
+
+- **Result:** Unified the trip AI menu and routed pasted recommendations and conversation seeds to their matching handoff sessions; markerless seeds import with a warning. Removed Discuss from Ideas.
+- **Verification:** Schema and package tests, the UI-test build, and 50 headless app-model tests passed.
+
 ## 2026-11-04 — Protect the shared database at suspension (`effort/launch-lock-suspension`)
 
 - **Result:** Added a serial sync start and redrain gate, quiet-only background suspension, protected bootstrap with timing logs, and extension suspension handling; jon-platform PR #116 supplied the shared start seam.

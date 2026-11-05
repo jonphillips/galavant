@@ -94,6 +94,48 @@ struct TripPlanningSenseOfNowTests {
     #expect(model.recommendationHandoffError == nil)
   }
 
+  @Test
+  @MainActor
+  func pasteRoutesSeedAndReusesItsSession() async throws {
+    let tripID = try await makeTrip(startDate: nil)
+    let session = HandoffSession(
+      sourceType: "trip", sourceID: tripID, taskType: RecommendationHandoffTask.seedTrip, exportedPrompt: "")
+    try await withDependencies {
+      $0.handoffSessionStore.session = { $0 == session.id ? session : nil }
+    } operation: {
+      let model = try await loadedModel(tripID: tripID)
+      model.pasteButtonTapped("GV-HANDOFF: \(session.id)\n{\"places\":[{\"name\":\"A place\"}]}")
+      guard case let .recommendationHandoff(presentation) = model.destination else {
+        Issue.record("Expected a handoff sheet")
+        return
+      }
+      #expect(presentation.session.id == session.id)
+      #expect(presentation.seedReview?.plan?.seed.places.count == 1)
+      #expect(presentation.seedReview?.plan?.seed.warnings.contains(where: { $0.contains("different handoff") }) == false)
+    }
+  }
+
+  @Test
+  @MainActor
+  func pasteClassifiesSeedWhenTokenBelongsToAnotherTrip() async throws {
+    let tripID = try await makeTrip(startDate: nil)
+    let session = HandoffSession(
+      sourceType: "trip", sourceID: UUID(), taskType: RecommendationHandoffTask.seedTrip, exportedPrompt: "")
+    try await withDependencies {
+      $0.handoffSessionStore.session = { $0 == session.id ? session : nil }
+    } operation: {
+      let model = try await loadedModel(tripID: tripID)
+      model.pasteButtonTapped("GV-HANDOFF: \(session.id)\n{\"places\":[{\"name\":\"A place\"}]}")
+      guard case let .recommendationHandoff(presentation) = model.destination else {
+        Issue.record("Expected a handoff sheet")
+        return
+      }
+      #expect(presentation.session.id != session.id)
+      #expect(presentation.session.sourceID == tripID)
+      #expect(presentation.seedReview?.plan?.seed.warnings.contains(where: { $0.contains("different handoff") }) == true)
+    }
+  }
+
   @Test(.dependencies { $0.date = .constant(noon(onDay: 3)) })
   @MainActor
   func anUnderwayTripOpensOnItsLiveDay() async throws {

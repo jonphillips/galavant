@@ -86,6 +86,7 @@ extension TripPlanningModel {
     )
     do {
       try handoffSessionStore.save(session)
+      recommendationReview = []
       recommendationHandoffPaste.warning = nil
       recommendationHandoffPaste.note = nil
       recommendationHandoffPaste.noteSaved = false

@@ -4,7 +4,7 @@
 off menu as **Summarize Conversation**, beside **Get Recommendations**. The menu's single Paste works
 out which of the two a pasted reply is, and a seed pasted without its `GV-SEED` line imports with a
 warning instead of being rejected. The menu takes the house AI label and icons, and Discuss leaves the Ideas
-screen. Implements [ADR-0048 Amendment 2](../decisions/0048-trip-seed-handoff.md).
+screen. Implements [ADR-0048 Amendment 2](../../decisions/0048-trip-seed-handoff.md).
 No schema, migration, sync-contract, or handoff-contract change.
 
 ## Today
@@ -97,7 +97,7 @@ same code. `pasteRecommendationResult(_:for:seedReviewModel:)` loses its optiona
 
 ### 5. Remove Discuss from the Ideas screen
 
-Jon's call, 2026-11-04; see [ADR-0017's amendment](../decisions/0017-context-aware-chat-window.md). In
+Jon's call, 2026-11-04; see [ADR-0017's amendment](../../decisions/0017-context-aware-chat-window.md). In
 `IdeasScreen.swift`, remove the toolbar button, `showingChat`, the `.chatPanel` modifier and its
 comment, and `poolChatContext`. Delete `Icon.chat`, which has no other use. **Keep** `ChatContext.pool`,
 `PoolContext` and their tests in `GalavantChat`, so this stays cheap to bring back.
@@ -106,7 +106,7 @@ comment, and `poolChatContext`. Delete `Icon.chat`, which has no other use. **Ke
 
 The brief and project-instruction text (still asks for `GV-SEED`), any contract marker version, the
 Evaluate Recommendations row, the Evaluate screen, and the shared `HandoffMenu` view (brief
-[`handoff-menu-adoption`](handoff-menu-adoption.md)).
+[`handoff-menu-adoption`](../handoff-menu-adoption.md)).
 
 ## Done when
 
