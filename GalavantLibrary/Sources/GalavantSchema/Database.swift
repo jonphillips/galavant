@@ -87,7 +87,9 @@ extension DependencyValues {
   ) throws {
     @Dependency(\.context) var context
     var configuration = Configuration()
-    configuration.observesSuspensionNotifications = context == .live && path == nil
+    configuration.observesSuspensionNotifications = Self.observesSuspension(
+      context: context, path: path
+    )
     configuration.prepareDatabase { db in
       // The sync metadatabase needs a CloudKit container; skip it (local-only)
       // when unavailable rather than failing every database connection.
@@ -122,5 +124,9 @@ extension DependencyValues {
         reportIssue("CloudKit sync unavailable; running local-only: \(error)")
       }
     }
+  }
+
+  static func observesSuspension(context: DependencyContext, path: String?) -> Bool {
+    context == .live && path == nil
   }
 }
