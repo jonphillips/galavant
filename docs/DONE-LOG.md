@@ -6,7 +6,7 @@ History, newest first. The PR that completes a dispatch adds its entry naming it
 ## 2026-11-05 — Hand off purposes (`effort/hand-off-purposes`)
 
 - **Result:** Unified the trip AI menu and routed pasted recommendations and conversation seeds to their matching handoff sessions; markerless seeds import with a warning. Removed Discuss from Ideas.
-- **Verification:** Schema and package tests, the UI-test build, and 50 headless app-model tests passed.
+- **Verification:** Schema and package tests, the UI-test build, and 52 headless app-model tests passed.
 
 ## 2026-11-04 — Protect the shared database at suspension (`effort/launch-lock-suspension`)
 

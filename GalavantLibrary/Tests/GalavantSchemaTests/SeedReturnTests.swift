@@ -59,6 +59,25 @@ struct SeedReturnTests {
     #expect(HandoffReturnKind.classify("Plain prose") == .candidatePlaces)
   }
 
+  @Test func classifiesProseAndCurlyQuotedSeedsWithoutMistakingBracketsForArrays() {
+    let seed = "{\"bases\":[],\"places\":[{}]}"
+    #expect(HandoffReturnKind.classify("Here is the seed [from our chat]: " + seed) == .seedTrip)
+    #expect(HandoffReturnKind.classify("Per [the guide](https://x.y): " + seed) == .seedTrip)
+    #expect(HandoffReturnKind.classify("{“bases”:[],“places”:[{}]}") == .seedTrip)
+    #expect(HandoffReturnKind.classify("Try these [top picks]: [{\"name\":\"A\"}]") == .candidatePlaces)
+    #expect(HandoffReturnKind.classify("[{\"places\":[]}]") == .candidatePlaces)
+  }
+
+  @Test func acceptsWhitespaceAroundSeedMarker() throws {
+    for marker in ["GV-SEED ", "  GV-SEED"] {
+      let text = "Notes\n" + marker + "\n{\"places\":[{}]}"
+      let seed = try SeedReturn.decode(text)
+      #expect(seed.narrative == "Notes")
+      #expect(seed.warnings.isEmpty)
+      #expect(HandoffReturnKind.classify("Notes\n" + marker + "\n[]") == .seedTrip)
+    }
+  }
+
   @Test func keepsCRLFPastesAndWarnsForNonObjectArrayElements() throws {
     let seed = try SeedReturn.decode(
       "Notes\r\nGV-SEED\r\n{\"bases\":[{\"name\":\"Base\",\"check_in_day\":1,\"check_out_day\":2},7],\"places\":[{\"name\":\"Place\"},false]}"

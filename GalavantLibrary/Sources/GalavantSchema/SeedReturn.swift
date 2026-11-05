@@ -88,7 +88,7 @@ public struct SeedReturn: Equatable, Sendable {
 
   public static func decode(_ text: String) throws -> SeedReturn {
     let lines = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
-    let marker = lines.lastIndex(where: { $0 == "GV-SEED" })
+    let marker = lines.lastIndex(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines) == "GV-SEED" })
     let tail = marker.map { lines[($0 + 1)...].joined(separator: "\n") } ?? text
     guard let object = Self.jsonObjectSlice(in: tail), let range = tail.range(of: object) else {
       throw SeedReturnDecodeError.missingJSONObject
@@ -102,11 +102,7 @@ public struct SeedReturn: Equatable, Sendable {
         .replacingOccurrences(of: "```", with: "")
         .trimmingCharacters(in: .whitespacesAndNewlines)
     }
-    let normalized = object
-      .replacingOccurrences(of: "“", with: "\"")
-      .replacingOccurrences(of: "”", with: "\"")
-      .replacingOccurrences(of: "‘", with: "'")
-      .replacingOccurrences(of: "’", with: "'")
+    let normalized = Self.normalizeQuotes(object)
     guard let root = (try? JSONSerialization.jsonObject(with: Data(normalized.utf8))) as? [String: Any]
     else { throw SeedReturnDecodeError.malformedJSON }
 
@@ -185,6 +181,14 @@ public struct SeedReturn: Equatable, Sendable {
       )
     }
     return (places, warnings)
+  }
+
+  fileprivate static func normalizeQuotes(_ text: String) -> String {
+    text
+      .replacingOccurrences(of: "“", with: "\"")
+      .replacingOccurrences(of: "”", with: "\"")
+      .replacingOccurrences(of: "‘", with: "'")
+      .replacingOccurrences(of: "’", with: "'")
   }
 
   fileprivate static func jsonObjectSlice(in text: String) -> String? {
@@ -277,15 +281,26 @@ public enum HandoffReturnKind: Equatable, Sendable {
   case candidatePlaces, seedTrip
 
   public static func classify(_ body: String) -> Self {
-    if body.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).contains("GV-SEED") {
+    if body.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
+      .contains(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines) == "GV-SEED" }) {
       return .seedTrip
     }
-    guard let start = body.firstIndex(where: { $0 == "{" || $0 == "[" }), body[start] == "{",
-      let object = SeedReturn.jsonObjectSlice(in: String(body[start...])),
-      let data = object.data(using: .utf8),
-      let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-      root.keys.contains("bases") || root.keys.contains("places")
-    else { return .candidatePlaces }
-    return .seedTrip
+    let normalized = SeedReturn.normalizeQuotes(body)
+    var index = normalized.startIndex
+    while index < normalized.endIndex {
+      if normalized[index] == "[" {
+        let next = normalized[normalized.index(after: index)...].first(where: { !$0.isWhitespace })
+        if next == "{" || next == "]" { return .candidatePlaces }
+      } else if normalized[index] == "{" {
+        guard let object = SeedReturn.jsonObjectSlice(in: String(normalized[index...])),
+          let data = object.data(using: .utf8),
+          let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+          root.keys.contains("bases") || root.keys.contains("places")
+        else { return .candidatePlaces }
+        return .seedTrip
+      }
+      index = normalized.index(after: index)
+    }
+    return .candidatePlaces
   }
 }

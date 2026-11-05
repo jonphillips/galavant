@@ -86,11 +86,7 @@ extension TripPlanningModel {
     )
     do {
       try handoffSessionStore.save(session)
-      recommendationReview = []
-      recommendationHandoffPaste.warning = nil
-      recommendationHandoffPaste.note = nil
-      recommendationHandoffPaste.noteSaved = false
-      recommendationHandoffError = nil
+      resetHandoffPasteState()
       destination = .recommendationHandoff(RecommendationHandoffPresentation(session: session, seedReview: SeedReviewModel()))
     } catch {
       recommendationHandoffError = error.localizedDescription
@@ -124,14 +120,19 @@ extension TripPlanningModel {
     )
     do {
       try handoffSessionStore.save(session)
-      recommendationReview = []
-      recommendationHandoffPaste.warning = nil
-      recommendationHandoffPaste.note = nil
-      recommendationHandoffPaste.noteSaved = false
+      resetHandoffPasteState()
       destination = .recommendationHandoff(RecommendationHandoffPresentation(session: session, seedReview: nil))
     } catch {
       recommendationHandoffError = error.localizedDescription
     }
+  }
+
+  private func resetHandoffPasteState() {
+    recommendationReview = []
+    recommendationHandoffPaste.warning = nil
+    recommendationHandoffPaste.note = nil
+    recommendationHandoffPaste.noteSaved = false
+    recommendationHandoffError = nil
   }
 
   private func tasteLines(for trip: Trip) -> [String] {
@@ -151,10 +152,7 @@ extension TripPlanningModel {
     }
     let routed = pasted.flatMap { try? HandoffRouting.route($0) }
     if let routed, let session = handoffSessionStore.session(routed.sessionID), session.sourceID == tripID {
-      recommendationReview = []
-      recommendationHandoffPaste.warning = nil
-      recommendationHandoffPaste.note = nil
-      recommendationHandoffPaste.noteSaved = false
+      resetHandoffPasteState()
       let presentation = RecommendationHandoffPresentation(
         session: session,
         seedReview: session.taskType == RecommendationHandoffTask.seedTrip ? SeedReviewModel() : nil
