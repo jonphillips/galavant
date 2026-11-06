@@ -18,13 +18,6 @@ retired `CURRENT_HANDOFF.md` and `ROADMAP.md`'s open items.
   [`trip-view-declutter.md`](efforts/archive/trip-view-declutter.md) (Phase 3b): Start Day is still a
   toolbar item in `TripPlanningView`. Its spec is in that brief. Only worth doing if the toolbar
   feels crowded on device.
-- **The recommendations decoder accepts seed-shaped replies** (PR 205 review). `TripCandidate.decodeReturn`
-  takes the first array in an object that decodes as candidates. A seed that reaches it therefore
-  comes through as its bases, listed as candidates, and loses its places, verdicts and trip shape with no
-  error. Three ways in: prose with a `{brace}` before a seed through the toolbar Paste, a seed pasted into an
-  open Get Recommendations sheet, or a seed carrying a recommendation session's token. Nothing reaches the
-  trip until each candidate is reviewed and added. Likely fix: an object with a `bases` key is never a
-  candidate return. Keep accepting `{"places":[…]}`, which `RecommendationHandoffTests` pins.
 - **Recommendation wording on the seed sheet** (PR 205 review). On "Hand off · Summarize Conversation", the
   door still says to paste "candidate JSON", and the error alert still reads "Can't import recommendations"
   (`RecommendationHandoffSheet.swift`). A small copy fix, both by `session.taskType`.
