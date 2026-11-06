@@ -107,15 +107,59 @@ and refresh. The general ops recipe stays in jon-platform's `mcp-access.md`.
 
 ## S3 — Seeds
 
-- The helper accepts `.seed`, and its result says `Review it in Galavant → Evaluate.`
-- A seed row shows the trip and place count. The tap sets `router.openTrip` and the section, then asks
-  `router.planningModel(for: trip)` to present seed review with this text through the code `hand-off-purposes` added. Go through the
-  model's `destination`, so the existing trip view hosts the sheet: outer-hosted sheets drop silently on iPhone.
-- **Claim on commit.** `RecommendationHandoffPresentation` carries an optional staged item, and a successful
-  `SeedReviewModel.commit` claims it. Dismissing without committing leaves the row.
-- Tests: `validate` and the row projection for seeds, plus claiming only after a commit.
+A chat doesn't have to start as a seed. Jon can chat about anything, then paste the Hand off → Summarize Conversation brief
+into that chat, so a return with only `places` is a normal case here, not an edge case.
 
-**Done when:** the gate's seed line passes, and paste still works for seeds.
+### Telling seeds and candidates apart, in `GalavantSchema`, test-first
+
+- **`{"summary": …, "places": […]}` can be either kind** (ADR-0052 D3, amended). In `StagedTripReturn.validate`, a return that
+  classifies as a seed, decodes with no bases, and has no `GV-SEED` line throws a new typed error. Its message goes back to the
+  model, and says: for a seed, resend with a line containing only `GV-SEED` before the JSON object; for candidate places, resend
+  them as one JSON array. An object with `bases` needs no `GV-SEED` line. Paste doesn't use this check.
+- **Ask for the line up front, so the error is rare.** The tool description and the opening of `chatServerInstructions` say a seed
+  sent to `stage_trip_return` includes the `GV-SEED` line. The opening must still stand alone in its first 512 characters.
+  `projectInstructions` and the marker don't change.
+- **A seed must not read as candidates.** `HandoffReturnKind.classify` keeps scanning past a `{` it can't parse, rather than
+  returning `.candidatePlaces`, so prose with a `{brace}` before a seed no longer changes the answer. `TripCandidate.decodeReturn`
+  throws on an object with a `bases` key. It keeps accepting `{"places":[…]}`, which `RecommendationHandoffTests` pins. This is
+  the one change to Paste in this effort: what used to lose a seed's places silently now fails with an error.
+- **`RecommendationSetImport.session` takes a task type.** Reuse the token's session only if it's on this trip and has the same
+  task type. Otherwise make a new one, with the token's ID only if this device has no session with that ID. A seed that joined a
+  candidate session would go down the candidate paste path and lose its places.
+- **A second commit of the same seed adds nothing.** Re-planned rows already default to off, but `SeedPlan.addDocument` always
+  writes. It skips a narrative when the trip already has a `.seed` document with the same body.
+
+### The helper
+
+- It accepts `.seed`. The result is `{staged: "Trip seed · 14 places", next: "Review it in Galavant → Evaluate."}`, counting bases
+  and places as the row does.
+
+### The app
+
+- **A seed row** shows the trip and place count, and `readyCount` includes current seed rows.
+- **The tap** reads the file again, because the cache holds only the parsed result, and makes the session with the rule above. It
+  sets `router.openTrip` and the section, then calls a new method on `router.planningModel(for: trip)` that presents seed review
+  with this text and session. Don't go through `pasteButtonTapped`: it classifies again and can start its own session. Go through
+  the model's `destination`, so the existing trip view hosts the sheet: outer-hosted sheets drop silently on iPhone.
+- **Claim on commit.** The new method gives `SeedReviewModel` an optional `onCommitted` closure, called after a successful
+  `commit(from:)` has saved the session. For a staged seed, it asks `ChatInboxModel` to claim the file. Dismissing without
+  committing leaves the row, and a paste has no closure.
+- **If that claim fails,** the row stays with its error, and Discard still works. `alreadyClaimed` drops the row quietly. Tapping
+  again reopens the review with rows already on the trip off, so a second commit adds nothing.
+
+### Tests
+
+- `validate`: the places-only rejection and its message, `places` with `GV-SEED`, `bases` without it, prose with a `{brace}` before a
+  seed, and an unparsable brace before a candidate array.
+- `decodeReturn`: an object with `bases` throws, and `{"places":[…]}` still decodes.
+- Session: a token on a candidate session with a seed return makes a new seed session, and the reverse.
+- A second commit adds no document and no rows.
+- Row projection and `readyCount` for seeds. Helper: stages a seed, refuses a places-only return and writes nothing, and the
+  instructions test still holds.
+- `ChatInboxModelTests`: the claim runs only after a commit, a failed claim keeps the row, and `alreadyClaimed` drops it.
+
+**Done when:** `scripts/check-drift.sh` is green and the headless `GalavantTests` pass, with no simulator walkthrough. Paste still
+works for seeds. The seed line in `docs/device-passes.md` stays until Jon clears it.
 
 ## S4 — Read tools: start the chat in the assistant
 
@@ -144,7 +188,8 @@ then Galavant. **Shared code escalates to Jon,** so don't merge the jon-platform
 ## Out of scope
 
 - Plugin skills (ADR-0052 OQ2).
-- Any change to Paste, its row-by-row sheet, or the handoff contract version.
+- Any change to Paste, its row-by-row sheet, or the handoff contract version, apart from the S3 guard that stops a seed reading as
+  candidates.
 - Making sets sync, or moving `HandoffSession` out of device-local storage.
 - `CloudSyncKit`'s backup code, and adopting automatic backups in Galavant.
 - Flights, trains, and other options Evaluate can't resolve to a place.

@@ -82,6 +82,11 @@ no query, writes no export, and shows no iCloud warning. Jon turns it on for his
 - **The checks are the paste door's checks, in the same order and from the same Core code:** strip the optional
   `GV-HANDOFF` line, strip the marker, classify, and decode. A bad return comes back with `isError` and the reason, so
   the model corrects itself in the chat, not on an iPad an hour later. There's no second parser.
+- **Amended 2026-11-06, one check this door adds.** `{"summary": …, "places": […]}` is both a valid seed and a candidate wrapper
+  seen in real replies, and shape alone can't separate them. The helper has no device state to check, and the model knows which
+  one it meant. So a return that has `places`, no `bases`, and no `GV-SEED` line comes back with `isError`, asking for that line
+  (a seed) or a JSON array (candidates). The instructions ask for the line up front. Paste keeps its current behavior. Rejected:
+  treating these returns as seeds, which would open a candidate set in seed review and save its summary as a trip document.
 - **A newer contract marker is an error. A missing or older one is not, and it raises no warning** at this door. The
   decode is the real guard (ADR-0036 Amendment 1), and on Yes Chef's evidence a warning here would mostly be noise.
 - **The file:** `HandoffInbox(root: …/MCP/Inbox, fileExtension: "gvreturn")`, slug = the trip UUID, content = the text
