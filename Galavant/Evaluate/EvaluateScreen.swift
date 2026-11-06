@@ -12,6 +12,7 @@ import SwiftUI
 struct EvaluateScreen: View {
   @Environment(\.scenePhase) private var scenePhase
   @Environment(AppRouter.self) private var router
+  @Environment(ChatInboxModel.self) private var chatInbox
   @Environment(\.prefersTabNavigation) private var prefersTabNavigation
   @State private var model = EvaluateQueueModel()
 
@@ -44,6 +45,7 @@ struct EvaluateScreen: View {
     // appears and whenever the app returns to the foreground (a paste in another scene
     // or the share extension may have added a set).
     .task { model.reload() }
+    .onChange(of: router.openEvaluateEntry) { _, _ in model.reload() }
     .onChange(of: scenePhase) { _, phase in
       if phase == .active { model.reload() }
     }
@@ -51,26 +53,37 @@ struct EvaluateScreen: View {
 
   private var queue: some View {
     Group {
-      if model.entries.isEmpty {
+      if model.entries.isEmpty && chatInbox.rows.isEmpty {
         ContentUnavailableView {
           Label("Nothing to evaluate", systemImage: Icon.recommend.systemName)
         } description: {
-          Text("Paste a recommendation result into a trip to start a candidate set. Sets with candidates left to process show up here.")
+          Text(chatInbox.notice ?? chatInbox.message ?? "Paste a recommendation result into a trip or stage options from chat to start a candidate set.")
         }
       } else {
-        List(model.entries) { entry in
-          Button {
-            router.openEvaluateEntry = entry
-          } label: {
-            EvaluateQueueRow(entry: entry)
+        List {
+          if !chatInbox.rows.isEmpty {
+            Section("From Chat") {
+              ForEach(chatInbox.rows) { row in
+                StagedTripRow(row: row)
+              }
+            }
           }
-          .buttonStyle(.plain)
-          // No immediate delete: the swipe only asks, and the dialog does the work.
-          .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button(role: .destructive) {
-              model.deleteSetSwiped(entry)
+          if let notice = chatInbox.notice { Text(notice).foregroundStyle(.secondary) }
+          if let message = chatInbox.message { Text(message).foregroundStyle(.secondary) }
+          ForEach(model.entries) { entry in
+            Button {
+              router.openEvaluateEntry = entry
             } label: {
-              Icon.delete.label("Delete")
+              EvaluateQueueRow(entry: entry)
+            }
+            .buttonStyle(.plain)
+            // No immediate delete: the swipe only asks, and the dialog does the work.
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+              Button(role: .destructive) {
+                model.deleteSetSwiped(entry)
+              } label: {
+                Icon.delete.label("Delete")
+              }
             }
           }
         }
@@ -191,5 +204,55 @@ final class EvaluateQueueModel {
           createdAt: session.createdAt
         )
       }
+  }
+}
+
+private struct StagedTripRow: View {
+  let row: StagedTripReturnRow
+  @Environment(ChatInboxModel.self) private var inbox
+  @Environment(AppRouter.self) private var router
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 4) {
+      switch row.destination {
+      case let .candidates(trip, count):
+        Button {
+          Task { if let entry = await inbox.open(row) { router.openEvaluateEntry = entry } }
+        } label: {
+          if count == 0 { Text(trip.name) }
+          else { Text("\(trip.name) · ^[\(count) option](inflect: true)") }
+        }
+        .disabled(row.downloadState != .current || inbox.working.contains(row.url))
+      case let .seed(trip, count):
+        Text("\(trip.name) · Trip seed · ^[\(count) place](inflect: true)")
+      case .unknownTrip:
+        Text("This trip isn't on this device yet")
+      case let .unreadable(error):
+        Text(error)
+      }
+      switch row.downloadState {
+      case .downloading: Text("Downloading…")
+      case let .failed(error): Text(error)
+      case .current: Text(row.stagedAt, format: .dateTime.month().day().hour().minute())
+      }
+      if let error = inbox.rowErrors[row.url] { Text(error) }
+    }
+    .font(.subheadline)
+    .contextMenu {
+      Button("Discard", role: .destructive) { Task { await inbox.discard(row) } }
+      switch row.destination {
+      case .unknownTrip, .unreadable:
+        Button("Copy") { Task { await inbox.copy(row) } }
+      default: EmptyView()
+      }
+    }
+    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+      Button("Discard", role: .destructive) { Task { await inbox.discard(row) } }
+      switch row.destination {
+      case .unknownTrip, .unreadable:
+        Button("Copy") { Task { await inbox.copy(row) } }.tint(.blue)
+      default: EmptyView()
+      }
+    }
   }
 }

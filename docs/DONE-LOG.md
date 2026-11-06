@@ -3,6 +3,11 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-05 — Chat access S2: stage options into Evaluate (`effort/chat-access-s2`)
+
+- **Result:** Added the Galavant MCP staging helper, shared validation and import, and an opt-in iCloud inbox in Evaluate.
+- **Verification:** The drift gate passed, including package and helper tests and the UI-test build; 53 headless app tests passed.
+
 ## 2026-11-05 — Chat access S1: `ChatAccessKit` (jon-platform `effort/chat-access-kit`, `effort/chat-access-variant-validation`; yes-chef `effort/chat-access-kit-adoption`)
 
 - **Result:** Yes Chef's iCloud Drive inbox transport moved into jon-platform's `ChatAccessKit` ([#123](https://github.com/jonphillips/jon-platform/pull/123)), and Yes Chef adopted it ([#454](https://github.com/jonphillips/yes-chef/pull/454)). Debug builds and the helper's `--variant dev` now use `MCP-Dev/`, and the helper rejects any other argument ([#126](https://github.com/jonphillips/jon-platform/pull/126)). No Galavant code changed, and Vinyl Fever doesn't use the kit.

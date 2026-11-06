@@ -5,6 +5,7 @@ import SwiftUI
 /// on iPad and Mac. Each section gets its own navigation stack.
 struct AppContainer: View {
   @State private var router = AppRouter()
+  @State private var chatInbox = ChatInboxModel()
   @State private var browserModel = BrowserScreenModel()
   @State private var visitedRollupModel = VisitedRollupModel()
   @Environment(\.prefersTabNavigation) private var prefersTabNavigation
@@ -25,12 +26,14 @@ struct AppContainer: View {
             }
             .tag(screen as AppScreen?)
             .tabItem { screen.label }
+            .badge(screen == .evaluate ? chatInbox.readyCount : 0)
           }
         }
       } else {
         NavigationSplitView {
           List(AppScreen.allCases, selection: $router.selection) { screen in
             screen.label
+              .badge(screen == .evaluate ? chatInbox.readyCount : 0)
           }
           .navigationTitle("Galavant")
         } detail: {
@@ -51,6 +54,7 @@ struct AppContainer: View {
       }
     }
     .background(sectionShortcuts)
+    .environment(chatInbox)
     .environment(router)
     .environment(browserModel)
     .onAppear {
@@ -71,9 +75,13 @@ struct AppContainer: View {
       Task {
         _ = await GalavantCloudSync.redrainPendingRecordZoneChangesIfManuallyEnabled()
         await visitedRollupModel.run()
+        await chatInbox.prepare()
       }
     }
-    .task { await visitedRollupModel.run() }
+    .task {
+      await visitedRollupModel.run()
+      await chatInbox.prepare()
+    }
   }
 
   /// ⌘1…⌘N jump straight to a section (⌘1 Trips, ⌘4 Evaluate, …) so flipping between

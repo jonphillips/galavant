@@ -36,6 +36,7 @@ qr="${JON_PLATFORM:-$HOME/code/jon-platform}/scripts/quiet-run"
 $qr swiftlint lint --strict
 
 $qr swift test --package-path GalavantLibrary
+$qr swift test --package-path GalavantMCP
 
 # ---------------------------------------------------------------------------
 # The test target still compiles and links

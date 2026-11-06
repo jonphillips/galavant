@@ -40,6 +40,8 @@ Memory (`~/.claude`) never tracks status; it defers here. **GitHub PR state is t
 | Per-milestone execution briefs: live in [milestones/](milestones/); closed ones such as [M5-EXECUTION.md](milestones/archive/M5-EXECUTION.md), [M6-EXECUTION.md](milestones/archive/M6-EXECUTION.md), [M7-DOGFOOD.md](milestones/archive/M7-DOGFOOD.md) in [milestones/archive/](milestones/archive/) | The working plan for a milestone while it's active | *(moved to `archive/` with `jon-platform/scripts/archive-brief` when the milestone closes)* |
 | Subdirs: [mockups/](mockups), [reviews/](reviews), [fixtures/](fixtures), [archive/](archive/) | Visual mockups, review notes, design fixtures (sample handoff returns an ADR is checked against), and finished one-off docs (ADR-0005 D13) | — |
 
+- [Chat Access setup](chat-access-setup.md) — helper installation and connector refresh.
+
 ## Surfaces outside `docs/`
 
 | Surface | Holds |
