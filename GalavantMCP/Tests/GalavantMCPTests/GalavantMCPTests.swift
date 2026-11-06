@@ -63,6 +63,20 @@ struct GalavantMCPTests {
     #expect(try inbox.read(staged) == text)
   }
 
+  @Test func malformedSeedWritesNothing() async throws {
+    let home = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: home) }
+    let container = ChatAccessHelperFolder.containerURL(for: "iCloud.com.jonphillips.galavant", home: home)
+    try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
+    let text = #"{"bases":[{"name":"Inn","check_in_day":1,"check_out_day":2}],"places":[{"name":"Museum","why":"the "best" one"}]}"#
+    let server = GalavantMCPServer.make(home: home)
+    let response = try #require(await server.handle(line: call(trip: UUID().uuidString, text: text)))
+    #expect(try result(response)["isError"] == .bool(true))
+    #expect(response.contains("trip seed with malformed JSON"))
+    let inbox = ChatAccessFolder(containerURL: container, isDevelopment: false).inboxURL
+    #expect(!FileManager.default.fileExists(atPath: inbox.path))
+  }
+
   @Test func missingContainerIsNotCreated() async throws {
     let home = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: home) }

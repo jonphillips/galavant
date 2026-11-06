@@ -271,6 +271,7 @@ public enum TripCandidateDecodeError: Error, Equatable, LocalizedError, Sendable
   case malformedJSON
   case emptyCandidates
   case seedObject
+  case malformedSeedObject
 
   public var errorDescription: String? {
     switch self {
@@ -278,6 +279,7 @@ public enum TripCandidateDecodeError: Error, Equatable, LocalizedError, Sendable
     case .malformedJSON: "This candidate JSON is malformed. Nothing was imported."
     case .emptyCandidates: "This result has no candidates. Nothing was imported."
     case .seedObject: "This result is a trip seed. Paste it into a Summarize Conversation handoff to review the bases and places together."
+    case .malformedSeedObject: "This looks like a trip seed with malformed JSON. Nothing was imported."
     }
   }
 }

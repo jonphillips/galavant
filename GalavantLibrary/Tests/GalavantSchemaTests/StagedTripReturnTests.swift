@@ -84,6 +84,15 @@ struct StagedTripReturnTests {
     #expect(seed.places.map(\.candidate.name) == ["Museum"])
   }
 
+  @Test(arguments: [
+    #"{"bases":[{"name":"Inn","check_in_day":1,"check_out_day":2}],"places":[{"name":"Museum","why":"the "best" one"}]}"#,
+    #"{"bases":[{"name":"Inn","check_in_day":1,"check_out_day":2}],"places":[{"name":"Museum"},{"name":"Par"#,
+    #"{"places":[{"name":"Museum"}],"bases" : [{"name":"Inn","why":"the "best" one"}]}"#,
+  ])
+  func refusesMalformedUnmarkedSeeds(text: String) {
+    #expect(throws: TripCandidateDecodeError.malformedSeedObject) { try StagedTripReturn.validate(text) }
+  }
+
   @Test func serverInstructionsContainTheFullProjectContract() {
     let instructions = RecommendationHandoffContract.chatServerInstructions
     let opening = String(instructions.prefix(512))
