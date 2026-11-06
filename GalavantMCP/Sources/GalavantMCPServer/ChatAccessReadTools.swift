@@ -80,7 +80,7 @@ enum ChatAccessReadTools {
       tool("list_trips", "List trips in the latest Galavant export. Start here when this chat has no GV-TRIP line.",
            schema: schema([:], required: [])) { _ in
         let snapshot = try await store.load()
-        let trips = orderedTrips(snapshot.value.trips, today: dateString(now()))
+        let trips = GalavantChatExport.ordered(snapshot.value.trips, today: civilDate(now()))
         let rows = trips.prefix(maxTrips).map { trip in
           MCPValue.object(["id": .string(trip.id.uuidString), "name": .string(String(trip.name.prefix(maxLineCharacters))),
             "startDate": trip.startDate.map(MCPValue.string) ?? .null,
@@ -138,27 +138,9 @@ enum ChatAccessReadTools {
       + included.filter { $0.count > maxLineCharacters }.count
     return (values, omitted)
   }
-  private static func orderedTrips(_ trips: [GalavantChatExport.Trip], today: String) -> [GalavantChatExport.Trip] {
-    trips.sorted { left, right in
-      func category(_ trip: GalavantChatExport.Trip) -> Int {
-        guard let date = trip.startDate else { return 1 }
-        return date >= today ? 0 : 2
-      }
-      let leftCategory = category(left)
-      let rightCategory = category(right)
-      if leftCategory != rightCategory { return leftCategory < rightCategory }
-      if let leftDate = left.startDate, let rightDate = right.startDate, leftDate != rightDate {
-        return leftCategory == 2 ? leftDate > rightDate : leftDate < rightDate
-      }
-      let leftName = left.name.lowercased()
-      let rightName = right.name.lowercased()
-      if leftName != rightName { return leftName < rightName }
-      return left.id.uuidString < right.id.uuidString
-    }
-  }
-  private static func dateString(_ date: Date) -> String {
+  private static func civilDate(_ date: Date) -> CalendarCivilDate {
     let components = Calendar.current.dateComponents([.year, .month, .day], from: date)
-    return String(format: "%04d-%02d-%02d", components.year!, components.month!, components.day!)
+    return CalendarCivilDate(year: components.year!, month: components.month!, day: components.day!)!
   }
   private static func tool(_ name: String, _ description: String, schema: MCPValue,
                            handler: @escaping @Sendable (MCPValue) async throws -> MCPToolResult) -> MCPTool {

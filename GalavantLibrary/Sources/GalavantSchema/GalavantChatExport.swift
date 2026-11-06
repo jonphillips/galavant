@@ -78,6 +78,34 @@ public struct GalavantChatExport: Codable, Equatable, Sendable {
     guard value.version == 1 else { throw DecodeError.unsupportedVersion(value.version) }
     return value
   }
+
+  public static func ordered(_ trips: [Trip], today: CalendarCivilDate) -> [Trip] {
+    trips.sorted { left, right in
+      func category(_ trip: Trip) -> Int {
+        guard let start = civilDate(trip.startDate) else { return 1 }
+        if start >= today { return 0 }
+        if let dayNumber = today.dayNumber(since: start), dayNumber <= trip.lengthInDays { return 0 }
+        return 2
+      }
+      let leftCategory = category(left)
+      let rightCategory = category(right)
+      if leftCategory != rightCategory { return leftCategory < rightCategory }
+      if let leftDate = civilDate(left.startDate), let rightDate = civilDate(right.startDate), leftDate != rightDate {
+        return leftCategory == 2 ? leftDate > rightDate : leftDate < rightDate
+      }
+      let leftName = left.name.lowercased()
+      let rightName = right.name.lowercased()
+      if leftName != rightName { return leftName < rightName }
+      return left.id.uuidString < right.id.uuidString
+    }
+  }
+
+  private static func civilDate(_ text: String?) -> CalendarCivilDate? {
+    guard let text else { return nil }
+    let parts = text.split(separator: "-").compactMap { Int($0) }
+    guard parts.count == 3 else { return nil }
+    return CalendarCivilDate(year: parts[0], month: parts[1], day: parts[2])
+  }
 }
 
 public enum GalavantChatExportBuilder {
@@ -117,23 +145,6 @@ public enum GalavantChatExportBuilder {
         consideringTitles: plan.considering.map { $0.content.title },
         shortlistedTitles: plan.shortlist.map { $0.content.title }
       ))
-    }
-    let today = dateString(generatedAt, calendar: calendar)
-    exportedTrips.sort { left, right in
-      func category(_ trip: GalavantChatExport.Trip) -> Int {
-        guard let date = trip.startDate else { return 1 }
-        return date >= today ? 0 : 2
-      }
-      let leftCategory = category(left)
-      let rightCategory = category(right)
-      if leftCategory != rightCategory { return leftCategory < rightCategory }
-      if let leftDate = left.startDate, let rightDate = right.startDate, leftDate != rightDate {
-        return leftCategory == 2 ? leftDate > rightDate : leftDate < rightDate
-      }
-      let leftName = left.name.lowercased()
-      let rightName = right.name.lowercased()
-      if leftName != rightName { return leftName < rightName }
-      return left.id.uuidString < right.id.uuidString
     }
     return GalavantChatExport(generatedAt: generatedAt, device: device, trips: exportedTrips)
   }

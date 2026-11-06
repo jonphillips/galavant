@@ -59,4 +59,19 @@ struct GalavantChatExportTests {
     let encodedTrip = try #require((encoded["trips"] as? [[String: Any]])?.first)
     #expect(encodedTrip["startDate"] as? String == "2027-03-10")
   }
+
+  @Test func tripOrderingKeepsTripsActiveThroughTheirLastDay() throws {
+    let today = try #require(CalendarCivilDate(year: 2027, month: 3, day: 10))
+    let lastDay = GalavantChatExport.Trip(id: UUID(), name: "Last day", startDate: "2027-03-06", lengthInDays: 5,
+      notes: "", planLines: [], ruledOutLines: [], tasteLines: [], consideringTitles: [], shortlistedTitles: [])
+    let firstDay = GalavantChatExport.Trip(id: UUID(), name: "First day", startDate: "2027-03-10", lengthInDays: 5,
+      notes: "", planLines: [], ruledOutLines: [], tasteLines: [], consideringTitles: [], shortlistedTitles: [])
+    let undated = GalavantChatExport.Trip(id: UUID(), name: "Someday", startDate: nil, lengthInDays: 5,
+      notes: "", planLines: [], ruledOutLines: [], tasteLines: [], consideringTitles: [], shortlistedTitles: [])
+    let dayAfter = GalavantChatExport.Trip(id: UUID(), name: "Past", startDate: "2027-03-05", lengthInDays: 5,
+      notes: "", planLines: [], ruledOutLines: [], tasteLines: [], consideringTitles: [], shortlistedTitles: [])
+
+    let ordered = GalavantChatExport.ordered([undated, dayAfter, firstDay, lastDay], today: today)
+    #expect(ordered.map(\.id) == [lastDay.id, firstDay.id, undated.id, dayAfter.id])
+  }
 }
