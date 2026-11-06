@@ -53,7 +53,7 @@ public enum GalavantMCPServer {
             )
             let inbox = HandoffInbox(root: folder.inboxURL, fileExtension: "gvreturn")
             _ = try inbox.stage(payload.text, slug: trip.uuidString, now: now())
-            return .json(StageResult(staged: "\(candidates.count) options", next: "Review them in Galavant → Evaluate."))
+            return .json(StageResult(staged: "\(candidates.filter { !$0.suggestedTitle.isEmpty }.count) options", next: "Review them in Galavant → Evaluate."))
           } catch {
             return .error(error.localizedDescription)
           }

@@ -45,6 +45,7 @@ struct EvaluateScreen: View {
     // appears and whenever the app returns to the foreground (a paste in another scene
     // or the share extension may have added a set).
     .task { model.reload() }
+    .onChange(of: router.openEvaluateEntry) { _, _ in model.reload() }
     .onChange(of: scenePhase) { _, phase in
       if phase == .active { model.reload() }
     }
@@ -56,7 +57,7 @@ struct EvaluateScreen: View {
         ContentUnavailableView {
           Label("Nothing to evaluate", systemImage: Icon.recommend.systemName)
         } description: {
-          Text(chatInbox.message ?? "Paste a recommendation result into a trip or stage options from chat to start a candidate set.")
+          Text(chatInbox.notice ?? chatInbox.message ?? "Paste a recommendation result into a trip or stage options from chat to start a candidate set.")
         }
       } else {
         List {
@@ -67,22 +68,23 @@ struct EvaluateScreen: View {
               }
             }
           }
+          if let notice = chatInbox.notice { Text(notice).foregroundStyle(.secondary) }
           if let message = chatInbox.message { Text(message).foregroundStyle(.secondary) }
           ForEach(model.entries) { entry in
-          Button {
-            router.openEvaluateEntry = entry
-          } label: {
-            EvaluateQueueRow(entry: entry)
-          }
-          .buttonStyle(.plain)
-          // No immediate delete: the swipe only asks, and the dialog does the work.
-          .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button(role: .destructive) {
-              model.deleteSetSwiped(entry)
+            Button {
+              router.openEvaluateEntry = entry
             } label: {
-              Icon.delete.label("Delete")
+              EvaluateQueueRow(entry: entry)
             }
-          }
+            .buttonStyle(.plain)
+            // No immediate delete: the swipe only asks, and the dialog does the work.
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+              Button(role: .destructive) {
+                model.deleteSetSwiped(entry)
+              } label: {
+                Icon.delete.label("Delete")
+              }
+            }
           }
         }
       }
@@ -236,6 +238,14 @@ private struct StagedTripRow: View {
       if let error = inbox.rowErrors[row.url] { Text(error) }
     }
     .font(.subheadline)
+    .contextMenu {
+      Button("Discard", role: .destructive) { Task { await inbox.discard(row) } }
+      switch row.destination {
+      case .unknownTrip, .unreadable:
+        Button("Copy") { Task { await inbox.copy(row) } }
+      default: EmptyView()
+      }
+    }
     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
       Button("Discard", role: .destructive) { Task { await inbox.discard(row) } }
       switch row.destination {

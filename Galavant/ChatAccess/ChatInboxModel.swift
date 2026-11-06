@@ -17,7 +17,7 @@ final class ChatInboxModel {
   @ObservationIgnored @Dependency(\.handoffSessionStore) private var sessions
   @ObservationIgnored @Dependency(\.date.now) private var now
   @ObservationIgnored @Dependency(\.uuid) private var uuid
-  @ObservationIgnored @FetchAll(Trip.all) private var trips
+  @ObservationIgnored @FetchAll(Trip.all) var trips
   @ObservationIgnored @Dependency(\.chatInboxFiles) private var files
   @ObservationIgnored @Dependency(\.chatAccessContainer) private var container
   @ObservationIgnored private var watcher: ChatInboxWatcher?
@@ -30,6 +30,7 @@ final class ChatInboxModel {
   @ObservationIgnored private var folder: ChatAccessFolder?
   private(set) var enabled = UserDefaults.standard.bool(forKey: enabledKey)
   private(set) var message: String?
+  private(set) var notice: String?
   private(set) var rowErrors: [URL: String] = [:]
   private(set) var working: Set<URL> = []
 
@@ -92,9 +93,10 @@ final class ChatInboxModel {
     reading = []
     claimed = []
     message = nil
+    notice = nil
   }
 
-  private func receive(_ snapshots: [ChatInboxSnapshot]) {
+  func receive(_ snapshots: [ChatInboxSnapshot]) {
     claimed.formIntersection(Set(snapshots.map(\.url)))
     self.snapshots = snapshots.filter { !claimed.contains($0.url) }
     for snapshot in self.snapshots where snapshot.isCurrent && snapshot.url.pathExtension == Self.kind.fileExtension {
@@ -116,6 +118,7 @@ final class ChatInboxModel {
   }
 
   func open(_ row: StagedTripReturnRow) async -> EvaluateQueueEntry? {
+    notice = nil
     guard case let .candidates(trip, _) = row.destination,
       case let .validated(.candidates(token, candidates, note)) = cache[row.url],
       let folder, working.isEmpty, working.insert(row.url).inserted else { return nil }
@@ -133,7 +136,7 @@ final class ChatInboxModel {
       try await files.claim(folder, row.url, Self.kind)
       forget(row.url)
       guard result.remainingCount > 0 else {
-        message = "Every option is already on the trip."
+        notice = "Every option is already on the trip."
         return nil
       }
       return EvaluateQueueEntry(sessionID: result.session.id, tripID: trip.id, tripName: trip.name,
@@ -147,6 +150,7 @@ final class ChatInboxModel {
   }
 
   func discard(_ row: StagedTripReturnRow) async {
+    notice = nil
     guard let folder, working.insert(row.url).inserted else { return }
     defer { working.remove(row.url) }
     do {
@@ -160,6 +164,7 @@ final class ChatInboxModel {
   }
 
   func copy(_ row: StagedTripReturnRow) async {
+    notice = nil
     do { UIPasteboard.general.string = try await files.read(row.url) }
     catch { rowErrors[row.url] = error.localizedDescription }
   }
