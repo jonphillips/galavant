@@ -4,6 +4,7 @@ import DependenciesTestSupport
 import Foundation
 import GalavantAI
 import GalavantSchema
+import Observation
 import SQLiteData
 import Synchronization
 import Testing
@@ -42,11 +43,15 @@ struct ChatInboxModelTests {
     let folder = ChatAccessFolder(containerURL: FileManager.default.temporaryDirectory, isDevelopment: true)
     let url = folder.inboxURL.appending(path: "20261105T120000Z-\(trip.id.uuidString).gvreturn")
     let snapshot = ChatInboxSnapshot(url: url, name: url.lastPathComponent, isCurrent: true)
+    let (snapshots, continuation) = AsyncStream<[ChatInboxSnapshot]>.makeStream()
     let oldEnabled = UserDefaults.standard.object(forKey: ChatInboxModel.enabledKey)
     defer { UserDefaults.standard.set(oldEnabled, forKey: ChatInboxModel.enabledKey) }
     try await withDependencies {
       $0.handoffSessionStore.save = { session in state.withLock { $0.session = session } }
       $0.handoffSessionStore.session = { id in state.withLock { $0.session?.id == id ? $0.session : nil } }
+      $0.chatInboxWatcher = { _ in
+        ChatInboxObservation(snapshots: snapshots, stop: { continuation.finish() })
+      }
       $0.chatAccessContainer = .init(resolveFolder: { folder }, resolveAndCreateInbox: { folder })
       $0.chatInboxFiles = .init(read: { _ in text }, claim: { _, _, _ in
         let attempt = state.withLock { state in
@@ -62,10 +67,11 @@ struct ChatInboxModelTests {
       model.setEnabled(true)
       await model.prepare()
       try await model.$trips.load()
-      for _ in 0..<1000 {
-        model.receive([snapshot])
-        if model.rows.first?.downloadState == .current { break }
-        await Task.yield()
+      continuation.yield([snapshot])
+      while model.rows.first?.downloadState != .current {
+        await withCheckedContinuation { continuation in
+          withObservationTracking { _ = model.rows } onChange: { continuation.resume() }
+        }
       }
       let row = try #require(model.rows.first { $0.url == url && $0.downloadState == .current })
       let first = await model.open(row)

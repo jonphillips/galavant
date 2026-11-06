@@ -20,7 +20,8 @@ final class ChatInboxModel {
   @ObservationIgnored @FetchAll(Trip.all) var trips
   @ObservationIgnored @Dependency(\.chatInboxFiles) private var files
   @ObservationIgnored @Dependency(\.chatAccessContainer) private var container
-  @ObservationIgnored private var watcher: ChatInboxWatcher?
+  @ObservationIgnored @Dependency(\.chatInboxWatcher) private var makeWatcher
+  @ObservationIgnored private var watcher: ChatInboxObservation?
   @ObservationIgnored private var watcherTask: Task<Void, Never>?
   private var snapshots: [ChatInboxSnapshot] = []
   private var cache: [URL: StagedTripReturnRow.Cached] = [:]
@@ -66,15 +67,15 @@ final class ChatInboxModel {
       guard enabled, generation == currentGeneration else { return }
       self.folder = folder
       if watcher == nil {
-        let watcher = ChatInboxWatcher(folder: folder)
+        let watcher = makeWatcher(folder)
         self.watcher = watcher
         watcherTask = Task { [weak self] in
           for await snapshots in watcher.snapshots { self?.receive(snapshots) }
         }
-        watcher.start()
       }
       try await files.maintain(folder, [Self.kind], now)
       message = nil
+      notice = nil
     } catch {
       guard enabled, generation == currentGeneration else { return }
       message = error.localizedDescription
@@ -96,7 +97,7 @@ final class ChatInboxModel {
     notice = nil
   }
 
-  func receive(_ snapshots: [ChatInboxSnapshot]) {
+  private func receive(_ snapshots: [ChatInboxSnapshot]) {
     claimed.formIntersection(Set(snapshots.map(\.url)))
     self.snapshots = snapshots.filter { !claimed.contains($0.url) }
     for snapshot in self.snapshots where snapshot.isCurrent && snapshot.url.pathExtension == Self.kind.fileExtension {
@@ -177,6 +178,21 @@ final class ChatInboxModel {
   }
 }
 
+struct ChatInboxObservation: Sendable {
+  let snapshots: AsyncStream<[ChatInboxSnapshot]>
+  let stop: @MainActor @Sendable () -> Void
+}
+
+private enum ChatInboxWatcherKey: DependencyKey {
+  static var liveValue: @MainActor @Sendable (ChatAccessFolder) -> ChatInboxObservation {
+    { folder in
+      let watcher = ChatInboxWatcher(folder: folder)
+      watcher.start()
+      return ChatInboxObservation(snapshots: watcher.snapshots, stop: { watcher.stop() })
+    }
+  }
+}
+
 private enum ChatAccessContainerKey: DependencyKey {
   static var liveValue: ChatAccessContainerClient {
     #if DEBUG
@@ -193,6 +209,11 @@ private enum ChatInboxFilesKey: DependencyKey {
 }
 
 extension DependencyValues {
+  var chatInboxWatcher: @MainActor @Sendable (ChatAccessFolder) -> ChatInboxObservation {
+    get { self[ChatInboxWatcherKey.self] }
+    set { self[ChatInboxWatcherKey.self] = newValue }
+  }
+
   var chatAccessContainer: ChatAccessContainerClient {
     get { self[ChatAccessContainerKey.self] }
     set { self[ChatAccessContainerKey.self] = newValue }
