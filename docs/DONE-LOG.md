@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-06 — Chat access S3 — Stage trip seeds into Evaluate (`effort/chat-access`)
+
+- **Result:** Trip seeds stage from chat into Evaluate and open the existing trip seed review. A successful import claims the inbox file, and retrying a failed claim reuses existing trip rows and the seed document.
+- **Verification:** The drift gate passed with 849 library tests (13 known issues), four helper tests, and the UI-test build. All 55 headless GalavantTests passed.
+- **Owed:** chat-access S3's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-05 — Chat access S2: stage options into Evaluate (`effort/chat-access-s2`)
 
 - **Result:** Added the Galavant MCP staging helper, shared validation and import, and an opt-in iCloud inbox in Evaluate.

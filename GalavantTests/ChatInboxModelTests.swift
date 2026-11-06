@@ -191,8 +191,10 @@ struct ChatInboxModelTests {
       #expect(model.readyCount == 0)
       #expect(model.rowErrors[url] == nil)
       try await database.read { db in
-        #expect(try TripIdea.where { $0.tripID.eq(trip.id) }.fetchCount(db) == 1)
-        #expect(try TripDocument.where { $0.tripID.eq(trip.id) }.fetchCount(db) == 1)
+        let rowCount = try TripIdea.where { $0.tripID.eq(trip.id) }.fetchCount(db)
+        let documentCount = try TripDocument.where { $0.tripID.eq(trip.id) }.fetchCount(db)
+        #expect(rowCount == 1)
+        #expect(documentCount == 1)
       }
     }
   }
