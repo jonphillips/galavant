@@ -32,3 +32,20 @@ public struct TravelProfile: Identifiable, Equatable, Sendable {
     self.preferences = preferences
   }
 }
+
+extension TravelProfile {
+  /// Build household taste context for many trips from one batched profile read.
+  public static func promptLinesByParty(
+    _ partyIDs: Set<UUID>, profiles: [TravelProfile], planners: [Planner]
+  ) -> [UUID: [String]] {
+    let profilesByParty = Dictionary(grouping: profiles, by: \.travelPartyID)
+    let plannersByParty = Dictionary(grouping: planners.compactMap { planner -> (UUID, Planner)? in
+      guard let partyID = planner.travelPartyID else { return nil }
+      return (partyID, planner)
+    }, by: \.0).mapValues { $0.map(\.1) }
+    return Dictionary(uniqueKeysWithValues: partyIDs.map { partyID in
+      (partyID, promptLines(travelPartyID: partyID,
+        profiles: profilesByParty[partyID] ?? [], planners: plannersByParty[partyID] ?? []))
+    })
+  }
+}

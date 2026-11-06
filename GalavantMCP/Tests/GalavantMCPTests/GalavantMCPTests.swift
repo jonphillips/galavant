@@ -1,11 +1,129 @@
 import ChatAccessKit
 import Foundation
+import GalavantSchema
 import GalavantMCPServer
 import LLMHandoffKit
 import MCPServerKit
 import Testing
 
 struct GalavantMCPTests {
+  @Test func listsReadsAndStagesAChatStartedWithoutABrief() async throws {
+    let home = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: home) }
+    let tripID = UUID()
+    let export = GalavantChatExport(generatedAt: Date(timeIntervalSince1970: 1_800_000_000), device: "iPhone", trips: [
+      GalavantChatExport.Trip(id: tripID, name: "Copenhagen", startDate: nil, lengthInDays: 5, notes: "", planLines: [],
+        ruledOutLines: ["Already ruled out (don't suggest again):", "- Tower"], tasteLines: [], consideringTitles: [], shortlistedTitles: [])
+    ])
+    try write(export, home: home)
+    let server = GalavantMCPServer.make(home: home)
+    let listed = try #require(await server.handle(line: toolCall("list_trips", arguments: [:])))
+    #expect(listed.contains("Copenhagen"))
+    #expect(listed.contains(tripID.uuidString))
+    let firstList = try result(listed)
+    let listedAgain = try #require(await server.handle(line: toolCall("list_trips", arguments: [:])))
+    #expect(try result(listedAgain) == firstList)
+
+    let read = try #require(await server.handle(line: toolCall("get_trip", arguments: ["trip": .string(tripID.uuidString)])))
+    #expect(read.contains("Already ruled out"))
+    let readAgain = try #require(await server.handle(line: toolCall("get_trip", arguments: ["trip": .string(tripID.uuidString)])))
+    #expect(try result(readAgain) == result(read))
+    let unknown = try #require(await server.handle(line: toolCall("get_trip", arguments: ["trip": .string(UUID().uuidString)])))
+    #expect(responseText(unknown).contains("list_trips"))
+    let text = "GV-CONTRACT: v2\n[{\"name\":\"Museum\"}]"
+    let rejectedID = UUID()
+    let rejected = try #require(await server.handle(line: toolCall("stage_trip_return", arguments: ["trip": .string(rejectedID.uuidString), "text": .string(text)])))
+    #expect(try result(rejected)["isError"] == .bool(true))
+    #expect(responseText(rejected).contains("list_trips"))
+    let staged = try #require(await server.handle(line: toolCall("stage_trip_return", arguments: ["trip": .string(tripID.uuidString), "text": .string(text)])))
+    #expect(try result(staged)["isError"] != .bool(true))
+    let inbox = HandoffInbox(root: ChatAccessFolder(containerURL: ChatAccessHelperFolder.containerURL(
+      for: "iCloud.com.jonphillips.galavant", home: home), isDevelopment: false).inboxURL, fileExtension: "gvreturn")
+    #expect(try inbox.list().count == 1)
+  }
+
+  @Test func listReportsOmittedTripsInsteadOfDroppingThemSilently() async throws {
+    let home = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: home) }
+    let trips = (0..<101).map { index in
+      GalavantChatExport.Trip(id: UUID(), name: "Trip \(index)", startDate: nil, lengthInDays: 3,
+        notes: "", planLines: [], ruledOutLines: [], tasteLines: [], consideringTitles: [], shortlistedTitles: [])
+    }
+    try write(GalavantChatExport(generatedAt: Date(), device: "iPad", trips: trips), home: home)
+    let response = try #require(await GalavantMCPServer.make(home: home).handle(line: toolCall("list_trips", arguments: [:])))
+    #expect(response.contains("truncated"))
+    #expect(response.contains("omittedCount"))
+    #expect(response.contains("1"))
+  }
+
+  @Test func tokenReturnSkipsExportCheckAndMissingExportStillStages() async throws {
+    let home = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: home) }
+    let container = ChatAccessHelperFolder.containerURL(for: "iCloud.com.jonphillips.galavant", home: home)
+    try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
+    try write(GalavantChatExport(generatedAt: Date(), device: "iPhone", trips: []), home: home)
+    let tripID = UUID()
+    let text = "GV-HANDOFF: \(UUID())\nGV-CONTRACT: v2\n[{\"name\":\"Museum\"}]"
+    let server = GalavantMCPServer.make(home: home)
+    let response = try #require(await server.handle(line: toolCall("stage_trip_return", arguments: [
+      "trip": .string(tripID.uuidString), "text": .string(text)])))
+    #expect(try result(response)["isError"] != .bool(true))
+    #expect(try HandoffInbox(root: ChatAccessFolder(containerURL: container, isDevelopment: false).inboxURL,
+      fileExtension: "gvreturn").list().count == 1)
+  }
+
+  @Test func noExportNewerExportAndTimedOutExportHaveActionableErrors() async throws {
+    let home = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: home) }
+    try FileManager.default.createDirectory(at: ChatAccessHelperFolder.containerURL(
+      for: "iCloud.com.jonphillips.galavant", home: home), withIntermediateDirectories: true)
+    let noExport = GalavantMCPServer.make(home: home)
+    let missing = try #require(await noExport.handle(line: toolCall("list_trips", arguments: [:])))
+    #expect(responseText(missing).contains("No Galavant export yet"), "\(missing)")
+
+    let newer = Data(#"{"version":99,"generatedAt":0,"device":"iPhone","trips":[]}"#.utf8)
+    try write(newer, home: home)
+    let newerResponse = try #require(await GalavantMCPServer.make(home: home).handle(line: toolCall("list_trips", arguments: [:])))
+    #expect(responseText(newerResponse).contains("newer format"), "\(newerResponse)")
+    #expect(responseText(newerResponse).lowercased().contains("reinstall"))
+
+    let timeoutHome = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: timeoutHome) }
+    try write(GalavantChatExport(generatedAt: Date(), device: "iPad", trips: []), home: timeoutHome)
+    let timedOut = GalavantMCPServer.make(home: timeoutHome, exportMaterializer: { _ in
+      try await Task.sleep(for: .seconds(2))
+      return Data()
+    }, materializationDeadline: .milliseconds(10))
+    let timeoutResponse = try #require(await timedOut.handle(line: toolCall("list_trips", arguments: [:])))
+    #expect(responseText(timeoutResponse).contains("still downloading from iCloud"), "\(timeoutResponse)")
+  }
+
+  @Test(arguments: ["newer", "timeout", "unreadable"])
+  func aFailedExportReadNeverBlocksAChatStartedTrip(scenario: String) async throws {
+    let home = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: home) }
+    let data: Data
+    if scenario == "newer" { data = Data(#"{"version":2,"generatedAt":0,"device":"iPad","trips":[]}"#.utf8) }
+    else if scenario == "unreadable" { data = Data("not json".utf8) }
+    else { data = try JSONEncoder().encode(GalavantChatExport(generatedAt: Date(), device: "iPhone", trips: [])) }
+    try write(data, home: home)
+    let materializer: ChatAccessExportReader.Materializer?
+    if scenario == "timeout" {
+      materializer = { _ in try await Task.sleep(for: .seconds(1)); return data }
+    } else {
+      materializer = nil
+    }
+    let server = GalavantMCPServer.make(home: home, exportMaterializer: materializer,
+      materializationDeadline: .milliseconds(10))
+    let text = "GV-CONTRACT: v2\n[{\"name\":\"Museum\"}]"
+    let response = try #require(await server.handle(line: toolCall("stage_trip_return", arguments: [
+      "trip": .string(UUID().uuidString), "text": .string(text)])))
+    #expect(try result(response)["isError"] != .bool(true))
+    let folder = ChatAccessFolder(containerURL: ChatAccessHelperFolder.containerURL(
+      for: "iCloud.com.jonphillips.galavant", home: home), isDevelopment: false)
+    #expect(try HandoffInbox(root: folder.inboxURL, fileExtension: "gvreturn").list().count == 1)
+  }
+
   @Test func stagesValidatedTextAndRefusesBadReturns() async throws {
     let home = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: home) }
@@ -95,7 +213,32 @@ struct GalavantMCPTests {
     return String(decoding: try! JSONEncoder().encode(request), as: UTF8.self)
   }
 
+  private func toolCall(_ name: String, arguments: [String: MCPValue]) -> String {
+    let request: MCPValue = .object(["jsonrpc": .string("2.0"), "id": .integer(2), "method": .string("tools/call"),
+      "params": .object(["name": .string(name), "arguments": .object(arguments)])])
+    return String(decoding: try! JSONEncoder().encode(request), as: UTF8.self)
+  }
+
+  private func write(_ export: GalavantChatExport, home: URL) throws {
+    try write(JSONEncoder().encode(export), home: home)
+  }
+
+  private func write(_ data: Data, home: URL) throws {
+    let container = ChatAccessHelperFolder.containerURL(for: "iCloud.com.jonphillips.galavant", home: home)
+    let folder = ChatAccessFolder(containerURL: container, isDevelopment: false)
+    try FileManager.default.createDirectory(at: folder.exportsURL, withIntermediateDirectories: true)
+    try data.write(to: folder.exportsURL.appending(path: "fixture.json"))
+  }
+
   private func result(_ response: String) throws -> [String: MCPValue] {
     try JSONDecoder().decode(MCPValue.self, from: Data(response.utf8)).objectValue?["result"]?.objectValue ?? [:]
+  }
+
+  private func responseText(_ response: String) -> String {
+    guard let result = try? result(response), case let .array(content)? = result["content"] else { return response }
+    return content.compactMap { item in
+      guard case let .object(values) = item, case let .string(text)? = values["text"] else { return nil }
+      return text
+    }.joined(separator: "\n")
   }
 }

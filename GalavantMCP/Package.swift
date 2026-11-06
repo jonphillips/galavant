@@ -20,6 +20,7 @@ let package = Package(
     ]),
     .testTarget(name: "GalavantMCPTests", dependencies: [
       "GalavantMCPServer", .product(name: "ChatAccessKit", package: "ChatAccessKit"),
+      .product(name: "GalavantSchema", package: "GalavantLibrary"),
       .product(name: "LLMHandoffKit", package: "LLMHandoffKit"),
       .product(name: "MCPServerKit", package: "MCPServerKit"),
     ]),

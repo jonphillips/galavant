@@ -62,17 +62,20 @@ struct GalavantApp: App {
   var body: some Scene {
     WindowGroup {
       AppContainer()
+        .environment(appDelegate.chatExportModel)
     }
   }
 }
 
 final class AppDelegate: UIResponder, UIApplicationDelegate {
   private var suspensionController: DatabaseSuspensionController?
+  private(set) var chatExportModel: ChatExportModel!
 
   func application(
     _ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
     suspensionController = DatabaseSuspensionController(application: application)
+    chatExportModel = ChatExportModel(application: application)
     return true
   }
 

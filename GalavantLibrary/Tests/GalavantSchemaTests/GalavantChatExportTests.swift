@@ -1,0 +1,47 @@
+import Foundation
+import GalavantAI
+import GalavantPlaces
+@testable import GalavantSchema
+import Testing
+
+struct GalavantChatExportTests {
+  @Test func exportUsesTheBriefPlanAndRuledOutProjectionsAndKeepsUndatedTrips() throws {
+    let tripID = UUID()
+    let trip = Trip(id: tripID, name: "Copenhagen", notes: "Slow days", startDate: nil, lengthInDays: 4)
+    let entries = [
+      TripIdea(id: UUID(), tripID: tripID, ideaID: nil, inlineTitle: "Louisiana", status: .scheduled, dayNumber: 1),
+      TripIdea(id: UUID(), tripID: tripID, ideaID: nil, inlineTitle: "Skip the tower", inlineNote: "Too crowded", status: .declined)
+    ]
+    let stays = [TripStay.freeform(id: UUID(), tripID: tripID, title: "Hotel d'Angleterre", checkInDay: 1, checkOutDay: 3)]
+    let plan = TripPlan(entries: entries, ideasByID: [:], lengthInDays: trip.lengthInDays, tripStays: stays)
+    let session = HandoffSession(sourceType: "trip", sourceID: tripID,
+      taskType: RecommendationHandoffTask.candidatePlaces, exportedPrompt: "")
+    let brief = RecommendationHandoffContract.brief(session: session, tripName: trip.name,
+      tripNotes: trip.notes, plan: plan)
+    let export = try GalavantChatExportBuilder.build(trips: [trip], entries: entries, ideas: [], stays: stays,
+      dayRegions: [], regions: [], constraints: [], alternativeGroups: [], profiles: [], planners: [],
+      generatedAt: Date(timeIntervalSince1970: 100), device: "iPhone")
+    let exported = try #require(export.trips.first)
+    #expect(exported.planLines == RecommendationHandoffContract.stopSummary(plan: plan))
+    #expect(exported.ruledOutLines == RecommendationHandoffContract.ruledOutSummary(plan: plan))
+    #expect(brief.contains(exported.planLines.joined(separator: "\n")))
+    #expect(brief.contains(exported.ruledOutLines.joined(separator: "\n")))
+    #expect(exported.startDate == nil)
+    #expect(exported.lengthInDays == 4)
+    let encoded = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(export)) as? [String: Any])
+    let tripObject = try #require((encoded["trips"] as? [[String: Any]])?.first)
+    #expect(Set(tripObject.keys) == ["id", "name", "startDate", "targetYear", "targetQuarter", "lengthInDays",
+      "notes", "planLines", "ruledOutLines", "tasteLines", "consideringTitles", "shortlistedTitles"])
+  }
+
+  @Test func encodedKeysAreExactAndVersionIsChecked() throws {
+    let export = GalavantChatExport(generatedAt: Date(timeIntervalSince1970: 100), device: "iPad", trips: [])
+    let object = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(export)) as? [String: Any])
+    #expect(Set(object.keys) == ["version", "generatedAt", "device", "trips"])
+    #expect(try GalavantChatExport.decode(JSONEncoder().encode(export)) == export)
+    let newer = Data(#"{"version":2,"generatedAt":0,"device":"iPad","trips":[]}"#.utf8)
+    #expect(throws: GalavantChatExport.DecodeError.unsupportedVersion(2)) {
+      try GalavantChatExport.decode(newer)
+    }
+  }
+}

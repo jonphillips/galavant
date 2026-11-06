@@ -7,6 +7,7 @@ import MCPServerKit
 @main
 enum GalavantMCP {
   static func main() async {
+    ChatAccessHelperProcess.enableDatalessMaterialization()
     do {
       let isDevelopment = try ChatAccessHelperFolder.isDevelopment(arguments: CommandLine.arguments)
       await GalavantMCPServer.make(isDevelopment: isDevelopment).run()

@@ -123,7 +123,7 @@ public enum RecommendationHandoffContract {
     return lines
   }
 
-  private static func ruledOutSummary(plan: TripPlan) -> [String] {
+  static func ruledOutSummary(plan: TripPlan) -> [String] {
     guard !plan.ruledOut.isEmpty else { return [] }
     return ["Already ruled out (don't suggest again):"] + plan.ruledOut.map { stop in
       let note = stop.entry.inlineNote.map(Self.oneLineRuledOutNote) ?? ""
