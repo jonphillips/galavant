@@ -8,6 +8,14 @@ public enum StagedTripReturn {
     case seed(token: UUID?, SeedReturn)
   }
 
+  public enum ValidationError: Error, Equatable, LocalizedError, Sendable {
+    case ambiguousPlaces
+
+    public var errorDescription: String? {
+      "For a trip seed, resend with a line containing only GV-SEED before the JSON object. For candidate places, resend them as one JSON array."
+    }
+  }
+
   public static func strippingTripLine(from text: String) -> String {
     text.components(separatedBy: .newlines)
       .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("GV-TRIP:") }
@@ -31,7 +39,11 @@ public enum StagedTripReturn {
       }
       return .candidates(token: routed?.sessionID, decoded.candidates, note: decoded.note)
     case .seedTrip:
-      return .seed(token: routed?.sessionID, try SeedReturn.decode(body))
+      let seed = try SeedReturn.decode(body)
+      guard !seed.bases.isEmpty || SeedReturn.markerLine(in: body.split(whereSeparator: \.isNewline)) != nil else {
+        throw ValidationError.ambiguousPlaces
+      }
+      return .seed(token: routed?.sessionID, seed)
     }
   }
 }

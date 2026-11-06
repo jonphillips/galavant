@@ -48,8 +48,11 @@ final class ChatInboxModel {
 
   var readyCount: Int {
     rows.filter { row in
-      guard row.downloadState == .current, case .candidates = row.destination else { return false }
-      return true
+      guard row.downloadState == .current else { return false }
+      switch row.destination {
+      case .candidates, .seed: return true
+      case .unknownTrip, .unreadable: return false
+      }
     }.count
   }
 
@@ -127,7 +130,8 @@ final class ChatInboxModel {
     do {
       let existing = token.flatMap { sessions.session($0) }
       let session = RecommendationSetImport.session(
-        token: token, existing: existing, tripID: trip.id, now: now, newID: uuid()
+        token: token, existing: existing, tripID: trip.id, taskType: RecommendationHandoffTask.candidatePlaces,
+        now: now, newID: uuid()
       )
       let date = now
       let result = try await database.write { db in
@@ -150,17 +154,57 @@ final class ChatInboxModel {
     return nil
   }
 
-  func discard(_ row: StagedTripReturnRow) async {
+  func openSeed(_ row: StagedTripReturnRow, router: AppRouter) async {
     notice = nil
-    guard let folder, working.insert(row.url).inserted else { return }
+    guard case let .seed(trip, _) = row.destination, row.downloadState == .current,
+      enabled, working.isEmpty else { return }
+    working.insert(row.url)
     defer { working.remove(row.url) }
+    let generation = generation
     do {
-      try await files.claim(folder, row.url, Self.kind)
-      forget(row.url)
+      let text = try await files.read(row.url)
+      guard enabled, self.generation == generation else { return }
+      let validated = try StagedTripReturn.validate(text)
+      guard case let .seed(token, seed) = validated else {
+        cache[row.url] = .validated(validated)
+        return
+      }
+      let context = try await database.read { db in try SeedPlanContext.load(tripID: trip.id, in: db) }
+      guard enabled, self.generation == generation, let context,
+        snapshots.contains(where: { $0.url == row.url }) else { return }
+      let session = RecommendationSetImport.session(
+        token: token, existing: token.flatMap { sessions.session($0) }, tripID: trip.id,
+        taskType: RecommendationHandoffTask.seedTrip, now: now, newID: uuid()
+      )
+      rowErrors[row.url] = nil
+      router.openTrip = context.trip
+      router.selection = .trips
+      router.planningModel(for: context.trip).presentStagedSeed(seed, for: session, context: context) { [weak self] in
+        Task { await self?.claim(row.url) }
+      }
     } catch HandoffInboxError.alreadyClaimed {
       forget(row.url)
     } catch {
+      guard enabled, self.generation == generation else { return }
       rowErrors[row.url] = error.localizedDescription
+    }
+  }
+
+  func discard(_ row: StagedTripReturnRow) async {
+    notice = nil
+    await claim(row.url)
+  }
+
+  private func claim(_ url: URL) async {
+    guard let folder, working.insert(url).inserted else { return }
+    defer { working.remove(url) }
+    do {
+      try await files.claim(folder, url, Self.kind)
+      forget(url)
+    } catch HandoffInboxError.alreadyClaimed {
+      forget(url)
+    } catch {
+      rowErrors[url] = error.localizedDescription
     }
   }
 

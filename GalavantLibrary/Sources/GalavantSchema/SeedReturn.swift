@@ -85,26 +85,31 @@ public struct SeedReturn: Equatable, Sendable {
   public var bases: [SeedBase]
   public var places: [SeedPlace]
   public var warnings: [String]
+  public var placeCount: Int { bases.count + places.count }
+
+  static func markerLine(in lines: [Substring]) -> Int? {
+    lines.lastIndex(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines) == "GV-SEED" })
+  }
 
   public static func decode(_ text: String) throws -> SeedReturn {
     let lines = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
-    let marker = lines.lastIndex(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines) == "GV-SEED" })
+    let marker = markerLine(in: lines)
     let tail = marker.map { lines[($0 + 1)...].joined(separator: "\n") } ?? text
-    guard let object = Self.jsonObjectSlice(in: tail), let range = tail.range(of: object) else {
+    guard let firstBrace = tail.firstIndex(of: "{") else {
       throw SeedReturnDecodeError.missingJSONObject
+    }
+    guard let (start, root) = firstJSONObject(in: tail, from: firstBrace) else {
+      throw SeedReturnDecodeError.malformedJSON
     }
     let narrative: String
     if let marker {
       narrative = lines[..<marker].joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
     } else {
-      narrative = String(tail[..<range.lowerBound])
+      narrative = String(tail[..<start])
         .replacingOccurrences(of: "```json", with: "")
         .replacingOccurrences(of: "```", with: "")
         .trimmingCharacters(in: .whitespacesAndNewlines)
     }
-    guard let root = Self.parseObject(object)
-    else { throw SeedReturnDecodeError.malformedJSON }
-
     let seedTrip = decodeTrip(root)
     let fallback = root.string("summary") ?? seedTrip.summary
     let finalNarrative = narrative.isEmpty ? (fallback ?? "") : narrative
@@ -182,7 +187,7 @@ public struct SeedReturn: Equatable, Sendable {
     return (places, warnings)
   }
 
-  fileprivate static func parseObject(_ text: String) -> [String: Any]? {
+  private static func parseObject(_ text: String) -> [String: Any]? {
     let normalized = normalizeQuotes(text)
     return [normalized, text].lazy.compactMap {
       (try? JSONSerialization.jsonObject(with: Data($0.utf8))) as? [String: Any]
@@ -197,19 +202,22 @@ public struct SeedReturn: Equatable, Sendable {
       .replacingOccurrences(of: "’", with: "'")
   }
 
-  fileprivate static func jsonObjectSlice(in text: String) -> String? {
-    var index = text.startIndex
-    while index < text.endIndex {
-      guard text[index] == "{" else {
-        index = text.index(after: index)
-        continue
-      }
-      if let close = matchingObjectClose(in: text, openingAt: index) {
-        return String(text[index...close])
-      }
-      return String(text[index...])
+  private static func firstJSONObject(in text: String, from start: String.Index) -> (String.Index, [String: Any])? {
+    var cursor = start
+    while let opening = text[cursor...].firstIndex(of: "{"),
+      let object = scanJSONObject(in: text, openingAt: opening)
+    {
+      if let root = object.root { return (opening, root) }
+      cursor = text.index(after: object.close)
     }
     return nil
+  }
+
+  fileprivate static func scanJSONObject(
+    in text: String, openingAt index: String.Index
+  ) -> (close: String.Index, root: [String: Any]?)? {
+    guard let close = matchingObjectClose(in: text, openingAt: index) else { return nil }
+    return (close, parseObject(String(text[index...close])))
   }
 
   private static func matchingObjectClose(in text: String, openingAt open: String.Index) -> String.Index? {
@@ -287,24 +295,24 @@ public enum HandoffReturnKind: Equatable, Sendable {
   case candidatePlaces, seedTrip
 
   public static func classify(_ body: String) -> Self {
-    if body.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
-      .contains(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines) == "GV-SEED" }) {
-      return .seedTrip
-    }
+    if SeedReturn.markerLine(in: body.split(whereSeparator: \.isNewline)) != nil { return .seedTrip }
+    guard let root = leadingJSONObject(in: body)?.root else { return .candidatePlaces }
+    return root.keys.contains("bases") || root.keys.contains("places") ? .seedTrip : .candidatePlaces
+  }
+
+  static func leadingJSONObject(in body: String) -> (range: ClosedRange<String.Index>, root: [String: Any])? {
     var index = body.startIndex
     while index < body.endIndex {
       if body[index] == "[" {
         let next = body[body.index(after: index)...].first(where: { !$0.isWhitespace })
-        if next == "{" { return .candidatePlaces }
+        if next == "{" { return nil }
       } else if body[index] == "{" {
-        guard let object = SeedReturn.jsonObjectSlice(in: String(body[index...])),
-          let root = SeedReturn.parseObject(object),
-          root.keys.contains("bases") || root.keys.contains("places")
-        else { return .candidatePlaces }
-        return .seedTrip
+        guard let object = SeedReturn.scanJSONObject(in: body, openingAt: index) else { return nil }
+        if let root = object.root { return (index...object.close, root) }
+        index = object.close
       }
       index = body.index(after: index)
     }
-    return .candidatePlaces
+    return nil
   }
 }

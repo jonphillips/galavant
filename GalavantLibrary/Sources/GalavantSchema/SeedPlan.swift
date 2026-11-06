@@ -3,29 +3,6 @@ import Foundation
 import GalavantAI
 import SQLiteData
 
-public struct SeedPlanContext: Sendable {
-  public var trip: Trip
-  public var tripIdeas: [TripIdea]
-  public var ideasByID: [Idea.ID: Idea]
-  public var poolIdeas: [Idea]
-  public var stays: [TripStay]
-  public var tripRegions: [MapRegion]
-  public var partyRegions: [MapRegion]
-
-  public init(
-    trip: Trip, tripIdeas: [TripIdea], ideasByID: [Idea.ID: Idea], stays: [TripStay],
-    tripRegions: [MapRegion], partyRegions: [MapRegion], poolIdeas: [Idea] = []
-  ) {
-    self.trip = trip
-    self.tripIdeas = tripIdeas
-    self.ideasByID = ideasByID
-    self.poolIdeas = poolIdeas
-    self.stays = stays
-    self.tripRegions = tripRegions
-    self.partyRegions = partyRegions
-  }
-}
-
 public enum SeedMapRowResolution: Equatable, Sendable {
   case resolved(Idea.ID)
   case collision(existingTitle: String)
@@ -433,6 +410,10 @@ public struct SeedPlan: Equatable, Sendable {
 
   private static func addDocument(_ narrative: String, tripID: Trip.ID, now: Date, in db: Database) throws {
     guard !narrative.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+    let existing = try TripDocument.where {
+      $0.tripID.eq(tripID) && $0.origin.eq(TripDocumentOrigin.seed) && $0.body.eq(narrative)
+    }.fetchCount(db)
+    guard existing == 0 else { return }
     _ = try TripDocument.add(
       tripID: tripID,
       title: "Founding conversation — \(now.formatted(date: .abbreviated, time: .omitted))",

@@ -324,6 +324,15 @@ struct RecommendationHandoffTests {
 
     let nested = try TripCandidate.decodeReturn("{\"summary\":\"Try the north.\",\"details\":{\"area\":\"north\"},\"places\":[{\"name\":\"Plose\"}]}")
     #expect(nested.note == "summary: Try the north.")
+
+    let placesWithProse = try TripCandidate.decodeReturn("Try the north.\n{\"places\":[{\"name\":\"Plose\"}]}")
+    #expect(placesWithProse.candidates.only?.name == "Plose")
+  }
+
+  @Test(arguments: ["", "Start here {base}.\n", "GV-SEED\n"])
+  func refusesSeedObjectsWithBasesInCandidatePaste(prefix: String) {
+    let text = prefix + "{\"bases\":[{\"name\":\"Inn\"}],\"places\":[{\"name\":\"Museum\"}]}"
+    #expect(throws: TripCandidateDecodeError.seedObject) { try TripCandidate.decodeReturn(text) }
   }
 
   @Test func seedBriefUsesTripContextAndV2ProjectInstructionsKeepTheCandidateClause() {

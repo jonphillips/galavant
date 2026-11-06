@@ -25,7 +25,7 @@ public enum GalavantMCPServer {
       tools: [
         MCPTool(
           name: "stage_trip_return",
-          description: "Call this instead of printing a Galavant return. Pass the trip UUID from GV-TRIP and the complete return text, including the GV-HANDOFF and GV-CONTRACT lines and candidate JSON. The options are staged for review in Galavant.",
+          description: "Call this instead of printing a Galavant return. Pass the trip UUID from GV-TRIP and the complete return text with the GV-HANDOFF and GV-CONTRACT lines. For a seed, include a line containing only GV-SEED before the JSON object. For candidate places, send one JSON array. The return is staged for review in Galavant.",
           inputSchema: .object([
             "type": .string("object"),
             "properties": .object([
@@ -45,15 +45,18 @@ public enum GalavantMCPServer {
           }
           do {
             let validated = try StagedTripReturn.validate(payload.text)
-            guard case let .candidates(_, candidates, _) = validated else {
-              return .error("Trip seeds cannot be staged yet. Print the return for pasting into Galavant.")
-            }
             let folder = try ChatAccessHelperFolder.existing(
               containerIdentifier: "iCloud.com.jonphillips.galavant", isDevelopment: isDevelopment, home: home
             )
             let inbox = HandoffInbox(root: folder.inboxURL, fileExtension: "gvreturn")
             _ = try inbox.stage(payload.text, slug: trip.uuidString, now: now())
-            return .json(StageResult(staged: "\(candidates.filter { !$0.suggestedTitle.isEmpty }.count) options", next: "Review them in Galavant → Evaluate."))
+            switch validated {
+            case let .candidates(_, candidates, _):
+              return .json(StageResult(staged: "\(candidates.filter { !$0.suggestedTitle.isEmpty }.count) options", next: "Review them in Galavant → Evaluate."))
+            case let .seed(_, seed):
+              let count = seed.placeCount
+              return .json(StageResult(staged: "Trip seed · \(count) \(count == 1 ? "place" : "places")", next: "Review it in Galavant → Evaluate."))
+            }
           } catch {
             return .error(error.localizedDescription)
           }

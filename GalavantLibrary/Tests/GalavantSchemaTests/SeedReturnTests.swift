@@ -59,6 +59,14 @@ struct SeedReturnTests {
     #expect(HandoffReturnKind.classify("Plain prose") == .candidatePlaces)
   }
 
+  @Test func malformedSeedDoesNotDecodeAnInnerObjectAsTheRoot() {
+    let text = """
+      GV-SEED
+      {"bases":[{"name":"Inn","check_in_day":1,"check_out_day":2}],"places":[{"name":"Museum","why":"the "best" one"}]}
+      """
+    #expect(throws: SeedReturnDecodeError.malformedJSON) { try SeedReturn.decode(text) }
+  }
+
   @Test func classifiesProseAndCurlyQuotedSeedsWithoutMistakingBracketsForArrays() {
     let seed = "{\"bases\":[],\"places\":[{}]}"
     #expect(HandoffReturnKind.classify("Here is the seed [from our chat]: " + seed) == .seedTrip)

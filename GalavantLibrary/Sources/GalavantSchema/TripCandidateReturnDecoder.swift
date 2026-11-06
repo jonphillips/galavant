@@ -8,6 +8,9 @@ public struct TripCandidateReturn: Equatable, Sendable {
 enum TripCandidateReturnDecoder {
   static func decode(_ text: String) throws -> TripCandidateReturn {
     let pasted = removingCodeFenceLines(from: text)
+    guard HandoffReturnKind.leadingJSONObject(in: pasted)?.root.keys.contains("bases") != true else {
+      throw TripCandidateDecodeError.seedObject
+    }
     if let result = try objectReturn(in: pasted) ?? arrayReturn(in: pasted) { return result }
 
     let normalized = normalizeQuotes(in: pasted)
@@ -17,7 +20,7 @@ enum TripCandidateReturnDecoder {
       return result
     }
 
-    guard let array = jsonArraySlice(in: normalized) else { throw TripCandidateDecodeError.missingJSONArray }
+    guard let array = try jsonArraySlice(in: normalized) else { throw TripCandidateDecodeError.missingJSONArray }
     guard let candidates = decodeCandidates(array) else { throw TripCandidateDecodeError.malformedJSON }
     guard !candidates.isEmpty else { throw TripCandidateDecodeError.emptyCandidates }
     let surroundingText = String(normalized.replacingOccurrences(of: array, with: ""))
@@ -42,7 +45,7 @@ enum TripCandidateReturnDecoder {
   }
 
   private static func arrayReturn(in text: String) throws -> TripCandidateReturn? {
-    guard let array = jsonArraySlice(in: text), let candidates = decodeCandidates(array) else { return nil }
+    guard let array = try jsonArraySlice(in: text), let candidates = decodeCandidates(array) else { return nil }
     guard !candidates.isEmpty else { throw TripCandidateDecodeError.emptyCandidates }
     let surroundingText = String(text.replacingOccurrences(of: array, with: ""))
     let note = removingJSONFragments(from: removingCodeFenceLines(from: surroundingText))
@@ -154,7 +157,7 @@ enum TripCandidateReturnDecoder {
     return index
   }
 
-  private static func jsonArraySlice(in text: String) -> String? {
+  private static func jsonArraySlice(in text: String) throws -> String? {
     var index = text.startIndex
     while index < text.endIndex {
       guard text[index] == "[" else {
@@ -167,6 +170,10 @@ enum TripCandidateReturnDecoder {
       else {
         index = contentsStart
         continue
+      }
+      let seedField = text[..<index].range(of: #"[{,]\s*["“”](?:bases|places)["“”]\s*:\s*\z"#, options: .regularExpression)
+      if seedField != nil, HandoffReturnKind.leadingJSONObject(in: text)?.range.contains(index) != true {
+        throw TripCandidateDecodeError.malformedSeedObject
       }
       if let close = matchingArrayClose(in: text, openingAt: index) {
         return String(text[index...close])

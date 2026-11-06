@@ -36,18 +36,23 @@ struct RecommendationSetImportTests {
     }
   }
 
-  @Test func tokenReusesOnlySessionsForTheSameTrip() {
+  @Test(arguments: [RecommendationHandoffTask.candidatePlaces, RecommendationHandoffTask.seedTrip])
+  func tokenReusesOnlySessionsForTheSameTripAndTask(taskType: String) {
     let trip = UUID()
     let otherTrip = UUID()
     let token = UUID()
     let replacement = UUID()
-    let original = HandoffSession(id: token, sourceType: "trip", sourceID: trip, taskType: "candidatePlaces", exportedPrompt: "")
-    let reused = RecommendationSetImport.session(token: token, existing: original, tripID: trip, now: .now, newID: replacement)
-    let other = RecommendationSetImport.session(token: token, existing: original, tripID: otherTrip, now: .now, newID: replacement)
-    let absent = RecommendationSetImport.session(token: token, existing: nil, tripID: trip, now: .now, newID: replacement)
+    let original = HandoffSession(id: token, sourceType: "trip", sourceID: trip, taskType: taskType, exportedPrompt: "")
+    let otherTask = taskType == RecommendationHandoffTask.seedTrip ? RecommendationHandoffTask.candidatePlaces : RecommendationHandoffTask.seedTrip
+    let reused = RecommendationSetImport.session(token: token, existing: original, tripID: trip, taskType: taskType, now: .now, newID: replacement)
+    let other = RecommendationSetImport.session(token: token, existing: original, tripID: otherTrip, taskType: taskType, now: .now, newID: replacement)
+    let mismatched = RecommendationSetImport.session(token: token, existing: original, tripID: trip, taskType: otherTask, now: .now, newID: replacement)
+    let absent = RecommendationSetImport.session(token: token, existing: nil, tripID: trip, taskType: taskType, now: .now, newID: replacement)
     #expect(reused == original)
     #expect(other.id == replacement)
     #expect(other.sourceID == otherTrip)
+    #expect(mismatched.id == replacement)
+    #expect(mismatched.taskType == otherTask)
     #expect(absent.id == token)
   }
 
