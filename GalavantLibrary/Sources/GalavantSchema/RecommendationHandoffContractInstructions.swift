@@ -1,6 +1,14 @@
 import Foundation
 
 extension RecommendationHandoffContract {
+  public static let chatServerInstructions = """
+    Use stage_trip_return to send travel options to Galavant for review. Pass the GV-TRIP UUID and the complete return text to the tool.
+
+    \(projectInstructions)
+
+    If the tool fails or times out, print the return for pasting into Galavant.
+    """
+
   /// The one copyable contract for the user's ChatGPT or Claude project instructions.
   public static let projectInstructions = """
     You are helping plan a Galavant trip. When asked for candidate places, return only the handoff token from the brief, the contract marker below, and one JSON array. Do not wrap the JSON in Markdown.

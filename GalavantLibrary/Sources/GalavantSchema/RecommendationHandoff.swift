@@ -55,13 +55,16 @@ public enum RecommendationHandoffTask {
 public enum RecommendationHandoffContract {
   public static let marker = HandoffContractMarker(prefix: "GV-CONTRACT", version: "v2")
 
+  private static func tripLine(_ session: HandoffSession) -> String { "GV-TRIP: \(session.sourceID)" }
+  private static let finalizeLine = "Call stage_trip_return with this trip if the chat has it; otherwise start the reply with the GV-HANDOFF: line."
+
   public static func seedBrief(
     session: HandoffSession,
     tripName: String,
     plan: TripPlan,
     tasteLines: [String] = []
   ) -> String {
-    var lines = [session.header, "Trip: \(tripName)"]
+    var lines = [session.header, tripLine(session), finalizeLine, "Trip: \(tripName)"]
     lines.append(contentsOf: tasteLines)
     let stops = stopSummary(plan: plan)
     if !stops.isEmpty {
@@ -83,6 +86,8 @@ public enum RecommendationHandoffContract {
     let trimmedNotes = tripNotes.trimmingCharacters(in: .whitespacesAndNewlines)
     var lines = [
       session.header,
+      tripLine(session),
+      finalizeLine,
       "Trip: \(tripName)",
     ]
     if !trimmedNotes.isEmpty { lines.append("Trip notes: \(trimmedNotes)") }

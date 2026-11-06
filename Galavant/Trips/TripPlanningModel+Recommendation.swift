@@ -178,6 +178,7 @@ extension TripPlanningModel {
       }
       return
     }
+    let pasted = StagedTripReturn.strippingTripLine(from: pasted)
     if session.taskType == RecommendationHandoffTask.seedTrip {
       seedReviewModel?.paste([pasted], for: session, context: seedPlanContextSnapshot)
       return
