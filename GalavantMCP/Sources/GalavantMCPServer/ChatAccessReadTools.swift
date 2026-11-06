@@ -150,8 +150,9 @@ enum ChatAccessReadTools {
       if let leftDate = left.startDate, let rightDate = right.startDate, leftDate != rightDate {
         return leftCategory == 2 ? leftDate > rightDate : leftDate < rightDate
       }
-      let nameOrder = left.name.localizedCaseInsensitiveCompare(right.name)
-      if nameOrder != .orderedSame { return nameOrder == .orderedAscending }
+      let leftName = left.name.lowercased()
+      let rightName = right.name.lowercased()
+      if leftName != rightName { return leftName < rightName }
       return left.id.uuidString < right.id.uuidString
     }
   }
