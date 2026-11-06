@@ -224,7 +224,12 @@ private struct StagedTripRow: View {
         }
         .disabled(row.downloadState != .current || inbox.working.contains(row.url))
       case let .seed(trip, count):
-        Text("\(trip.name) · Trip seed · ^[\(count) place](inflect: true)")
+        Button {
+          Task { await inbox.openSeed(row, router: router) }
+        } label: {
+          Text("\(trip.name) · Trip seed · ^[\(count) place](inflect: true)")
+        }
+        .disabled(row.downloadState != .current || inbox.working.contains(row.url))
       case .unknownTrip:
         Text("This trip isn't on this device yet")
       case let .unreadable(error):

@@ -26,6 +26,11 @@ final class SeedReviewModel {
   private var tripStays: [TripStay] = []
   private var tripRegions: [MapRegion] = []
   private var matchingTask: Task<Void, Never>?
+  @ObservationIgnored private var onCommitted: (() -> Void)?
+
+  init(onCommitted: (() -> Void)? = nil) {
+    self.onCommitted = onCommitted
+  }
 
   func paste(_ strings: [String], for session: HandoffSession, context: SeedPlanContext?) {
     guard let pasted = strings.first, let context else { return }
@@ -45,22 +50,26 @@ final class SeedReviewModel {
       if let warning = contract.warning { warnings.append(warning) }
       var decoded = try SeedReturn.decode(contract.text)
       decoded.warnings.insert(contentsOf: warnings, at: 0)
-      plan = SeedPlan.make(from: decoded, trip: context.trip, context: context)
-      poolIdeas = context.poolIdeas
-      tripIdeas = context.tripIdeas
-      tripStays = context.stays
-      tripRegions = context.tripRegions
-      mapResults = [:]
-      selectedMapPlaces = [:]
-      preselectedMapPlaces = [:]
-      matchingRows = []
-      matchingFinished = false
-      error = nil
-      matchingTask?.cancel()
-      matchingTask = Task { await matchRows() }
+      prepareReview(decoded, context: context)
     } catch {
       self.error = error.localizedDescription
     }
+  }
+
+  func prepareReview(_ seed: SeedReturn, context: SeedPlanContext) {
+    plan = SeedPlan.make(from: seed, trip: context.trip, context: context)
+    poolIdeas = context.poolIdeas
+    tripIdeas = context.tripIdeas
+    tripStays = context.stays
+    tripRegions = context.tripRegions
+    mapResults = [:]
+    selectedMapPlaces = [:]
+    preselectedMapPlaces = [:]
+    matchingRows = []
+    matchingFinished = false
+    error = nil
+    matchingTask?.cancel()
+    matchingTask = Task { await matchRows() }
   }
 
   @discardableResult
@@ -98,6 +107,9 @@ final class SeedReviewModel {
       importSummary = rowsNeedingResolution.isEmpty ? nil :
         "Imported. Resolve these rows in Evaluate Recommendations: \(rowsNeedingResolution.joined(separator: ", "))."
       error = nil
+      let onCommitted = onCommitted
+      self.onCommitted = nil
+      onCommitted?()
       return true
     } catch {
       self.error = error.localizedDescription

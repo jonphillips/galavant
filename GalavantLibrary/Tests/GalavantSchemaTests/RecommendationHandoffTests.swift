@@ -326,6 +326,12 @@ struct RecommendationHandoffTests {
     #expect(nested.note == "summary: Try the north.")
   }
 
+  @Test(arguments: ["", "Start here {base}.\n", "GV-SEED\n"])
+  func refusesSeedObjectsWithBasesInCandidatePaste(prefix: String) {
+    let text = prefix + "{\"bases\":[{\"name\":\"Inn\"}],\"places\":[{\"name\":\"Museum\"}]}"
+    #expect(throws: TripCandidateDecodeError.seedObject) { try TripCandidate.decodeReturn(text) }
+  }
+
   @Test func seedBriefUsesTripContextAndV2ProjectInstructionsKeepTheCandidateClause() {
     let handoff = HandoffSession(
       sourceType: "trip", sourceID: UUID(), taskType: RecommendationHandoffTask.seedTrip,

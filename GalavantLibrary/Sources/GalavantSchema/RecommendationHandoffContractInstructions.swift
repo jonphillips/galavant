@@ -2,7 +2,7 @@ import Foundation
 
 extension RecommendationHandoffContract {
   public static let chatServerInstructions = """
-    Use stage_trip_return to send travel options to Galavant for review. Pass the GV-TRIP UUID and the complete return text to the tool.
+    Use stage_trip_return to send travel options or a trip seed to Galavant for review. Pass the GV-TRIP UUID and complete return text. For a seed, include a line containing only GV-SEED before the JSON object. For candidate places, send one JSON array.
 
     \(projectInstructions)
 

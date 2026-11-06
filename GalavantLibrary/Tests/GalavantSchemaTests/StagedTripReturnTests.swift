@@ -10,6 +10,7 @@ struct StagedTripReturnTests {
     "{\"candidates\":[{\"name\":\"Museum\"}]}",
     "```json\n[{\"name\":\"Museum\"}]\n```",
     "[{“name”:“Museum”}]",
+    "Consider these {places}: [{\"name\":\"Museum\"}]",
   ])
   func candidates(text: String) throws {
     guard case let .candidates(token, candidates, _) = try StagedTripReturn.validate(text) else {
@@ -49,16 +50,45 @@ struct StagedTripReturnTests {
     }
   }
 
-  @Test func recognizesSeed() throws {
-    guard case .seed = try StagedTripReturn.validate("{\"places\":[{\"name\":\"Museum\"}]}") else {
+  @Test func rejectsAmbiguousPlacesObjectWithInstructionsForBothKinds() {
+    let text = "{\"summary\":\"Visit the museum.\",\"places\":[{\"name\":\"Museum\"}]}"
+    #expect(throws: StagedTripReturn.ValidationError.ambiguousPlaces) {
+      try StagedTripReturn.validate(text)
+    }
+    let message = StagedTripReturn.ValidationError.ambiguousPlaces.localizedDescription
+    #expect(message.contains("a line containing only GV-SEED before the JSON object"))
+    #expect(message.contains("one JSON array"))
+  }
+
+  @Test func recognizesMarkedPlacesOnlySeed() throws {
+    let text = "GV-SEED\n{\"places\":[{\"name\":\"Museum\"}]}"
+    guard case let .seed(_, seed) = try StagedTripReturn.validate(text) else {
       Issue.record("Expected seed")
       return
     }
+    #expect(seed.places.map(\.candidate.name) == ["Museum"])
+  }
+
+  @Test func recognizesUnmarkedSeedWithBasesAfterProseBraces() throws {
+    let text = """
+      Start here {base}.
+      {"bases":[{"name":"Inn","check_in_day":1,"check_out_day":2}],"places":[{"name":"Museum"}]}
+      """
+    #expect(HandoffReturnKind.classify(text) == .seedTrip)
+    guard case let .seed(_, seed) = try StagedTripReturn.validate(text) else {
+      Issue.record("Expected seed")
+      return
+    }
+    #expect(seed.narrative == "Start here {base}.")
+    #expect(seed.bases.map(\.name) == ["Inn"])
+    #expect(seed.places.map(\.candidate.name) == ["Museum"])
   }
 
   @Test func serverInstructionsContainTheFullProjectContract() {
     let instructions = RecommendationHandoffContract.chatServerInstructions
-    #expect(String(instructions.prefix(512)).contains("stage_trip_return"))
+    let opening = String(instructions.prefix(512))
+    #expect(opening.contains("stage_trip_return"))
+    #expect(opening.contains("a line containing only GV-SEED before the JSON object"))
     #expect(instructions.contains(RecommendationHandoffContract.projectInstructions))
   }
 
@@ -81,6 +111,19 @@ struct StagedTripReturnTests {
     #expect(rows.last?.downloadState == .downloading)
     let unknown = StagedTripReturnRow.rows(from: snapshots, trips: [], cache: [:])
     #expect(unknown.first?.destination == .unknownTrip(trip.id))
+  }
+
+  @Test func seedRowCountsPlacesAndBases() throws {
+    let trip = Trip(id: UUID(), name: "Denmark")
+    let url = URL(filePath: "/inbox/20261105T120000Z-\(trip.id.uuidString).gvreturn")
+    let snapshot = ChatInboxSnapshot(url: url, name: url.lastPathComponent, isCurrent: true)
+    let validated = try StagedTripReturn.validate("""
+      GV-SEED
+      {"bases":[{"name":"Inn","check_in_day":1,"check_out_day":2}],"places":[{"name":"Museum"}]}
+      """)
+    let rows = StagedTripReturnRow.rows(from: [snapshot], trips: [trip], cache: [url: .validated(validated)])
+    #expect(rows.first?.destination == .seed(trip, placeCount: 2))
+    #expect(rows.first?.downloadState == .current)
   }
 
 }

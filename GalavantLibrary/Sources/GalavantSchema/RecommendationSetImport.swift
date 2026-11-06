@@ -9,12 +9,12 @@ public enum RecommendationSetImport {
   }
 
   public static func session(
-    token: UUID?, existing: HandoffSession?, tripID: Trip.ID, now: Date, newID: UUID
+    token: UUID?, existing: HandoffSession?, tripID: Trip.ID, taskType: String, now: Date, newID: UUID
   ) -> HandoffSession {
-    if let existing, existing.id == token, existing.sourceID == tripID { return existing }
+    if let existing, existing.id == token, existing.sourceID == tripID, existing.taskType == taskType { return existing }
     return HandoffSession(
       id: existing == nil ? (token ?? newID) : newID, sourceType: "trip", sourceID: tripID,
-      taskType: RecommendationHandoffTask.candidatePlaces, createdAt: now, exportedPrompt: ""
+      taskType: taskType, createdAt: now, exportedPrompt: ""
     )
   }
 

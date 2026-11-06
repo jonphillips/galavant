@@ -145,6 +145,16 @@ extension TripPlanningModel {
     }) ?? []
   }
 
+  func presentStagedSeed(
+    _ seed: SeedReturn, for session: HandoffSession, context: SeedPlanContext,
+    onCommitted: @escaping () -> Void
+  ) {
+    resetHandoffPasteState()
+    let review = SeedReviewModel(onCommitted: onCommitted)
+    review.prepareReview(seed, context: context)
+    destination = .recommendationHandoff(RecommendationHandoffPresentation(session: session, seedReview: review))
+  }
+
   func pasteButtonTapped(_ pasted: String?) {
     if case let .recommendationHandoff(presentation)? = destination {
       pasteRecommendationResult(pasted, for: presentation.session, seedReviewModel: presentation.seedReview)

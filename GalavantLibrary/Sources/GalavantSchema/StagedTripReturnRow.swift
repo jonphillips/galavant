@@ -41,7 +41,7 @@ public struct StagedTripReturnRow: Identifiable, Equatable, Sendable {
         if let trip = tripsByID[tripID] {
           switch cache[snapshot.url] {
           case let .validated(.candidates(_, candidates, _)): destination = .candidates(trip, count: candidates.filter { !$0.suggestedTitle.isEmpty }.count)
-          case let .validated(.seed(_, seed)): destination = .seed(trip, placeCount: seed.places.count + seed.bases.count)
+          case let .validated(.seed(_, seed)): destination = .seed(trip, placeCount: seed.placeCount)
           case let .failed(error): destination = .unreadable(error)
           case nil: destination = .candidates(trip, count: 0)
           }

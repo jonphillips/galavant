@@ -97,6 +97,10 @@ struct SeedPlanTests {
       ))
       #expect(secondPlan.places.allSatisfy { !$0.include })
       #expect(secondPlan.stays.allSatisfy { !$0.include })
+      try SeedPlan.commit(secondPlan, tripID: tripID, session: importedSession.session, now: date.now, in: db)
+      #expect(try TripIdea.where { $0.tripID.eq(tripID) }.fetchCount(db) == rows.count)
+      #expect(try TripStay.where { $0.tripID.eq(tripID) }.fetchCount(db) == stays.count)
+      #expect(try TripDocument.where { $0.tripID.eq(tripID) }.fetchCount(db) == 1)
     }
   }
 

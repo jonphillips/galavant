@@ -270,12 +270,14 @@ public enum TripCandidateDecodeError: Error, Equatable, LocalizedError, Sendable
   case missingJSONArray
   case malformedJSON
   case emptyCandidates
+  case seedObject
 
   public var errorDescription: String? {
     switch self {
     case .missingJSONArray: "This result does not contain a candidate JSON array."
     case .malformedJSON: "This candidate JSON is malformed. Nothing was imported."
     case .emptyCandidates: "This result has no candidates. Nothing was imported."
+    case .seedObject: "This result is a trip seed. Paste it into a Summarize Conversation handoff to review the bases and places together."
     }
   }
 }

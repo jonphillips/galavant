@@ -26,7 +26,7 @@ struct GalavantMCPTests {
     #expect(try inbox.list().count == 1)
   }
 
-  @Test func seedAndMissingTripAreRejected() async throws {
+  @Test func ambiguousSeedAndMissingTripAreRejected() async throws {
     let home = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: home) }
     let container = ChatAccessHelperFolder.containerURL(for: "iCloud.com.jonphillips.galavant", home: home)
@@ -34,10 +34,33 @@ struct GalavantMCPTests {
     let server = GalavantMCPServer.make(home: home)
     let seed = try #require(await server.handle(line: call(trip: UUID().uuidString, text: "{\"places\":[{\"name\":\"Museum\"}]}")))
     #expect(try result(seed)["isError"] == .bool(true))
+    #expect(seed.contains("a line containing only GV-SEED before the JSON object"))
+    #expect(seed.contains("one JSON array"))
     let invalid = try #require(await server.handle(line: call(trip: "", text: "[]")))
     #expect(try result(invalid)["isError"] == .bool(true))
     let inbox = ChatAccessFolder(containerURL: container, isDevelopment: false).inboxURL
     #expect(!FileManager.default.fileExists(atPath: inbox.path))
+  }
+
+  @Test func stagesSeedAndCountsBasesAlongsidePlaces() async throws {
+    let home = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: home) }
+    let container = ChatAccessHelperFolder.containerURL(for: "iCloud.com.jonphillips.galavant", home: home)
+    try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
+    let trip = UUID()
+    let text = """
+      GV-SEED
+      {"bases":[{"name":"Inn","check_in_day":1,"check_out_day":2}],"places":[{"name":"Museum"}]}
+      """
+    let server = GalavantMCPServer.make(home: home)
+    let response = try #require(await server.handle(line: call(trip: trip.uuidString, text: text)))
+    #expect(try result(response)["isError"] != .bool(true))
+    #expect(response.contains("Trip seed · 2 places"))
+    #expect(response.contains("Review it in Galavant"))
+    let inbox = HandoffInbox(root: ChatAccessFolder(containerURL: container, isDevelopment: false).inboxURL, fileExtension: "gvreturn")
+    let staged = try #require(try inbox.list().first)
+    #expect(staged.slug == trip.uuidString.lowercased())
+    #expect(try inbox.read(staged) == text)
   }
 
   @Test func missingContainerIsNotCreated() async throws {

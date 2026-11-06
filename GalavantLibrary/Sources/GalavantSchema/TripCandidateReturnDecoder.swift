@@ -8,6 +8,9 @@ public struct TripCandidateReturn: Equatable, Sendable {
 enum TripCandidateReturnDecoder {
   static func decode(_ text: String) throws -> TripCandidateReturn {
     let pasted = removingCodeFenceLines(from: text)
+    guard HandoffReturnKind.leadingJSONObject(in: pasted)?.keys.contains("bases") != true else {
+      throw TripCandidateDecodeError.seedObject
+    }
     if let result = try objectReturn(in: pasted) ?? arrayReturn(in: pasted) { return result }
 
     let normalized = normalizeQuotes(in: pasted)
