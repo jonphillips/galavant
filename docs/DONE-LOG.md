@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-06 — Chat access S4 — Read tools (`effort/chat-access-read-tools`)
+
+- **Result:** Completed on branch effort/chat-access-read-tools; moved the export transport from jon-platform #128 and Yes Chef adoption from yes-chef #458 into Galavant trip exports, read tools, and token-aware staging.
+- **Verification:** scripts/check-drift.sh (642 GalavantLibrary tests and UI-test build); swift test --package-path GalavantMCP (10 tests); headless GalavantTests (57 tests in 14 suites on iPhone 18 Pro, iOS 27); check-handoff --strict.
+- **Owed:** chat-access S4's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-06 — Chat access S3 — Stage trip seeds into Evaluate (`effort/chat-access`)
 
 - **Result:** Trip seeds stage from chat into Evaluate and open the existing trip seed review. A successful import claims the inbox file, and retrying a failed claim reuses existing trip rows and the seed document.

@@ -1,6 +1,6 @@
 # Effort — Chat access: stage travel options from chat into Evaluate
 
-**Status:** Ready · **Summary:** Implements [ADR-0052](../decisions/0052-chat-access-over-mcp.md) and jon-platform
+**Status:** Ready · **Summary:** Implements [ADR-0052](../../decisions/0052-chat-access-over-mcp.md) and jon-platform
 ADR-0009. Yes Chef's iCloud Drive inbox transport is already in a shared `ChatAccessKit`. Next, a local `galavant-mcp`
 helper gets one tool, `stage_trip_return`, staged sets appear as From Chat rows in Evaluate, and one tap imports a set
 into the workspace. Seeds and read tools follow. No synced schema or migration change; S2 adds the iCloud Documents
