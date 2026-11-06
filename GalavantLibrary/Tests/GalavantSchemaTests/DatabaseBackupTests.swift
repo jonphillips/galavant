@@ -114,7 +114,7 @@ struct DatabaseBackupTests {
     try await oldStore.write { db in
       try Trip.insert { Trip.Draft(Trip(id: existingTripID, name: "Before roll-up migration")) }
         .execute(db)
-      try db.execute(sql: "DROP TABLE tripDocuments")
+      try db.execute(sql: "DROP TABLE tasteNotes")
       try db.execute(sql: "ALTER TABLE trips DROP COLUMN visitedRolledUpAt")
       for migration in previousMigrations {
         try db.execute(

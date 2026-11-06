@@ -55,6 +55,7 @@ extension TravelParty {
     if try Trip.where({ $0.travelPartyID.eq(id) }).fetchOne(db) != nil { return true }
     if try IdeaEvaluation.where({ $0.travelPartyID.eq(id) }).fetchOne(db) != nil { return true }
     if try TravelProfile.where({ $0.travelPartyID.eq(id) }).fetchOne(db) != nil { return true }
+    if try TasteNote.where({ $0.travelPartyID.eq(id) }).fetchOne(db) != nil { return true }
     return false
   }
 
@@ -83,6 +84,9 @@ extension TravelParty {
         .update { $0.travelPartyID = #bind(survivor.id) }
         .execute(db)
       try TravelProfile.where { $0.travelPartyID.eq(loser.id) }
+        .update { $0.travelPartyID = #bind(survivor.id) }
+        .execute(db)
+      try TasteNote.where { $0.travelPartyID.eq(loser.id) }
         .update { $0.travelPartyID = #bind(survivor.id) }
         .execute(db)
     }

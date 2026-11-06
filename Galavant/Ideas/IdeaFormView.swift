@@ -125,6 +125,9 @@ struct IdeaFormView: View {
         Toggle("Visited", isOn: $model.draft.visited)
         if !model.isNew {
           hoursSection
+          if let ideaID = model.draft.id, let travelPartyID = model.draft.travelPartyID {
+            TasteNoteIdeaSection(travelPartyID: travelPartyID, ideaID: ideaID)
+          }
         }
         StructuredHoursEditor(model: model)
         if model.canFindGuideRating {
