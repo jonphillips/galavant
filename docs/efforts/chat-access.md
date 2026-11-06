@@ -1,13 +1,14 @@
 # Effort — Chat access: stage travel options from chat into Evaluate
 
 **Status:** Ready · **Summary:** Implements [ADR-0052](../decisions/0052-chat-access-over-mcp.md) and jon-platform
-ADR-0009. First lifts Yes Chef's iCloud Drive transport into a shared `ChatAccessKit`. Then a local `galavant-mcp`
+ADR-0009. Yes Chef's iCloud Drive inbox transport is already in a shared `ChatAccessKit`. Next, a local `galavant-mcp`
 helper gets one tool, `stage_trip_return`, staged sets appear as From Chat rows in Evaluate, and one tap imports a set
 into the workspace. Seeds and read tools follow. No synced schema or migration change; S2 adds the iCloud Documents
 entitlement. Needs `hand-off-purposes` landed first.
 
 **Read first:** ADR-0052, jon-platform ADR-0009, jon-platform `docs/agent-collaboration.md` § "Dispatches whose code
-lands in jon-platform", and yes-chef `YesChefMCP/` plus `YesChefApp/ChatAccess*.swift`, the source being moved.
+lands in jon-platform", and yes-chef `YesChefMCP/` plus `YesChefApp/ChatAccess*.swift`, the working model and the
+source of the export half S4 moves.
 
 Each slice is its own dispatch. Stop after each one.
 
@@ -21,66 +22,8 @@ Each slice is its own dispatch. Stop after each one.
   and the import needs it without a `TripPlanningModel`.
 - **`TripIdea.commit(candidate:into:in:)` already dedupes** against live trip rows and returns the existing row.
 - **The container is CloudKit-only.** `project.yml` sets `com.apple.developer.icloud-services: [CloudKit]`.
-- **The transport lives in Yes Chef's app.** See the table in ADR-0009.
-
-## S1 — The lift: `ChatAccessKit`, inbox half
-
-Three PRs, in this order. **Shared code escalates to Jon,** so don't merge the jon-platform PR on an architect approve.
-
-### 1. jon-platform: create the package
-
-Title: `Galavant chat-access S1 — ChatAccessKit`. New `packages/ChatAccessKit`, iOS 26 and macOS 26, depending on
-Foundation, `LLMHandoffKit`, and `swift-dependencies`. Move these from Yes Chef, keeping behavior:
-
-| Kit | From |
-| --- | --- |
-| `ChatAccessFolder` (`isDevelopment` has **no default**; keep `exportsURL`) | `YesChefCore/ChatAccessFolder.swift` |
-| `ChatAccessContainerClient`: `resolveFolder`, `resolveAndCreateInbox`, `static func live(containerIdentifier:isDevelopment:)`. Its unavailable error takes the app's name | `YesChefApp/ChatAccessFolderClient.swift` |
-| `ChatInboxFileClient`: `read`, `claim(folder, url, kind)`, `maintain(folder, kinds, now)`, `static let live` | `YesChefApp/ChatAccessInboxFileClient.swift` |
-| `ChatInboxWatcher`: `init(folder:)`, `snapshots: AsyncStream<[ChatInboxSnapshot]>`, start and stop. Owns the query and observers, and requests downloads for items that aren't current | the query code in `YesChefApp/ChatAccessInboxModel.swift` |
-| `ChatInboxItemKind` (`fileExtension`, `expiresUnclaimed`, `datesProcessedByClaim`), `ChatInboxSnapshot` (`url`, `name`, `isCurrent`, `downloadError`) | `ChatAccessInbox.MetadataSnapshot`, minus `recipeName` |
-| `ChatInboxRetention`: `interval` (30 days), `expiredUnclaimed`, `expiredProcessed` | `ChatAccessInbox.expired`, `expiredReturns` |
-| `ChatAccessHelperFolder`: `containerURL(for: containerIdentifier, home:)` (`iCloud.a.b` to `~/Library/Mobile Documents/iCloud~a~b`), `existing(containerIdentifier:isDevelopment:) throws` (refuses to create a missing container), `isDevelopment(arguments:)` (`--variant dev`) | `StageContext.stagingFolder`, ADR-0060 D5 |
-
-The retention rules must reproduce Yes Chef's exactly: `json` has `expiresUnclaimed: false, datesProcessedByClaim: false`
-(staged date, falling back to modified date), and `ycreturn` has `true, true` (touch on claim, then modified date, falling back to
-staged date). Move the matching tests from `ChatAccessFolderTests` and `ChatAccessInboxTests`. **The one-time probe cleanup
-stays in Yes Chef.**
-
-Also add `scripts/install-mcp-helper <package-dir> <product>`, which does what `install-yeschef-mcp` does, with a test in
-`scripts/tests/` and a line in `scripts/README.md`. Add the package to `README.md`'s list and a row to `EXTRACTION-NOTES.md`.
-
-**Verification, named in the PR body:** `scripts/quiet-run swift test --package-path packages/ChatAccessKit`, the iOS compile
-from `agent-collaboration.md`, and `scripts/tests/*.sh` for the new script.
-
-### 2. yes-chef: delete the copies and adopt the kit
-
-Branch from a fresh `main` once the package PR merges, after checking that no open Yes Chef PR touches these files.
-
-- Delete what moved, and keep the app's dependency keys as thin wrappers over the kit's `live` values. `ChatAccessInbox`
-  keeps only its rows, routing, and names. `ChatAccessInboxModel` keeps everything except the query, which it reads from
-  `ChatInboxWatcher`.
-- **Keep what the old query code did, through the watcher:**
-  - `prepare()` calls `start()` every time. A running watcher publishes again and retries downloads, which foregrounding
-    relied on.
-  - Copy `downloadError` into `rowErrors` only for rows that aren't current. Overwriting every row would wipe open and discard
-    errors.
-  - `loadName` used to call `metadataQueryDidChange()` to put names on rows. The model now keeps the latest snapshots and
-    rebuilds rows from those.
-- `scripts/install-yeschef-mcp` becomes a call to the shared script, with the same install path. It keeps its own
-  `old_install_directory` cleanup, which is Yes Chef's alone.
-- **The one behavior change, the Dev fix:** Debug builds pass `isDevelopment: true`. `YesChefMCP/main.swift` reads
-  `--variant dev` through `ChatAccessHelperFolder`. Remove the stale comment in `ChatAccessFolderClient`.
-- Add a dated note to ADR-0060: the transport moved to `ChatAccessKit`, and D5 is now true.
-- **Records:** a Yes Chef `DONE-LOG.md` entry, and a `device-passes.md` gate: on TestFlight, a staged recipe and a staged
-  hand-off return both still open and discard; Yes Chef Dev on the same device doesn't list them.
-- **Verification:** `scripts/check-drift.sh`, `YesChefTests`, and the helper's tests.
-
-### 3. galavant: records
-
-This PR carries only the records: a `DONE-LOG.md` entry naming both branches and the jon-platform PR, and the `NEXT_UP.md` advance.
-
-**Done when:** one copy of the transport exists, Yes Chef passes its gate, and Vinyl Fever is untouched.
+- **The inbox transport is in jon-platform's `ChatAccessKit`,** and Yes Chef uses it. The export half stays in Yes Chef's
+  app until S4.
 
 ## S2 — Candidates: helper, tool, Evaluate rows, one-tap import
 
@@ -121,6 +64,9 @@ Keep it out of the app's package graph. Server name `galavant`, container `iClou
   spells out what `text` is.
 - It parses `trip`, runs `validate`, then `HandoffInbox(root: inboxURL, fileExtension: "gvreturn").stage(text, slug: trip, now:)`.
   **In this slice, a `.seed` return gets an error telling the model to print it for pasting.**
+- `main` gets its variant from `try ChatAccessHelperFolder.isDevelopment(arguments:)`, which accepts only no arguments or
+  `--variant dev`. On an error it writes to stderr and exits non-zero before starting the server, as
+  `YesChefMCP/main.swift` does.
 - Errors come back as `isError` with the reason. A missing `trip` says to tap Hand off in Galavant and paste the brief here.
 - The result: `{staged: "8 options", next: "Review them in Galavant → Evaluate."}`. No paths.
 - Tests use `MCPServerKit`'s in-memory harness and a temporary container: stages a good return with the expected name and
@@ -173,7 +119,8 @@ and refresh. The general ops recipe stays in jon-platform's `mcp-access.md`.
 
 ## S4 — Read tools: start the chat in the assistant
 
-Same three-PR order as S1 for the shared part.
+Three PRs for the shared part, in this order: jon-platform, then yes-chef from a fresh `main` once the package PR merges,
+then Galavant. **Shared code escalates to Jon,** so don't merge the jon-platform PR on an architect approve.
 
 - **Kit, export half:** `ChatAccessExportReader` (newest file, materialize under a deadline, cache by path and modified date, returns
   bytes), `ChatAccessExportWriter` (atomic coordinated per-device file, stable installation ID, 15-minute throttle), and

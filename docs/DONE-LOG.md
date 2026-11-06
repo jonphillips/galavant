@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-05 — Chat access S1: `ChatAccessKit` (jon-platform `effort/chat-access-kit`, `effort/chat-access-variant-validation`; yes-chef `effort/chat-access-kit-adoption`)
+
+- **Result:** Yes Chef's iCloud Drive inbox transport moved into jon-platform's `ChatAccessKit` ([#123](https://github.com/jonphillips/jon-platform/pull/123)), and Yes Chef adopted it ([#454](https://github.com/jonphillips/yes-chef/pull/454)). Debug builds and the helper's `--variant dev` now use `MCP-Dev/`, and the helper rejects any other argument ([#126](https://github.com/jonphillips/jon-platform/pull/126)). No Galavant code changed, and Vinyl Fever doesn't use the kit.
+- **Verification:** `ChatAccessKit` tests, 14 helper tests, and 119 `YesChefTests`, run during the review of #454 and #126.
+- **Owed:** S1 isn't done until Yes Chef passes its gate, in yes-chef `docs/device-passes.md`.
+
 ## 2026-11-05 — Hand off purposes (`effort/hand-off-purposes`)
 
 - **Result:** Unified the trip AI menu and routed pasted recommendations and conversation seeds to their matching handoff sessions; markerless seeds import with a warning. Removed Discuss from Ideas.
