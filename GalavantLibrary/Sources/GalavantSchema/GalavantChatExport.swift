@@ -113,6 +113,7 @@ public enum GalavantChatExportBuilder {
     trips: [Trip], entries: [TripIdea], ideas: [Idea], stays: [TripStay],
     dayRegions: [TripDayRegion], regions: [MapRegion], constraints: [CalendarTripConstraint],
     alternativeGroups: [TripAlternativeGroup], profiles: [TravelProfile], planners: [Planner],
+    tasteNotes: [TasteNote] = [],
     generatedAt: Date, device: String, calendar: Calendar = .current, checkCancellation: () throws -> Void = {}
   ) throws -> GalavantChatExport {
     let ideasByID = Dictionary(ideas.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
@@ -122,8 +123,13 @@ public enum GalavantChatExportBuilder {
     let dayRegionsByTrip = Dictionary(grouping: dayRegions, by: \.tripID)
     let constraintsByTrip = Dictionary(grouping: constraints, by: \.tripID)
     let alternativesByTrip = Dictionary(grouping: alternativeGroups, by: \.tripID)
-    let tasteByParty = TravelProfile.promptLinesByParty(
-      Set(trips.compactMap(\.travelPartyID)), profiles: profiles, planners: planners)
+    let partyIDs = Set(trips.compactMap(\.travelPartyID))
+    let profileLinesByParty = TravelProfile.promptLinesByParty(partyIDs, profiles: profiles, planners: planners)
+    let notesByParty = Dictionary(grouping: tasteNotes, by: \.travelPartyID)
+    let tasteByParty = Dictionary(uniqueKeysWithValues: partyIDs.map { partyID in
+      (partyID, (profileLinesByParty[partyID] ?? [])
+        + TasteNote.promptLines(notes: notesByParty[partyID] ?? [], planners: planners))
+    })
 
     var exportedTrips: [GalavantChatExport.Trip] = []
     for trip in trips {

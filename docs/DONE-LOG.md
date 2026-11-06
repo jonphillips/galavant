@@ -6,7 +6,7 @@ History, newest first. The PR that completes a dispatch adds its entry naming it
 ## 2026-11-06 — Taste notes: keep what we learn about places, in our own words (`effort/taste-notes`)
 
 - **Result:** Added a synced TasteNote record with durable place identity, direct add/edit/delete, reviewed conversation import, and bounded note context in trip briefs and chat.
-- **Verification:** scripts/check-drift.sh passed (651 tests in 66 suites, 13 known issues, package test suites, UI-test build); headless GalavantTests passed (57 tests in 14 suites); check-handoff --strict.
+- **Verification:** scripts/check-drift.sh passed (652 tests in 66 suites, 13 known issues, package test suites, UI-test build); headless GalavantTests passed (57 tests in 14 suites); check-handoff --strict.
 - **Owed:** taste-notes's device gate, in [device-passes.md](device-passes.md).
 
 ## 2026-11-06 — Chat access S4 — Read tools (`effort/chat-access-read-tools`)
