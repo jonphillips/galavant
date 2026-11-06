@@ -103,6 +103,7 @@
 		8522CC9B663EBC7844792507 /* StructuredHoursEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 891C5DF7F4A25741DE3421FD /* StructuredHoursEditor.swift */; };
 		861F0BD9CC28029356E7DF09 /* RecommendationWorkspaceModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0620B4CD2A26F04156B150D3 /* RecommendationWorkspaceModel.swift */; };
 		88B3CF40AF4FFA97C96D8304 /* DatabaseSuspensionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D20525C306E331AAF17BB55 /* DatabaseSuspensionController.swift */; };
+		8AD255A9FA8419FA0BB3E9C5 /* ChatExportModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4ADF71674D6C9B35282C286F /* ChatExportModelTests.swift */; };
 		8B24A218C4BE11BF87CBBFDE /* TodayViewComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDC535E2CCE232C987405FB8 /* TodayViewComponents.swift */; };
 		8B65E5CA383B4D16F3685A39 /* TripPlanningModel+Scheduling.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72A6C6AEFAD6483C0E0AF70C /* TripPlanningModel+Scheduling.swift */; };
 		8C1110FDA05FA4D83DCF9A4F /* IdeasListModel+Taxonomy.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8D1F8D207FE25FE14CCFED7 /* IdeasListModel+Taxonomy.swift */; };
@@ -152,6 +153,7 @@
 		CBD322C7EF720E884780D9D9 /* RecommendationWorkspaceModel+Projection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCB153EAAD14C2A632110033 /* RecommendationWorkspaceModel+Projection.swift */; };
 		CC3F96678DFB64539736A6A7 /* CasePaths in Frameworks */ = {isa = PBXBuildFile; productRef = 26D83C2182F9FE47C3A1CA25 /* CasePaths */; };
 		CD68499071CAD83FB2F5BEF1 /* MapPlaceCreateIdeaButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = B58F3C28841A950ECB1ED2A5 /* MapPlaceCreateIdeaButton.swift */; };
+		CD8D9DC88F14481497DBDC1D /* ChatExportModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93654EC5C2EE06851F698386 /* ChatExportModel.swift */; };
 		CE4FE1DE2F735CDF44C16156 /* RecommendationWorkspaceMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = B83B72B821D03D225CF30944 /* RecommendationWorkspaceMap.swift */; };
 		CFF79112580C0EBC8D933DE2 /* IdeaDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F02C470667EF6E9AC8AC761 /* IdeaDetailView.swift */; };
 		D130D49BEC3637DF49FED112 /* JourneyMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = F027C5C3D4F5668E9E487005 /* JourneyMap.swift */; };
@@ -283,6 +285,7 @@
 		47B9767D73E65C3D4D10CC30 /* TripPlanningModel+Recommendation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripPlanningModel+Recommendation.swift"; sourceTree = "<group>"; };
 		481F7DF2E79BF7E59A1CEC62 /* LLMHandoffKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = LLMHandoffKit; path = "../../jon-platform/packages/LLMHandoffKit"; sourceTree = SOURCE_ROOT; };
 		4AD2C1DE54AEA038F84042CC /* CalendarReconciliationRows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarReconciliationRows.swift; sourceTree = "<group>"; };
+		4ADF71674D6C9B35282C286F /* ChatExportModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatExportModelTests.swift; sourceTree = "<group>"; };
 		4DE96A186A7350AD7E625B04 /* CalendarReconciliationModel+Ingestion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CalendarReconciliationModel+Ingestion.swift"; sourceTree = "<group>"; };
 		5136B6948D6F84243B5FFAA0 /* TripItineraryRows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripItineraryRows.swift; sourceTree = "<group>"; };
 		51AA50E3CB7A4D6C5DD50110 /* CalendarExportClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarExportClient.swift; sourceTree = "<group>"; };
@@ -323,6 +326,7 @@
 		91589ABCCE6CEFC2EC1F72F4 /* ReorderDifference+Apply.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ReorderDifference+Apply.swift"; sourceTree = "<group>"; };
 		92BBE67122AFC3C8773380D0 /* JourneyImagePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyImagePanel.swift; sourceTree = "<group>"; };
 		92EB0541350B5FCB540931D3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		93654EC5C2EE06851F698386 /* ChatExportModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatExportModel.swift; sourceTree = "<group>"; };
 		93731311444130D979F919BE /* TripPlanningModel+Alternatives.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripPlanningModel+Alternatives.swift"; sourceTree = "<group>"; };
 		93D3FB4AFD291BCF150B74B2 /* TripItineraryDayHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripItineraryDayHeader.swift; sourceTree = "<group>"; };
 		93F63A7444D58E2EFAF9E302 /* TagManagementSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagManagementSettingsView.swift; sourceTree = "<group>"; };
@@ -632,6 +636,7 @@
 			children = (
 				EEB9FE1134450C94085E1FB2 /* AppRouterRestoreTests.swift */,
 				A6A44988F7D404979433FB37 /* BookingEditorMappingTests.swift */,
+				4ADF71674D6C9B35282C286F /* ChatExportModelTests.swift */,
 				88A1527B989E973CDFDDABEA /* ChatInboxModelTests.swift */,
 				EBEF8CB6002B75C0D6AF96A3 /* DeviceLocationTests.swift */,
 				DFDD20F3FC13F6B974FF8181 /* IdeasListDeleteTests.swift */,
@@ -684,6 +689,7 @@
 		94103E99A4CBE4FB8B0F3C99 /* ChatAccess */ = {
 			isa = PBXGroup;
 			children = (
+				93654EC5C2EE06851F698386 /* ChatExportModel.swift */,
 				E22DCA1DDBC2E3ECE5D1558E /* ChatInboxModel.swift */,
 			);
 			path = ChatAccess;
@@ -1011,6 +1017,7 @@
 			files = (
 				3EDB2F53DE374A714AA098AC /* AppRouterRestoreTests.swift in Sources */,
 				47F681EE50E7C8E6AF3C22D3 /* BookingEditorMappingTests.swift in Sources */,
+				8AD255A9FA8419FA0BB3E9C5 /* ChatExportModelTests.swift in Sources */,
 				F982219DA392978ED94243A4 /* ChatInboxModelTests.swift in Sources */,
 				B3DC96559D44DB8C8ABF705D /* DeviceLocationTests.swift in Sources */,
 				8E5F270D961669BB1431CDAD /* IdeasListDeleteTests.swift in Sources */,
@@ -1046,6 +1053,7 @@
 				CB26B0D5725B3BB39E4E1839 /* CalendarReconciliationRows.swift in Sources */,
 				1885938610B337356CBBB04F /* CalendarReconciliationSheet.swift in Sources */,
 				4171E2BF905DAB98B77389EB /* CertaintyStyle.swift in Sources */,
+				CD8D9DC88F14481497DBDC1D /* ChatExportModel.swift in Sources */,
 				23D3E404F6FE187B064457C4 /* ChatHandoffNote.swift in Sources */,
 				C59FE9F526D0674FC1EB6BA6 /* ChatInboxModel.swift in Sources */,
 				C7FC1AA264B96268F69FC474 /* ChatPanelView.swift in Sources */,

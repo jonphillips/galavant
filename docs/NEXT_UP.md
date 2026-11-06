@@ -1,6 +1,6 @@
-# Next Up — Chat access S4: start the chat in the assistant
+# Next Up — Taste notes: keep what we learn about places, in our own words
 
-**Slices:** effort `chat-access` · S4
-**Briefs:** [docs/efforts/chat-access.md](efforts/chat-access.md)
+**Slices:** effort `taste-notes`
+**Briefs:** [docs/efforts/taste-notes.md](efforts/taste-notes.md)
 **Done when:** per the brief
 **Owed:** see [device-passes.md](device-passes.md)

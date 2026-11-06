@@ -39,6 +39,7 @@ struct SettingsScreen: View {
   @Dependency(\.defaultDatabase) private var database
   @Environment(\.scenePhase) private var scenePhase
   @Environment(ChatInboxModel.self) private var chatInbox
+  @Environment(ChatExportModel.self) private var chatExport
 
   var body: some View {
     Form {
@@ -50,9 +51,29 @@ struct SettingsScreen: View {
 
       Section("Chat Access") {
         Toggle("Chat Access", isOn: Binding(get: { chatInbox.enabled }, set: { chatInbox.setEnabled($0) }))
-        Text(chatInbox.message ?? (chatInbox.enabled ? "Staged returns appear in Evaluate." : "Off on this device."))
+        if chatInbox.enabled {
+          Text(chatInbox.message ?? "Staged returns appear in Evaluate.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+          if let lastExport = chatExport.lastExport {
+            LabeledContent("Last export", value: lastExport.date.formatted(date: .abbreviated, time: .shortened))
+            LabeledContent("Size", value: ByteCountFormatter.string(fromByteCount: Int64(lastExport.size), countStyle: .file))
+          }
+          Button {
+            chatExport.refresh()
+          } label: {
+            if chatExport.isRefreshing { ProgressView("Refreshing…") }
+            else { Text("Refresh") }
+          }
+          .disabled(chatExport.isRefreshing)
+          if let error = chatExport.errorMessage {
+            Text(error).font(.caption).foregroundStyle(.red)
+          }
+        } else {
+          Text("Off on this device. Turning it off keeps the existing export.")
           .font(.caption)
           .foregroundStyle(.secondary)
+        }
       }
 
       Section("Library") {

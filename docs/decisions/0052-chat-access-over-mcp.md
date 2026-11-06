@@ -1,7 +1,7 @@
 # ADR-0052: Chat assistants stage trip options into Evaluate through a local MCP server
 
 *Status: **proposed** — 2026-11-04, ratified by Jon merging this ADR's PR. Effort:
-[`chat-access`](../efforts/chat-access.md). Galavant is the third consumer of jon-platform ADR-0007 (app data over a
+[`chat-access`](../efforts/archive/chat-access.md). Galavant is the third consumer of jon-platform ADR-0007 (app data over a
 local stdio MCP server) and, after Yes Chef's ADR-0060, the second app that uses its Amendment 1 (no Mac presence,
 so the transport is iCloud Drive). The transport itself is shared through jon-platform ADR-0009 (`ChatAccessKit`).
 Amends [ADR-0036](0036-recommendation-handoff.md) D4 for this door only, and gives
@@ -207,7 +207,7 @@ UI. Galavant's `HandoffSession` stays as it is, and the seam ledger's envelope r
 
 ## Slices
 
-Specified in [`chat-access`](../efforts/chat-access.md): **S1** the lift (`ChatAccessKit` inbox half, Yes Chef rewired);
+Specified in [`chat-access`](../efforts/archive/chat-access.md): **S1** the lift (`ChatAccessKit` inbox half, Yes Chef rewired);
 **S2** candidates (entitlement, helper, tool, Evaluate rows, import); **S3** seeds; **S4** read tools (export half of the kit,
 the Galavant export, `list_trips`, `get_trip`). S2 and S3 need `hand-off-purposes` landed first for the classifier and for
 seed review's new seam.

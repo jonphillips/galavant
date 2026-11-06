@@ -18,14 +18,20 @@ public enum GalavantMCPServer {
   public static func make(
     home: URL = FileManager.default.homeDirectoryForCurrentUser,
     isDevelopment: Bool = false,
-    now: @escaping @Sendable () -> Date = { Date() }
+    now: @escaping @Sendable () -> Date = { Date() },
+    exportMaterializer: ChatAccessExportReader.Materializer? = nil,
+    materializationDeadline: Duration = .seconds(60)
   ) -> MCPServer {
-    MCPServer(
+    let exportStore = GalavantExportStore(home: home, isDevelopment: isDevelopment, now: now,
+      materialize: exportMaterializer, deadline: materializationDeadline)
+    let readTools = ChatAccessReadTools.make(home: home, isDevelopment: isDevelopment, now: now,
+      exportMaterializer: exportMaterializer, materializationDeadline: materializationDeadline, store: exportStore)
+    return MCPServer(
       name: "galavant", version: "0.1.0", instructions: RecommendationHandoffContract.chatServerInstructions,
       tools: [
         MCPTool(
           name: "stage_trip_return",
-          description: "Call this instead of printing a Galavant return. Pass the trip UUID from GV-TRIP and the complete return text with the GV-HANDOFF and GV-CONTRACT lines. For a seed, include a line containing only GV-SEED before the JSON object. For candidate places, send one JSON array. The return is staged for review in Galavant.",
+          description: "Call this instead of printing a Galavant return. The trip ID comes from GV-TRIP or list_trips. A chat with no brief has no GV-HANDOFF token and omits that line. Pass the complete return text. For a seed, include a line containing only GV-SEED before the JSON object. For candidate places, send one JSON array. The return is staged for review in Galavant.",
           inputSchema: .object([
             "type": .string("object"),
             "properties": .object([
@@ -41,10 +47,20 @@ public enum GalavantMCPServer {
             let payload = try? JSONDecoder().decode(StageInput.self, from: data),
             let trip = UUID(uuidString: payload.trip)
           else {
-            return .error("Provide a trip UUID and return text. Tap Hand off in Galavant and paste the brief here to get the trip ID.")
+            return .error("Provide a trip UUID and return text. If this chat has no trip ID yet, call list_trips. You can also tap Hand off in Galavant and paste the brief here.")
           }
           do {
             let validated = try StagedTripReturn.validate(payload.text)
+            let token: UUID?
+            switch validated {
+            case let .candidates(value, _, _), let .seed(value, _): token = value
+            }
+            if token == nil {
+              // Missing or stale exports are advisory; only a successful read may reject.
+              if let export = try? await exportStore.load(), !export.value.trips.contains(where: { $0.id == trip }) {
+                return .error("That trip ID isn't in the latest Galavant export. Call list_trips and use one of its IDs.")
+              }
+            }
             let folder = try ChatAccessHelperFolder.existing(
               containerIdentifier: "iCloud.com.jonphillips.galavant", isDevelopment: isDevelopment, home: home
             )
@@ -61,7 +77,7 @@ public enum GalavantMCPServer {
             return .error(error.localizedDescription)
           }
         }
-      ]
+      ] + readTools
     )
   }
 }
