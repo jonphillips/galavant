@@ -34,6 +34,7 @@ let package = Package(
     // poll, SyncHealth reducer), lifted to jon-platform per ADR-0003; consumed by
     // local path. GalavantCloudSync is now a thin facade over it.
     .package(path: "../../../jon-platform/packages/CloudSyncKit"),
+    .package(path: "../../../jon-platform/packages/ChatAccessKit"),
     // Declared even though no source here writes `import GRDB`: sqlite-data's
     // `Internal/Exports.swift` `@_exported`-re-exports `Database`,
     // `DatabaseWriter`, `Configuration` and `DatabaseMigrator`, and
@@ -62,6 +63,7 @@ let package = Package(
         "GalavantAI",
         .product(name: "LLMHandoffKit", package: "LLMHandoffKit"),
         .product(name: "CloudSyncKit", package: "CloudSyncKit"),
+        .product(name: "ChatAccessKit", package: "ChatAccessKit"),
         .product(name: "GRDB", package: "GRDB.swift"),
         .product(name: "SQLiteData", package: "sqlite-data"),
         .product(name: "Dependencies", package: "swift-dependencies"),
@@ -83,6 +85,7 @@ let package = Package(
         "GalavantSchema",
         "GalavantAI",
         "GalavantPlaces",
+        .product(name: "ChatAccessKit", package: "ChatAccessKit"),
         .product(name: "CloudSyncKit", package: "CloudSyncKit"),
         .product(name: "CustomDump", package: "swift-custom-dump"),
         .product(name: "DependenciesTestSupport", package: "swift-dependencies"),

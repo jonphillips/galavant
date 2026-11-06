@@ -25,6 +25,8 @@ packages:
     path: ../../jon-platform/packages/LLMHandoffKit
   CloudSyncKit:
     path: ../../jon-platform/packages/CloudSyncKit
+  ChatAccessKit:
+    path: ../../jon-platform/packages/ChatAccessKit
   sqlite-data:
     url: https://github.com/pointfreeco/sqlite-data
     from: 1.0.0
@@ -60,7 +62,8 @@ targets:
       properties:
         aps-environment: development
         com.apple.developer.icloud-container-identifiers: [iCloud.com.jonphillips.galavant]
-        com.apple.developer.icloud-services: [CloudKit]
+        com.apple.developer.icloud-services: [CloudKit, CloudDocuments]
+        com.apple.developer.ubiquity-container-identifiers: [iCloud.com.jonphillips.galavant]
         com.apple.developer.weatherkit: true
         com.apple.security.application-groups: [$(GALAVANT_APP_GROUP)]
     # Keep the Unsplash Client-ID in a machine-local xcconfig. XcodeGen attaches
@@ -127,6 +130,8 @@ targets:
         product: LLMHandoffKit
       - package: CloudSyncKit
         product: CloudSyncKit
+      - package: ChatAccessKit
+        product: ChatAccessKit
       - package: GalavantLibrary
         product: GalavantCaptureUI
       - package: WebExtractorKit

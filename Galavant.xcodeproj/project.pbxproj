@@ -41,7 +41,7 @@
 		3B4EC7EE202BCED566C99202 /* LLMHandoffKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4496C6F1494049E3B555A463 /* LLMHandoffKit */; };
 		3DF889FDCBE7A7C979E41F13 /* IdeasScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E13450922E6B719B55DC57BC /* IdeasScreen.swift */; };
 		3E3D5D4D88C8064A2EBEDD04 /* WeatherKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D40170C4D56FC7F76E1992FF /* WeatherKit.framework */; };
-		3E5E8AEE7E095AEC4C47F3EE /* SwiftUINavigation in Frameworks */ = {isa = PBXBuildFile; productRef = A0C2774E35241633FE89B7A7 /* SwiftUINavigation */; };
+		3E5E8AEE7E095AEC4C47F3EE /* SQLiteData in Frameworks */ = {isa = PBXBuildFile; productRef = A641D3ABA375BA009278F435 /* SQLiteData */; };
 		3EDB2F53DE374A714AA098AC /* AppRouterRestoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEB9FE1134450C94085E1FB2 /* AppRouterRestoreTests.swift */; };
 		407B199EC388C21756846793 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 43C9DB72ED6526F651BBDC72 /* AppIcon.icon */; };
 		41630279DF880FB556B178CF /* StopMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = B15DFF6883F3077AA8D6C591 /* StopMenu.swift */; };
@@ -98,7 +98,7 @@
 		7C0852DE598E12CE4596E8B3 /* TodaySupportingViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC88DBCF4AB9A9D219BFDFAD /* TodaySupportingViews.swift */; };
 		7C7C4BB8F9D526D37F31BD66 /* TripPlanningView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08F3A8C38B6B2977E3D8153F /* TripPlanningView.swift */; };
 		7E07A0AB874D51E0DCAD3434 /* SequencePin.swift in Sources */ = {isa = PBXBuildFile; fileRef = E35BE6CD061373B731E38031 /* SequencePin.swift */; };
-		80C7B282FFA2EE185ADA79ED /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = 45E72731DDF6FA076EAEC92F /* Dependencies */; };
+		80C7B282FFA2EE185ADA79ED /* SwiftUINavigation in Frameworks */ = {isa = PBXBuildFile; productRef = A0C2774E35241633FE89B7A7 /* SwiftUINavigation */; };
 		82FB0503EEB4041AC202479B /* GalavantChat in Frameworks */ = {isa = PBXBuildFile; productRef = 70E3AE87004F856771C63307 /* GalavantChat */; };
 		8522CC9B663EBC7844792507 /* StructuredHoursEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 891C5DF7F4A25741DE3421FD /* StructuredHoursEditor.swift */; };
 		861F0BD9CC28029356E7DF09 /* RecommendationWorkspaceModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0620B4CD2A26F04156B150D3 /* RecommendationWorkspaceModel.swift */; };
@@ -137,19 +137,20 @@
 		BC168628E33830089E560CB9 /* CalendarExportModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8BA5355102262E8FF3F053B /* CalendarExportModel.swift */; };
 		BC89E64DDA8A0975A83107D5 /* StackedForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 371FEFD498525E0EA4709909 /* StackedForm.swift */; };
 		BE4EC3D93E562C6724906B1A /* RegionManagementSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F84C0FF0F99E3606279BB42C /* RegionManagementSettingsView.swift */; };
-		C00CC22E1860FAA90381B866 /* GalavantCaptureUI in Frameworks */ = {isa = PBXBuildFile; productRef = 9D033329AC22FDEA57CBC830 /* GalavantCaptureUI */; };
+		C00CC22E1860FAA90381B866 /* ChatAccessKit in Frameworks */ = {isa = PBXBuildFile; productRef = B15484C90CB9ECD5D81DAC9D /* ChatAccessKit */; };
 		C0D128FB3AAE61FF0C72B45B /* AISettingsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C4838518F023973640A8AEE /* AISettingsModel.swift */; };
 		C26FCB90CCEB03C82F359643 /* TravelProfileEditModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ADB3989E3E45A67BB33FB7F /* TravelProfileEditModel.swift */; };
 		C2FC789EE1F80B257FC7D7DA /* PlaceIdeaSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EFBA67DB304DCD293D72575 /* PlaceIdeaSheet.swift */; };
 		C35DFF6146C22E149BA1D6AD /* RecommendationCandidateStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E4F11F80427DFD1A59F56B7 /* RecommendationCandidateStrip.swift */; };
 		C4D03D83083C9022183ABEF2 /* TripPlanningModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8238F43F540641D1FD4267BA /* TripPlanningModel.swift */; };
+		C59FE9F526D0674FC1EB6BA6 /* ChatInboxModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E22DCA1DDBC2E3ECE5D1558E /* ChatInboxModel.swift */; };
 		C5B25151A67A54B469E8438F /* RecommendationCandidateCardPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = F800835C302F4215E837F4FF /* RecommendationCandidateCardPresentation.swift */; };
 		C6651664BD80959BDC624431 /* IdeaPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B1DF18254B63AD4237897B /* IdeaPersistenceTests.swift */; };
 		C78DAFF388E693F308C398EF /* AISettingsSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 201134A6F0FAB081A677EB63 /* AISettingsSections.swift */; };
 		C7FC1AA264B96268F69FC474 /* ChatPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C01187279655F718B34FA9DC /* ChatPanelView.swift */; };
 		CB26B0D5725B3BB39E4E1839 /* CalendarReconciliationRows.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AD2C1DE54AEA038F84042CC /* CalendarReconciliationRows.swift */; };
 		CBD322C7EF720E884780D9D9 /* RecommendationWorkspaceModel+Projection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCB153EAAD14C2A632110033 /* RecommendationWorkspaceModel+Projection.swift */; };
-		CC3F96678DFB64539736A6A7 /* Sharing in Frameworks */ = {isa = PBXBuildFile; productRef = 5A93A34322120B8F1DC99E7B /* Sharing */; };
+		CC3F96678DFB64539736A6A7 /* CasePaths in Frameworks */ = {isa = PBXBuildFile; productRef = 26D83C2182F9FE47C3A1CA25 /* CasePaths */; };
 		CD68499071CAD83FB2F5BEF1 /* MapPlaceCreateIdeaButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = B58F3C28841A950ECB1ED2A5 /* MapPlaceCreateIdeaButton.swift */; };
 		CE4FE1DE2F735CDF44C16156 /* RecommendationWorkspaceMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = B83B72B821D03D225CF30944 /* RecommendationWorkspaceMap.swift */; };
 		CFF79112580C0EBC8D933DE2 /* IdeaDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F02C470667EF6E9AC8AC761 /* IdeaDetailView.swift */; };
@@ -165,10 +166,11 @@
 		E0CB76C004B10C1F20EC249A /* IdeaFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C956244AC0CCEFCA45A4128 /* IdeaFormView.swift */; };
 		E291A3A716DDBC83661706CB /* SyncHealthModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E00FB978F8AEB5F20B8B8C5D /* SyncHealthModel.swift */; };
 		E38A40C5C21F4D1087CDE391 /* GalavantShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5F046B49AE38F92268A2FA12 /* GalavantShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		E4012E1E8A6634279CD3ECFA /* CasePaths in Frameworks */ = {isa = PBXBuildFile; productRef = 26D83C2182F9FE47C3A1CA25 /* CasePaths */; };
+		E4012E1E8A6634279CD3ECFA /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = 45E72731DDF6FA076EAEC92F /* Dependencies */; };
 		E67ECFE7471114FEF8603B67 /* CalendarReconciliationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3C3B8F62248626E20BD1B05 /* CalendarReconciliationModel.swift */; };
 		E7664E213A70698E975C00E2 /* TripPlanningModel+AlternativeGroups.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62969DCE60557E7FE251E473 /* TripPlanningModel+AlternativeGroups.swift */; };
-		E77D186E6B692AD25BC8C9F3 /* SQLiteData in Frameworks */ = {isa = PBXBuildFile; productRef = A641D3ABA375BA009278F435 /* SQLiteData */; };
+		E77D186E6B692AD25BC8C9F3 /* WebExtractorKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4D543244A7EA1E4F10D196DF /* WebExtractorKit */; };
+		E9A349540AD39F8ECB792716 /* Sharing in Frameworks */ = {isa = PBXBuildFile; productRef = 5A93A34322120B8F1DC99E7B /* Sharing */; };
 		EEACD2B427DF5C20CDD17950 /* FreeformStopLocationEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5448AA5F448341633752E5D /* FreeformStopLocationEditor.swift */; };
 		EFF6015EBFCC08925785A2EB /* EvaluateScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = D48C8AE52183B8D3DE346D07 /* EvaluateScreen.swift */; };
 		F009B3192D02321202419379 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5AD27A1248EEA1D9B580277 /* ShareViewController.swift */; };
@@ -178,7 +180,7 @@
 		F17C666C48C89BF844858C54 /* DeviceLocationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BC85EBD5FC9820953D4ED04 /* DeviceLocationModel.swift */; };
 		F236D648886F9BA4EF2CCCCB /* GalavantPlaces in Frameworks */ = {isa = PBXBuildFile; productRef = C94234B5AEF12EA0F921B5B0 /* GalavantPlaces */; };
 		F41E8D178B9FE462E5E797F5 /* AppContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA2BBF3B289FD7D02957833B /* AppContainer.swift */; };
-		F569C91AF0E8633E066AA600 /* WebExtractorKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4D543244A7EA1E4F10D196DF /* WebExtractorKit */; };
+		F569C91AF0E8633E066AA600 /* GalavantCaptureUI in Frameworks */ = {isa = PBXBuildFile; productRef = 9D033329AC22FDEA57CBC830 /* GalavantCaptureUI */; };
 		F57648A300EA9E12818CF2AC /* WeatherAttributionLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5F159E1049DE135201C5821 /* WeatherAttributionLink.swift */; };
 		F81B39732D548EBD5BB015F9 /* TripPlanningModel+Sketch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14FCDCE6D1ECB6FD141CF7B9 /* TripPlanningModel+Sketch.swift */; };
 		F82D8FFDDCDBA5EEC7FED0AB /* TripCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CBA766947DA059C035C1937 /* TripCard.swift */; };
@@ -297,6 +299,7 @@
 		62969DCE60557E7FE251E473 /* TripPlanningModel+AlternativeGroups.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripPlanningModel+AlternativeGroups.swift"; sourceTree = "<group>"; };
 		63AC8A1BBF043DAD05084616 /* TripCanvasPreviewState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripCanvasPreviewState.swift; sourceTree = "<group>"; };
 		6839D17655A85296477C1D5D /* TripItineraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripItineraryView.swift; sourceTree = "<group>"; };
+		689CED9ADFC447AA75E570CC /* ChatAccessKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ChatAccessKit; path = "../../jon-platform/packages/ChatAccessKit"; sourceTree = SOURCE_ROOT; };
 		699708F3FBBF7D348DBDAD3A /* TodayDayMapCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayDayMapCard.swift; sourceTree = "<group>"; };
 		6B2BFEB336259112123DDB21 /* WeatherDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherDetailView.swift; sourceTree = "<group>"; };
 		6B4DF9617E38B656B5A0094F /* LocationClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationClient.swift; sourceTree = "<group>"; };
@@ -375,6 +378,7 @@
 		E13450922E6B719B55DC57BC /* IdeasScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeasScreen.swift; sourceTree = "<group>"; };
 		E146770B6C9957BA19FC94EC /* IdeasListModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeasListModel.swift; sourceTree = "<group>"; };
 		E16C0BEC67299FCDA71789C9 /* CalendarReconciliationModel+Promotion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CalendarReconciliationModel+Promotion.swift"; sourceTree = "<group>"; };
+		E22DCA1DDBC2E3ECE5D1558E /* ChatInboxModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatInboxModel.swift; sourceTree = "<group>"; };
 		E35BE6CD061373B731E38031 /* SequencePin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencePin.swift; sourceTree = "<group>"; };
 		E754846D1941C6A46BF20DFB /* TripPlanningModel+Freeform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripPlanningModel+Freeform.swift"; sourceTree = "<group>"; };
 		E818B469EB6F7EB6FB4F33D6 /* CloudSyncKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = CloudSyncKit; path = "../../jon-platform/packages/CloudSyncKit"; sourceTree = SOURCE_ROOT; };
@@ -415,13 +419,14 @@
 				52949A4330FDF85D0EBF5AEA /* LLMClientKit in Frameworks */,
 				3B4EC7EE202BCED566C99202 /* LLMHandoffKit in Frameworks */,
 				28CB0F1054F9EC0012E413AD /* CloudSyncKit in Frameworks */,
-				C00CC22E1860FAA90381B866 /* GalavantCaptureUI in Frameworks */,
-				F569C91AF0E8633E066AA600 /* WebExtractorKit in Frameworks */,
-				E77D186E6B692AD25BC8C9F3 /* SQLiteData in Frameworks */,
-				3E5E8AEE7E095AEC4C47F3EE /* SwiftUINavigation in Frameworks */,
-				80C7B282FFA2EE185ADA79ED /* Dependencies in Frameworks */,
-				E4012E1E8A6634279CD3ECFA /* CasePaths in Frameworks */,
-				CC3F96678DFB64539736A6A7 /* Sharing in Frameworks */,
+				C00CC22E1860FAA90381B866 /* ChatAccessKit in Frameworks */,
+				F569C91AF0E8633E066AA600 /* GalavantCaptureUI in Frameworks */,
+				E77D186E6B692AD25BC8C9F3 /* WebExtractorKit in Frameworks */,
+				3E5E8AEE7E095AEC4C47F3EE /* SQLiteData in Frameworks */,
+				80C7B282FFA2EE185ADA79ED /* SwiftUINavigation in Frameworks */,
+				E4012E1E8A6634279CD3ECFA /* Dependencies in Frameworks */,
+				CC3F96678DFB64539736A6A7 /* CasePaths in Frameworks */,
+				E9A349540AD39F8ECB792716 /* Sharing in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -673,6 +678,14 @@
 			path = Navigation;
 			sourceTree = "<group>";
 		};
+		94103E99A4CBE4FB8B0F3C99 /* ChatAccess */ = {
+			isa = PBXGroup;
+			children = (
+				E22DCA1DDBC2E3ECE5D1558E /* ChatInboxModel.swift */,
+			);
+			path = ChatAccess;
+			sourceTree = "<group>";
+		};
 		9D30DAE67801B102AE6F181F /* Browser */ = {
 			isa = PBXGroup;
 			children = (
@@ -685,6 +698,7 @@
 		AFE599FCAD0B477B7D5AF155 /* Packages */ = {
 			isa = PBXGroup;
 			children = (
+				689CED9ADFC447AA75E570CC /* ChatAccessKit */,
 				E818B469EB6F7EB6FB4F33D6 /* CloudSyncKit */,
 				C071E50FDA62E29FC448F993 /* GalavantLibrary */,
 				73160C3B106A29D6005A8859 /* LLMClientKit */,
@@ -712,6 +726,7 @@
 				9D30DAE67801B102AE6F181F /* Browser */,
 				370543ACE0B28DE54D365B7E /* Calendar */,
 				1AF078CA6D50D1067E93FBCB /* Chat */,
+				94103E99A4CBE4FB8B0F3C99 /* ChatAccess */,
 				64DB71B050831FD651A208C0 /* Design */,
 				D132031309F0FD3303777E27 /* Evaluate */,
 				E74AA89EA770500888848A49 /* Ideas */,
@@ -813,6 +828,7 @@
 				BEC45E8A60608009E9EFFDCC /* LLMClientKit */,
 				4496C6F1494049E3B555A463 /* LLMHandoffKit */,
 				BAB8971211A0C3E3E9C18A40 /* CloudSyncKit */,
+				B15484C90CB9ECD5D81DAC9D /* ChatAccessKit */,
 				9D033329AC22FDEA57CBC830 /* GalavantCaptureUI */,
 				4D543244A7EA1E4F10D196DF /* WebExtractorKit */,
 				A641D3ABA375BA009278F435 /* SQLiteData */,
@@ -932,6 +948,7 @@
 				72A7015AEBE6B87356CCFD60 /* XCRemoteSwiftPackageReference "swift-dependencies" */,
 				E0CE6503B137FDB710DCCCFE /* XCRemoteSwiftPackageReference "swift-navigation" */,
 				13970F0E37C9FD2AC7DDBCFD /* XCRemoteSwiftPackageReference "swift-sharing" */,
+				1ED7EBE7DEC928219E976698 /* XCLocalSwiftPackageReference "../../jon-platform/packages/ChatAccessKit" */,
 				F467FE695C00BBEA463C98D8 /* XCLocalSwiftPackageReference "../../jon-platform/packages/CloudSyncKit" */,
 				5228AC59CF5F59825B063F97 /* XCLocalSwiftPackageReference "GalavantLibrary" */,
 				DF7739A2EC8B02E90D5186F9 /* XCLocalSwiftPackageReference "../../jon-platform/packages/LLMClientKit" */,
@@ -1026,6 +1043,7 @@
 				1885938610B337356CBBB04F /* CalendarReconciliationSheet.swift in Sources */,
 				4171E2BF905DAB98B77389EB /* CertaintyStyle.swift in Sources */,
 				23D3E404F6FE187B064457C4 /* ChatHandoffNote.swift in Sources */,
+				C59FE9F526D0674FC1EB6BA6 /* ChatInboxModel.swift in Sources */,
 				C7FC1AA264B96268F69FC474 /* ChatPanelView.swift in Sources */,
 				88B3CF40AF4FFA97C96D8304 /* DatabaseSuspensionController.swift in Sources */,
 				BA6DC33C006D131C9DDA042C /* DayChipBar.swift in Sources */,
@@ -1506,6 +1524,10 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
+		1ED7EBE7DEC928219E976698 /* XCLocalSwiftPackageReference "../../jon-platform/packages/ChatAccessKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../../jon-platform/packages/ChatAccessKit";
+		};
 		347467AB13949BE7FF8F2DDB /* XCLocalSwiftPackageReference "../../jon-platform/packages/WebExtractorKit" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = "../../jon-platform/packages/WebExtractorKit";
@@ -1645,6 +1667,10 @@
 		ABAC675A63A6A34C180B7D93 /* GalavantImaging */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = GalavantImaging;
+		};
+		B15484C90CB9ECD5D81DAC9D /* ChatAccessKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ChatAccessKit;
 		};
 		BAB8971211A0C3E3E9C18A40 /* CloudSyncKit */ = {
 			isa = XCSwiftPackageProductDependency;

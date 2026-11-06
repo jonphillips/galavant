@@ -38,6 +38,7 @@ struct SettingsScreen: View {
   @State private var isPresentingTravelProfile = false
   @Dependency(\.defaultDatabase) private var database
   @Environment(\.scenePhase) private var scenePhase
+  @Environment(ChatInboxModel.self) private var chatInbox
 
   var body: some View {
     Form {
@@ -46,6 +47,13 @@ struct SettingsScreen: View {
       SyncStatusSection(model: syncHealth)
 
       AISettingsSections()
+
+      Section("Chat Access") {
+        Toggle("Chat Access", isOn: Binding(get: { chatInbox.enabled }, set: { chatInbox.setEnabled($0) }))
+        Text(chatInbox.message ?? (chatInbox.enabled ? "Staged returns appear in Evaluate." : "Off on this device."))
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
 
       Section("Library") {
         NavigationLink {

@@ -178,9 +178,9 @@ extension TripPlanningModel {
       }
       return
     }
-    let pasted = StagedTripReturn.strippingTripLine(from: pasted)
+    let cleanPasted = StagedTripReturn.strippingTripLine(from: pasted)
     if session.taskType == RecommendationHandoffTask.seedTrip {
-      seedReviewModel?.paste([pasted], for: session, context: seedPlanContextSnapshot)
+      seedReviewModel?.paste([cleanPasted], for: session, context: seedPlanContextSnapshot)
       return
     }
     do {
@@ -191,13 +191,13 @@ extension TripPlanningModel {
       // rather than rejecting it — commit always targets this trip regardless of
       // which session recorded the candidates, so the blast radius is bookkeeping.
       let bodyText: String
-      if let routed = try? HandoffRouting.route(pasted) {
+      if let routed = try? HandoffRouting.route(cleanPasted) {
         bodyText = routed.text
         if routed.sessionID != session.id {
           warnings.append("This result was tagged for a different recommendation handoff — added it to this one anyway.")
         }
       } else {
-        bodyText = pasted
+        bodyText = cleanPasted
         warnings.append("This result had no Galavant handoff token — added it to this handoff anyway.")
       }
 
@@ -276,16 +276,13 @@ extension TripPlanningModel {
   func commitRecommendationCandidate(_ candidate: RecommendationCandidateDraft, from session: HandoffSession) {
     guard candidate.canCommit else { return }
     withErrorReporting {
-      let committed = try database.write { db in
-        try TripIdea.commit(candidate: candidate.candidate, into: tripID, in: db)
-      }
       var updatedSession = handoffSessionStore.session(session.id) ?? session
-      // `.imported` records that this session has produced a durable row, rather
-      // than claiming every row in its review sheet has been consumed.
-      updatedSession.importedAt = .now
-      updatedSession.status = .imported
-      try updatedSession.replaceRecommendationCandidate(candidate.candidate)
-      updatedSession.link(candidateID: candidate.id, to: committed.id)
+      let now = date.now
+      updatedSession = try database.write { db in
+        var updated = updatedSession
+        try RecommendationSetImport.commit(candidate: candidate.candidate, into: tripID, session: &updated, now: now, in: db)
+        return updated
+      }
       try handoffSessionStore.save(updatedSession)
       recommendationReview.removeAll { $0.id == candidate.id }
     }

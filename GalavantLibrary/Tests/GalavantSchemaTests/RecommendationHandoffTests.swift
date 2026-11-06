@@ -226,6 +226,8 @@ struct RecommendationHandoffTests {
 
     #expect(actual == [
       handoff.header,
+      "GV-TRIP: \(handoff.sourceID)",
+      "Call stage_trip_return with this trip if the chat has it; otherwise start the reply with the GV-HANDOFF: line.",
       "Trip: Bavaria/Dolomites",
       "Ask: Recommend candidate places that fit this trip. Give options with a useful locality, search hint, and concise rationale."
     ].joined(separator: "\n"))
@@ -246,6 +248,8 @@ struct RecommendationHandoffTests {
 
     #expect(actual.split(separator: "\n", omittingEmptySubsequences: false) == [
       Substring(handoff.header),
+      Substring("GV-TRIP: \(handoff.sourceID)"),
+      "Call stage_trip_return with this trip if the chat has it; otherwise start the reply with the GV-HANDOFF: line.",
       "Trip: Bavaria/Dolomites",
       "Trip notes: Keep the days relaxed.",
       "Stops so far:",
@@ -267,6 +271,8 @@ struct RecommendationHandoffTests {
 
     #expect(actual.split(separator: "\n") == [
       Substring(handoff.header),
+      Substring("GV-TRIP: \(handoff.sourceID)"),
+      "Call stage_trip_return with this trip if the chat has it; otherwise start the reply with the GV-HANDOFF: line.",
       "Trip: Denmark",
       "Trip notes: Keep it relaxed.",
       "Our travel taste: relaxed luxury",
@@ -330,6 +336,8 @@ struct RecommendationHandoffTests {
     )
     #expect(brief == [
       handoff.header,
+      "GV-TRIP: \(handoff.sourceID)",
+      "Call stage_trip_return with this trip if the chat has it; otherwise start the reply with the GV-HANDOFF: line.",
       "Trip: Denmark",
       "Ask: Seed this Galavant trip from our conversation so far, using the seed format in the project instructions. That format replaces the candidate-places format for this reply."
     ].joined(separator: "\n"))
