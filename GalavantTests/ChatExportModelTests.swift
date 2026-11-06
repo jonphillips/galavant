@@ -23,9 +23,8 @@ struct ChatExportModelTests {
   }
 
   @Test func disabledAndThrottledBackgroundCallsDoNoFolderWork() async throws {
-    let oldEnabled = UserDefaults.standard.object(forKey: ChatInboxModel.enabledKey)
-    defer { UserDefaults.standard.set(oldEnabled, forKey: ChatInboxModel.enabledKey) }
     let defaults = UserDefaults(suiteName: UUID().uuidString)!
+    defaults.set(false, forKey: ChatInboxModel.enabledKey)
     let state = Mutex(State())
     let folder = ChatAccessFolder(containerURL: FileManager.default.temporaryDirectory, isDevelopment: true)
     let client = ChatAccessContainerClient(resolveFolder: {
@@ -33,7 +32,6 @@ struct ChatExportModelTests {
       return folder
     }, resolveAndCreateInbox: { folder })
     let bg = ChatExportBackgroundTaskClient(begin: { _, _ in state.withLock { $0.assertionBegins += 1 }; return 1 }, end: { _ in })
-    UserDefaults.standard.set(false, forKey: ChatInboxModel.enabledKey)
     withDependencies({ $0.chatAccessContainer = client }) {
       let model = ChatExportModel(defaults: defaults, backgroundTaskClient: bg)
       NotificationCenter.default.post(name: UIApplication.didEnterBackgroundNotification, object: nil)
@@ -43,7 +41,7 @@ struct ChatExportModelTests {
 
     let writer = ChatAccessExportWriter(defaults: defaults, makeUUID: { UUID() })
     _ = try await writer.write(Data("previous".utf8), to: folder, generatedAt: Date(timeIntervalSince1970: 1_000), force: true)
-    UserDefaults.standard.set(true, forKey: ChatInboxModel.enabledKey)
+    defaults.set(true, forKey: ChatInboxModel.enabledKey)
     withDependencies({
       $0.chatAccessContainer = client
       $0.date = .constant(Date(timeIntervalSince1970: 1_001))
@@ -77,6 +75,7 @@ struct ChatExportModelTests {
     }
 
     let expiringDefaults = UserDefaults(suiteName: UUID().uuidString)!
+    expiringDefaults.set(true, forKey: ChatInboxModel.enabledKey)
     let state = Mutex(State())
     let expiringClient = ChatAccessContainerClient(resolveFolder: {
       return folder
@@ -85,7 +84,6 @@ struct ChatExportModelTests {
       state.withLock { $0.assertionBegins += 1; $0.expiration = expire }
       return 8
     }, end: { _ in })
-    UserDefaults.standard.set(true, forKey: ChatInboxModel.enabledKey)
     await withDependencies {
       $0.chatAccessContainer = expiringClient
       $0.date = .constant(Date(timeIntervalSince1970: 2_000))

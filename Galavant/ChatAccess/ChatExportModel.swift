@@ -63,6 +63,7 @@ final class ChatExportModel: NSObject {
   @ObservationIgnored @Dependency(\.date.now) private var now
   @ObservationIgnored @Dependency(\.chatAccessContainer) private var folderClient
   @ObservationIgnored @Dependency(\.chatExportDevice) private var deviceClient
+  @ObservationIgnored private let defaults: UserDefaults
   @ObservationIgnored private let backgroundTaskClient: ChatExportBackgroundTaskClient
   @ObservationIgnored private let writer: ChatAccessExportWriter
   @ObservationIgnored private var task: Task<Void, Never>?
@@ -72,6 +73,7 @@ final class ChatExportModel: NSObject {
   init(application: UIApplication = .shared, defaults: UserDefaults = .standard,
        backgroundTaskClient: ChatExportBackgroundTaskClient? = nil) {
     @Dependency(\.uuid) var uuid
+    self.defaults = defaults
     self.backgroundTaskClient = backgroundTaskClient ?? .live(application: application)
     writer = ChatAccessExportWriter(defaults: defaults, makeUUID: { uuid() })
     super.init()
@@ -84,7 +86,7 @@ final class ChatExportModel: NSObject {
   var lastExport: ChatAccessExportWriter.LastExport? { writer.lastExport }
 
   @objc private func didEnterBackground() {
-    guard UserDefaults.standard.bool(forKey: ChatInboxModel.enabledKey), writer.isDue(at: now) else { return }
+    guard defaults.bool(forKey: ChatInboxModel.enabledKey), writer.isDue(at: now) else { return }
     start(force: false)
   }
 
@@ -93,7 +95,7 @@ final class ChatExportModel: NSObject {
   private func start(force: Bool) {
     guard !isRefreshing else { return }
     if !force {
-      guard UserDefaults.standard.bool(forKey: ChatInboxModel.enabledKey), writer.isDue(at: now) else { return }
+      guard defaults.bool(forKey: ChatInboxModel.enabledKey), writer.isDue(at: now) else { return }
     }
     isRefreshing = true
     errorMessage = nil
@@ -127,15 +129,22 @@ final class ChatExportModel: NSObject {
         let timestamp = now
         let idiom = deviceClient.idiom()
         let device = idiom == .pad ? "iPad" : "iPhone"
-        let data = try await Task.detached(priority: .utility) {
+        let calendar = Calendar.current
+        let buildTask = Task.detached(priority: .utility) {
           let export = try GalavantChatExportBuilder.build(
             trips: rows.trips, entries: rows.entries, ideas: rows.ideas, stays: rows.stays,
             dayRegions: rows.dayRegions, regions: rows.regions, constraints: rows.constraints,
             alternativeGroups: rows.alternativeGroups, profiles: rows.profiles, planners: rows.planners,
-            generatedAt: timestamp, device: device, checkCancellation: { try Task.checkCancellation() })
+            generatedAt: timestamp, device: device, calendar: calendar,
+            checkCancellation: { try Task.checkCancellation() })
           try Task.checkCancellation()
           return try JSONEncoder().encode(export)
-        }.value
+        }
+        let data = try await withTaskCancellationHandler {
+          try await buildTask.value
+        } onCancel: {
+          buildTask.cancel()
+        }
         try Task.checkCancellation()
         let result = try await writer.write(data, to: folder, generatedAt: timestamp, force: force)
         if case .throttled = result { errorMessage = "The export was throttled. Try Refresh again." }

@@ -42,21 +42,29 @@ struct GalavantMCPTests {
     #expect(try inbox.list().count == 1)
   }
 
-  @Test func listReportsOmittedTripsInsteadOfDroppingThemSilently() async throws {
+  @Test func listSortsTripsBeforeItsCapAndReportsTheOmittedOldTrip() async throws {
     let home = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: home) }
-    let trips = (0..<101).map { index in
-      GalavantChatExport.Trip(id: UUID(), name: "Trip \(index)", startDate: nil, lengthInDays: 3,
+    let trips = (0..<100).map { index in
+      GalavantChatExport.Trip(id: UUID(), name: "Future \(index)", startDate: "2030-01-\(String(format: "%02d", index % 28 + 2))", lengthInDays: 3,
         notes: "", planLines: [], ruledOutLines: [], tasteLines: [], consideringTitles: [], shortlistedTitles: [])
     }
-    try write(GalavantChatExport(generatedAt: Date(), device: "iPad", trips: trips), home: home)
-    let response = try #require(await GalavantMCPServer.make(home: home).handle(line: toolCall("list_trips", arguments: [:])))
-    #expect(response.contains("truncated"))
-    #expect(response.contains("omittedCount"))
-    #expect(response.contains("1"))
+    let oldest = GalavantChatExport.Trip(id: UUID(), name: "Oldest", startDate: "2020-01-01", lengthInDays: 3,
+      notes: "", planLines: [], ruledOutLines: [], tasteLines: [], consideringTitles: [], shortlistedTitles: [])
+    try write(GalavantChatExport(generatedAt: Date(), device: "iPad", trips: [oldest] + trips), home: home)
+    let fixedNow = ISO8601DateFormatter().date(from: "2030-01-01T12:00:00Z")!
+    let response = try #require(await GalavantMCPServer.make(home: home, now: { fixedNow })
+      .handle(line: toolCall("list_trips", arguments: [:])))
+    let result = try jsonContent(response)
+    #expect(result.objectValue?["truncated"] == .bool(true))
+    #expect(result.objectValue?["omittedCount"] == .integer(1))
+    let rows = try #require(array(result.objectValue?["trips"]))
+    #expect(rows.count == 100)
+    #expect(rows.compactMap { $0.objectValue?["name"]?.stringValue }.contains("Oldest") == false)
+    #expect(rows.first?.objectValue?["name"] == MCPValue.string("Future 0"))
   }
 
-  @Test func tokenReturnSkipsExportCheckAndMissingExportStillStages() async throws {
+  @Test func tokenReturnSkipsSuccessfulExportCheck() async throws {
     let home = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: home) }
     let container = ChatAccessHelperFolder.containerURL(for: "iCloud.com.jonphillips.galavant", home: home)
@@ -70,6 +78,32 @@ struct GalavantMCPTests {
     #expect(try result(response)["isError"] != .bool(true))
     #expect(try HandoffInbox(root: ChatAccessFolder(containerURL: container, isDevelopment: false).inboxURL,
       fileExtension: "gvreturn").list().count == 1)
+  }
+
+  @Test func getTripUsesIndependentSectionAndNoteCapsAndReportsEveryOmission() async throws {
+    let home = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: home) }
+    let tripID = UUID()
+    let trip = GalavantChatExport.Trip(id: tripID, name: "Copenhagen", startDate: "2027-03-10", lengthInDays: 5,
+      notes: String(repeating: "n", count: 20_001),
+      planLines: [String(repeating: "p", count: 501)] + (0..<121).map { "Plan \($0)" },
+      ruledOutLines: (0..<121).map { "Ruled out \($0)" }, tasteLines: ["Taste note"],
+      consideringTitles: (0..<121).map { "Considering \($0)" },
+      shortlistedTitles: [String(repeating: "s", count: 501)])
+    try write(GalavantChatExport(generatedAt: Date(), device: "iPhone", trips: [trip]), home: home)
+    let response = try #require(await GalavantMCPServer.make(home: home)
+      .handle(line: toolCall("get_trip", arguments: ["trip": .string(tripID.uuidString)])))
+    let result = try jsonContent(response)
+    let value = try #require(result.objectValue?["trip"]?.objectValue)
+    #expect(value["startDate"] == .string("2027-03-10"))
+    #expect(value["notes"]?.stringValue?.count == 20_000)
+    #expect(array(value["planLines"])?.count == 120)
+    #expect(array(value["ruledOutLines"])?.count == 120)
+    #expect(array(value["tasteLines"]) == [MCPValue.string("Taste note")])
+    #expect(array(value["consideringTitles"])?.count == 120)
+    #expect(array(value["shortlistedTitles"])?.first?.stringValue?.count == 500)
+    #expect(value["truncated"] == .bool(true))
+    #expect(value["omittedCount"] == .integer(7))
   }
 
   @Test func noExportNewerExportAndTimedOutExportHaveActionableErrors() async throws {
@@ -154,8 +188,9 @@ struct GalavantMCPTests {
     #expect(try result(seed)["isError"] == .bool(true))
     #expect(seed.contains("a line containing only GV-SEED before the JSON object"))
     #expect(seed.contains("one JSON array"))
-    let invalid = try #require(await server.handle(line: call(trip: "", text: "[]")))
+    let invalid = try #require(await server.handle(line: call(trip: "Copenhagen", text: "[]")))
     #expect(try result(invalid)["isError"] == .bool(true))
+    #expect(responseText(invalid).contains("list_trips"))
     let inbox = ChatAccessFolder(containerURL: container, isDevelopment: false).inboxURL
     #expect(!FileManager.default.fileExists(atPath: inbox.path))
   }
@@ -240,5 +275,14 @@ struct GalavantMCPTests {
       guard case let .object(values) = item, case let .string(text)? = values["text"] else { return nil }
       return text
     }.joined(separator: "\n")
+  }
+
+  private func jsonContent(_ response: String) throws -> MCPValue {
+    try JSONDecoder().decode(MCPValue.self, from: Data(responseText(response).utf8))
+  }
+
+  private func array(_ value: MCPValue?) -> [MCPValue]? {
+    guard case let .array(values) = value else { return nil }
+    return values
   }
 }

@@ -47,7 +47,7 @@ public enum GalavantMCPServer {
             let payload = try? JSONDecoder().decode(StageInput.self, from: data),
             let trip = UUID(uuidString: payload.trip)
           else {
-            return .error("Provide a trip UUID and return text. Tap Hand off in Galavant and paste the brief here to get the trip ID.")
+            return .error("Provide a trip UUID and return text. If this chat has no trip ID yet, call list_trips. You can also tap Hand off in Galavant and paste the brief here.")
           }
           do {
             let validated = try StagedTripReturn.validate(payload.text)

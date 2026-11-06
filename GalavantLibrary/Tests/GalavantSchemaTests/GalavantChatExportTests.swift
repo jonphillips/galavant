@@ -44,4 +44,19 @@ struct GalavantChatExportTests {
       try GalavantChatExport.decode(newer)
     }
   }
+
+  @Test func startDateExportsTheDeviceCalendarDayInsteadOfTheStoredInstant() throws {
+    let formatter = ISO8601DateFormatter()
+    let storedDate = try #require(formatter.date(from: "2027-03-11T02:30:00Z"))
+    let trip = Trip(id: UUID(), name: "Los Angeles", notes: "", startDate: storedDate, lengthInDays: 3)
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = try #require(TimeZone(identifier: "America/Los_Angeles"))
+    let export = try GalavantChatExportBuilder.build(trips: [trip], entries: [], ideas: [], stays: [],
+      dayRegions: [], regions: [], constraints: [], alternativeGroups: [], profiles: [], planners: [],
+      generatedAt: Date(timeIntervalSince1970: 0), device: "iPhone", calendar: calendar)
+    #expect(export.trips.first?.startDate == "2027-03-10")
+    let encoded = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(export)) as? [String: Any])
+    let encodedTrip = try #require((encoded["trips"] as? [[String: Any]])?.first)
+    #expect(encodedTrip["startDate"] as? String == "2027-03-10")
+  }
 }

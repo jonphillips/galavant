@@ -67,8 +67,9 @@ private struct ReadToolError: LocalizedError {
 
 enum ChatAccessReadTools {
   private static let maxTrips = 100
-  private static let maxTextLines = 120
+  private static let maxLinesPerSection = 120
   private static let maxLineCharacters = 500
+  private static let maxNotesCharacters = 20_000
 
   static func make(home: URL, isDevelopment: Bool, now: @escaping @Sendable () -> Date,
                    exportMaterializer: ChatAccessExportReader.Materializer?,
@@ -79,15 +80,16 @@ enum ChatAccessReadTools {
       tool("list_trips", "List trips in the latest Galavant export. Start here when this chat has no GV-TRIP line.",
            schema: schema([:], required: [])) { _ in
         let snapshot = try await store.load()
-        let rows = snapshot.value.trips.prefix(maxTrips).map { trip in
+        let trips = orderedTrips(snapshot.value.trips, today: dateString(now()))
+        let rows = trips.prefix(maxTrips).map { trip in
           MCPValue.object(["id": .string(trip.id.uuidString), "name": .string(String(trip.name.prefix(maxLineCharacters))),
-            "startDate": trip.startDate.map { .string(ISO8601DateFormatter().string(from: $0)) } ?? .null,
+            "startDate": trip.startDate.map(MCPValue.string) ?? .null,
             "targetYear": trip.targetYear.map(MCPValue.integer) ?? .null,
             "targetQuarter": trip.targetQuarter.map(MCPValue.integer) ?? .null,
             "lengthInDays": .integer(trip.lengthInDays)])
         }
-        let longNames = snapshot.value.trips.prefix(maxTrips).filter { $0.name.count > maxLineCharacters }.count
-        let omitted = max(0, snapshot.value.trips.count - maxTrips) + longNames
+        let longNames = trips.prefix(maxTrips).filter { $0.name.count > maxLineCharacters }.count
+        let omitted = max(0, trips.count - maxTrips) + longNames
         let result: [String: MCPValue] = ["generatedAt": .string(iso(snapshot.value.generatedAt)), "ageMinutes": .integer(snapshot.ageMinutes),
           "device": .string(snapshot.value.device), "trips": .array(rows), "truncated": .bool(omitted > 0),
           "omittedCount": .integer(omitted)]
@@ -100,30 +102,23 @@ enum ChatAccessReadTools {
               let trip = snapshot.value.trips.first(where: { $0.id == id }) else {
           throw ReadToolError("Unknown trip ID. Call list_trips and choose one of its IDs.")
         }
-        let lines = trip.planLines + trip.ruledOutLines + trip.tasteLines
-        let clipped = Array(lines.prefix(maxTextLines)).map { String($0.prefix(maxLineCharacters)) }
-        let notesTruncated = trip.notes.count > maxLineCharacters
-        let titleOmitted = max(0, trip.consideringTitles.count - maxTextLines) + max(0, trip.shortlistedTitles.count - maxTextLines)
-        let titleLongCount = trip.consideringTitles.prefix(maxTextLines).filter { $0.count > maxLineCharacters }.count
-          + trip.shortlistedTitles.prefix(maxTextLines).filter { $0.count > maxLineCharacters }.count
-        let omitted = max(0, lines.count - maxTextLines) + lines.prefix(maxTextLines).filter { $0.count > maxLineCharacters }.count
-          + titleOmitted + titleLongCount + (notesTruncated ? 1 : 0)
-          + (trip.name.count > maxLineCharacters ? 1 : 0)
-        let planLineValues = clipped.prefix(trip.planLines.count).map { MCPValue.string($0) }
-        let ruledOffset = trip.planLines.count
-        let ruledValues = clipped.dropFirst(ruledOffset).prefix(trip.ruledOutLines.count).map { MCPValue.string($0) }
-        let tasteOffset = ruledOffset + trip.ruledOutLines.count
-        let tasteValues = clipped.dropFirst(tasteOffset).map { MCPValue.string($0) }
-        let considering = trip.consideringTitles.prefix(maxTextLines).map { MCPValue.string(String($0.prefix(maxLineCharacters))) }
-        let shortlisted = trip.shortlistedTitles.prefix(maxTextLines).map { MCPValue.string(String($0.prefix(maxLineCharacters))) }
+        let plan = boundedLines(trip.planLines)
+        let ruledOut = boundedLines(trip.ruledOutLines)
+        let taste = boundedLines(trip.tasteLines)
+        let considering = boundedLines(trip.consideringTitles)
+        let shortlisted = boundedLines(trip.shortlistedTitles)
+        let notesTruncated = trip.notes.count > maxNotesCharacters
+        let nameTruncated = trip.name.count > maxLineCharacters
+        let omitted = plan.omitted + ruledOut.omitted + taste.omitted + considering.omitted + shortlisted.omitted
+          + (notesTruncated ? 1 : 0) + (nameTruncated ? 1 : 0)
         let tripValue: [String: MCPValue] = [
           "id": .string(trip.id.uuidString), "name": .string(String(trip.name.prefix(maxLineCharacters))),
-          "startDate": trip.startDate.map { .string(iso($0)) } ?? .null,
+          "startDate": trip.startDate.map(MCPValue.string) ?? .null,
           "targetYear": trip.targetYear.map(MCPValue.integer) ?? .null,
           "targetQuarter": trip.targetQuarter.map(MCPValue.integer) ?? .null,
-          "lengthInDays": .integer(trip.lengthInDays), "notes": .string(String(trip.notes.prefix(maxLineCharacters))),
-          "planLines": .array(planLineValues), "ruledOutLines": .array(ruledValues), "tasteLines": .array(tasteValues),
-          "consideringTitles": .array(considering), "shortlistedTitles": .array(shortlisted),
+          "lengthInDays": .integer(trip.lengthInDays), "notes": .string(String(trip.notes.prefix(maxNotesCharacters))),
+          "planLines": .array(plan.values), "ruledOutLines": .array(ruledOut.values), "tasteLines": .array(taste.values),
+          "consideringTitles": .array(considering.values), "shortlistedTitles": .array(shortlisted.values),
           "truncated": .bool(omitted > 0), "omittedCount": .integer(omitted)
         ]
         let result: [String: MCPValue] = ["generatedAt": .string(iso(snapshot.value.generatedAt)),
@@ -135,6 +130,34 @@ enum ChatAccessReadTools {
 
   private static func schema(_ properties: [String: MCPValue], required: [String]) -> MCPValue {
     .object(["type": .string("object"), "properties": .object(properties), "required": .array(required.map(MCPValue.string)), "additionalProperties": .bool(false)])
+  }
+  private static func boundedLines(_ lines: [String]) -> (values: [MCPValue], omitted: Int) {
+    let included = lines.prefix(maxLinesPerSection)
+    let values = included.map { MCPValue.string(String($0.prefix(maxLineCharacters))) }
+    let omitted = max(0, lines.count - maxLinesPerSection)
+      + included.filter { $0.count > maxLineCharacters }.count
+    return (values, omitted)
+  }
+  private static func orderedTrips(_ trips: [GalavantChatExport.Trip], today: String) -> [GalavantChatExport.Trip] {
+    trips.sorted { left, right in
+      func category(_ trip: GalavantChatExport.Trip) -> Int {
+        guard let date = trip.startDate else { return 1 }
+        return date >= today ? 0 : 2
+      }
+      let leftCategory = category(left)
+      let rightCategory = category(right)
+      if leftCategory != rightCategory { return leftCategory < rightCategory }
+      if let leftDate = left.startDate, let rightDate = right.startDate, leftDate != rightDate {
+        return leftCategory == 2 ? leftDate > rightDate : leftDate < rightDate
+      }
+      let nameOrder = left.name.localizedCaseInsensitiveCompare(right.name)
+      if nameOrder != .orderedSame { return nameOrder == .orderedAscending }
+      return left.id.uuidString < right.id.uuidString
+    }
+  }
+  private static func dateString(_ date: Date) -> String {
+    let components = Calendar.current.dateComponents([.year, .month, .day], from: date)
+    return String(format: "%04d-%02d-%02d", components.year!, components.month!, components.day!)
   }
   private static func tool(_ name: String, _ description: String, schema: MCPValue,
                            handler: @escaping @Sendable (MCPValue) async throws -> MCPToolResult) -> MCPTool {

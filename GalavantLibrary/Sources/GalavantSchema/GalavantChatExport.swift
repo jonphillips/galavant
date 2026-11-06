@@ -4,7 +4,7 @@ public struct GalavantChatExport: Codable, Equatable, Sendable {
   public struct Trip: Codable, Equatable, Sendable {
     public var id: UUID
     public var name: String
-    public var startDate: Date?
+    public var startDate: String?
     public var targetYear: Int?
     public var targetQuarter: Int?
     public var lengthInDays: Int
@@ -15,7 +15,7 @@ public struct GalavantChatExport: Codable, Equatable, Sendable {
     public var consideringTitles: [String]
     public var shortlistedTitles: [String]
 
-    public init(id: UUID, name: String, startDate: Date?, targetYear: Int? = nil, targetQuarter: Int? = nil,
+    public init(id: UUID, name: String, startDate: String?, targetYear: Int? = nil, targetQuarter: Int? = nil,
                 lengthInDays: Int, notes: String,
                 planLines: [String], ruledOutLines: [String], tasteLines: [String],
                 consideringTitles: [String], shortlistedTitles: [String]) {
@@ -85,7 +85,7 @@ public enum GalavantChatExportBuilder {
     trips: [Trip], entries: [TripIdea], ideas: [Idea], stays: [TripStay],
     dayRegions: [TripDayRegion], regions: [MapRegion], constraints: [CalendarTripConstraint],
     alternativeGroups: [TripAlternativeGroup], profiles: [TravelProfile], planners: [Planner],
-    generatedAt: Date, device: String, checkCancellation: () throws -> Void = {}
+    generatedAt: Date, device: String, calendar: Calendar = .current, checkCancellation: () throws -> Void = {}
   ) throws -> GalavantChatExport {
     let ideasByID = Dictionary(ideas.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     let regionsByID = Dictionary(regions.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
@@ -110,7 +110,7 @@ public enum GalavantChatExportBuilder {
       let partyID = trip.travelPartyID
       let taste = partyID.flatMap { tasteByParty[$0] } ?? []
       exportedTrips.append(GalavantChatExport.Trip(
-        id: trip.id, name: trip.name, startDate: trip.startDate, targetYear: trip.targetYear,
+        id: trip.id, name: trip.name, startDate: trip.startDate.map { dateString($0, calendar: calendar) }, targetYear: trip.targetYear,
         targetQuarter: trip.targetQuarter?.rawValue, lengthInDays: trip.lengthInDays,
         notes: trip.notes, planLines: RecommendationHandoffContract.stopSummary(plan: plan),
         ruledOutLines: RecommendationHandoffContract.ruledOutSummary(plan: plan), tasteLines: taste,
@@ -118,6 +118,27 @@ public enum GalavantChatExportBuilder {
         shortlistedTitles: plan.shortlist.map { $0.content.title }
       ))
     }
+    let today = dateString(generatedAt, calendar: calendar)
+    exportedTrips.sort { left, right in
+      func category(_ trip: GalavantChatExport.Trip) -> Int {
+        guard let date = trip.startDate else { return 1 }
+        return date >= today ? 0 : 2
+      }
+      let leftCategory = category(left)
+      let rightCategory = category(right)
+      if leftCategory != rightCategory { return leftCategory < rightCategory }
+      if let leftDate = left.startDate, let rightDate = right.startDate, leftDate != rightDate {
+        return leftCategory == 2 ? leftDate > rightDate : leftDate < rightDate
+      }
+      let nameOrder = left.name.localizedCaseInsensitiveCompare(right.name)
+      if nameOrder != .orderedSame { return nameOrder == .orderedAscending }
+      return left.id.uuidString < right.id.uuidString
+    }
     return GalavantChatExport(generatedAt: generatedAt, device: device, trips: exportedTrips)
+  }
+
+  private static func dateString(_ instant: Date, calendar: Calendar) -> String {
+    let date = CalendarCivilDate(instant, calendar: calendar)
+    return String(format: "%04d-%02d-%02d", date.year, date.month, date.day)
   }
 }
