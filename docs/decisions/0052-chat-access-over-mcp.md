@@ -168,6 +168,12 @@ all rules in one Core constant. It doesn't wait for the test.
   actor, and builds each trip's plan once, because `TripPlan` rebuilds on each access.
 - Once the export exists, `stage_trip_return` also rejects a trip ID the export doesn't contain, with a message that sends
   the model back to `list_trips`.
+- **Amended 2026-11-06, which returns that check applies to.** A return with a `GV-HANDOFF` token came from a brief, so it
+  skips the check: a brand-new trip's brief can't wait for the next export. A return with no token is rejected only when the
+  export was read successfully and lacks the trip. A missing, unreadable, timed-out, or newer-format export can't block
+  staging. The gap this leaves is small: a brief-started chat that drops its token and names a trip the export doesn't have
+  yet is rejected, and paste still works. Rejected: checking every return, which would turn away a new trip's brief whenever
+  the export is behind.
 
 ### D9 — What's shared and what's Galavant's
 
