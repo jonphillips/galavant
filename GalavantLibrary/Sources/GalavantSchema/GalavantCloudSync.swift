@@ -59,6 +59,11 @@ public enum GalavantCloudSync {
 
   public static var syncedTables: SyncedTables { syncTables.syncedTables }
 
+  /// The columns each synced table writes to CloudKit, captured from the same table pack
+  /// as `syncedTables` and the engine. `CloudKitSchemaCoverageTests` holds this against
+  /// `cloudkit-expected-fields.txt`, the list `testflight` checks against Production.
+  public static var syncedRecordSchemas: [SyncedRecordSchema] { syncTables.recordSchemas }
+
   public static var containerIdentifier: String { configuration.containerIdentifier }
 
   // MARK: Enablement gate (forwarded)
@@ -195,10 +200,41 @@ public enum GalavantCloudSync {
   }
 }
 
+/// The CloudKit fields one synced table's records carry, as SQLiteData writes them.
+public struct SyncedRecordSchema: Sendable, Equatable {
+  public struct Column: Sendable, Equatable {
+    public var name: String
+    /// A `Data` column syncs as a `CKAsset` under its name plus a `<name>_hash` field.
+    public var isAsset: Bool
+  }
+
+  public var recordType: String
+  public var columns: [Column]
+
+  /// Every field SQLiteData writes for this record type: the record-level modification
+  /// time, and per writable column its value field (an asset and its hash for `Data`)
+  /// and its `sqlitedata_icloud_userModificationTime_<column>` field. SQLiteData writes
+  /// the modification-time field even for a nil column, so the schema needs it from the
+  /// first record; the value field appears only once a non-nil value syncs.
+  public var cloudKitFields: [String] {
+    var fields = [Self.modificationTimeKey]
+    for column in columns {
+      fields.append(column.name)
+      if column.isAsset { fields.append("\(column.name)_hash") }
+      fields.append("\(Self.modificationTimeKey)_\(column.name)")
+    }
+    return fields
+  }
+
+  /// SQLiteData's `CKRecord.userModificationTimeKey`, which it doesn't export.
+  static let modificationTimeKey = "sqlitedata_icloud_userModificationTime"
+}
+
 /// Captures one heterogeneous table-type pack for both matching and engine creation,
 /// so the failure report cannot name a different table set from SQLiteData.
 private struct GalavantSyncTables: Sendable {
   let syncedTables: SyncedTables
+  let recordSchemas: [SyncedRecordSchema]
   private let engineFactory: @Sendable (any DatabaseWriter, Bool) throws -> SyncEngine
 
   init<each T: PrimaryKeyedTable & SendableMetatype>(
@@ -209,6 +245,9 @@ private struct GalavantSyncTables: Sendable {
           repeat (each T).TableColumns: SendableMetatype,
           repeat (each T).TableColumns.PrimaryColumn: WritableTableColumnExpression {
     syncedTables = SyncedTables(repeat each tables)
+    var recordSchemas: [SyncedRecordSchema] = []
+    for table in repeat each tables { recordSchemas.append(recordSchema(table)) }
+    self.recordSchemas = recordSchemas
     engineFactory = { database, startImmediately in
       try SyncEngine(
         for: database,
@@ -222,4 +261,20 @@ private struct GalavantSyncTables: Sendable {
   func makeSyncEngine(for database: any DatabaseWriter, startImmediately: Bool) throws -> SyncEngine {
     try engineFactory(database, startImmediately)
   }
+}
+
+/// Walks `writableColumns`, the same columns SQLiteData's `CKRecord.update(with:)` writes.
+private func recordSchema<T: PrimaryKeyedTable>(_ type: T.Type) -> SyncedRecordSchema {
+  var columns: [SyncedRecordSchema.Column] = []
+  for column in T.TableColumns.writableColumns {
+    func open<Root, Value>(_ column: some WritableTableColumnExpression<Root, Value>) {
+      // `Data` binds as `.blob`, which SQLiteData uploads as an asset plus a hash.
+      let output = Value.QueryOutput.self
+      let isAsset = output == Data.self || output == Data?.self
+        || output == [UInt8].self || output == [UInt8]?.self
+      columns.append(SyncedRecordSchema.Column(name: column.name, isAsset: isAsset))
+    }
+    open(column)
+  }
+  return SyncedRecordSchema(recordType: T.tableName, columns: columns)
 }
