@@ -135,6 +135,8 @@ struct IdeaDetailView: View {
         }
       }
 
+      TasteNoteReadOnlySection(ideaID: idea.id)
+
       if !tagNames.isEmpty {
         Section("Tags") {
           ForEach(tagNames, id: \.self) { name in

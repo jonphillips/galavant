@@ -1,7 +1,7 @@
 # ADR-0053: Galavant keeps the taste record, and a region guide is where it's read
 
 *Status: **proposed** — 2026-11-04, ratified by Jon merging this ADR's PR. First effort:
-[`taste-notes`](../efforts/taste-notes.md). Adapts Vinyl Fever's `docs/taste-intelligence.md` to a shared, iOS-only
+[`taste-notes`](../efforts/archive/taste-notes.md). Adapts Vinyl Fever's `docs/taste-intelligence.md` to a shared, iOS-only
 app. Builds on [ADR-0015](0015-source-evaluations-and-taste-profile.md) and
 [ADR-0048](0048-trip-seed-handoff.md), and reads and stages through
 [ADR-0052](0052-chat-access-over-mcp.md). Replaces [ADR-0018](0018-ai-pool-stocking-discovery.md) §3, which was never
@@ -162,7 +162,7 @@ lives in notes.
 
 ## Slices
 
-1. **S1 — Taste notes** ([`taste-notes`](../efforts/taste-notes.md)): the table, adding and browsing, the conversation import,
+1. **S1 — Taste notes** ([`taste-notes`](../efforts/archive/taste-notes.md)): the table, adding and browsing, the conversation import,
    and briefs and chat reading them.
 2. **S2 — Dossier:** tapping an idea reads before it edits, with accolades, images, and notes.
 3. **S3 — Region guide over kept Ideas:** cards, grouping, and default `doNotDo` filtering. A device review decides what

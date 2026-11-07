@@ -97,6 +97,7 @@
 		7C0852DE598E12CE4596E8B3 /* TodaySupportingViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC88DBCF4AB9A9D219BFDFAD /* TodaySupportingViews.swift */; };
 		7C7C4BB8F9D526D37F31BD66 /* TripPlanningView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08F3A8C38B6B2977E3D8153F /* TripPlanningView.swift */; };
 		7E07A0AB874D51E0DCAD3434 /* SequencePin.swift in Sources */ = {isa = PBXBuildFile; fileRef = E35BE6CD061373B731E38031 /* SequencePin.swift */; };
+		80C636C791DCA0FC1E702FA4 /* TasteNoteIdeaSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1DC8BDADBBA57757DBEB096 /* TasteNoteIdeaSection.swift */; };
 		80C7B282FFA2EE185ADA79ED /* SwiftUINavigation in Frameworks */ = {isa = PBXBuildFile; productRef = A0C2774E35241633FE89B7A7 /* SwiftUINavigation */; };
 		82FB0503EEB4041AC202479B /* GalavantChat in Frameworks */ = {isa = PBXBuildFile; productRef = 70E3AE87004F856771C63307 /* GalavantChat */; };
 		8522CC9B663EBC7844792507 /* StructuredHoursEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 891C5DF7F4A25741DE3421FD /* StructuredHoursEditor.swift */; };
@@ -148,6 +149,7 @@
 		C6651664BD80959BDC624431 /* IdeaPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B1DF18254B63AD4237897B /* IdeaPersistenceTests.swift */; };
 		C78DAFF388E693F308C398EF /* AISettingsSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 201134A6F0FAB081A677EB63 /* AISettingsSections.swift */; };
 		C7FC1AA264B96268F69FC474 /* ChatPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C01187279655F718B34FA9DC /* ChatPanelView.swift */; };
+		C9642EB2BEFD4094A5A866C7 /* TasteNotesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F14DE86E0751FC8520E558C /* TasteNotesView.swift */; };
 		CB26B0D5725B3BB39E4E1839 /* CalendarReconciliationRows.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AD2C1DE54AEA038F84042CC /* CalendarReconciliationRows.swift */; };
 		CBD322C7EF720E884780D9D9 /* RecommendationWorkspaceModel+Projection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCB153EAAD14C2A632110033 /* RecommendationWorkspaceModel+Projection.swift */; };
 		CC3F96678DFB64539736A6A7 /* CasePaths in Frameworks */ = {isa = PBXBuildFile; productRef = 26D83C2182F9FE47C3A1CA25 /* CasePaths */; };
@@ -189,6 +191,7 @@
 		FB833A8213FBA1E378DDC0D8 /* TripPlanningSenseOfNowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7EC4E4FC4F7E11352D4E74 /* TripPlanningSenseOfNowTests.swift */; };
 		FC020B16F76EF347447EA884 /* PlaceSelectionMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B9FE29B0BE3BE657414B717 /* PlaceSelectionMap.swift */; };
 		FC93F141F3BAB4EC6E09A89F /* CalendarReconciliationModel+Promotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = E16C0BEC67299FCDA71789C9 /* CalendarReconciliationModel+Promotion.swift */; };
+		FCB294C28A5F5ADA8E868412 /* TasteNotesModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C80CC4C639E6C2A55CBD5C24 /* TasteNotesModel.swift */; };
 		FD69CDFCC58AC4A0FC1967AB /* UnresolvedRecommendationSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 393E54C85A73901C2F4FED56 /* UnresolvedRecommendationSheet.swift */; };
 		FF6492EB056141CC9F75093F /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = C6C18315C28F69E95AB54F85 /* Dependencies */; };
 /* End PBXBuildFile section */
@@ -247,6 +250,7 @@
 		0CA9E000AA9AEEE1E3D68F79 /* GalavantUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = GalavantUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0E5E2C9449BAC2E031A8745F /* TripHeaderImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripHeaderImageView.swift; sourceTree = "<group>"; };
 		0EFBA67DB304DCD293D72575 /* PlaceIdeaSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceIdeaSheet.swift; sourceTree = "<group>"; };
+		0F14DE86E0751FC8520E558C /* TasteNotesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TasteNotesView.swift; sourceTree = "<group>"; };
 		0F4C9433A1748FF629E447E0 /* VisitedRollupModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisitedRollupModel.swift; sourceTree = "<group>"; };
 		0F84BC54D6D414EBFC202ED7 /* TripPlanningModel+Directions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripPlanningModel+Directions.swift"; sourceTree = "<group>"; };
 		14FCDCE6D1ECB6FD141CF7B9 /* TripPlanningModel+Sketch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripPlanningModel+Sketch.swift"; sourceTree = "<group>"; };
@@ -336,6 +340,7 @@
 		9D34C61AE3B675F5D6CCDDDD /* TagPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagPickerView.swift; sourceTree = "<group>"; };
 		9E4F11F80427DFD1A59F56B7 /* RecommendationCandidateStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationCandidateStrip.swift; sourceTree = "<group>"; };
 		9FEEBBB70BFDC82C3176AA53 /* GalavantTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = GalavantTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1DC8BDADBBA57757DBEB096 /* TasteNoteIdeaSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TasteNoteIdeaSection.swift; sourceTree = "<group>"; };
 		A20DAF6B7A5F203899F4C780 /* TripFormModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripFormModel.swift; sourceTree = "<group>"; };
 		A5F159E1049DE135201C5821 /* WeatherAttributionLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherAttributionLink.swift; sourceTree = "<group>"; };
 		A6A44988F7D404979433FB37 /* BookingEditorMappingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingEditorMappingTests.swift; sourceTree = "<group>"; };
@@ -357,6 +362,7 @@
 		C3C3B8F62248626E20BD1B05 /* CalendarReconciliationModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarReconciliationModel.swift; sourceTree = "<group>"; };
 		C552773D568B292127E75164 /* SettingsModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsModelTests.swift; sourceTree = "<group>"; };
 		C5AD27A1248EEA1D9B580277 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		C80CC4C639E6C2A55CBD5C24 /* TasteNotesModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TasteNotesModel.swift; sourceTree = "<group>"; };
 		C8BA5355102262E8FF3F053B /* CalendarExportModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarExportModel.swift; sourceTree = "<group>"; };
 		CB448B3F9BFD7482353055CE /* ChatHandoffNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatHandoffNote.swift; sourceTree = "<group>"; };
 		CC16D0C39AA361A09737B45F /* Galavant.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Galavant.entitlements; sourceTree = "<group>"; };
@@ -769,6 +775,8 @@
 				8DC1E6463D9CC2DF49548F37 /* SyncStatusSection.swift */,
 				DF3D577B677182E75CAA1901 /* TagManagementSettingsModel.swift */,
 				93F63A7444D58E2EFAF9E302 /* TagManagementSettingsView.swift */,
+				C80CC4C639E6C2A55CBD5C24 /* TasteNotesModel.swift */,
+				0F14DE86E0751FC8520E558C /* TasteNotesView.swift */,
 				7ADB3989E3E45A67BB33FB7F /* TravelProfileEditModel.swift */,
 				549199D3FB7222F5D893194E /* TravelProfileEditView.swift */,
 			);
@@ -794,6 +802,7 @@
 				E0587DE2E1AA61B9BD3D0073 /* RegionManagerView.swift */,
 				891C5DF7F4A25741DE3421FD /* StructuredHoursEditor.swift */,
 				9D34C61AE3B675F5D6CCDDDD /* TagPickerView.swift */,
+				A1DC8BDADBBA57757DBEB096 /* TasteNoteIdeaSection.swift */,
 				EC86C7931F1026669DFCE6AB /* TripBadgeView.swift */,
 			);
 			path = Ideas;
@@ -1116,6 +1125,9 @@
 				9A9C1FFE81DF05F6AF594B26 /* TagManagementSettingsModel.swift in Sources */,
 				5A6DB2E8F68189DE1B8F4510 /* TagManagementSettingsView.swift in Sources */,
 				AE8E879DAE606B08A60BC6D7 /* TagPickerView.swift in Sources */,
+				80C636C791DCA0FC1E702FA4 /* TasteNoteIdeaSection.swift in Sources */,
+				FCB294C28A5F5ADA8E868412 /* TasteNotesModel.swift in Sources */,
+				C9642EB2BEFD4094A5A866C7 /* TasteNotesView.swift in Sources */,
 				72EA08F83741EC06BE7CEF25 /* TodayCards.swift in Sources */,
 				366D19EF02AE32CB24718C39 /* TodayDayMapCard.swift in Sources */,
 				76E9D46A29DE8080E15D9DC8 /* TodayModel.swift in Sources */,

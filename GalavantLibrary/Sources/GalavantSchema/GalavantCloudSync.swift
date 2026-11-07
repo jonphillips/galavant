@@ -54,7 +54,7 @@ public enum GalavantCloudSync {
     CalendarPlanRepair.self, CalendarPlanRepairResolution.self, CalendarTripConstraint.self,
     CalendarIgnoredEvent.self, TripRegion.self, ImageAsset.self, RegionImage.self,
     TripStay.self, TripDocument.self, TripDayRegion.self, TripDayTimeZone.self,
-    TripDayNote.self, TripAlternativeGroup.self, IdeaEvaluation.self, TravelProfile.self
+    TripDayNote.self, TripAlternativeGroup.self, IdeaEvaluation.self, TravelProfile.self, TasteNote.self
   )
 
   public static var syncedTables: SyncedTables { syncTables.syncedTables }

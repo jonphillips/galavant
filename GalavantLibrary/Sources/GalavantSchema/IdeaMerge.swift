@@ -82,6 +82,10 @@ extension Idea {
       try? Idea.where { $0.mapItemIdentifier.eq(identifier) }.fetchOne(db)
     }
     if let existing {
+      if let losingID = capture.id, losingID != existing.id {
+        try TasteNote.repoint(
+          from: losingID, to: existing.id, travelPartyID: existing.travelPartyID ?? travelPartyID, in: db)
+      }
       let merged = existing.supplemented(
         name: capture.name,
         description: capture.description,

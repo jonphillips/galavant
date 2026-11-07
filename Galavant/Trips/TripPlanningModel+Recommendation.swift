@@ -140,7 +140,9 @@ extension TripPlanningModel {
     return (try? database.read { db in
       let profiles = try TravelProfile.where { $0.travelPartyID.eq(partyID) }.fetchAll(db)
       let planners = try Planner.where { $0.travelPartyID.eq(partyID) }.fetchAll(db)
-      return TravelProfile.promptLinesByParty([partyID], profiles: profiles, planners: planners)[partyID] ?? []
+      let profileLines = TravelProfile.promptLinesByParty([partyID], profiles: profiles, planners: planners)[partyID] ?? []
+      let notes = try TasteNote.where { $0.travelPartyID.eq(partyID) }.fetchAll(db)
+      return profileLines + TasteNote.promptLines(notes: notes, planners: planners)
     }) ?? []
   }
 

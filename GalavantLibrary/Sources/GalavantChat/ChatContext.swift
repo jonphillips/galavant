@@ -53,17 +53,23 @@ public struct ResolvedIdeaContext: Sendable, Equatable {
   public var evaluations: [IdeaEvaluation]
   public var interests: [PlannerInterest]
   public var tags: [String]
+  public var tasteNotes: [TasteNote]
+  public var tasteNotePlanners: [Planner]
 
   public init(
     idea: Idea,
     evaluations: [IdeaEvaluation] = [],
     interests: [PlannerInterest] = [],
-    tags: [String] = []
+    tags: [String] = [],
+    tasteNotes: [TasteNote] = [],
+    tasteNotePlanners: [Planner] = []
   ) {
     self.idea = idea
     self.evaluations = evaluations
     self.interests = interests
     self.tags = tags
+    self.tasteNotes = tasteNotes
+    self.tasteNotePlanners = tasteNotePlanners
   }
 
   func serialized() -> String {
@@ -90,6 +96,11 @@ public struct ResolvedIdeaContext: Sendable, Equatable {
       lines.append("- Interest — \(parts.joined(separator: ", "))")
     }
     if !tags.isEmpty { lines.append("- Tags: \(tags.joined(separator: ", "))") }
+    let noteLines = TasteNote.promptLines(notes: tasteNotes, planners: tasteNotePlanners)
+    if !noteLines.isEmpty {
+      lines.append("Taste notes:")
+      lines.append(contentsOf: noteLines)
+    }
     return lines.joined(separator: "\n")
   }
 }
