@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-07 — Plan snapshot (`effort/plan-snapshot`)
+
+- **Result:** Stored plan snapshots and one-pass itinerary facts remove repeated per-row plan work.
+- **Verification:** scripts/check-drift.sh passed; 659 package tests passed; app-target tests were not run because the compile-only constraint prohibits simulator use.
+- **Owed:** This slice's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-07 — Itinerary scroll freeze (`fix/itinerary-scroll-freeze`)
 
 - **Result:** Unplanned fix on branch fix/itinerary-scroll-freeze. Removed `.onScrollGeometryChange` and the hero collapse, which froze the iPad itinerary on Eastern France and Bavaria/Dolemites. The hero is now each list's first section and scrolls away with it. Add Ideas moved below the segmented control. `NEXT_UP.md` is unchanged. Why the modifier freezes this list is still unknown, and so is why the freeze seemed to start only recently; see `KNOWN-ISSUES.md`.

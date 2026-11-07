@@ -224,8 +224,8 @@ struct TripItineraryView: View {
         StopRow(
           model: model,
           resolved: stop,
-          booking: bookingByRow[.stop(stop.id)],
           facts: list.facts(forStop: stop.id),
+          booking: bookingByRow[.stop(stop.id)],
           sequence: sequence,
           includesLifecycleSwipeActions: false,
           onRemove: requestStopRemoval)
@@ -259,8 +259,8 @@ struct TripItineraryView: View {
             StopRow(
               model: model,
               resolved: resolved,
-              booking: bookingByRow[.stop(resolved.id)],
               facts: list.facts(forStop: resolved.id),
+              booking: bookingByRow[.stop(resolved.id)],
               onRemove: requestStopRemoval)
           }
         } header: {
@@ -332,8 +332,8 @@ struct TripItineraryView: View {
       StopRow(
         model: model,
         resolved: resolved,
-        booking: bookingByRow[.stop(resolved.id)],
         facts: list.facts(forStop: resolved.id),
+        booking: bookingByRow[.stop(resolved.id)],
         sequence: sequence,
         onRemove: requestStopRemoval)
     case .calendarConstraint(let constraint):
