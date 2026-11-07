@@ -51,8 +51,9 @@ library on Jon's devices is real data now, so:
 
 - **Schema deploys are permanent and additive.** Record types and fields can be added to Production,
   never removed. A slice that adds a synced table or column, or is the first to write one, says so in
-  its brief. Its NEXT_UP **Owed** line names the deploy: push the field from a development build, then
-  deploy the schema, before the TestFlight build.
+  its brief. Its NEXT_UP **Owed** line names the deploy: import the field with `cktool` (jon-platform
+  `docs/ios/persistence-and-sync.md` § Adding a synced table or column), then deploy the schema, before
+  the TestFlight build.
 - **Registered migrations are frozen.** Never edit, reorder or remove a `registerMigration` body that
   has shipped. Append a new one.
 - **Restore is for recovery.** Once the travel party is shared, a restore is a two-person event
