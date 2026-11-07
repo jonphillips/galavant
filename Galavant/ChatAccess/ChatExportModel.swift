@@ -53,7 +53,18 @@ private struct ChatExportRows: Sendable {
   var constraints: [CalendarTripConstraint]
   var alternativeGroups: [TripAlternativeGroup]
   var profiles: [TravelProfile]
+  var tasteNotes: [TasteNote]
   var planners: [Planner]
+
+  static func fetch(in db: Database) throws -> Self {
+    Self(
+      trips: try Trip.all.fetchAll(db), entries: try TripIdea.all.fetchAll(db), ideas: try Idea.all.fetchAll(db),
+      stays: try TripStay.all.fetchAll(db), dayRegions: try TripDayRegion.all.fetchAll(db), regions: try MapRegion.all.fetchAll(db),
+      constraints: try CalendarTripConstraint.all.fetchAll(db), alternativeGroups: try TripAlternativeGroup.all.fetchAll(db),
+      profiles: try TravelProfile.all.fetchAll(db), tasteNotes: try TasteNote.all.fetchAll(db),
+      planners: try Planner.all.fetchAll(db)
+    )
+  }
 }
 
 @MainActor
@@ -118,13 +129,7 @@ final class ChatExportModel: NSObject {
         try Task.checkCancellation()
         let folder = try await folderClient.resolveFolder()
         try Task.checkCancellation()
-        let rows = try await database.read { db in
-          ChatExportRows(
-            trips: try Trip.all.fetchAll(db), entries: try TripIdea.all.fetchAll(db), ideas: try Idea.all.fetchAll(db),
-            stays: try TripStay.all.fetchAll(db), dayRegions: try TripDayRegion.all.fetchAll(db), regions: try MapRegion.all.fetchAll(db),
-            constraints: try CalendarTripConstraint.all.fetchAll(db), alternativeGroups: try TripAlternativeGroup.all.fetchAll(db),
-            profiles: try TravelProfile.all.fetchAll(db), planners: try Planner.all.fetchAll(db))
-        }
+        let rows = try await database.read { db in try ChatExportRows.fetch(in: db) }
         try Task.checkCancellation()
         let timestamp = now
         let idiom = deviceClient.idiom()
@@ -135,6 +140,7 @@ final class ChatExportModel: NSObject {
             trips: rows.trips, entries: rows.entries, ideas: rows.ideas, stays: rows.stays,
             dayRegions: rows.dayRegions, regions: rows.regions, constraints: rows.constraints,
             alternativeGroups: rows.alternativeGroups, profiles: rows.profiles, planners: rows.planners,
+            tasteNotes: rows.tasteNotes,
             generatedAt: timestamp, device: device, calendar: calendar,
             checkCancellation: { try Task.checkCancellation() })
           try Task.checkCancellation()

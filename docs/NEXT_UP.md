@@ -1,6 +1,5 @@
-# Next Up — Taste notes: keep what we learn about places, in our own words
+# Next Up — nothing dispatched
 
-**Slices:** effort `taste-notes`
-**Briefs:** [docs/efforts/taste-notes.md](efforts/taste-notes.md)
-**Done when:** per the brief
+Nothing dispatched.
+
 **Owed:** see [device-passes.md](device-passes.md)

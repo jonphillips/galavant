@@ -138,6 +138,9 @@ extension Planner {
   public static func deletePlanner(id: Planner.ID, in db: Database) throws {
     try IdeaInterest.where { $0.plannerID.eq(id) }.delete().execute(db)
     try TravelProfile.where { $0.plannerID.eq(id) }.delete().execute(db)
+    try TasteNote.where { $0.plannerID.eq(id) }
+      .update { $0.plannerID = #bind(nil as Planner.ID?) }
+      .execute(db)
     try Planner.where { $0.id.eq(id) }.delete().execute(db)
   }
 

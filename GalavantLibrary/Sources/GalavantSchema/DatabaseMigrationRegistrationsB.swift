@@ -442,5 +442,6 @@ enum GalavantDatabaseMigrationRegistrationsB {
       try #sql(#"ALTER TABLE "trips" ADD COLUMN "visitedRolledUpAt" TEXT"#).execute(db)
     }
   }
+
 }
 // swiftlint:enable function_body_length

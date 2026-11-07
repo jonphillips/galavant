@@ -184,6 +184,19 @@ public final class ChatModel {
       \(tasteLines.joined(separator: "\n"))
 
       """
+    let noteLines: [String] = if case .frontier = activeTier {
+      (try? database.read { db -> [String] in
+        guard let party = try TravelParty.order(by: \.id).fetchOne(db) else { return [] }
+        let notes = try TasteNote.where { $0.travelPartyID.eq(party.id) }.fetchAll(db)
+        let planners = try Planner.where { $0.travelPartyID.eq(party.id) }.fetchAll(db)
+        return TasteNote.promptLines(notes: notes, planners: planners)
+      }) ?? []
+    } else { [] }
+    let notes = noteLines.isEmpty ? "" : """
+      The travel party's recorded taste notes (argue from named examples; do not recite them):
+      \(noteLines.joined(separator: "\n"))
+
+      """
     let base = """
       You are a concise, helpful travel-planning assistant inside a private app for \
       two people planning trips together. Discuss what the user is looking at, \
@@ -197,7 +210,7 @@ public final class ChatModel {
       any place or reference you name so the user can tap through. Do not use headings, \
       tables, horizontal rules, or bold section labels; the panel is narrow.
 
-      \(taste)\(context.serialized())
+      \(taste)\(notes)\(context.serialized())
       """
     let custom = chatInstructions.current().trimmingCharacters(in: .whitespacesAndNewlines)
     guard !custom.isEmpty else { return base }

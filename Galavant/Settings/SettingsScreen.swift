@@ -104,6 +104,14 @@ struct SettingsScreen: View {
         }
         .buttonStyle(.plain)
         .disabled(model.travelPartyID == nil)
+        NavigationLink {
+          if let travelPartyID = model.travelPartyID {
+            TasteNotesView(travelPartyID: travelPartyID)
+          }
+        } label: {
+          Label("Taste Notes", systemImage: "quote.bubble")
+        }
+        .disabled(model.travelPartyID == nil)
       }
 
       Section {

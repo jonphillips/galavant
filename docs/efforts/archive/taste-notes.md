@@ -1,6 +1,6 @@
 # Effort — Taste notes: keep what we learn about places, in our own words
 
-**Status:** Ready · **Summary:** Slice 1 of [ADR-0053](../decisions/0053-taste-record-and-region-guide.md). A synced table of
+**Status:** Ready · **Summary:** Slice 1 of [ADR-0053](../../decisions/0053-taste-record-and-region-guide.md). A synced table of
 dated notes in Jon's and Wendy's own words, about a saved place, an unsaved place, or nothing in particular, for restaurants,
 hotels, and everything else. People can add and browse them, import them from past chat conversations through a row-by-row
 review, and briefs and in-app chat read them. **Adds one synced table: a permanent CloudKit schema change.** No change to the

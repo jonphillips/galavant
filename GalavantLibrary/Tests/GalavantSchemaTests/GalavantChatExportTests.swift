@@ -45,6 +45,21 @@ struct GalavantChatExportTests {
     }
   }
 
+  @Test func exportedTripTasteLinesIncludeNotesFromTheSameRenderer() throws {
+    let partyID = UUID()
+    let planner = Planner(id: UUID(), displayName: "Jon", travelPartyID: partyID)
+    let trip = Trip(id: UUID(), name: "Copenhagen", lengthInDays: 3, travelPartyID: partyID)
+    let note = TasteNote(id: UUID(), travelPartyID: partyID, plannerID: planner.id,
+      placeName: "Fictional Cafe", body: "Invented note text.", notedAt: Date(timeIntervalSince1970: 1_700_000_000))
+    let expected = TasteNote.promptLines(notes: [note], planners: [planner])
+    let export = try GalavantChatExportBuilder.build(
+      trips: [trip], entries: [], ideas: [], stays: [], dayRegions: [], regions: [], constraints: [],
+      alternativeGroups: [], profiles: [], planners: [planner], tasteNotes: [note],
+      generatedAt: Date(timeIntervalSince1970: 0), device: "iPhone"
+    )
+    #expect(export.trips.first?.tasteLines == expected)
+  }
+
   @Test func startDateExportsTheDeviceCalendarDayInsteadOfTheStoredInstant() throws {
     let formatter = ISO8601DateFormatter()
     let storedDate = try #require(formatter.date(from: "2027-03-11T02:30:00Z"))
