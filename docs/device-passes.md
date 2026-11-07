@@ -47,9 +47,8 @@ gate enforces this: it refuses to archive unless Development and Production matc
   open, and check that every trailing toolbar item is there, including the AI menu. AI →
   Paste with an empty clipboard shows a warning, not nothing. Day 1 and day 6 pins and routes are
   clearly different colors on the map in light and dark mode. List sequence badges are neutral and
-  readable. Scroll the itinerary: the hero image and its photo credit collapse together and come back
-  at the top. This replaces the brief's simulator-screenshot criteria, which were struck in the PR 189
-  review.
+  readable. This replaces the brief's simulator-screenshot criteria, which were struck in the PR 189
+  review. (The hero no longer collapses: see **Itinerary scroll freeze** below.)
 - **Stay-grouped day lens (iPad):** on the Eastern France trip, check the one-strip layout and
   stay/day grouping; repeat on a trip with an unstayed arrival day. Confirm stay and day selection
   filter the canvas as expected and VoiceOver announces the full stay and date labels.
@@ -61,6 +60,7 @@ gate enforces this: it refuses to archive unless Development and Production matc
 - **Chat access seeds (`chat-access` S3).** Reinstall the helper and refresh the connector. Paste the Hand off → Summarize Conversation brief into a planning chat and have it stage the seed. Tap the row in Evaluate and confirm the trip opens with seed review on iPad and iPhone. On iPhone, try with no trip open and with that trip already open. Dismiss the review and confirm the row stays. Tap again and import, then confirm the row goes. Repeat in a general chat that only mentioned some places and had no stays. Paste the same brief partway through, have it stage, then confirm the row arrives and commits. Tell the architect if ChatGPT had to resend or asked you to confirm twice so we can track when models drop the `GV-SEED` line. Verify a places-only seed without `GV-SEED` still opens through Paste. ([brief](efforts/archive/chat-access.md))
 - **chat-access S4:** Reinstall the Galavant MCP helper; restart the tunnel and refresh the connector. Refresh updates export time and size. More backgrounding within 15 minutes writes nothing; background the app after 15 minutes and confirm the export time moves. Create a brand-new trip, then use Hand off and confirm its brief stages immediately. From a chat with a made-up trip UUID and no GV-HANDOFF token, confirm staging is rejected and the model is directed to list_trips. In a new ChatGPT chat with no brief, ask about a trip: it lists trips, reads one, reports the export's age and the right start date, and doesn't suggest places already ruled out. Stage options from that chat, and the row arrives in Evaluate. ([brief](efforts/archive/chat-access.md))
 - **taste-notes:** Before TestFlight, push tasteNotes from a Development build and deploy the schema to Production. Then verify note create/edit/delete, deletion survival, conversation import review and duplicate detection, Wendy-device sync, and taste-note context in trip briefs, frontier chat, and get_trip on iPhone and iPad. ([brief](efforts/archive/taste-notes.md))
+- **Itinerary scroll freeze (`itinerary-scroll-freeze`).** The hero and Add Ideas layout passed on the iPad's Eastern France trip on 2026-11-07. Still owed on the iPad: Bavaria/Dolemites scrolls too; tap a day chip, then a stay label: no freeze, and the list lands on the stay's first day; the Unsplash credit links still open. On the iPhone: the itinerary and day lens still scroll, with no hero. That pass was on a Dev build before the final cleanup, so run these on the TestFlight build.
 
 ## Held
 

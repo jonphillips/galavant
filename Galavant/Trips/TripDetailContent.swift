@@ -2,13 +2,6 @@ import GalavantSchema
 import SwiftUI
 import SwiftUINavigation
 
-enum TripHeaderCollapse {
-  static func next(collapsed: Bool, offset: CGFloat) -> Bool {
-    // Keep the existing 40 pt collapse point; re-expand only at the top.
-    collapsed ? offset > 0 : offset > 40
-  }
-}
-
 private struct TripTimeZoneTaskID: Equatable {
   let tripID: Trip.ID
   let startDate: Date?
@@ -34,7 +27,6 @@ struct TripDetailContent: View {
   let bookingByRow: [TripBookingRow: ResolvedBooking]
   let usesColumn: Bool
   @Binding var showingChat: Bool
-  @State private var headerCollapsed = false
   @State private var tripTimeZone: TimeZone?
 
   private var tripTimeZoneTaskID: TripTimeZoneTaskID {
@@ -68,9 +60,6 @@ struct TripDetailContent: View {
           }
           .chatPanel(isPresented: $showingChat, context: .trip(model.plan))
       }
-    }
-    .onChange(of: model.sheetTab) { _, tab in
-      if tab == .ideas { headerCollapsed = false }
     }
     .task(id: tripTimeZoneTaskID) {
       guard let trip = model.trip else {
@@ -153,71 +142,63 @@ struct TripDetailContent: View {
 
   private var listPanel: some View {
     @Bindable var model = model
-    return VStack(spacing: 0) {
-      // The hero is outside the list inset, so hiding it never changes the
-      // content inset used by the scroll measurement.
-      if usesColumn, let header = model.trip?.headerImage, !headerCollapsed {
-        TripHeaderImageView(image: header)
-          .transition(.move(edge: .top).combined(with: .opacity))
+    // The hero is each list's first section, so it scrolls away with the content.
+    let heroImage = usesColumn ? model.trip?.headerImage : nil
+    return Group {
+      switch model.sheetTab {
+      case .itinerary:
+        TripItineraryView(
+          model: model,
+          reconciliationModel: reconciliationModel,
+          bookingByRow: bookingByRow,
+          focusedDay: model.canvasSelectedDay,
+          tripTimeZone: tripTimeZone,
+          heroImage: heroImage
+        )
+      case .ideas:
+        TripIdeasView(
+          model: model, showsInlineAdd: !usesColumn, usesColumn: usesColumn, heroImage: heroImage)
       }
-      Group {
-        switch model.sheetTab {
-        case .itinerary:
-          TripItineraryView(
-            model: model,
-            reconciliationModel: reconciliationModel,
-            bookingByRow: bookingByRow,
-            focusedDay: model.canvasSelectedDay,
-            tripTimeZone: tripTimeZone,
-            onScrollOffsetChanged: { offset in
-              let next = TripHeaderCollapse.next(collapsed: headerCollapsed, offset: offset)
-              if next != headerCollapsed { headerCollapsed = next }
+    }
+    .safeAreaInset(edge: .top, spacing: 0) {
+      VStack(spacing: 0) {
+        // Keep the switcher and time-zone line pinned while the list scrolls.
+        HStack(spacing: 8) {
+          Picker("View", selection: $model.sheetTab) {
+            ForEach(TripPlanningModel.SheetTab.allCases) { tab in
+              Text(tab.label).tag(tab)
             }
-          )
-        case .ideas:
-          TripIdeasView(model: model, showsInlineAdd: !usesColumn, usesColumn: usesColumn)
-        }
-      }
-      .safeAreaInset(edge: .top, spacing: 0) {
-        VStack(spacing: 0) {
-          // The Itinerary adds from each day's "+"; only Ideas has a tab-wide add.
-          if usesColumn, model.sheetTab == .ideas {
-            HStack {
-              Spacer()
-              TripAddButton(model: model)
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
-            .background(.bar)
           }
-          // Keep the switcher and time-zone line pinned while the list scrolls.
-          HStack(spacing: 8) {
-            Picker("View", selection: $model.sheetTab) {
-              ForEach(TripPlanningModel.SheetTab.allCases) { tab in
-                Text(tab.label).tag(tab)
-              }
-            }
-            .pickerStyle(.segmented)
+          .pickerStyle(.segmented)
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .background(Color(.systemGroupedBackground))
+        // The Itinerary adds from each day's "+"; only Ideas has a tab-wide add.
+        // It sits below the switcher so the switcher stays put between tabs.
+        if usesColumn, model.sheetTab == .ideas {
+          HStack {
+            Spacer()
+            TripAddButton(model: model)
           }
           .padding(.horizontal)
-          .padding(.vertical, 8)
+          .padding(.bottom, 8)
           .background(Color(.systemGroupedBackground))
-          if model.sheetTab == .itinerary,
-            model.trip?.certainty.stage == .dated,
-            let tripTimeZone
-          {
-            let zone = tripTimeZone
-            Text("Times in \(zone.abbreviation(for: model.trip?.startDate ?? .now) ?? zone.identifier)")
-              .font(.caption)
-              .foregroundStyle(.secondary)
-              .frame(maxWidth: .infinity)
-              .padding(.bottom, 6)
-              .background(Color(.systemGroupedBackground))
-          }
+        }
+        if model.sheetTab == .itinerary,
+          model.trip?.certainty.stage == .dated,
+          let tripTimeZone
+        {
+          let zone = tripTimeZone
+          Text("Times in \(zone.abbreviation(for: model.trip?.startDate ?? .now) ?? zone.identifier)")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, 6)
+            .background(Color(.systemGroupedBackground))
         }
       }
     }
-    .animation(.easeOut(duration: 0.2), value: headerCollapsed)
   }
 }
 
