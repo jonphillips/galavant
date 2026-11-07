@@ -4,6 +4,29 @@ Issues observed during the Xcode 27 beta cycle. Re-verify each against the Xcode
 27.0 release build before keeping a workaround; delete an entry when it's fixed
 upstream or we work around it.
 
+## `.onScrollGeometryChange` freezes the trip itinerary — STANDING RULE
+
+**Observed:** 2026-11-06 and 2026-11-07, iPad, on Eastern France and Bavaria/Dolemites, in Debug and
+TestFlight builds. The other three trips scrolled, and so did Eastern France on the iPhone.
+
+**Symptom:** The itinerary locks up or barely moves as soon as it's scrolled. The main thread stays
+busy rendering rows.
+
+**Evidence:** TestFlight 0.2.0-487 scrolls and 0.2.0-491 freezes; #189, which added the tracking,
+landed between them. Removing the modifier fixed it. Restoring it froze the list again, even with
+a callback that fired only on threshold crossings, no closure passed to the list, and collapse state
+that only the hero read.
+
+**Cause:** Not fully understood. We don't know why the modifier alone does this. The rendering cost
+it multiplies is known: `model.plan` rebuilds per access, several times per row, so stop-heavy trips
+suffer most.
+
+**Rule:** Don't put `.onScrollGeometryChange` on the itinerary `List`. The hero is that list's first
+section, so it scrolls away without any tracking. Re-test on a stop-heavy trip, on a device, before
+adding scroll observation to this list.
+
+**Files:** `TripItineraryView.swift`, `TripHeaderImageView.swift`, `TripDetailContent.swift`.
+
 ## Trip sheets must be presented from `TripDetailContent` — STANDING RULE
 
 **Observed:** 2026-10-06, iPhone.

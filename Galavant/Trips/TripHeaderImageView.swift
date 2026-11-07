@@ -1,6 +1,24 @@
 import GalavantSchema
 import SwiftUI
 
+/// The hero at the top of a list: it scrolls away with the content, with no scroll
+/// tracking or collapse state. (`.onScrollGeometryChange` froze the itinerary list on
+/// stop-heavy trips.) A section header rather than a row, because a row's card clips
+/// it to rounded corners inside the list's margins.
+struct TripHeroSection: View {
+  let image: TripHeaderImage
+
+  var body: some View {
+    Section {
+      EmptyView()
+    } header: {
+      TripHeaderImageView(image: image)
+        .textCase(nil)
+        .listRowInsets(EdgeInsets())
+    }
+  }
+}
+
 /// The trip's "romance" header (ADR-0032): a hotlinked Unsplash photo shown as a
 /// hero band at the top of the detail panel so a trip *feels like its place*. Renders
 /// from the CDN via `AsyncImage`, falling back to the stored placeholder color while
