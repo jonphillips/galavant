@@ -17,8 +17,10 @@ share (she joined 2026-10-18, per the share sheet). What's left of Phase 6 is th
 as Galavant Dev, on CloudKit Development.
 
 **Standing rule (schema deploy before TestFlight):** a build that adds a synced table or column, or first writes one,
-goes out only after a development build has pushed it and the schema is deployed to Production. `testflight`'s schema
-gate enforces this: it refuses to archive unless Development and Production match.
+goes out only after it's imported to Development with `cktool` and the schema is deployed to Production (jon-platform
+`docs/ios/persistence-and-sync.md` § Adding a synced table or column). A development build isn't enough: it creates only
+the fields its rows fill. `testflight`'s schema gate refuses to archive unless Development and Production match, but it
+passes when both lack a field.
 
 ## Owed now
 
@@ -66,7 +68,7 @@ gate enforces this: it refuses to archive unless Development and Production matc
 `taste-notes` is still ahead. Its gate is written ahead of the work, so it moves to **Owed now** when
 its PR lands.
 
-- **Schema deploy: `trips.visitedRolledUpAt` (held ops).** A development build with sync on pushes it once a past trip rolls up, then deploy the schema before the next TestFlight build. TestFlight builds 0.2.0-486 through -494 carry the column, so this may be done. Confirm it in the console, then remove this line.
+- **Schema deploy: `trips.visitedRolledUpAt`, `calendarPlanRepairs.resolvedAt`, `ideaEvaluations.lastVerifiedAt` (held ops).** None of these was in either CloudKit environment, and on 2026-11-07 a trip title edit on TestFlight didn't reach the other device. They were imported with `cktool` and deployed to Production that day, alongside `tasteNotes`, and a new edit then synced. Builds carrying the column (TestFlight 0.2.0-486 onward) may have blocked earlier `Trip` saves too. From reading the code, those edits sync only when that record next changes, so compare trips on every device, including Wendy's phone, and re-save any that differ from the device with the right version. Then remove this line.
 - **Taste notes (`taste-notes`).** After the schema deploy, on iPhone and iPad: add a note about a saved restaurant, a note about a hotel you never saved (typed name), and a general note with no place. All three appear in Settings → Taste Notes, and the first also appears on that idea. Delete that idea: the note stays and still names the place. Wendy's phone shows all three once they sync, and she can add her own. Copy a Get Recommendations brief: it carries the notes.
 - **Taste notes import (`taste-notes`).** Settings → Taste Notes → Import from Conversation → Copy Prompt, and run it in a real ChatGPT conversation about a restaurant or hotel. Paste the reply: nothing starts selected, summaries are labeled as ChatGPT's, and a place you've saved links to its idea. Keep some, edit one, and paste again: the kept ones read Already saved. Paste malformed text: you get a visible error, and nothing changes. Judge whether the proposed notes are actually worth keeping; that's what this gate is for.
 
