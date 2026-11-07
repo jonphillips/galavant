@@ -3,6 +3,11 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-07 — CloudKit expected-fields list covers every synced column (`claude/cloudkit-expected-fields-test`)
+
+- **Result:** cloudkit-expected-fields.txt now lists all 434 CloudKit fields of the 26 synced tables, and CloudKitSchemaCoverageTests fails when a synced column's value or modification-time field is missing from it, so testflight's Production check covers what the code syncs.
+- **Verification:** scripts/check-drift.sh (swiftlint, GalavantLibrary and GalavantMCP tests, UI-test build; UI tests compiled, not run). Removing trips visitedRolledUpAt from the list fails the new test. The list passes testflight's expected-fields check against a read-only Production export of 2026-11-07.
+
 ## 2026-11-07 — Itinerary scroll freeze (`fix/itinerary-scroll-freeze`)
 
 - **Result:** Unplanned fix on branch fix/itinerary-scroll-freeze. Removed `.onScrollGeometryChange` and the hero collapse, which froze the iPad itinerary on Eastern France and Bavaria/Dolemites. The hero is now each list's first section and scrolls away with it. Add Ideas moved below the segmented control. `NEXT_UP.md` is unchanged. Why the modifier freezes this list is still unknown, and so is why the freeze seemed to start only recently; see `KNOWN-ISSUES.md`.
