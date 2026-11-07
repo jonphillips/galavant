@@ -17,6 +17,8 @@ struct TripIdeasView: View {
   var showsInlineAdd = false
   /// Regular-width iPad uses the photo-forward scheduled-row treatment.
   var usesColumn = false
+  /// Shown as the list's first row on the planning column; nil on compact layouts.
+  var heroImage: TripHeaderImage?
 
   var body: some View {
     @Bindable var model = model
@@ -31,6 +33,9 @@ struct TripIdeasView: View {
     let toBeScheduled = inMapArea(plan.toBeScheduled, box: areaBox)
     let placedScheduled = inMapArea(allPlaced, box: areaBox)
     List {
+      if let heroImage {
+        TripHeroSection(image: heroImage)
+      }
       if showsInlineAdd {
         Section {
           TripAddButton(model: model)

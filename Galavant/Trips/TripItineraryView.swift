@@ -14,7 +14,8 @@ struct TripItineraryView: View {
   /// whole trip.
   var focusedDay: Int?
   var tripTimeZone: TimeZone?
-  var onScrollOffsetChanged: ((CGFloat) -> Void)?
+  /// Shown as the list's first row on the planning column; nil on compact layouts.
+  var heroImage: TripHeaderImage?
   @State private var selectedCalendarConstraint: CalendarTripConstraint?
   @State private var pendingStopRemoval: PendingStopRemoval?
   /// The first placement on the live day should *already be there* rather than
@@ -41,11 +42,6 @@ struct TripItineraryView: View {
   var body: some View {
     ScrollViewReader { proxy in
       content
-        .onScrollGeometryChange(for: CGFloat.self) { geometry in
-          geometry.contentOffset.y + geometry.contentInsets.top
-        } action: { _, offset in
-          onScrollOffsetChanged?(offset)
-        }
         // Selecting a stop on the map scrolls the matching row into view (the
         // map→list half of the shared selection; list→map is the tap below).
         .onChange(of: model.canvasSelectedStopID) { _, id in
@@ -102,6 +98,9 @@ struct TripItineraryView: View {
     let sequence = plan.locatedSequenceNumbers(forDay: day)
     let cells = focusedDayCells(stops: stops, items: items)
     return List {
+      if let heroImage {
+        TripHeroSection(image: heroImage)
+      }
       Section {
         if items.isEmpty {
           Text("No stops on this day yet")
@@ -247,6 +246,9 @@ struct TripItineraryView: View {
   /// See KNOWN-ISSUES.)
   private var fullItinerary: some View {
     List {
+      if let heroImage {
+        TripHeroSection(image: heroImage)
+      }
       // Build the plan and the leg-mode map once for the whole list — both are
       // computed properties; reading them per day rebuilt the plan's leg-graph
       // O(days) times per layout pass and locked up large trips.
