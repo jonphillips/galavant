@@ -7,12 +7,13 @@ struct StopMenu: View {
   let model: TripPlanningModel
   let stop: ResolvedStop
   let booking: ResolvedBooking?
+  let facts: ItineraryStopFacts
 
   private var schedule: Schedule { stop.entry.schedule }
 
   var body: some View {
     Menu {
-      StopMenuActions(model: model, stop: stop, booking: booking)
+      StopMenuActions(model: model, stop: stop, booking: booking, facts: facts)
     } label: {
       timeLabel
     }
@@ -39,6 +40,7 @@ struct StopMenuActions: View {
   let model: TripPlanningModel
   let stop: ResolvedStop
   let booking: ResolvedBooking?
+  let facts: ItineraryStopFacts
 
   private var schedule: Schedule { stop.entry.schedule }
   private var isTimed: Bool {
@@ -93,11 +95,11 @@ struct StopMenuActions: View {
         Button("Move Earlier in Day", systemImage: Icon.moveEarlier.systemName) {
           model.moveStopEarlier(stop)
         }
-        .disabled(!model.canMoveStopEarlier(stop))
+        .disabled(!facts.canMoveEarlier)
         Button("Move Later in Day", systemImage: Icon.moveLater.systemName) {
           model.moveStopLater(stop)
         }
-        .disabled(!model.canMoveStopLater(stop))
+        .disabled(!facts.canMoveLater)
       }
       Divider()
       if !calendarLinked, let length = model.trip?.lengthInDays {

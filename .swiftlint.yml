@@ -57,3 +57,9 @@ custom_rules:
     included: ".*View\\.swift"
     message: "Views shouldn't touch the database — move it to a model or a tested core function (STYLE §2)."
     severity: warning
+  itinerary_row_plan_read:
+    name: "Plan read in the itinerary list"
+    regex: 'model\.plan\b|canMoveStop(Earlier|Later)\('
+    included: ".*/Trips/(TripItineraryView|TripItineraryRows|TripItineraryDayHeader|PlanningRow|StopMenu)\\.swift"
+    message: "Itinerary rows read ItineraryList, built once per list. A plan read here runs once per row."
+    severity: warning

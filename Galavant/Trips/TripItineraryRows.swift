@@ -131,13 +131,14 @@ struct CheckRow: View {
 struct StopRow: View {
   let model: TripPlanningModel
   let resolved: ResolvedStop
+  let facts: ItineraryStopFacts
   var booking: ResolvedBooking?
   var sequence: [TripIdea.ID: Int] = [:]
   var includesLifecycleSwipeActions = true
   let onRemove: (TripIdea.ID, String) -> Void
 
   var body: some View {
-    let ring = model.plan.alternatives(forStop: resolved.id)
+    let ring = facts.ring
     let looseRing = ring.map { isLooseAlternativeSlot($0.activeMember.entry.schedule) } ?? false
     let marker: PlanningRowMarker = sequence[resolved.id].map {
       .sequence($0)
@@ -162,7 +163,7 @@ struct StopRow: View {
           subtitle: .none,
           marker: marker
         ) {
-          StopRowAccessory(model: model, resolved: resolved, booking: booking)
+          StopRowAccessory(model: model, resolved: resolved, booking: booking, facts: facts)
         }
         if let ring {
           AlternativeSlotControls(model: model, ring: ring)
@@ -187,11 +188,11 @@ struct StopRow: View {
           Button("Move Earlier in Day") {
             model.moveStopEarlier(resolved)
           }
-          .disabled(!model.canMoveStopEarlier(resolved))
+          .disabled(!facts.canMoveEarlier)
           Button("Move Later in Day") {
             model.moveStopLater(resolved)
           }
-          .disabled(!model.canMoveStopLater(resolved))
+          .disabled(!facts.canMoveLater)
         }
       }
       .contextMenu {
@@ -204,7 +205,7 @@ struct StopRow: View {
             model.editFreeform(resolved)
           }
         }
-        StopMenuActions(model: model, stop: resolved, booking: booking)
+        StopMenuActions(model: model, stop: resolved, booking: booking, facts: facts)
       }
       .id(resolved.id)
     }
@@ -215,6 +216,7 @@ struct StopRowAccessory: View {
   let model: TripPlanningModel
   let resolved: ResolvedStop
   let booking: ResolvedBooking?
+  let facts: ItineraryStopFacts
 
   var body: some View {
     VStack(alignment: .trailing, spacing: 8) {
@@ -226,7 +228,7 @@ struct StopRowAccessory: View {
             .accessibilityLabel("Pinned reservation")
         }
         BookingStatusGlyph(booking: booking)
-        StopMenu(model: model, stop: resolved, booking: booking)
+        StopMenu(model: model, stop: resolved, booking: booking, facts: facts)
       }
     }
   }

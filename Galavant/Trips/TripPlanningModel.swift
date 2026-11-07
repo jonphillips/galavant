@@ -54,6 +54,7 @@ final class TripPlanningModel {
     ImageAsset.where { $0.isHeader.eq(true) }
       .select { HeaderThumb.Columns(ideaID: $0.ideaID, thumbnail: $0.thumbnail) }
   ) var headerThumbs
+  @ObservationIgnored var planSnapshot = TripPlanSnapshot()
 
   let tripID: Trip.ID
   var destination: Destination?
@@ -205,18 +206,6 @@ final class TripPlanningModel {
     Dictionary(regions.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
   }
 
-  /// This trip's resolved planning read-model — the joins, projections, and
-  /// canvas geometry live in the tested functional core (`TripPlan`), not here.
-  /// Views read `model.plan.shortlist`, `model.plan.itinerary`, etc.; the model
-  /// keeps only UI state and the db-write actions.
-  var plan: TripPlan {
-    TripPlan(
-      entries: entries, ideasByID: ideaByID,
-      lengthInDays: trip?.lengthInDays ?? 1, tripStays: stays,
-      dayRegions: dayRegions, regionsByID: regionByID,
-      calendarConstraints: calendarConstraints,
-      alternativeGroups: alternativeGroups)
-  }
 
   // MARK: - Start-day solver (ADR-0029 §5)
 
