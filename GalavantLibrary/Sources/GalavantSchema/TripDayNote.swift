@@ -39,7 +39,10 @@ public struct TripDayNote: Identifiable, Equatable, Sendable {
       .components(separatedBy: .newlines)
       .joined(separator: " ")
       .trimmingCharacters(in: .whitespaces)
-    try Self.where { $0.tripID.eq(tripID) && $0.dayNumber.eq(day) }.delete().execute(db)
+    let predicate = Self.where { $0.tripID.eq(tripID) && $0.dayNumber.eq(day) }
+    let existing = try predicate.fetchOne(db)
+    guard existing?.note != line else { return }
+    try predicate.delete().execute(db)
     guard !line.isEmpty else { return }
     try Self.upsert {
       Self.Draft(Self(tripID: tripID, dayNumber: day, note: line))

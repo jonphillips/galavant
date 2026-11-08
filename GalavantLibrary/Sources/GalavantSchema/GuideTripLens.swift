@@ -29,6 +29,7 @@ public struct GuideTripLens: Equatable, Sendable {
     public var day: Int
     public var weekday: Weekday?
     public var date: Date?
+    public var summary: String?
     public var lunch: MealCell
     public var dinner: MealCell
     public var alsoThatDay: [SlotStop]
@@ -130,7 +131,7 @@ public struct GuideTripLens: Equatable, Sendable {
 
   public init(
     trip: Trip, candidates: [TripChoice], region: MapRegion, category: GuideCategory,
-    plan: TripPlan, calendar: Calendar
+    plan: TripPlan, dayNotes: [TripDayNote] = [], calendar: Calendar
   ) {
     self.trip = TripChoice(id: trip.id, name: trip.name)
     otherTrips = candidates.filter { $0.id != trip.id }
@@ -161,6 +162,7 @@ public struct GuideTripLens: Equatable, Sendable {
         let values = projection.slots[day] ?? [:]
         return MealDay(
           day: day, weekday: date.flatMap { Weekday.from($0, calendar: calendar) }, date: date,
+          summary: dayNotes.first { $0.tripID == trip.id && $0.dayNumber == day }?.note,
           lunch: values[.lunch].map(MealCell.filled) ?? .open,
           dinner: values[.dinner].map(MealCell.filled) ?? .open,
           alsoThatDay: projection.anytime[day] ?? [])

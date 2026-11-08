@@ -39,6 +39,23 @@ struct TripPlanningSenseOfNowTests {
     #expect(dayAccessibilityLabel(1, trip: trip) == "Saturday May 30")
   }
 
+  @Test
+  @MainActor
+  func repeatedDaySummaryCommitSurvivesObservationRefresh() async throws {
+    let tripID = try await makeTrip(startDate: nil)
+    let model = TripPlanningModel(tripID: tripID)
+    try await model.$trips.load()
+    try await model.$allTripDayNotes.load()
+
+    model.setDayNote("Concert in Manchester", forDay: 3)
+    model.setDayNote("Concert in Manchester", forDay: 3)
+
+    let note = try await database.read { db in
+      try TripDayNote.where { $0.tripID.eq(tripID) && $0.dayNumber.eq(3) }.fetchOne(db)?.note
+    }
+    #expect(note == "Concert in Manchester")
+  }
+
   private func makeTrip(startDate: Date?, lengthInDays: Int = 5) async throws -> Trip.ID {
     let tripID = UUID()
     try await database.write { db in

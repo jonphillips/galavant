@@ -111,6 +111,7 @@ struct RegionGuideModelTests {
     try await model.$tripIdeas.load()
     try await model.$tripStays.load()
     try await model.$tripDayRegions.load()
+    try await model.$tripDayNotes.load()
     try await model.$calendarConstraints.load()
     try await model.$alternativeGroups.load()
     try await model.$ideas.load()

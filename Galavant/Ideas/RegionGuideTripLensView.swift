@@ -51,6 +51,10 @@ struct RegionGuideTripLensView: View {
             mealCell(day.lunch, day: day.day, meal: .lunch, label: "Lunch")
             mealCell(day.dinner, day: day.day, meal: .dinner, label: "Dinner")
           }
+          if let summary = day.summary {
+            Text(summary).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+              .padding(.leading, 88)
+          }
           if !day.alsoThatDay.isEmpty { alsoThatDay(day.alsoThatDay).padding(.leading, 88) }
         }
       }
@@ -60,6 +64,9 @@ struct RegionGuideTripLensView: View {
           ForEach(days) { day in
             VStack(alignment: .leading, spacing: 6) {
               Text(day.weekday?.shortLabel ?? "Day \(day.day)").font(.caption.bold())
+              if let summary = day.summary {
+                Text(summary).font(.caption2).foregroundStyle(.secondary).lineLimit(3)
+              }
               mealCell(day.lunch, day: day.day, meal: .lunch, label: "L")
               mealCell(day.dinner, day: day.day, meal: .dinner, label: "D")
               if !day.alsoThatDay.isEmpty { alsoThatDay(day.alsoThatDay) }

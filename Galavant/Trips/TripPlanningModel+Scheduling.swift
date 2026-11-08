@@ -205,20 +205,7 @@ extension TripPlanningModel {
     }
   }
 
-  /// Assign (or, with `nil`, clear) one of the trip's regions to a day (ADR-0012)
-  /// — frames the day's empty map and labels it. Replaces any existing assignment
-  /// for the day.
-  func setDayRegion(_ regionID: MapRegion.ID?, forDay day: Int) {
-    let tripID = tripID
-    withErrorReporting {
-      try database.write { db in
-        try TripDayRegion.setRegion(regionID, forTrip: tripID, day: day, in: db)
-      }
-    }
-  }
-
-  /// The region currently assigned to a day, if any — drives the day-header menu's
-  /// selection.
+  /// The region currently assigned to a day, if any — displayed in the day header.
   func dayRegion(forDay day: Int) -> MapRegion? { plan.region(forDay: day) }
 
   /// A trip with no regions attached has nothing for the day-header region chip
@@ -242,16 +229,6 @@ extension TripPlanningModel {
         try TripDayTimeZone.set(identifier, forTrip: tripID, day: day, in: db)
       }
     }
-  }
-
-  /// Whether the per-day time-zone chip can matter for this day: the trip has
-  /// real dates to confuse, and either this day already carries an explicit
-  /// override or the trip's regions are numerous enough that a same-region trip's
-  /// one implied zone stops being a safe assumption. A brand-new trip (0–1
-  /// regions, no overrides) hides the chip entirely (item 6 of the dogfood brief).
-  func showsDayTimeZoneMenu(forDay day: Int) -> Bool {
-    guard trip?.certainty.stage == .dated else { return false }
-    return dayTimeZone(forDay: day) != nil || tripRegions.count >= 2
   }
 
   /// Commit a stop to the itinerary without a day — it lands in the "To Be

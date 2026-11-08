@@ -124,8 +124,8 @@ struct TripDetailContent: View {
     .sheet(item: $model.destination.editTripRegions, id: \.id) { draft in
       TripFormView(draft: draft, startOnRegions: true)
     }
-    .sheet(item: $model.destination.sketch, id: \.id) { _ in
-      TripSketchSheet(model: model)
+    .sheet(item: $model.destination.sketch, id: \.id) { presentation in
+      TripSketchSheet(model: model, presentation: presentation, defaultTimeZone: tripTimeZone)
     }
   }
 
@@ -148,7 +148,6 @@ struct TripDetailContent: View {
           reconciliationModel: reconciliationModel,
           bookingByRow: bookingByRow,
           focusedDay: model.canvasSelectedDay,
-          tripTimeZone: tripTimeZone,
           heroImage: heroImage
         )
       case .ideas:

@@ -1,91 +1,48 @@
 import GalavantSchema
 import SwiftUI
+
 struct SectionHeader: View {
   let label: String
   let day: Int?
   let model: TripPlanningModel
-  var tripTimeZone: TimeZone?
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 6) {
+    if let day {
+      Button { model.sketchTapped(focusingDay: day) } label: {
+        VStack(alignment: .leading, spacing: 4) {
+          HStack(spacing: 5) {
+            Text(label)
+            if let region = model.dayRegion(forDay: day) {
+              Text("· \(region.name)")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            }
+            if let zone = model.dayTimeZone(forDay: day) {
+              let date = model.trip?.date(forDay: day) ?? .now
+              Text("· \(zone.abbreviation(for: date) ?? zone.identifier)")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            }
+          }
+          if let note = model.dayNote(forDay: day) {
+            Text(note)
+              .font(.subheadline)
+              .foregroundStyle(.secondary)
+              .textCase(nil)
+              .lineLimit(2)
+          }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+      }
+      .buttonStyle(.plain)
+      .accessibilityLabel("Edit day \(day)")
+    } else {
       Text(label)
-      if let day, let note = model.dayNote(forDay: day) {
-        Text(note)
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-          .textCase(nil)
-          .lineLimit(1)
-      }
-      if let day {
-        HStack(spacing: 8) {
-          if model.tripRegions.isEmpty {
-            UnassignedRegionChip(model: model)
-          } else {
-            DayRegionMenu(day: day, model: model)
-          }
-          if model.showsDayTimeZoneMenu(forDay: day) {
-            DayTimeZoneMenu(day: day, model: model, defaultZone: tripTimeZone)
-          }
-        }
-      }
     }
   }
 }
-/// The day header's region chip when the trip has no regions attached yet —
-/// there's nothing to assign, so the tap routes to Edit Trip's Regions picker
-/// instead of opening an empty menu (dogfood brief item 6).
-struct UnassignedRegionChip: View {
-  let model: TripPlanningModel
 
-  var body: some View {
-    Button {
-      model.regionChipTapped()
-    } label: {
-      HStack(spacing: 5) {
-        Icon.map.image.imageScale(.medium)
-        Text("Set region").lineLimit(1)
-      }
-      .font(.subheadline)
-      .foregroundStyle(.tertiary)
-      .padding(.horizontal, 11)
-      .padding(.vertical, 6)
-      .background(Capsule().fill(Color(.tertiarySystemFill)))
-    }
-    .buttonStyle(.borderless)
-  }
-}
-struct DayRegionMenu: View {
-  let day: Int
-  let model: TripPlanningModel
-
-  var body: some View {
-    let assigned = model.dayRegion(forDay: day)
-    return Menu {
-      Picker("Region", selection: Binding(
-        get: { assigned?.id },
-        set: { model.setDayRegion($0, forDay: day) }
-      )) {
-        Text("None").tag(MapRegion.ID?.none)
-        ForEach(model.tripRegions) { region in
-          Text(region.name).tag(MapRegion.ID?.some(region.id))
-        }
-      }
-    } label: {
-      HStack(spacing: 5) {
-        Icon.map.image.imageScale(.medium)
-        Text(assigned?.name ?? "Set region").lineLimit(1)
-        Icon.menuDisclosure.image.font(.caption2)
-      }
-      .font(.subheadline)
-      .foregroundStyle(assigned == nil ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary))
-      .padding(.horizontal, 11)
-      .padding(.vertical, 6)
-      .background(Capsule().fill(Color(.tertiarySystemFill)))
-    }
-    .buttonStyle(.borderless)
-    .textCase(nil)
-  }
-}
 struct DayTimeZoneMenu: View {
   let day: Int
   let model: TripPlanningModel

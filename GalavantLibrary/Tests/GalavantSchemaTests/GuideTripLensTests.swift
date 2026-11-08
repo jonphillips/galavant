@@ -104,6 +104,26 @@ import Testing
     #expect(lens.body == .nights([.open(nights: 4...6)]))
   }
 
+  @Test func mealDaysCarryTheirDaySummary() {
+    let trip = Trip(id: UUID(), name: "Italy", lengthInDays: 2)
+    let notes = [TripDayNote(tripID: trip.id, dayNumber: 1, note: "Market and concert")]
+    let plan = TripPlan(
+      entries: [], ideasByID: [:], lengthInDays: trip.lengthInDays,
+      dayRegions: [
+        TripDayRegion(id: UUID(), tripID: trip.id, dayNumber: 1, regionID: region.id),
+        TripDayRegion(id: UUID(), tripID: trip.id, dayNumber: 2, regionID: region.id),
+      ])
+    let lens = GuideTripLens(
+      trip: trip, candidates: [], region: region, category: .dining,
+      plan: plan, dayNotes: notes, calendar: .current)
+
+    guard case let .meals(days) = lens.body else {
+      Issue.record("Expected meal days")
+      return
+    }
+    #expect(days.map(\.summary) == ["Market and concert", nil])
+  }
+
   @Test func stayRunIsClippedToRegionNightsAndBackToBackStaysRemainSeparate() {
     let trip = Trip(id: UUID(), name: "Italy", lengthInDays: 7)
     let hotel = idea("Hotel", kind: .stay)

@@ -24,6 +24,7 @@ final class RegionGuideModel {
   @ObservationIgnored @FetchAll(TripIdea.all) var tripIdeas
   @ObservationIgnored @FetchAll(TripStay.all) var tripStays
   @ObservationIgnored @FetchAll(TripDayRegion.all) var tripDayRegions
+  @ObservationIgnored @FetchAll(TripDayNote.all) var tripDayNotes
   @ObservationIgnored @FetchAll(CalendarTripConstraint.all) var calendarConstraints
   @ObservationIgnored @FetchAll(TripAlternativeGroup.all) var alternativeGroups
   @ObservationIgnored @FetchAll(TasteNote.where { $0.ideaID.isNot(nil) }) var notes
@@ -100,7 +101,9 @@ final class RegionGuideModel {
       tripStays: tripStays, dayRegions: tripDayRegions, regions: regions,
       calendarConstraints: calendarConstraints, alternativeGroups: alternativeGroups)
     let plan = planSnapshot.plan(for: inputs)
-    return GuideTripLens(trip: trip, candidates: choices, region: region, category: category, plan: plan, calendar: calendar)
+    return GuideTripLens(
+      trip: trip, candidates: choices, region: region, category: category,
+      plan: plan, dayNotes: tripDayNotes, calendar: calendar)
   }
 
   var headerThumbnailByIdea: [Idea.ID: Data] {

@@ -1,7 +1,7 @@
 # ADR-0054: A trip's days are designed in Shape Trip, and the itinerary only shows them
 
 *Status: **proposed** — 2026-11-08, ratified by Jon merging this ADR's PR. Efforts:
-[`day-design-sheet`](../efforts/day-design-sheet.md), then [`day-reorder`](../efforts/day-reorder.md). Builds on
+[`day-design-sheet`](../efforts/archive/day-design-sheet.md), then [`day-reorder`](../efforts/day-reorder.md). Builds on
 [ADR-0012](0012-per-day-region-framing.md) (per-day regions) and the trip sketch
 ([`trip-sketch-design.md`](../efforts/archive/trip-sketch-design.md)).*
 
