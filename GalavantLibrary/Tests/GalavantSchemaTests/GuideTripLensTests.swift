@@ -219,6 +219,16 @@ import Testing
     #expect(lunchMenu.sections[0][1].action == nil)
   }
 
+  @Test func guideMenuAllowsClosedHoursOnAnUndatedTrip() {
+    let trip = Trip(id: UUID(), name: "Undated", lengthInDays: 1)
+    var closedIdea = idea("Closed")
+    closedIdea.structuredHours = WeeklyHours(days: Array(repeating: .closed, count: 7)).encoded()
+    let lens = makeLens(trip: trip, dayNumbers: [1])
+    let menu = GuideSlotMenu(lens: lens, idea: closedIdea, entries: [], stays: [], calendar: .current)
+    #expect(menu.sections[0][0].detail == "Open slot")
+    #expect(menu.sections[0][0].action == .schedule(day: 1, .lunch))
+  }
+
   @Test func hotelMenuChecksItsStayAndPreventsAddingTheSameHotelAgain() {
     let trip = Trip(id: UUID(), name: "Italy", lengthInDays: 4)
     let hotel = idea("Hotel", kind: .stay)

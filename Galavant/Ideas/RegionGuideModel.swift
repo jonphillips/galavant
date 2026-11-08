@@ -10,6 +10,11 @@ import SwiftUI
 @MainActor
 @Observable
 final class RegionGuideModel {
+  private struct FocusedSlotKey: Equatable {
+    var day: Int
+    var meal: Meal
+  }
+
   @ObservationIgnored @FetchAll(Idea.all) var ideas
   @ObservationIgnored @FetchAll(IdeaEvaluation.all) var evaluations
   @ObservationIgnored @FetchAll(IdeaInterest.all) var interests
@@ -33,13 +38,13 @@ final class RegionGuideModel {
 
   var region: MapRegion?
   var category: GuideCategory = .dining {
-    didSet { focusedSlot = nil }
+    didSet { focusedSlotKey = nil }
   }
   var shelf: GuideShelf = .all
   private var initialScopeApplied = false
   private var initialPreferredTripID: Trip.ID?
   var chosenTripID: Trip.ID?
-  var focusedSlot: GuideSlotFocus?
+  private var focusedSlotKey: FocusedSlotKey?
   var successfulAddCount = 0
   var destination: Destination?
 
@@ -71,6 +76,14 @@ final class RegionGuideModel {
   var mapGuide: RegionGuide? {
     guard let guide, let focusedSlot else { return guide }
     return guide.filtered(to: Set(focusedSlot.ideaIDs))
+  }
+
+  var focusedSlot: GuideSlotFocus? {
+    guard let key = focusedSlotKey, let lens = tripLens else { return nil }
+    let candidateIdeaIDs = Set(guide?.sections.flatMap(\.cards).map(\.idea.id) ?? [])
+    return GuideSlotFocus(day: key.day, meal: key.meal, lens: lens,
+      entries: tripIdeas.filter { $0.tripID == lens.trip.id }, ideas: ideas,
+      candidateIdeaIDs: candidateIdeaIDs)
   }
 
   var tripLens: GuideTripLens? {
@@ -114,38 +127,25 @@ final class RegionGuideModel {
   func selectRegion(_ region: MapRegion?) {
     self.region = region
     chosenTripID = nil
-    focusedSlot = nil
+    focusedSlotKey = nil
     $lastRegionID.withLock { $0 = region?.id.uuidString ?? "" }
   }
 
   func tripSelected(_ tripID: Trip.ID) {
     chosenTripID = tripID
-    focusedSlot = nil
+    focusedSlotKey = nil
   }
 
   func slotTapped(day: Int, meal: Meal) {
-    if focusedSlot?.day == day, focusedSlot?.meal == meal {
-      focusedSlot = nil
+    if focusedSlotKey == FocusedSlotKey(day: day, meal: meal) {
+      focusedSlotKey = nil
       return
     }
-    rebuildFocusedSlot(day: day, meal: meal)
+    focusedSlotKey = FocusedSlotKey(day: day, meal: meal)
   }
 
   func clearSlotFocus() {
-    focusedSlot = nil
-  }
-
-  func refreshFocusedSlot() {
-    guard let focusedSlot else { return }
-    rebuildFocusedSlot(day: focusedSlot.day, meal: focusedSlot.meal)
-  }
-
-  private func rebuildFocusedSlot(day: Int, meal: Meal) {
-    guard let lens = tripLens else { focusedSlot = nil; return }
-    let candidateIdeaIDs = Set(guide?.sections.flatMap(\.cards).map(\.idea.id) ?? [])
-    focusedSlot = GuideSlotFocus(day: day, meal: meal, lens: lens,
-      entries: tripIdeas.filter { $0.tripID == lens.trip.id }, ideas: ideas,
-      candidateIdeaIDs: candidateIdeaIDs)
+    focusedSlotKey = nil
   }
 
   func lensFoldButtonTapped() {
@@ -174,7 +174,6 @@ final class RegionGuideModel {
     }
     guard result != nil else { return false }
     successfulAddCount += 1
-    refreshFocusedSlot()
     return true
   }
 
@@ -182,7 +181,6 @@ final class RegionGuideModel {
     withErrorReporting {
       try database.write { db in _ = try TripIdea.setActiveAlternative(stopID: stopID, in: db) }
     }
-    refreshFocusedSlot()
   }
 
   func takeOut(stopID: TripIdea.ID) {
@@ -195,7 +193,6 @@ final class RegionGuideModel {
         }
       }
     }
-    refreshFocusedSlot()
   }
 
   func distanceFromStay(ideaID: Idea.ID?, tripID: Trip.ID, day: Int) -> (distance: Measurement<UnitLength>, hotelName: String)? {

@@ -199,15 +199,30 @@ struct RegionGuideModelTests {
     }
     #expect(lunch.first?.ideaID == candidate.id)
 
+    model.slotTapped(day: 1, meal: .dinner)
+    #expect(model.focusedSlot?.isFilled == true)
     model.setActive(stopID: secondEntry.id)
+    try await model.$tripIdeas.load()
+    guard case let .filled(activeStops)? = model.focusedSlot?.content else {
+      Issue.record("Expected the focused dinner ring after changing its active option")
+      return
+    }
+    #expect(activeStops.first { $0.id == secondEntry.id }?.isActive == true)
+
     var saved = try await database.read { db in try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db) }
     #expect(saved.first { $0.id == secondEntry.id }?.isActive == true)
     model.takeOut(stopID: secondEntry.id)
+    try await model.$tripIdeas.load()
+    guard case let .filled(remainingStops)? = model.focusedSlot?.content else {
+      Issue.record("Expected the focused dinner slot after taking an option out")
+      return
+    }
+    #expect(remainingStops.map(\.id) == [firstEntry.id])
+
     saved = try await database.read { db in try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db) }
     #expect(saved.first { $0.id == secondEntry.id }?.status == .shortlisted)
     #expect(saved.first { $0.id == secondEntry.id }?.alternativeGroupID == nil)
     #expect(saved.first { $0.id == firstEntry.id }?.alternativeGroupID == nil)
-    try await model.$tripIdeas.load()
     guard case let .meals(updatedDays) = model.tripLens?.body,
       let updatedDay = updatedDays.first, case let .filled(dinner) = updatedDay.dinner else {
       Issue.record("Expected the remaining dinner choice after taking one out")
