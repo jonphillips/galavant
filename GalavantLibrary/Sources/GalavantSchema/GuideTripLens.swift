@@ -59,6 +59,14 @@ public struct GuideTripLens: Equatable, Sendable {
   public var weekdaysByDay: [Int: Weekday]
   public var regionName: String
 
+  /// Straight-line distance, in kilometers, using the same Earth-radius model as
+  /// `MapFraming.distanceInMeters` (6,371 km). This is a display aid, not a route.
+  public static func distanceInKilometers(from origin: TripCoordinate, to destination: TripCoordinate) -> Double {
+    MapFraming.distanceInMeters(
+      latitude1: origin.latitude, longitude1: origin.longitude,
+      latitude2: destination.latitude, longitude2: destination.longitude) / 1_000
+  }
+
   public var heading: String {
     switch body {
     case .meals:

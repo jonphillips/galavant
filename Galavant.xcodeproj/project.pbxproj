@@ -25,6 +25,7 @@
 		163235D89FEB136F5C5F73ED /* PoolIdentityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00154E6FD53486C6ECD8CBD9 /* PoolIdentityUITests.swift */; };
 		164623B0ED0CE24B42E3FA51 /* JourneyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58883EC5A8F26B4F3E007652 /* JourneyView.swift */; };
 		178D860C2EADAD6D273440AC /* CustomDump in Frameworks */ = {isa = PBXBuildFile; productRef = 5232614EDD023F2649AD2B01 /* CustomDump */; };
+		17BDDDF5FEFA16957F5A8939 /* RegionGuideTripLensView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92591E0592A04ADD0F24615 /* RegionGuideTripLensView.swift */; };
 		1885938610B337356CBBB04F /* CalendarReconciliationSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8222730CCB5C86C21DC2B8F8 /* CalendarReconciliationSheet.swift */; };
 		1A88E9EB3A1FA9BD54A6C323 /* RegionGuideScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5511A893791FB3CFE09ECA8C /* RegionGuideScreen.swift */; };
 		1AF90BB39A9A3751AA9A22E2 /* Icon.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF388F1C56D173F7C5F3079C /* Icon.swift */; };
@@ -61,6 +62,7 @@
 		4C528609E50B3202B6BB33E7 /* TripCanvasPreviewStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58114810B86AFEBF95E05C07 /* TripCanvasPreviewStateTests.swift */; };
 		4D827365570B7F39633804A5 /* PlannerManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F559C52B9F16FDB24E4BBCEB /* PlannerManagementView.swift */; };
 		4DAAA7D1E36518BAE6613248 /* TripFormModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20DAF6B7A5F203899F4C780 /* TripFormModel.swift */; };
+		4E62502EB45B7B11B88B8761 /* RegionGuideCardRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B529BA1324C3CB1B68B844D5 /* RegionGuideCardRow.swift */; };
 		4FA9D5986A89B2B51B88F5C2 /* AppScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82AECABDADDBF8957A5816F8 /* AppScreen.swift */; };
 		5097A31BB1F6D41AE7DEE5E2 /* TripItineraryRows.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5136B6948D6F84243B5FFAA0 /* TripItineraryRows.swift */; };
 		50EEE42D97D8F60341A052BC /* IdeasQuickFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F751F213140FE74EA9BCE772 /* IdeasQuickFilterTests.swift */; };
@@ -363,6 +365,7 @@
 		AEFECA0196E746B959D138B3 /* SeedReviewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeedReviewModel.swift; sourceTree = "<group>"; };
 		B15DFF6883F3077AA8D6C591 /* StopMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StopMenu.swift; sourceTree = "<group>"; };
 		B1A535A9FE62218F2B6F547A /* TripDocumentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripDocumentsView.swift; sourceTree = "<group>"; };
+		B529BA1324C3CB1B68B844D5 /* RegionGuideCardRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegionGuideCardRow.swift; sourceTree = "<group>"; };
 		B58F3C28841A950ECB1ED2A5 /* MapPlaceCreateIdeaButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapPlaceCreateIdeaButton.swift; sourceTree = "<group>"; };
 		B83B72B821D03D225CF30944 /* RecommendationWorkspaceMap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationWorkspaceMap.swift; sourceTree = "<group>"; };
 		BA0BD75B2D9BBEA758A6A8DA /* TripIdeasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripIdeasView.swift; sourceTree = "<group>"; };
@@ -408,6 +411,7 @@
 		E35BE6CD061373B731E38031 /* SequencePin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencePin.swift; sourceTree = "<group>"; };
 		E754846D1941C6A46BF20DFB /* TripPlanningModel+Freeform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripPlanningModel+Freeform.swift"; sourceTree = "<group>"; };
 		E818B469EB6F7EB6FB4F33D6 /* CloudSyncKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = CloudSyncKit; path = "../../jon-platform/packages/CloudSyncKit"; sourceTree = SOURCE_ROOT; };
+		E92591E0592A04ADD0F24615 /* RegionGuideTripLensView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegionGuideTripLensView.swift; sourceTree = "<group>"; };
 		EA2BBF3B289FD7D02957833B /* AppContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainer.swift; sourceTree = "<group>"; };
 		EB7EC4E4FC4F7E11352D4E74 /* TripPlanningSenseOfNowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripPlanningSenseOfNowTests.swift; sourceTree = "<group>"; };
 		EBEF8CB6002B75C0D6AF96A3 /* DeviceLocationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceLocationTests.swift; sourceTree = "<group>"; };
@@ -821,8 +825,10 @@
 				292BC932AEA1B53EB11DA125 /* InterestView.swift */,
 				B58F3C28841A950ECB1ED2A5 /* MapPlaceCreateIdeaButton.swift */,
 				1791F203077D8B7907351B9F /* PoolMapView.swift */,
+				B529BA1324C3CB1B68B844D5 /* RegionGuideCardRow.swift */,
 				2B6BF0F430926961250257F6 /* RegionGuideModel.swift */,
 				5511A893791FB3CFE09ECA8C /* RegionGuideScreen.swift */,
+				E92591E0592A04ADD0F24615 /* RegionGuideTripLensView.swift */,
 				E0587DE2E1AA61B9BD3D0073 /* RegionManagerView.swift */,
 				891C5DF7F4A25741DE3421FD /* StructuredHoursEditor.swift */,
 				9D34C61AE3B675F5D6CCDDDD /* TagPickerView.swift */,
@@ -1137,8 +1143,10 @@
 				CBD322C7EF720E884780D9D9 /* RecommendationWorkspaceModel+Projection.swift in Sources */,
 				861F0BD9CC28029356E7DF09 /* RecommendationWorkspaceModel.swift in Sources */,
 				600B8A48EBF6C2B3E5856903 /* RecommendationWorkspaceView.swift in Sources */,
+				4E62502EB45B7B11B88B8761 /* RegionGuideCardRow.swift in Sources */,
 				DD57DB75C6A7558B6BCB12C8 /* RegionGuideModel.swift in Sources */,
 				1A88E9EB3A1FA9BD54A6C323 /* RegionGuideScreen.swift in Sources */,
+				17BDDDF5FEFA16957F5A8939 /* RegionGuideTripLensView.swift in Sources */,
 				AD17477A05EDF3DE9D52E3A5 /* RegionManagementSettingsModel.swift in Sources */,
 				BE4EC3D93E562C6724906B1A /* RegionManagementSettingsView.swift in Sources */,
 				8E9C72B6E2A50CCF9129E6E1 /* RegionManagerView.swift in Sources */,

@@ -177,6 +177,63 @@ import Testing
     #expect(lens.badges[doneIdea.id] == nil)
   }
 
+  @Test func guideMenuOffersOpenSlotOptionAndShortlistAndChecksCurrentSlot() {
+    let trip = Trip(id: UUID(), name: "Italy", lengthInDays: 2)
+    let targetIdea = idea("Target")
+    let candidate = idea("Candidate")
+    let target = scheduledEntry(trip.id, idea: targetIdea, schedule: .daypart(1, .dinner))
+    let lens = makeLens(trip: trip, ideas: [targetIdea], entries: [target], dayNumbers: [1])
+    let menu = GuideSlotMenu(lens: lens, idea: candidate, entries: [target], stays: [], calendar: .current)
+
+    #expect(menu.sections.count == 2)
+    #expect(menu.sections[0][0].action == .schedule(day: 1, .lunch))
+    #expect(menu.sections[0][1].action == .addOption(to: target.id))
+    #expect(menu.sections[0][1].detail == "Add as an option to Target · 1 options")
+    #expect(menu.sections[1][0].action == .shortlist)
+
+    let currentMenu = GuideSlotMenu(lens: lens, idea: targetIdea, entries: [target], stays: [], calendar: .current)
+    #expect(currentMenu.sections[0][1].isCurrent)
+    #expect(currentMenu.sections[0][1].action == nil)
+    #expect(currentMenu.sections[0][1].detail == "Already on Day 1 dinner")
+    #expect(currentMenu.sections[1][0].isCurrent == false)
+  }
+
+  @Test func guideMenuExplainsWholeDayAndMealOnlyClosures() {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+    let trip = Trip(id: UUID(), name: "Dated", startDate: date(2026, 11, 9, calendar: calendar), lengthInDays: 2)
+    let closed = idea("Closed")
+    var closedIdea = closed
+    closedIdea.structuredHours = WeeklyHours(days: [.closed] + Array(repeating: .unknown, count: 6)).encoded()
+    let lunchOnly = idea("Lunch only")
+    var lunchIdea = lunchOnly
+    lunchIdea.structuredHours = WeeklyHours(days: [.open([ServicePeriod(meal: .lunch)])]
+      + Array(repeating: .unknown, count: 6)).encoded()
+
+    let closedLens = makeLens(trip: trip, dayNumbers: [1], calendar: calendar)
+    let closedMenu = GuideSlotMenu(lens: closedLens, idea: closedIdea, entries: [], stays: [], calendar: calendar)
+    #expect(closedMenu.sections[0][0].detail == "Closed Mondays")
+    #expect(closedMenu.sections[0][0].action == nil)
+    let lunchMenu = GuideSlotMenu(lens: closedLens, idea: lunchIdea, entries: [], stays: [], calendar: calendar)
+    #expect(lunchMenu.sections[0][1].detail == "No dinner on Mondays")
+    #expect(lunchMenu.sections[0][1].action == nil)
+  }
+
+  @Test func hotelMenuChecksItsStayAndPreventsAddingTheSameHotelAgain() {
+    let trip = Trip(id: UUID(), name: "Italy", lengthInDays: 4)
+    let hotel = idea("Hotel", kind: .stay)
+    let stay = TripStay(id: UUID(), tripID: trip.id, ideaID: hotel.id, checkInDay: 1, checkOutDay: 3)
+    let lens = makeLens(trip: trip, ideas: [hotel], stays: [stay], dayNumbers: [1, 2, 3], category: .hotels)
+    let currentMenu = GuideSlotMenu(lens: lens, idea: hotel, entries: [], stays: [stay], calendar: .current)
+    #expect(currentMenu.sections[0][0].isCurrent)
+    #expect(currentMenu.sections[0][0].action == nil)
+    #expect(currentMenu.sections[1][0].action == nil)
+
+    let candidate = idea("Another hotel", kind: .stay)
+    let candidateMenu = GuideSlotMenu(lens: lens, idea: candidate, entries: [], stays: [stay], calendar: .current)
+    #expect(candidateMenu.sections[1][0].action == .stay(nights: 3...3))
+  }
+
   private func idea(_ name: String, kind: IdeaKind = .food) -> Idea {
     Idea(id: UUID(), name: name, kind: kind)
   }

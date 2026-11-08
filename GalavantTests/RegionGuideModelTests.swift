@@ -7,7 +7,11 @@ import Testing
 
 @testable import Galavant
 
-@Suite(.serialized, .dependencies { try $0.bootstrapDatabase() })
+@Suite(.serialized, .dependencies {
+  try $0.bootstrapDatabase()
+  $0.date = .constant(.distantPast)
+  $0.calendar = Calendar(identifier: .gregorian)
+})
 struct RegionGuideModelTests {
   @Dependency(\.defaultDatabase) private var database
 
@@ -141,6 +145,75 @@ struct RegionGuideModelTests {
     try await model.$trips.load()
     try await model.$tripDayRegions.load()
     #expect(model.tripLens == nil)
+  }
+
+  @Test @MainActor
+  func guideActionsAndFocusedRingControlsWriteThroughTripOperations() async throws {
+    let partyID = UUID()
+    let region = MapRegion(id: UUID(), name: "Val Serena", centerLatitude: 45, centerLongitude: 9,
+      latitudeDelta: 2, longitudeDelta: 2, travelPartyID: partyID)
+    let trip = Trip(id: UUID(), name: "Italy", lengthInDays: 2, travelPartyID: partyID)
+    let first = Idea(id: UUID(), name: "First", kind: .food, travelPartyID: partyID)
+    let second = Idea(id: UUID(), name: "Second", kind: .food, travelPartyID: partyID)
+    let candidate = Idea(id: UUID(), name: "Lunch", kind: .food, travelPartyID: partyID)
+    let groupID = UUID()
+    var firstDraft = TripIdea(id: UUID(), tripID: trip.id, ideaID: first.id, status: .scheduled,
+      alternativeGroupID: groupID, isActive: true)
+    firstDraft.apply(.daypart(1, .dinner))
+    let firstEntry = firstDraft
+    var secondDraft = TripIdea(id: UUID(), tripID: trip.id, ideaID: second.id, status: .scheduled,
+      alternativeGroupID: groupID, isActive: false)
+    secondDraft.apply(.daypart(1, .dinner))
+    let secondEntry = secondDraft
+    let dayRegion = TripDayRegion(id: UUID(), tripID: trip.id, dayNumber: 1, regionID: region.id)
+    try await database.write { db in
+      try TravelParty.insert { TravelParty.Draft(TravelParty(id: partyID, name: "Test")) }.execute(db)
+      try MapRegion.insert { MapRegion.Draft(region) }.execute(db)
+      try Trip.insert { Trip.Draft(trip) }.execute(db)
+      try Idea.insert { [Idea.Draft(first), Idea.Draft(second), Idea.Draft(candidate)] }.execute(db)
+      try TripAlternativeGroup.insert {
+        TripAlternativeGroup.Draft(TripAlternativeGroup(id: groupID, tripID: trip.id, label: "Dinner"))
+      }.execute(db)
+      try TripIdea.insert { [TripIdea.Draft(firstEntry), TripIdea.Draft(secondEntry)] }.execute(db)
+      try TripDayRegion.insert { TripDayRegion.Draft(dayRegion) }.execute(db)
+    }
+
+    let model = RegionGuideModel()
+    model.task(scope: RegionGuideScope(region: region, category: .dining, preferredTripID: trip.id))
+    try await model.$trips.load()
+    try await model.$tripIdeas.load()
+    try await model.$tripStays.load()
+    try await model.$tripDayRegions.load()
+    try await model.$calendarConstraints.load()
+    try await model.$alternativeGroups.load()
+    try await model.$ideas.load()
+    try await model.$regions.load()
+    let menu = try #require(model.slotMenu(for: candidate.id))
+    #expect(menu.sections[0][0].action == .schedule(day: 1, .lunch))
+    #expect(model.addToTrip(.schedule(day: 1, .lunch), ideaID: candidate.id))
+    try await model.$tripIdeas.load()
+    guard case let .meals(days) = model.tripLens?.body,
+      let day = days.first, case let .filled(lunch) = day.lunch else {
+      Issue.record("Expected the new lunch choice to appear in the guide lens")
+      return
+    }
+    #expect(lunch.first?.ideaID == candidate.id)
+
+    model.setActive(stopID: secondEntry.id)
+    var saved = try await database.read { db in try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db) }
+    #expect(saved.first { $0.id == secondEntry.id }?.isActive == true)
+    model.takeOut(stopID: secondEntry.id)
+    saved = try await database.read { db in try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db) }
+    #expect(saved.first { $0.id == secondEntry.id }?.status == .shortlisted)
+    #expect(saved.first { $0.id == secondEntry.id }?.alternativeGroupID == nil)
+    #expect(saved.first { $0.id == firstEntry.id }?.alternativeGroupID == nil)
+    try await model.$tripIdeas.load()
+    guard case let .meals(updatedDays) = model.tripLens?.body,
+      let updatedDay = updatedDays.first, case let .filled(dinner) = updatedDay.dinner else {
+      Issue.record("Expected the remaining dinner choice after taking one out")
+      return
+    }
+    #expect(dinner.map(\.ideaID) == [first.id])
   }
 
   @Test @MainActor

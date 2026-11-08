@@ -28,6 +28,7 @@ final class RegionGuideModel {
   @ObservationIgnored @Shared(.appStorage("regionGuideLensFolded")) var lensFolded = false
   @ObservationIgnored @Dependency(\.date) var date
   @ObservationIgnored @Dependency(\.calendar) var calendar
+  @ObservationIgnored @Dependency(\.defaultDatabase) var database
   @ObservationIgnored private var planSnapshot = TripPlanSnapshot()
 
   var region: MapRegion?
@@ -113,6 +114,64 @@ final class RegionGuideModel {
   func tripStopTapped(_ ideaID: Idea.ID?) {
     guard let ideaID else { return }
     destination = .dossier(ideaID)
+  }
+
+  func slotMenu(for ideaID: Idea.ID) -> GuideSlotMenu? {
+    guard let lens = tripLens, let idea = ideas.first(where: { $0.id == ideaID }) else { return nil }
+    let entries = tripIdeas.filter { $0.tripID == lens.trip.id }
+    let stays = tripStays.filter { $0.tripID == lens.trip.id }
+    return GuideSlotMenu(lens: lens, idea: idea, entries: entries, stays: stays, calendar: calendar)
+  }
+
+  @discardableResult
+  func addToTrip(_ action: GuideSlotAction, ideaID: Idea.ID) -> Bool {
+    guard let tripID = tripLens?.trip.id else { return false }
+    let result: Void? = withErrorReporting {
+      try database.write { db in
+        try action.apply(ideaID: ideaID, tripID: tripID, in: db)
+      }
+    }
+    return result != nil
+  }
+
+  func setActive(stopID: TripIdea.ID) {
+    withErrorReporting {
+      try database.write { db in _ = try TripIdea.setActiveAlternative(stopID: stopID, in: db) }
+    }
+  }
+
+  func takeOut(stopID: TripIdea.ID) {
+    withErrorReporting {
+      try database.write { db in
+        if let entry = try TripIdea.find(stopID).fetchOne(db), entry.alternativeGroupID != nil {
+          try TripIdea.detachAlternative(stopID: stopID, in: db)
+        } else {
+          try TripIdea.unschedule(stopID: stopID, in: db)
+        }
+      }
+    }
+  }
+
+  func distanceFromStay(entry: TripIdea, day: Int) -> String? {
+    guard let trip = trips.first(where: { $0.id == entry.tripID }) else { return nil }
+    let inputs = TripPlanInputs(
+      tripID: trip.id, lengthInDays: trip.lengthInDays, tripIdeas: tripIdeas, ideas: ideas,
+      tripStays: tripStays, dayRegions: tripDayRegions, regions: regions,
+      calendarConstraints: calendarConstraints, alternativeGroups: alternativeGroups)
+    let plan = planSnapshot.plan(for: inputs)
+    guard let stayID = plan.stayID(owningDay: day),
+      let stay = tripStays.first(where: { $0.id == stayID }),
+      let hotelID = stay.ideaID,
+      let hotel = ideas.first(where: { $0.id == hotelID }),
+      let latitude = hotel.latitude, let longitude = hotel.longitude,
+      let ideaID = entry.ideaID,
+      let idea = ideas.first(where: { $0.id == ideaID }),
+      let placeLatitude = idea.latitude, let placeLongitude = idea.longitude
+    else { return nil }
+    let distance = GuideTripLens.distanceInKilometers(
+      from: TripCoordinate(latitude: placeLatitude, longitude: placeLongitude),
+      to: TripCoordinate(latitude: latitude, longitude: longitude))
+    return "\(distance.formatted(.number.precision(.fractionLength(1)))) km from \(hotel.name)"
   }
 
   func ideaTapped(_ idea: Idea) {
