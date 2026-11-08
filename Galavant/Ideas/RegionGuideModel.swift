@@ -119,6 +119,14 @@ final class RegionGuideModel {
     return ideaID
   }
 
+  func tripRationale(for ideaID: Idea.ID?) -> TripRationale? {
+    guard let ideaID, let tripID = tripLens?.trip.id else { return nil }
+    let stops = tripIdeas.filter { $0.tripID == tripID && $0.ideaID == ideaID }
+    let scheduled = stops.filter { $0.status == .scheduled }
+    let selected = scheduled.first ?? stops.first(where: \.isActive) ?? stops.first
+    return selected?.rationale
+  }
+
   func task(scope: RegionGuideScope) {
     guard !initialScopeApplied else { return }
     initialScopeApplied = true

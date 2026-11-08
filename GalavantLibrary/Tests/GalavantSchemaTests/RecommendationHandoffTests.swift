@@ -445,7 +445,9 @@ struct RecommendationHandoffTests {
 
     #expect(committed.ideaID == nil)
     #expect(committed.inlineTitle == "Lumiere Brasserie")
-    #expect(committed.inlineNote == "A relaxed dinner after the museum.\n\nWalkable from the old town.")
+    #expect(committed.inlineNote == nil)
+    #expect(committed.rationaleWhy == "A relaxed dinner after the museum.")
+    #expect(committed.rationaleFit == "Walkable from the old town.")
     #expect(committed.status == .considering)
     #expect(committed.shortlistRank == 4)
   }
@@ -697,7 +699,8 @@ struct RecommendationHandoffTests {
     }
 
     #expect(result.0.ideaID == result.1.only?.id)
-    #expect(result.0.inlineNote == "A relaxed dinner after the museum.")
+    #expect(result.0.inlineNote == nil)
+    #expect(result.0.rationaleWhy == "A relaxed dinner after the museum.")
     #expect(result.1.count == 1)
     #expect(result.1.only?.name == "Lumiere Brasserie")
     #expect(result.1.only?.regionName == "Bolzano")

@@ -17,7 +17,7 @@ struct StopDetailContext {
 struct IdeaDetailView: View {
   @State private var model: IdeaDossierModel
   let stopContext: StopDetailContext?
-  let whyOnTrip: String?
+  let tripRationale: TripRationale?
   let canEdit: Bool
   let chrome: Chrome
 
@@ -29,13 +29,13 @@ struct IdeaDetailView: View {
   init(
     ideaID: Idea.ID,
     stopContext: StopDetailContext? = nil,
-    whyOnTrip: String? = nil,
+    tripRationale: TripRationale? = nil,
     canEdit: Bool = false,
     chrome: Chrome = .navigationBar
   ) {
     _model = State(initialValue: IdeaDossierModel(ideaID: ideaID))
     self.stopContext = stopContext
-    self.whyOnTrip = whyOnTrip
+    self.tripRationale = tripRationale
     self.canEdit = canEdit
     self.chrome = chrome
   }
@@ -113,20 +113,21 @@ struct IdeaDetailView: View {
   private func dossierList(_ dossier: IdeaDossier) -> some View {
     return List {
       overviewSections(dossier)
-      if dossier.emphasis == .notesFirst {
+      tripRationaleSection
+      if dossier.idea.visited {
         notesSection(dossier)
         accoladesSection(dossier)
         interestsSection(dossier)
       } else {
         accoladesSection(dossier)
         interestsSection(dossier)
-        notesSection(dossier)
       }
       tripContextSections(dossier.idea)
       gallerySection(dossier)
       hoursSections(dossier.idea)
       locationAndReferenceSections(dossier.idea)
       tagsAndNotesSections(dossier)
+      if !dossier.idea.visited { notesSection(dossier) }
     }
   }
 
@@ -153,8 +154,22 @@ struct IdeaDetailView: View {
         Section("Calendar booking details") { Text(calendarNotes).textSelection(.enabled) }
       }
     }
-    if let whyOnTrip, !whyOnTrip.isEmpty {
-      Section("Why it's on this trip") { Text(whyOnTrip).textSelection(.enabled) }
+  }
+
+  @ViewBuilder private var tripRationaleSection: some View {
+    if let tripRationale, !tripRationale.isEmpty {
+      Section("On this trip") {
+        rationaleRow("Visit", tripRationale.visit)
+        rationaleRow("Why", tripRationale.why)
+        rationaleRow("Fit", tripRationale.fit)
+        rationaleRow("Note", tripRationale.note)
+      }
+    }
+  }
+
+  @ViewBuilder private func rationaleRow(_ label: String, _ value: String?) -> some View {
+    if let value = value?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty {
+      LabeledContent(label) { Text(value).textSelection(.enabled) }
     }
   }
 

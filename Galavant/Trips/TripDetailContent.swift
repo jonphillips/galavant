@@ -133,7 +133,7 @@ struct TripDetailContent: View {
     IdeaDetailView(
       ideaID: idea.id,
       stopContext: model.stopContext(for: idea),
-      whyOnTrip: model.rationaleForDetail())
+      tripRationale: model.rationaleForDetail())
   }
 
   private var listPanel: some View {

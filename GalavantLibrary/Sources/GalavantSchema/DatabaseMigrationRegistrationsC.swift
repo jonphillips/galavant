@@ -27,4 +27,12 @@ enum GalavantDatabaseMigrationRegistrationsC {
       ).execute(db)
     }
   }
+
+  static func register2(into migrator: inout DatabaseMigrator) {
+    migrator.registerMigration("Add trip rationale fields (ADR-0055)") { db in
+      try #sql("ALTER TABLE tripIdeas ADD COLUMN rationaleVisit TEXT").execute(db)
+      try #sql("ALTER TABLE tripIdeas ADD COLUMN rationaleWhy TEXT").execute(db)
+      try #sql("ALTER TABLE tripIdeas ADD COLUMN rationaleFit TEXT").execute(db)
+    }
+  }
 }

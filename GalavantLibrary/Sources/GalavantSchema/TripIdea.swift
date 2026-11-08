@@ -23,6 +23,9 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
   public var ideaID: Idea.ID?
   public var inlineTitle: String?
   public var inlineNote: String?
+  public var rationaleVisit: String?
+  public var rationaleWhy: String?
+  public var rationaleFit: String?
   /// Optional coordinates for a freeform stop. Both values are populated together
   /// by the custom-stop editor; a partial pair remains unlocated in the read model.
   public var inlineLatitude: Double?
@@ -81,6 +84,9 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
     ideaID: Idea.ID?,
     inlineTitle: String? = nil,
     inlineNote: String? = nil,
+    rationaleVisit: String? = nil,
+    rationaleWhy: String? = nil,
+    rationaleFit: String? = nil,
     inlineLatitude: Double? = nil,
     inlineLongitude: Double? = nil,
     calendarNotes: String? = nil,
@@ -106,6 +112,9 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
     self.ideaID = ideaID
     self.inlineTitle = inlineTitle
     self.inlineNote = inlineNote
+    self.rationaleVisit = rationaleVisit
+    self.rationaleWhy = rationaleWhy
+    self.rationaleFit = rationaleFit
     self.inlineLatitude = inlineLatitude
     self.inlineLongitude = inlineLongitude
     self.calendarNotes = calendarNotes
@@ -162,6 +171,10 @@ public enum StopOutcome: Equatable, Sendable {
 }
 
 extension TripIdea {
+  public var rationale: TripRationale {
+    TripRationale(visit: rationaleVisit, why: rationaleWhy, fit: rationaleFit, note: inlineNote)
+  }
+
   /// This stop's day-relative placement as a domain value, rebuilt from columns.
   public var schedule: Schedule {
     Schedule(dayNumber: dayNumber, dayPart: dayPart, startTime: startTime, endTime: endTime)
@@ -199,6 +212,28 @@ extension TripIdea {
   }
 
   public var isPending: Bool { completedAt == nil && skippedAt == nil }
+}
+
+public struct TripRationale: Equatable, Sendable {
+  public var visit: String?
+  public var why: String?
+  public var fit: String?
+  public var note: String?
+
+  public var isEmpty: Bool {
+    [visit, why, fit, note].allSatisfy { $0?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true }
+  }
+}
+
+public enum TripRationaleBackfill {
+  /// Return the rationale to write, or nil when history cannot safely reconstruct it.
+  public static func update(for stop: TripIdea, from candidate: TripCandidate) -> TripRationale? {
+    guard stop.rationaleVisit == nil, stop.rationaleWhy == nil, stop.rationaleFit == nil else { return nil }
+    let oldNote = stop.inlineNote?.trimmingCharacters(in: .whitespacesAndNewlines)
+    let oldRationale = candidate.rationale?.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard oldNote == oldRationale || (stop.inlineNote == nil && candidate.visit != nil) else { return nil }
+    return TripRationale(visit: candidate.visit, why: candidate.why, fit: candidate.fit, note: nil)
+  }
 }
 
 /// A confirmed reservation's absolute-date pin (docs/trip-time-model.md §4).

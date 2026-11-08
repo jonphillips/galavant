@@ -1,4 +1,7 @@
 import GalavantSchema
+import Dependencies
+import LLMHandoffKit
+import SQLiteData
 import SwiftUI
 
 /// The adaptive navigation shell: a tab bar on iPhone, a sidebar + detail split
@@ -8,6 +11,8 @@ struct AppContainer: View {
   @State private var chatInbox = ChatInboxModel()
   @State private var browserModel = BrowserScreenModel()
   @State private var visitedRollupModel = VisitedRollupModel()
+  @Dependency(\.defaultDatabase) private var database
+  @Dependency(\.handoffSessionStore) private var handoffSessionStore
   @Environment(\.prefersTabNavigation) private var prefersTabNavigation
   @Environment(\.scenePhase) private var scenePhase
   /// Where this scene was, mirrored from the router so it survives iPadOS killing
@@ -79,8 +84,32 @@ struct AppContainer: View {
       }
     }
     .task {
+      await backfillTripRationales()
       await visitedRollupModel.run()
       await chatInbox.prepare()
+    }
+  }
+
+  private func backfillTripRationales() async {
+    for session in handoffSessionStore.sessions() {
+      guard let payload = session.candidatePayload,
+        let candidates = try? TripCandidate.decodeReturn(payload).candidates
+      else { continue }
+      let candidatesByID = Dictionary(uniqueKeysWithValues: candidates.map { ($0.id, $0) })
+      for link in session.candidateLinks {
+        guard let stopID = link.tripIdeaID, let candidate = candidatesByID[link.candidateID] else { continue }
+        try? await database.write { db in
+          guard let stop = try TripIdea.find(stopID).fetchOne(db),
+            let rationale = TripRationaleBackfill.update(for: stop, from: candidate)
+          else { return }
+          try TripIdea.find(stopID).update {
+            $0.rationaleVisit = #bind(rationale.visit)
+            $0.rationaleWhy = #bind(rationale.why)
+            $0.rationaleFit = #bind(rationale.fit)
+            $0.inlineNote = #bind(rationale.note)
+          }.execute(db)
+        }
+      }
     }
   }
 
