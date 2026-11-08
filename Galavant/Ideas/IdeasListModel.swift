@@ -110,6 +110,7 @@ final class IdeasListModel {
   @CasePathable
   enum Destination {
     case form(IdeaFormPresentation)
+    case dossier(Idea.ID)
     case identity
   }
 
@@ -469,7 +470,15 @@ final class IdeasListModel {
   }
 
   func ideaTapped(_ idea: Idea) {
-    destination = .form(IdeaFormPresentation(draft: Idea.Draft(idea), searchRegions: []))
+    destination = .dossier(idea.id)
+  }
+
+  func editPresentation(for idea: Idea) -> IdeaFormPresentation {
+    IdeaFormPresentation(draft: Idea.Draft(idea), searchRegions: [])
+  }
+
+  func closeDossier() {
+    if case .dossier = destination { destination = nil }
   }
 
   func mapPlaceTapped(_ place: Place) async {

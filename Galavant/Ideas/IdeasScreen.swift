@@ -130,15 +130,33 @@ struct IdeasScreen: View {
   @ViewBuilder private var content: some View {
     if horizontalSizeClass == .regular {
       HStack(spacing: 0) {
-        ideasList
+        if case let .dossier(ideaID) = model.destination {
+          IdeaDetailView(
+            ideaID: ideaID,
+            onEdit: model.editPresentation(for:),
+            onBack: {
+              if focusedIdeaID != ideaID || !model.ideas.contains(where: { $0.id == ideaID }) {
+                focusedIdeaID = nil
+              }
+              model.closeDossier()
+            }
+          )
           .frame(maxWidth: 420)
+        } else {
+          ideasList.frame(maxWidth: 420)
+        }
         Divider()
         poolMap
       }
     } else {
-      switch mode {
-      case .list: ideasList
-      case .map: poolMap
+      Group {
+        switch mode {
+        case .list: ideasList
+        case .map: poolMap
+        }
+      }
+      .navigationDestination(item: $model.destination.dossier) { ideaID in
+        IdeaDetailView(ideaID: ideaID, onEdit: model.editPresentation(for:))
       }
     }
   }
@@ -337,7 +355,10 @@ struct IdeasScreen: View {
           isMatch: model.isMatch(idea),
           myInterest: model.myInterest(for: idea),
           tripAccessory: tripAccessory(for: idea),
-          onTap: { model.ideaTapped(idea) },
+          onTap: {
+            focusedIdeaID = idea.id
+            model.ideaTapped(idea)
+          },
           onSetInterest: { model.setMyInterest($0, for: idea) }
         )
         .id(idea.id)

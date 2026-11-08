@@ -5,7 +5,7 @@ reached from Ideas, scoped to one saved region and one category, Dining or Hotel
 their headline accolade, with shelves for Want to Go, Noted, and Not for Me. Do Not Do places are hidden by default. It's
 built to be judged on a device, and that review decides what comes next. No schema, migration, sync, or hand-off change.
 
-**Read first:** ADR-0053 D1 and D6; the [idea-dossier](idea-dossier.md) brief, since this screen opens that dossier; ADR-0015
+**Read first:** ADR-0053 D1 and D6; the [idea-dossier](archive/idea-dossier.md) brief, since this screen opens that dossier; ADR-0015
 (accolades as the source wrote them); and `PRODUCT.md` § The other loop and § Scoping the pool.
 
 **Depends on `idea-dossier`.** Start from a `main` that has it.
