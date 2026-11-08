@@ -107,6 +107,7 @@ import Testing
   @Test("Meal.forClock buckets a clock time to a meal")
   func clockToMeal() {
     #expect(Meal.forClock(minute: 8 * 60) == .breakfast)
+    #expect(Meal.forClock(minute: 9 * 60) == .lunch)
     #expect(Meal.forClock(minute: 12 * 60) == .lunch)
     #expect(Meal.forClock(minute: 15 * 60) == .lunch)
     #expect(Meal.forClock(minute: 19 * 60 + 30) == .dinner)

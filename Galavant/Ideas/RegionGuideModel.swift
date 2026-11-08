@@ -25,9 +25,9 @@ final class RegionGuideModel {
   @ObservationIgnored @FetchAll(ImageAsset.where { $0.isHeader.eq(true) }
     .select { HeaderThumb.Columns(ideaID: $0.ideaID, thumbnail: $0.thumbnail) }) var headerThumbs
   @ObservationIgnored @Shared(.appStorage("lastRegionGuideID")) private var lastRegionID = ""
-  @ObservationIgnored @Shared(.appStorage("lastRegionGuideTripID")) private var lastTripIDString = ""
   @ObservationIgnored @Shared(.appStorage("regionGuideLensFolded")) var lensFolded = false
   @ObservationIgnored @Dependency(\.date) var date
+  @ObservationIgnored @Dependency(\.calendar) var calendar
   @ObservationIgnored private var planSnapshot = TripPlanSnapshot()
 
   var region: MapRegion?
@@ -60,16 +60,13 @@ final class RegionGuideModel {
 
   var tripLens: GuideTripLens? {
     guard let region else { return nil }
-    let calendar = Calendar.current
     let choices = GuideTripLens.candidates(
       region: region, trips: trips, dayRegions: tripDayRegions, now: date(), calendar: calendar)
     guard !choices.isEmpty else { return nil }
-    let selectedID = chosenTripID ?? GuideTripLens.chosenTripID(
-      preferred: initialPreferredTripID, candidates: choices,
-      lastPicked: UUID(uuidString: lastTripIDString))
+    let selectedID = GuideTripLens.chosenTripID(
+      chipPick: chosenTripID, preferred: initialPreferredTripID, candidates: choices)
     guard let selectedID,
-          let trip = trips.first(where: { $0.id == selectedID }),
-          tripDayRegions.contains(where: { $0.tripID == trip.id && $0.regionID == region.id }) else { return nil }
+          let trip = trips.first(where: { $0.id == selectedID }) else { return nil }
     let inputs = TripPlanInputs(
       tripID: trip.id, lengthInDays: trip.lengthInDays, tripIdeas: tripIdeas, ideas: ideas,
       tripStays: tripStays, dayRegions: tripDayRegions, regions: regions,
@@ -107,7 +104,6 @@ final class RegionGuideModel {
 
   func tripSelected(_ tripID: Trip.ID) {
     chosenTripID = tripID
-    $lastTripIDString.withLock { $0 = tripID.uuidString }
   }
 
   func lensFoldButtonTapped() {

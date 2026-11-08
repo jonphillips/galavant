@@ -56,6 +56,33 @@ public struct GuideTripLens: Equatable, Sendable {
   public var regionDays: [Int]
   public var body: Body
   public var badges: [Idea.ID: Badge]
+  public var weekdaysByDay: [Int: Weekday]
+  public var regionName: String
+
+  public var heading: String {
+    switch body {
+    case .meals:
+      if regionDays.count == 1 { return "Day \(regionDays[0]) in \(regionName)" }
+      return "\(regionDays.count) days in \(regionName)"
+    case let .nights(runs):
+      let ranges = runs.compactMap { run -> ClosedRange<Int>? in
+        switch run {
+        case let .open(nights): nights
+        case let .stay(_, _, _, _, nights): nights
+        }
+      }
+      guard !ranges.isEmpty else { return "Nights in \(regionName)" }
+      let labels = ranges.map { range in
+        range.lowerBound == range.upperBound ? "\(range.lowerBound)" : "\(range.lowerBound)–\(range.upperBound)"
+      }
+      let singular = ranges.count == 1 && ranges[0].lowerBound == ranges[0].upperBound
+      return "Night\(singular ? "" : "s") \(labels.joined(separator: ", ")) in \(regionName)"
+    }
+  }
+
+  public func badgeLabel(for ideaID: Idea.ID) -> String? {
+    badges[ideaID].map { $0.label(in: self) }
+  }
 
   public static func candidates(
     region: MapRegion, trips: [Trip], dayRegions: [TripDayRegion], now: Date, calendar: Calendar
@@ -66,13 +93,13 @@ public struct GuideTripLens: Equatable, Sendable {
     return (sections.dated + sections.targeted + sections.someday).map { TripChoice(id: $0.id, name: $0.name) }
   }
 
-  public static func chosenTripID(preferred: Trip.ID?, candidates: [TripChoice], lastPicked: Trip.ID?) -> Trip.ID? {
+  public static func chosenTripID(
+    chipPick: Trip.ID?, preferred: Trip.ID?, candidates: [TripChoice]
+  ) -> Trip.ID? {
+    if let chipPick, candidates.contains(where: { $0.id == chipPick }) { return chipPick }
     if let preferred, candidates.contains(where: { $0.id == preferred }) { return preferred }
-    if let first = candidates.first { return first.id }
-    return lastPicked
+    return candidates.first?.id
   }
-
-  public static func preferredTripID(from scope: RegionGuideScope) -> Trip.ID? { scope.preferredTripID }
 
   public init(
     trip: Trip, candidates: [TripChoice], region: MapRegion, category: GuideCategory,
@@ -82,6 +109,10 @@ public struct GuideTripLens: Equatable, Sendable {
     otherTrips = candidates.filter { $0.id != trip.id }
     regionDays = plan.dayRegions.filter { $0.regionID == region.id }
       .map(\.dayNumber).filter { $0 >= 1 && $0 <= trip.lengthInDays }.sorted()
+    regionName = region.name
+    weekdaysByDay = Dictionary(regionDays.compactMap { day in
+      trip.date(forDay: day).flatMap { date in Weekday.from(date, calendar: calendar).map { (day, $0) } }
+    }, uniquingKeysWith: { first, _ in first })
 
     let nights = regionDays.filter { $0 < trip.lengthInDays }
     let stayGroups = plan.stayDayGroups()
@@ -202,12 +233,12 @@ private struct StopProjection {
 }
 
 public extension GuideTripLens.Badge {
-  func label(trip: Trip, calendar: Calendar) -> String {
+  func label(in lens: GuideTripLens) -> String {
     switch self {
     case let .meal(day, meal, ringActive):
       let prefix: String
-      if let date = trip.date(forDay: day) {
-        prefix = "\(calendar.shortWeekday(for: date)) \(meal.label.lowercased())"
+      if let weekday = lens.weekdaysByDay[day] {
+        prefix = "\(weekday.shortLabel) \(meal.label.lowercased())"
       } else {
         prefix = "Day \(day) \(meal.label.lowercased())"
       }
@@ -215,14 +246,5 @@ public extension GuideTripLens.Badge {
     case let .nights(range): return range.lowerBound == range.upperBound ? "Night \(range.lowerBound)" : "Nights \(range.lowerBound)–\(range.upperBound)"
     case .onTrip: return "On trip"
     }
-  }
-}
-
-private extension Calendar {
-  func shortWeekday(for date: Date) -> String {
-    let symbols = shortStandaloneWeekdaySymbols
-    let index = component(.weekday, from: date) - 1
-    guard symbols.indices.contains(index) else { return "Day" }
-    return symbols[index]
   }
 }

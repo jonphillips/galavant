@@ -127,6 +127,23 @@ struct RegionGuideModelTests {
   }
 
   @Test @MainActor
+  func regionWithoutTripDayHasNoTripLens() async throws {
+    let region = MapRegion(
+      id: UUID(), name: "Val Serena", centerLatitude: 45, centerLongitude: 9,
+      latitudeDelta: 2, longitudeDelta: 2)
+    try await database.write { db in
+      try MapRegion.insert { MapRegion.Draft(region) }.execute(db)
+      try Trip.insert { Trip.Draft(Trip(id: UUID(), name: "Elsewhere")) }.execute(db)
+    }
+
+    let model = RegionGuideModel()
+    model.task(scope: RegionGuideScope(region: region, category: .dining))
+    try await model.$trips.load()
+    try await model.$tripDayRegions.load()
+    #expect(model.tripLens == nil)
+  }
+
+  @Test @MainActor
   func guideEntryUsesTheSingleActiveTripSubregion() async throws {
     let trip = Trip(id: UUID(), name: "Paris and Lyon")
     let paris = MapRegion(

@@ -168,9 +168,8 @@ struct RegionGuideScreen: View {
               } label: {
                 VStack(alignment: .leading, spacing: 6) {
                   cardView(card, headerThumbnail: headerThumbnails[card.idea.id], plannerNames: plannerNames)
-                  if let tripLens, let badge = tripLens.badges[card.idea.id],
-                     let trip = model.trips.first(where: { $0.id == tripLens.trip.id }) {
-                    Text(badge.label(trip: trip, calendar: .current))
+                  if let tripLens, let label = tripLens.badgeLabel(for: card.idea.id) {
+                    Text(label)
                       .font(.caption2.weight(.medium))
                       .padding(.horizontal, 7).padding(.vertical, 3)
                       .background(.thinMaterial, in: Capsule())
@@ -198,7 +197,7 @@ struct RegionGuideScreen: View {
             .font(.subheadline.weight(.semibold)).lineLimit(1)
         }
         Spacer()
-        Text(lensHeading(lens))
+        Text(lens.heading)
           .font(.caption).foregroundStyle(.secondary).lineLimit(1)
         Button { model.lensFoldButtonTapped() } label: {
           Image(systemName: model.lensFolded ? "chevron.down" : "chevron.up")
@@ -255,23 +254,6 @@ struct RegionGuideScreen: View {
   private func alsoThatDay(_ stops: [GuideTripLens.SlotStop]) -> some View {
     Text("Also: \(stops.map(\.title).joined(separator: ", "))")
       .font(.caption2).foregroundStyle(.secondary).lineLimit(2)
-  }
-
-  private func lensHeading(_ lens: GuideTripLens) -> String {
-    switch lens.body {
-    case let .meals(days):
-      guard let first = days.first?.day, let last = days.last?.day else { return "Days in \(model.region?.name ?? "")" }
-      return "Days \(first)–\(last) in \(model.region?.name ?? "")"
-    case let .nights(runs):
-      let spans = runs.compactMap { run -> ClosedRange<Int>? in
-        switch run {
-        case let .open(nights): nights
-        case let .stay(_, _, _, _, nights): nights
-        }
-      }
-      guard let first = spans.first?.lowerBound, let last = spans.last?.upperBound else { return "Nights" }
-      return first == last ? "Night \(first)" : "Nights \(first)–\(last)"
-    }
   }
 
   private func nightRunsView(_ runs: [GuideTripLens.NightRun]) -> some View {
