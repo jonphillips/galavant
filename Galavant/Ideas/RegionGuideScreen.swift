@@ -51,13 +51,13 @@ struct RegionGuideScreen: View {
             .pickerStyle(.segmented)
           }
         }
+        .navigationDestination(item: $model.destination.dossier) { ideaID in
+          IdeaDetailView(ideaID: ideaID, canEdit: true)
+        }
       }
     }
     .navigationTitle("Region Guide")
     .navigationBarTitleDisplayMode(.inline)
-    .navigationDestination(item: $model.destination.dossier) { ideaID in
-      IdeaDetailView(ideaID: ideaID, canEdit: true)
-    }
     .sheet(item: $model.destination.form) { presentation in
       IdeaFormView(draft: presentation.draft, searchRegions: presentation.searchRegions)
     }

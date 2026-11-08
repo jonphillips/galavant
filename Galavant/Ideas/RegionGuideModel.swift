@@ -14,7 +14,7 @@ final class RegionGuideModel {
   @ObservationIgnored @FetchAll(IdeaEvaluation.all) var evaluations
   @ObservationIgnored @FetchAll(IdeaInterest.all) var interests
   @ObservationIgnored @FetchAll(Planner.all) var planners
-  @ObservationIgnored @FetchAll(MapRegion.order(by: \.name)) var regions
+  @ObservationIgnored @FetchAll(MapRegion.all) var regions
   @ObservationIgnored @FetchAll(TasteNote.where { $0.ideaID.isNot(nil) }) var notes
   @ObservationIgnored @FetchAll(ImageAsset.where { $0.isHeader.eq(true) }
     .select { HeaderThumb.Columns(ideaID: $0.ideaID, thumbnail: $0.thumbnail) }) var headerThumbs
