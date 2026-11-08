@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Region guide trip lens (dossier over the map + meal slots)</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.47.0/iconfont/tabler-icons.min.css">
+<style>
+:root{
+  --color-background-primary:#ffffff;
+  --color-background-secondary:#f4f3ee;
+  --color-background-tertiary:#faf9f5;
+  --color-text-primary:#1a1a18;
+  --color-text-secondary:#5f5e5a;
+  --color-text-tertiary:#8b8a83;
+  --color-border-tertiary:rgba(0,0,0,0.12);
+  --color-border-secondary:rgba(0,0,0,0.22);
+  --tint:#2f6fd0;
+  --tint-soft:#e6f1fb;
+  --tint-line:#85b7eb;
+  --tint-ink:#0c447c;
+  --amber-soft:#fdf1dc;
+  --amber-line:#efc07a;
+  --amber-ink:#7a4a08;
+  --green-soft:#e7f4ea;
+  --green-line:#93cfa2;
+  --green-ink:#1f5a2e;
+  --map-land:#eef0e6;
+  --map-green:#d9e6cf;
+  --map-water:#cfe0ee;
+  --map-road:#ffffff;
+  --border-radius-md:8px;
+  --border-radius-lg:12px;
+  --font-sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --color-background-primary:#26251f;
+    --color-background-secondary:#1d1c17;
+    --color-background-tertiary:#161510;
+    --color-text-primary:#f2f0e8;
+    --color-text-secondary:#b4b2a9;
+    --color-text-tertiary:#888780;
+    --color-border-tertiary:rgba(255,255,255,0.14);
+    --color-border-secondary:rgba(255,255,255,0.26);
+    --tint:#5a95ee;
+    --tint-soft:#1c2d44;
+    --tint-line:#3b6aa8;
+    --tint-ink:#bcd6f8;
+    --amber-soft:#3a2c14;
+    --amber-line:#8a6326;
+    --amber-ink:#f3d29c;
+    --green-soft:#1a3122;
+    --green-line:#3f7a50;
+    --green-ink:#b9e3c4;
+    --map-land:#2b2d27;
+    --map-green:#2f3a2a;
+    --map-water:#22323f;
+    --map-road:#3c3d36;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--color-background-tertiary);color:var(--color-text-primary);font-family:var(--font-sans);padding:28px 20px 60px;}
+h2{max-width:1180px;margin:40px auto 8px;font-size:18px;font-weight:600}
+.note{max-width:1180px;margin:0 auto 16px;font-size:13px;color:var(--color-text-tertiary);line-height:1.6;}
+.note code{font-size:12px}
+.callouts{max-width:1180px;margin:14px auto 0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px 22px;font-size:13px;line-height:1.5;color:var(--color-text-secondary)}
+.callouts li{display:flex;gap:8px}
+.num{flex:none;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#d6336c;color:#fff;font-size:11px;font-weight:700}
+.pinnum{position:absolute;z-index:5}
+
+/* ---------- device shells ---------- */
+.ipad{max-width:1180px;margin:0 auto;border-radius:22px;border:10px solid #1f1f1d;background:var(--color-background-primary);overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.12)}
+.phones{max-width:1180px;margin:0 auto;display:flex;gap:28px;flex-wrap:wrap;justify-content:center}
+.phone{width:390px;height:800px;border-radius:44px;border:10px solid #1f1f1d;background:var(--color-background-primary);overflow:hidden;position:relative;box-shadow:0 10px 30px rgba(0,0,0,.12);display:flex;flex-direction:column}
+.status{height:34px;flex:none}
+
+/* ---------- shared chrome ---------- */
+.navbar{display:flex;align-items:center;gap:10px;padding:10px 16px;font-size:15px;border-bottom:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary)}
+.navbar .back{color:var(--tint)}
+.navbar .title{flex:1;text-align:center;font-weight:600}
+.navbar .seg{display:inline-flex;border-radius:8px;background:var(--color-border-tertiary);padding:2px}
+.navbar .seg span{padding:3px 14px;border-radius:6px;font-size:13px;color:var(--color-text-secondary)}
+.navbar .seg span.on{background:var(--color-background-primary);color:var(--color-text-primary)}
+.ghdr{padding:10px 16px;background:var(--color-background-secondary);border-bottom:0.5px solid var(--color-border-tertiary)}
+.ghdr .row1{display:flex;align-items:center;gap:10px}
+.region{color:var(--tint);font-size:15px;display:inline-flex;align-items:center;gap:6px}
+.catseg{margin-left:auto;display:inline-flex;border-radius:8px;background:var(--color-border-tertiary);padding:2px}
+.catseg span{padding:4px 22px;border-radius:6px;font-size:13px;color:var(--color-text-secondary)}
+.catseg span.on{background:var(--color-background-primary);color:var(--color-text-primary);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.shelves{display:flex;gap:8px;margin-top:10px;overflow:hidden}
+.shelf{font-size:13px;padding:5px 11px;border-radius:999px;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);white-space:nowrap}
+.shelf.on{background:var(--tint);color:#fff;border-color:var(--tint)}
+
+/* ---------- body layout (iPad) ---------- */
+.split{display:grid;grid-template-columns:400px 1fr;height:720px}
+.column{border-right:0.5px solid var(--color-border-tertiary);overflow:hidden;display:flex;flex-direction:column;background:var(--color-background-tertiary)}
+.mapwrap{position:relative;overflow:hidden}
+
+/* ---------- trip lens strip ---------- */
+.lens{background:var(--color-background-primary);border-bottom:0.5px solid var(--color-border-tertiary);padding:10px 12px 12px;position:relative}
+.lens-h{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:8px}
+.tripchip{display:inline-flex;align-items:center;gap:6px;font-weight:600}
+.tripchip .dot{width:8px;height:8px;border-radius:50%;background:#378add}
+.lens-h .sub{color:var(--color-text-tertiary)}
+.lens-h .tog{margin-left:auto;color:var(--color-text-tertiary);font-size:16px}
+.slots{display:grid;grid-template-columns:62px 1fr 1fr;gap:4px;font-size:12px}
+.slots .ch{color:var(--color-text-tertiary);font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:0 2px}
+.day{color:var(--color-text-secondary);line-height:1.2;padding:5px 2px}
+.day b{display:block;color:var(--color-text-primary);font-weight:600;font-size:12px}
+.cell{border-radius:7px;padding:5px 7px;line-height:1.25;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary);min-height:36px;display:flex;flex-direction:column;justify-content:center;overflow:hidden}
+.cell .n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cell .m{color:var(--color-text-tertiary);font-size:11px;white-space:nowrap;display:flex;align-items:center;gap:3px}
+.cell.open{border:1px dashed var(--color-border-secondary);background:transparent;color:var(--color-text-tertiary);flex-direction:row;align-items:center;gap:4px}
+.cell.booked{background:var(--green-soft);border-color:var(--green-line);color:var(--green-ink)}
+.cell.booked .m{color:var(--green-ink);opacity:.8}
+.cell.ring{background:var(--amber-soft);border-color:var(--amber-line);color:var(--amber-ink)}
+.cell.ring .m{color:var(--amber-ink);opacity:.85}
+.cell.free{font-style:italic}
+.cell.sel{outline:2px solid var(--tint);outline-offset:1px}
+.cell.drop{outline:2px solid var(--tint);outline-offset:1px;background:var(--tint-soft);border-style:solid;color:var(--tint-ink)}
+.cell.travel{background:repeating-linear-gradient(135deg,transparent 0 5px,var(--color-border-tertiary) 5px 6px);color:var(--color-text-tertiary)}
+
+/* ---------- card list ---------- */
+.list{flex:1;overflow:hidden;padding:0 0 10px}
+.sect{font-size:12px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.04em;padding:12px 16px 6px}
+.cards{background:var(--color-background-primary);border-top:0.5px solid var(--color-border-tertiary);border-bottom:0.5px solid var(--color-border-tertiary)}
+.card{display:flex;gap:11px;padding:10px 14px;border-bottom:0.5px solid var(--color-border-tertiary);position:relative}
+.card:last-child{border-bottom:none}
+.card.focus{background:var(--tint-soft)}
+.thumb{flex:none;width:58px;height:58px;border-radius:8px;background:linear-gradient(135deg,#c9a77a,#7d5a3a)}
+.thumb.b{background:linear-gradient(135deg,#9fb5a0,#4d6b58)}
+.thumb.c{background:linear-gradient(135deg,#b9a3c9,#5d4b7a)}
+.thumb.d{background:linear-gradient(135deg,#d7c28d,#8a6d2c)}
+.thumb.e{background:linear-gradient(135deg,#a9c3d6,#3f627d)}
+.card .nm{font-size:15px;font-weight:600}
+.card .sub{font-size:12.5px;color:var(--color-text-tertiary)}
+.card .acc{font-size:12.5px;margin-top:2px}
+.card .tn{font-size:12.5px;color:var(--color-text-secondary);margin-top:2px;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.card .who{font-size:11.5px;color:var(--color-text-tertiary);margin-top:3px}
+.sbadge{position:absolute;right:12px;top:10px;font-size:11px;padding:2px 8px;border-radius:999px;display:inline-flex;align-items:center;gap:3px}
+.sbadge.booked{background:var(--green-soft);border:0.5px solid var(--green-line);color:var(--green-ink)}
+.sbadge.ring{background:var(--amber-soft);border:0.5px solid var(--amber-line);color:var(--amber-ink)}
+
+/* ---------- map ---------- */
+.map{position:absolute;inset:0;background:var(--map-land)}
+.map svg{position:absolute;inset:0;width:100%;height:100%}
+.pin{position:absolute;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;z-index:2}
+.pin .p{width:26px;height:26px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#e0533d;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.pin .p i{transform:rotate(45deg);color:#fff;font-size:14px}
+.pin.dim{opacity:.35}
+.pin.big .p{width:36px;height:36px;background:var(--tint)}
+.pin.big .p i{font-size:18px}
+.pin.amber .p{background:#d98a12}
+.pin.green .p{background:#2e8b4b}
+.pin .lbl{margin-top:3px;font-size:11px;font-weight:600;background:rgba(255,255,255,.85);color:#1a1a18;padding:1px 5px;border-radius:4px;white-space:nowrap}
+.mapctl{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;border-radius:8px;overflow:hidden;background:var(--color-background-primary);box-shadow:0 1px 4px rgba(0,0,0,.15);z-index:3}
+.mapctl i{padding:7px;font-size:17px;color:var(--color-text-secondary);border-bottom:0.5px solid var(--color-border-tertiary)}
+.mapctl i:last-child{border-bottom:none}
+
+/* ---------- floating dossier panel ---------- */
+.dossier{position:absolute;right:58px;top:14px;bottom:14px;width:350px;background:var(--color-background-primary);border-radius:16px;box-shadow:0 12px 34px rgba(0,0,0,.22);overflow:hidden;display:flex;flex-direction:column;z-index:4;border:0.5px solid var(--color-border-tertiary)}
+.hero{height:132px;flex:none;background:linear-gradient(135deg,#c9a77a 0%,#7d5a3a 100%);position:relative}
+.hero .x{position:absolute;right:10px;top:10px;width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.35);color:#fff;display:flex;align-items:center;justify-content:center}
+.hero .grab{position:absolute;left:50%;top:7px;width:36px;height:5px;border-radius:3px;background:rgba(255,255,255,.7);transform:translateX(-50%)}
+.dbody{padding:12px 16px;overflow:hidden;flex:1;font-size:13px}
+.dbody .nm{font-size:19px;font-weight:700}
+.dbody .sub{color:var(--color-text-tertiary);margin-top:2px}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:3px 9px;border-radius:999px;border:0.5px solid var(--color-border-tertiary);margin:8px 6px 0 0}
+.pill.star{background:#fbeaf0;border-color:#ed93b1;color:#72243e}
+.dsec{margin-top:12px}
+.dsec h4{margin:0 0 5px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--color-text-tertiary);font-weight:600}
+.hours{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;font-size:10.5px;text-align:center}
+.hours div{border-radius:5px;padding:3px 0;background:var(--color-background-secondary);color:var(--color-text-secondary);line-height:1.3}
+.hours div.trip{outline:1.5px solid var(--tint);outline-offset:-1.5px}
+.hours div.x{color:var(--color-text-tertiary);text-decoration:line-through}
+.tnote{background:var(--color-background-secondary);border-radius:8px;padding:7px 9px;margin-bottom:5px;line-height:1.45}
+.tnote .w{display:block;font-size:11px;color:var(--color-text-tertiary);margin-top:2px}
+.dactions{display:flex;gap:8px;padding:10px 16px 14px;border-top:0.5px solid var(--color-border-tertiary);flex:none}
+.btn{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:14px;padding:9px 10px;border-radius:10px;background:var(--color-background-secondary);color:var(--tint);font-weight:500}
+.btn.primary{background:var(--tint);color:#fff}
+.btn.icon{flex:none;width:42px}
+
+/* ---------- add-to-trip menu ---------- */
+.menu{position:absolute;width:300px;background:var(--color-background-primary);border-radius:13px;box-shadow:0 14px 40px rgba(0,0,0,.28);border:0.5px solid var(--color-border-tertiary);overflow:hidden;z-index:6;font-size:13px}
+.menu .mh{padding:9px 13px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--color-text-tertiary);background:var(--color-background-secondary)}
+.mi{display:flex;align-items:center;gap:9px;padding:8px 13px;border-top:0.5px solid var(--color-border-tertiary)}
+.mi i{font-size:16px;color:var(--tint);width:18px;text-align:center}
+.mi .t{flex:1;line-height:1.25}
+.mi .t small{display:block;color:var(--color-text-tertiary);font-size:11px}
+.mi.dis{color:var(--color-text-tertiary)}
+.mi.dis i{color:var(--color-text-tertiary)}
+.mi.hi{background:var(--tint-soft)}
+
+/* ---------- phone bits ---------- */
+.phone .navbar{padding:8px 14px}
+.phone .ghdr{padding:8px 14px}
+.phone .catseg span{padding:4px 14px}
+.daystrip{display:flex;gap:8px;padding:10px 12px;overflow:hidden;background:var(--color-background-primary);border-bottom:0.5px solid var(--color-border-tertiary)}
+.dcard{flex:none;width:132px;border-radius:10px;border:0.5px solid var(--color-border-tertiary);padding:7px 8px;font-size:11.5px;background:var(--color-background-secondary)}
+.dcard .dh{font-weight:600;font-size:12px;margin-bottom:4px;display:flex;justify-content:space-between}
+.dcard .dh span{color:var(--color-text-tertiary);font-weight:400}
+.dcard .sl{display:flex;gap:5px;align-items:center;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dcard .sl b{flex:none;width:14px;height:14px;border-radius:4px;font-size:9px;display:inline-flex;align-items:center;justify-content:center;color:#fff}
+.sl b.bk{background:#2e8b4b}.sl b.rg{background:#d98a12}.sl b.op{background:transparent;border:1px dashed var(--color-border-secondary);color:var(--color-text-tertiary)}.sl b.fr{background:#888780}
+.sl .o{color:var(--color-text-tertiary)}
+.phone .list .card .sbadge{top:8px}
+.sheet{position:absolute;left:0;right:0;bottom:0;height:470px;background:var(--color-background-primary);border-radius:16px 16px 0 0;box-shadow:0 -6px 26px rgba(0,0,0,.2);display:flex;flex-direction:column;z-index:4}
+.sheet .hero{height:110px;border-radius:16px 16px 0 0}
+.phone .mapwrap{flex:1}
+.homebar{position:absolute;bottom:7px;left:50%;transform:translateX(-50%);width:130px;height:5px;border-radius:3px;background:#1f1f1d;z-index:9;opacity:.8}
+.slotsel{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--tint-soft);color:var(--tint-ink);font-size:13px;border-bottom:0.5px solid var(--tint-line)}
+.slotsel i:last-child{margin-left:auto}
+.cyc{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--tint);margin-top:4px}
+.active-tag{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--amber-ink);background:var(--amber-soft);border:0.5px solid var(--amber-line);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:2px}
+
+/* hotels */
+.nights{display:grid;grid-template-columns:62px 1fr;gap:4px;font-size:12px}
+.nights .span3{grid-row:span 3}
+.nights .cell{min-height:30px}
+.later{font-size:11.5px;color:var(--color-text-tertiary);margin-top:8px;line-height:1.45;display:flex;gap:6px}
+</style>
+</head>
+<body>
+
+<p class="note"><b>Mockup from the 2026-11-08 design session.</b> It shows the region guide getting an
+optional <em>trip lens</em>: when the guide's region falls on a trip's days, a strip of lunch and dinner
+slots appears above the cards, and the cards can fill those slots. A dossier opens over the map instead of
+replacing the list. Every place, note, and trip here is invented (the repo is public). Builds on ADR-0053
+(guide and dossier), ADR-0035 (alternatives rings), ADR-0012 (per-day regions), and ADR-0029 (meal-aware
+hours). Nothing on this page needs a schema change except the hotel candidates noted in frame 4.</p>
+
+<!-- ======================================================= -->
+<h2>1 · iPad — Dining, a card tapped, "Add to Trip" open</h2>
+<p class="note">The list column stays put and the dossier floats over the map's trailing edge. Tapping
+another card or pin swaps what's in the panel, with no back button. The map stays visible in the middle,
+and you can still pan it while the panel is open.</p>
+
+<div class="ipad">
+  <div class="navbar">
+    <span class="back"><i class="ti ti-chevron-left"></i> Ideas</span>
+    <span class="title">Region Guide</span>
+    <span style="width:60px"></span>
+  </div>
+  <div class="ghdr">
+    <div class="row1">
+      <span class="region"><i class="ti ti-map"></i> Val Serena <i class="ti ti-chevron-down" style="font-size:13px"></i></span>
+      <span class="catseg"><span class="on">Dining</span><span>Hotels</span></span>
+    </div>
+    <div class="shelves">
+      <span class="shelf on">All · 14</span><span class="shelf">Want to Go · 6</span><span class="shelf">Noted · 5</span><span class="shelf">Not for Me · 2</span>
+    </div>
+  </div>
+
+  <div class="split">
+    <div class="column">
+      <!-- trip lens -->
+      <div class="lens">
+        <span class="num pinnum" style="left:-6px;top:6px">1</span>
+        <div class="lens-h">
+          <span class="tripchip"><span class="dot"></span>Alps 2027 <i class="ti ti-chevron-down" style="font-size:12px;color:var(--color-text-tertiary)"></i></span>
+          <span class="sub">· Days 4–7 in Val Serena</span>
+          <i class="ti ti-chevron-up tog"></i>
+        </div>
+        <div class="slots" style="position:relative">
+          <span class="num pinnum" style="left:-18px;top:30px">2</span>
+          <span></span><span class="ch">Lunch</span><span class="ch">Dinner</span>
+
+          <div class="day"><b>Day 4</b>Tue 8 Jun</div>
+          <div class="cell travel"><span class="n">Travel day</span><span class="m">arrive ~3 pm</span></div>
+          <div class="cell booked"><span class="n">Stube Nera</span><span class="m"><i class="ti ti-check"></i> booked 7:30</span></div>
+
+          <div class="day"><b>Day 5</b>Wed 9 Jun</div>
+          <div class="cell open drop"><i class="ti ti-plus"></i> Open</div>
+          <div class="cell ring"><span class="n">Ca' del Larice</span><span class="m"><i class="ti ti-arrows-exchange"></i> 2 options</span></div>
+
+          <div class="day"><b>Day 6</b>Thu 10 Jun</div>
+          <div class="cell free"><span class="n">Picnic at the lake</span><span class="m" style="font-style:normal">freeform</span></div>
+          <div class="cell open"><i class="ti ti-plus"></i> Open</div>
+
+          <div class="day"><b>Day 7</b>Fri 11 Jun</div>
+          <div class="cell open"><i class="ti ti-plus"></i> Open</div>
+          <div class="cell open"><i class="ti ti-plus"></i> Open</div>
+        </div>
+      </div>
+
+      <!-- cards -->
+      <div class="list">
+        <span class="num pinnum" style="left:-6px;margin-top:14px">3</span>
+        <div class="sect">Michelin · 1 Star</div>
+        <div class="cards">
+          <div class="card focus">
+            <div class="thumb"></div>
+            <div>
+              <div class="nm">Malga Ombrosa</div>
+              <div class="sub">Passo Ombroso</div>
+              <div class="acc">Michelin · 1 Star</div>
+              <div class="who">Jon: Want to Go · Wendy: Want to Go</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="thumb b"></div>
+            <div>
+              <div class="nm">Ca' del Larice</div>
+              <div class="sub">San Vitale</div>
+              <div class="acc">Michelin · 1 Star</div>
+              <div class="who">Jon: Want to Go · Wendy: Interested</div>
+            </div>
+            <span class="sbadge ring"><i class="ti ti-arrows-exchange"></i> Wed dinner · active</span>
+          </div>
+        </div>
+        <div class="sect">Michelin · Bib Gourmand</div>
+        <div class="cards">
+          <div class="card">
+            <div class="thumb c"></div>
+            <div>
+              <div class="nm">Stube Nera</div>
+              <div class="sub">Borgo Alto</div>
+              <div class="tn">"Order the barley soup and nothing else, it's enough" · Wendy</div>
+              <div class="who">Visited</div>
+            </div>
+            <span class="sbadge booked"><i class="ti ti-check"></i> Tue dinner</span>
+          </div>
+          <div class="card">
+            <div class="thumb d"></div>
+            <div>
+              <div class="nm">Osteria al Ponte</div>
+              <div class="sub">San Vitale</div>
+              <div class="acc">Michelin · Bib Gourmand</div>
+              <div class="who">Jon: Interested · Wendy: Not rated</div>
+            </div>
+            <span class="sbadge ring"><i class="ti ti-arrows-exchange"></i> Wed dinner</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- map -->
+    <div class="mapwrap">
+      <div class="map">
+        <svg viewBox="0 0 780 720" preserveAspectRatio="xMidYMid slice">
+          <path d="M0 0 H780 V720 H0Z" fill="var(--map-land)"/>
+          <path d="M60 80 C180 40 300 120 340 220 C380 320 260 380 160 360 C60 340 20 200 60 80Z" fill="var(--map-green)"/>
+          <path d="M420 420 C520 380 680 420 720 520 C760 620 600 700 480 660 C380 630 340 470 420 420Z" fill="var(--map-green)"/>
+          <path d="M250 470 C300 440 360 460 370 510 C380 560 320 590 270 570 C220 550 210 495 250 470Z" fill="var(--map-water)"/>
+          <path d="M0 300 C150 280 260 330 380 300 C520 260 640 300 780 260" stroke="var(--map-road)" stroke-width="7" fill="none"/>
+          <path d="M380 300 C400 420 340 520 380 720" stroke="var(--map-road)" stroke-width="5" fill="none"/>
+          <path d="M380 300 C460 200 560 150 640 0" stroke="var(--map-road)" stroke-width="5" fill="none"/>
+          <path d="M40 40 L740 40 L760 690 L30 680Z" stroke="#2f6fd0" stroke-width="2" stroke-dasharray="8 6" fill="none" opacity=".45"/>
+        </svg>
+        <div class="pin big" style="left:22%;top:26%"><div class="p"><i class="ti ti-tools-kitchen-2"></i></div><span class="lbl">Malga Ombrosa</span></div>
+        <div class="pin amber" style="left:43%;top:47%"><div class="p"><i class="ti ti-tools-kitchen-2"></i></div><span class="lbl">Ca' del Larice</span></div>
+        <div class="pin amber" style="left:49%;top:60%"><div class="p"><i class="ti ti-tools-kitchen-2"></i></div></div>
+        <div class="pin green" style="left:30%;top:41%"><div class="p"><i class="ti ti-tools-kitchen-2"></i></div></div>
+        <div class="pin" style="left:13%;top:57%"><div class="p"><i class="ti ti-tools-kitchen-2"></i></div></div>
+        <div class="pin" style="left:20%;top:83%"><div class="p"><i class="ti ti-tools-kitchen-2"></i></div></div>
+        <div class="pin" style="left:36%;top:91%"><div class="p"><i class="ti ti-tools-kitchen-2"></i></div></div>
+        <div class="mapctl"><i class="ti ti-location"></i><i class="ti ti-stack-2"></i></div>
+      </div>
+
+      <!-- dossier -->
+      <div class="dossier">
+        <span class="num pinnum" style="left:8px;top:8px">4</span>
+        <div class="hero"><span class="x"><i class="ti ti-x"></i></span></div>
+        <div class="dbody">
+          <div class="nm">Malga Ombrosa</div>
+          <div class="sub">Passo Ombroso · 25 min from your Wed–Fri hotel</div>
+          <span class="pill star"><i class="ti ti-star"></i> Michelin · 1 Star</span>
+          <span class="pill"><i class="ti ti-heart"></i> Both: Want to Go</span>
+
+          <div class="dsec">
+            <h4>Hours · your trip days outlined <span class="num" style="width:16px;height:16px;font-size:10px;vertical-align:-3px;margin-left:4px">5</span></h4>
+            <div class="hours">
+              <div class="x">Mon</div>
+              <div class="trip">Tue<br>D</div>
+              <div class="trip">Wed<br>L · D</div>
+              <div class="trip x">Thu</div>
+              <div class="trip">Fri<br>L · D</div>
+              <div>Sat<br>L · D</div>
+              <div>Sun<br>L</div>
+            </div>
+          </div>
+
+          <div class="dsec">
+            <h4>Our notes</h4>
+            <div class="tnote">"The long tasting menu was too much at lunch. Next time, à la carte."<span class="w">Jon · Oct 2025</span></div>
+            <div class="tnote">"Terrace tables only in good weather. Ask when booking."<span class="w">Wendy · Oct 2025</span></div>
+          </div>
+        </div>
+        <div class="dactions">
+          <span class="btn primary"><i class="ti ti-calendar-plus"></i> Add to Trip</span>
+          <span class="btn icon"><i class="ti ti-world"></i></span>
+          <span class="btn icon"><i class="ti ti-pencil"></i></span>
+        </div>
+      </div>
+
+      <!-- add to trip menu -->
+      <div class="menu" style="right:420px;bottom:20px">
+        <span class="num pinnum" style="right:8px;top:7px">6</span>
+        <div class="mh">Alps 2027 · Val Serena</div>
+        <div class="mi dis"><i class="ti ti-tools-kitchen-2"></i><span class="t">Tue lunch<small>Travel day · closed for lunch</small></span></div>
+        <div class="mi hi"><i class="ti ti-plus"></i><span class="t">Wed lunch<small>Open slot</small></span></div>
+        <div class="mi"><i class="ti ti-arrows-exchange"></i><span class="t">Wed dinner<small>Add as an option to Ca' del Larice · 2 options</small></span></div>
+        <div class="mi dis"><i class="ti ti-ban"></i><span class="t">Thu lunch or dinner<small>Closed Thursdays</small></span></div>
+        <div class="mi"><i class="ti ti-plus"></i><span class="t">Fri lunch<small>Open slot</small></span></div>
+        <div class="mi"><i class="ti ti-plus"></i><span class="t">Fri dinner<small>Open slot</small></span></div>
+        <div class="mi"><i class="ti ti-list"></i><span class="t">Trip shortlist<small>No day yet</small></span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<ul class="callouts">
+  <li><span class="num">1</span><span><b>Trip lens.</b> It appears only when this region is assigned to a trip's
+    days (<code>TripDayRegion</code>). With no trip, the guide is exactly what it is today. The chip switches
+    trips if two overlap, and the chevron folds the strip away. On an undated trip, rows read "Day 4" without
+    a weekday.</span></li>
+  <li><span class="num">2</span><span><b>Cells show what's already there,</b> wherever it came from: booked
+    (green), a ring with options (amber, ADR-0035), a freeform stop, or an open slot. A lunch or dinner cell is a
+    day's <code>TripIdea</code>s with <code>dayPart</code> <code>.lunch</code>/<code>.dinner</code>, or timed in
+    that window. A travel day is hatched.</span></li>
+  <li><span class="num">3</span><span><b>Cards show where they sit in the trip.</b> A badge on a card that's
+    already in a slot keeps you from double-booking it, or tells you it's one of the options for a slot.</span></li>
+  <li><span class="num">4</span><span><b>The dossier floats over the map.</b> Tapping another card or pin swaps it,
+    and × closes it. On iPad this replaces <code>IdeaMapSplitView</code>'s column swap.</span></li>
+  <li><span class="num">5</span><span><b>Meal-aware hours, laid against the trip.</b> The days you're in the
+    region are outlined, using the <code>WeeklyHours</code> data from ADR-0029. It answers "can we even go
+    Thursday?" before you try.</span></li>
+  <li><span class="num">6</span><span><b>Add to Trip lists slots, not days.</b> An open slot gets a new stop. A
+    filled one adds this place to that slot's ring (<code>addAlternative</code>). Slots where the place is closed
+    are greyed out with the reason. On iPad you can also drag a card onto a cell (the highlighted Wed lunch). The menu opens beside the panel so the dossier stays readable.</span></li>
+</ul>
+
+<!-- ======================================================= -->
+<h2>2 · iPad — a slot tapped: "what are we considering for Wed dinner?"</h2>
+<p class="note">Tapping a filled cell selects that slot. The list narrows to the slot's options, the map
+shows only them, and you can make one active right there without going back to the trip.</p>
+
+<div class="ipad" style="max-width:1180px">
+  <div class="split" style="height:430px">
+    <div class="column">
+      <div class="lens">
+        <div class="lens-h">
+          <span class="tripchip"><span class="dot"></span>Alps 2027</span>
+          <span class="sub">· Days 4–7 in Val Serena</span>
+          <i class="ti ti-chevron-up tog"></i>
+        </div>
+        <div class="slots">
+          <span></span><span class="ch">Lunch</span><span class="ch">Dinner</span>
+          <div class="day"><b>Day 4</b>Tue</div>
+          <div class="cell travel"><span class="n">Travel day</span></div>
+          <div class="cell booked"><span class="n">Stube Nera</span><span class="m"><i class="ti ti-check"></i> booked</span></div>
+          <div class="day"><b>Day 5</b>Wed</div>
+          <div class="cell open"><i class="ti ti-plus"></i> Open</div>
+          <div class="cell ring sel"><span class="n">Ca' del Larice</span><span class="m"><i class="ti ti-arrows-exchange"></i> 2 options</span></div>
+        </div>
+      </div>
+      <div class="slotsel"><i class="ti ti-filter"></i> Showing options for <b>Wed dinner</b> <i class="ti ti-x"></i></div>
+      <div class="list">
+        <div class="cards" style="margin-top:10px">
+          <div class="card">
+            <div class="thumb b"></div>
+            <div>
+              <div class="nm">Ca' del Larice <span class="active-tag">Active</span></div>
+              <div class="sub">San Vitale · 10 min from hotel</div>
+              <div class="acc">Michelin · 1 Star</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="thumb d"></div>
+            <div>
+              <div class="nm">Osteria al Ponte</div>
+              <div class="sub">San Vitale · 6 min from hotel</div>
+              <div class="cyc"><i class="ti ti-circle-check"></i> Make active · <i class="ti ti-trash"></i> Remove from slot</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mapwrap">
+      <div class="map">
+        <svg viewBox="0 0 780 430" preserveAspectRatio="xMidYMid slice">
+          <path d="M0 0 H780 V430 H0Z" fill="var(--map-land)"/>
+          <path d="M420 200 C520 160 680 200 720 300 C760 400 600 430 480 420 C380 400 340 250 420 200Z" fill="var(--map-green)"/>
+          <path d="M0 180 C150 160 260 210 380 180 C520 140 640 180 780 140" stroke="var(--map-road)" stroke-width="7" fill="none"/>
+          <path d="M380 180 C400 260 340 330 380 430" stroke="var(--map-road)" stroke-width="5" fill="none"/>
+        </svg>
+        <div class="pin amber big" style="left:42%;top:52%"><div class="p" style="background:#d98a12"><i class="ti ti-tools-kitchen-2"></i></div><span class="lbl">Ca' del Larice</span></div>
+        <div class="pin amber" style="left:56%;top:70%"><div class="p"><i class="ti ti-tools-kitchen-2"></i></div><span class="lbl">Osteria al Ponte</span></div>
+        <div class="pin green" style="left:49%;top:38%"><div class="p"><i class="ti ti-bed"></i></div><span class="lbl">Hotel</span></div>
+        <div class="pin dim" style="left:20%;top:30%"><div class="p"><i class="ti ti-tools-kitchen-2"></i></div></div>
+        <div class="pin dim" style="left:14%;top:72%"><div class="p"><i class="ti ti-tools-kitchen-2"></i></div></div>
+        <div class="pin dim" style="left:78%;top:28%"><div class="p"><i class="ti ti-tools-kitchen-2"></i></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+<ul class="callouts">
+  <li><span class="num">7</span><span><b>Slot focus is a filter on the guide, not a new screen.</b> The "Make
+    active" and "Remove from slot" buttons use the ring operations the Trip screen already uses
+    (<code>setActiveAlternative</code>, removing a member), so both screens edit the same rows.</span></li>
+  <li><span class="num">8</span><span><b>Distance from the night's hotel</b> is the one bit of trip context
+    that helps choose between options. It comes from that day's <code>TripStay</code>, and it's what you'd
+    otherwise go back to the trip to check.</span></li>
+</ul>
+
+<!-- ======================================================= -->
+<h2>3 · iPhone — strip as day cards; dossier as a sheet over the map</h2>
+<p class="note">There's no room for a grid on a phone, so the strip becomes a row of day cards you swipe
+sideways. In list mode a tap still opens the dossier, but as a sheet that rises to half height, with the
+map behind it. You pull it up to cover more of the map.</p>
+
+<div class="phones">
+  <!-- phone A: list -->
+  <div class="phone">
+    <div class="status"></div>
+    <div class="navbar"><span class="back"><i class="ti ti-chevron-left"></i></span><span class="title"><span class="seg"><span class="on"><i class="ti ti-list"></i></span><span><i class="ti ti-map"></i></span></span></span><span style="width:20px"></span></div>
+    <div class="ghdr">
+      <div class="row1">
+        <span class="region"><i class="ti ti-map"></i> Val Serena</span>
+        <span class="catseg"><span class="on">Dining</span><span>Hotels</span></span>
+      </div>
+    </div>
+    <div class="daystrip">
+      <div class="dcard"><div class="dh">Day 4 <span>Tue</span></div>
+        <div class="sl"><b class="fr">L</b><span class="o">Travel day</span></div>
+        <div class="sl"><b class="bk">D</b>Stube Nera</div></div>
+      <div class="dcard" style="outline:2px solid var(--tint)"><div class="dh">Day 5 <span>Wed</span></div>
+        <div class="sl"><b class="op">L</b><span class="o">Open</span></div>
+        <div class="sl"><b class="rg">D</b>Ca' del Larice · 2</div></div>
+      <div class="dcard"><div class="dh">Day 6 <span>Thu</span></div>
+        <div class="sl"><b class="fr">L</b>Picnic</div>
+        <div class="sl"><b class="op">D</b><span class="o">Open</span></div></div>
+    </div>
+    <div class="list" style="background:var(--color-background-tertiary)">
+      <div class="sect">Michelin · 1 Star</div>
+      <div class="cards">
+        <div class="card focus"><div class="thumb" style="width:50px;height:50px"></div><div><div class="nm">Malga Ombrosa</div><div class="sub">Passo Ombroso</div><div class="who">Both: Want to Go</div></div></div>
+        <div class="card"><div class="thumb b" style="width:50px;height:50px"></div><div><div class="nm">Ca' del Larice</div><div class="sub">San Vitale</div><div class="who">Jon: Want to Go</div></div><span class="sbadge ring"><i class="ti ti-arrows-exchange"></i> Wed D</span></div>
+      </div>
+      <div class="sect">Michelin · Bib Gourmand</div>
+      <div class="cards">
+        <div class="card"><div class="thumb c" style="width:50px;height:50px"></div><div><div class="nm">Stube Nera</div><div class="sub">Borgo Alto</div><div class="who">Visited</div></div><span class="sbadge booked"><i class="ti ti-check"></i> Tue D</span></div>
+        <div class="card"><div class="thumb d" style="width:50px;height:50px"></div><div><div class="nm">Osteria al Ponte</div><div class="sub">San Vitale</div></div><span class="sbadge ring"><i class="ti ti-arrows-exchange"></i> Wed D</span></div>
+      </div>
+    </div>
+    <div class="homebar"></div>
+  </div>
+
+  <!-- phone B: map + sheet -->
+  <div class="phone">
+    <div class="status"></div>
+    <div class="navbar"><span class="back"><i class="ti ti-chevron-left"></i></span><span class="title"><span class="seg"><span class="on"><i class="ti ti-list"></i></span><span><i class="ti ti-map"></i></span></span></span><span style="width:20px"></span></div>
+    <div class="mapwrap">
+      <div class="map">
+        <svg viewBox="0 0 390 700" preserveAspectRatio="xMidYMid slice">
+          <path d="M0 0 H390 V700 H0Z" fill="var(--map-land)"/>
+          <path d="M30 60 C120 20 220 90 240 160 C260 230 170 270 100 250 C30 230 0 140 30 60Z" fill="var(--map-green)"/>
+          <path d="M0 200 C100 190 200 230 390 180" stroke="var(--map-road)" stroke-width="6" fill="none"/>
+        </svg>
+        <div class="pin big" style="left:38%;top:20%"><div class="p"><i class="ti ti-tools-kitchen-2"></i></div><span class="lbl">Malga Ombrosa</span></div>
+        <div class="pin amber" style="left:70%;top:30%"><div class="p"><i class="ti ti-tools-kitchen-2"></i></div></div>
+        <div class="pin" style="left:15%;top:33%"><div class="p"><i class="ti ti-tools-kitchen-2"></i></div></div>
+      </div>
+      <div class="sheet">
+        <div class="hero"><span class="grab"></span><span class="x"><i class="ti ti-x"></i></span></div>
+        <div class="dbody">
+          <div class="nm">Malga Ombrosa</div>
+          <div class="sub">Passo Ombroso · Michelin · 1 Star</div>
+          <div class="dsec">
+            <h4>Hours · trip days outlined</h4>
+            <div class="hours">
+              <div class="x">M</div><div class="trip">T<br>D</div><div class="trip">W<br>L·D</div><div class="trip x">T</div><div class="trip">F<br>L·D</div><div>S<br>L·D</div><div>S<br>L</div>
+            </div>
+          </div>
+          <div class="dsec">
+            <h4>Our notes · 2</h4>
+            <div class="tnote">"The long tasting menu was too much at lunch. Next time, à la carte."<span class="w">Jon · Oct 2025</span></div>
+          </div>
+        </div>
+        <div class="dactions" style="padding-bottom:22px">
+          <span class="btn primary"><i class="ti ti-calendar-plus"></i> Add to Trip</span>
+          <span class="btn icon"><i class="ti ti-world"></i></span>
+          <span class="btn icon"><i class="ti ti-pencil"></i></span>
+        </div>
+      </div>
+    </div>
+    <div class="homebar"></div>
+  </div>
+</div>
+<ul class="callouts">
+  <li><span class="num">9</span><span><b>The same Add to Trip menu</b> as on iPad, shown as a system menu. Tapping
+    a day card works like tapping an iPad cell: it narrows the list to that day's options.</span></li>
+  <li><span class="num">10</span><span><b>The sheet stays inside the guide's own presentation.</b> This avoids the
+    iPhone trip-sheet trap, because the guide doesn't sit under the trip's base sheet.</span></li>
+</ul>
+
+<!-- ======================================================= -->
+<h2>4 · iPad — Hotels: nights instead of meals</h2>
+<p class="note">The same strip, keyed by night. Nights come from the trip's <code>TripStay</code> check-in
+and check-out days. Showing what's covered and where the gaps are needs no new data. Keeping several hotel
+candidates for the same nights does, so it's shown greyed out as a later decision.</p>
+
+<div class="ipad" style="max-width:420px;border-radius:18px">
+  <div class="ghdr">
+    <div class="row1">
+      <span class="region"><i class="ti ti-map"></i> Val Serena</span>
+      <span class="catseg"><span>Dining</span><span class="on">Hotels</span></span>
+    </div>
+  </div>
+  <div class="lens">
+    <div class="lens-h">
+      <span class="tripchip"><span class="dot"></span>Alps 2027</span>
+      <span class="sub">· Nights 4–7 in Val Serena</span>
+      <i class="ti ti-chevron-up tog"></i>
+    </div>
+    <div class="nights">
+      <div class="day"><b>Night 4</b>Tue</div>
+      <div class="cell booked span3" style="justify-content:flex-start;padding-top:8px"><span class="n">Albergo Pradel</span><span class="m"><i class="ti ti-check"></i> booked · 3 nights · Tue–Fri</span></div>
+      <div class="day"><b>Night 5</b>Wed</div>
+      <div class="day"><b>Night 6</b>Thu</div>
+      <div class="day"><b>Night 7</b>Fri</div>
+      <div class="cell open"><i class="ti ti-alert-triangle"></i> No stay yet</div>
+    </div>
+    <div class="later"><i class="ti ti-lock"></i><span><b>Later, if we want it:</b> "considering 3 hotels for
+      Night 7" needs somewhere to keep candidate stays. Rings exist only on <code>TripIdea</code>, and a
+      <code>TripStay</code> is a single commitment, so this would be a synced-schema decision. We'd decide after
+      the dining version has been used on a real trip.</span></div>
+  </div>
+  <div class="list" style="background:var(--color-background-tertiary)">
+    <div class="sect">Noted</div>
+    <div class="cards">
+      <div class="card"><div class="thumb e"></div><div><div class="nm">Albergo Pradel</div><div class="sub">San Vitale</div><div class="tn">"Quiet rooms at the back, ask for the valley side" · Wendy</div></div><span class="sbadge booked"><i class="ti ti-check"></i> Nights 4–6</span></div>
+      <div class="card"><div class="thumb"></div><div><div class="nm">Chalet Brisa</div><div class="sub">Passo Ombroso</div><div class="who">Jon: Want to Go</div></div></div>
+    </div>
+  </div>
+</div>
+<ul class="callouts">
+  <li><span class="num">11</span><span><b>Possible without a schema change:</b> a "Stay here · Night 7" action
+    that creates a <code>TripStay</code> for an open night. That's one stay per night, which is what the model
+    holds today. Comparing several candidates for the same nights is the part that needs the schema decision.</span></li>
+</ul>
+
+<p class="note" style="margin-top:36px"><b>Built as</b> ADR-0053 D8, in three briefs:
+<code>guide-dossier-panel</code> (frames 1 and 3: the dossier over the map, or as a sheet),
+<code>guide-trip-lens</code> (the strip and badges, read-only, Dining and Hotels), and
+<code>guide-slot-filling</code> (Add to Trip, slot focus, Stay here, drag onto a cell). The hatched "Travel day" cell is
+illustrative only: Galavant has no travel-day fact. Distance to the night's hotel ships as straight-line distance, not a
+travel time. Candidate hotels are ADR-0053 OQ5.</p>
+
+</body>
+</html>

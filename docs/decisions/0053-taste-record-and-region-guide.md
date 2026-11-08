@@ -7,6 +7,9 @@ app. Builds on [ADR-0015](0015-source-evaluations-and-taste-profile.md) and
 [ADR-0052](0052-chat-access-over-mcp.md). Replaces [ADR-0018](0018-ai-pool-stocking-discovery.md) §3, which was never
 accepted. Picks up [ADR-0036](0036-recommendation-handoff.md) D7 (learnings).*
 
+*Amended 2026-11-08 after Jon's first use of the S3 guide: **D8** gives the guide an optional trip lens, and S3.1–S3.3
+are added to the slices. Mockup: [`region-guide-trip-lens.html`](../mockups/region-guide-trip-lens.html).*
+
 Summary: Galavant owns the evidence of what Jon and Wendy like and why, for restaurants, hotels, and anywhere else,
 in their own words. The chat assistant does the interpreting. Recommendations are kept as answers to a question, next
 to what actually happened. A region guide over `Idea` becomes the place to browse and read all of this, without a Dining
@@ -137,6 +140,29 @@ Idea with `doNotDo` interest. Browsing surfaces will hide `doNotDo` places by de
 `TripIdea` stops, so hotel stays never set it. It can't carry dining or hotel history, and we won't stretch it to. History
 lives in notes.
 
+### D8 — The guide gains an optional trip lens (amended 2026-11-08)
+
+Jon's first use of the guide found two gaps. Tapping into each place and back out again was tedious. And picking where to eat
+meant remembering which of the trip's lunches and dinners were already filled. Adding to the busy Trip screen wasn't the
+answer, and neither was a third view of the trip for deliberating. The guide gets a lens on the trip instead.
+
+- **The dossier opens over the map, not in place of the list.** On iPad it's a panel floating over the map's trailing edge,
+  and the list stays where it was. On iPhone it's a sheet over whatever is showing, at half height to start. Tapping another
+  place swaps what's in it. This supersedes S2's column swap. Ideas gets the same presentation, because the two screens share
+  one container.
+- **The lens appears only when a trip has days in the guide's region** (`TripDayRegion`, ADR-0012). With no such trip, the
+  guide is exactly what it was. It never requires a trip, so D1 holds.
+- **Dining shows lunch and dinner slots** for those days. **Hotels shows the nights.** A slot shows whatever is in it, from
+  wherever it came: a booked stop, an alternatives ring (ADR-0035), a freeform stop, or nothing.
+- **The guide edits the same rows as the trip,** through the operations the Trip screen already uses. It can put a place in
+  an open slot, add a place to a filled slot as another option, pick which option is active, or take one option back out. It
+  keeps no state of its own about the trip. Considering several places for one slot *is* a ring, so there's no new
+  "deliberation" entity.
+- **No schema.** Hotels can be shown night by night, and an open night can take a stay. Keeping several *candidate* hotels for
+  the same nights has nowhere to live, because rings exist only on `TripIdea` and a `TripStay` is one commitment. That's OQ5.
+- **It's still not the recommendation workspace** (D6). That workspace is an inbox bound to one trip. The guide is reached
+  without a trip, and it only shows a trip when the region has one.
+
 ## Why this and not the alternatives
 
 | Option | Verdict |
@@ -171,6 +197,14 @@ lives in notes.
 5. **Gate, then S5 — the universe:** before any design, compare a chat's list for two regions against the guide's own, and try
    reading the guide's list pages through the in-app browser. The result decides how S5 is built, or whether it is.
 
+The S3 device review added three slices before S4 (D8):
+
+- **S3.1 — Dossier over the map** ([`guide-dossier-panel`](../efforts/guide-dossier-panel.md)).
+- **S3.2 — The trip lens, read-only** ([`guide-trip-lens`](../efforts/guide-trip-lens.md)): meal slots and nights, with
+  badges on the cards.
+- **S3.3 — Filling slots from the guide** ([`guide-slot-filling`](../efforts/guide-slot-filling.md)): Add to Trip, choosing
+  among a slot's options, and Stay here for an open night.
+
 S2 onward get briefs when they're next. Only S1 is dispatched by this PR.
 
 ## Open questions
@@ -182,3 +216,5 @@ S2 onward get briefs when they're next. Only S1 is dispatched by this PR.
 - **OQ3 — when something happened.** A note has one date, when it was said. Whether the date of the visit deserves its own
   field can wait for real backfilled notes.
 - **OQ4 — World's 50 Best.** It's a global ranking, so it can annotate a regional list but can't define one. Decide at S5.
+- **OQ5 — Candidate hotels.** Comparing several hotels for the same nights, the way a ring compares lunches, needs
+  somewhere to keep them, and that's a synced-schema decision. Decide after S3.3 has been used on a real trip.
