@@ -44,13 +44,14 @@ import Testing
   @Test func mealSlotsCoverDaypartsTimedBoundariesAnytimeFoodAndIgnoreOtherKinds() {
     let trip = Trip(id: UUID(), name: "Italy", lengthInDays: 2)
     let ideas = [
-      idea("Lunch part"), idea("Lunch 12:30"), idea("Morning 09:00"), idea("Lunch 16:59"),
-      idea("Dinner part"), idea("Dinner 19:30"), idea("Gelateria"), idea("Museum", kind: .museum),
-      idea("Breakfast"),
+      idea("Lunch part"), idea("Lunch 11:00"), idea("Lunch 12:30"), idea("Before lunch 10:59"),
+      idea("Lunch 16:59"), idea("Dinner part"), idea("Dinner 17:00"), idea("Dinner 19:30"),
+      idea("Gelateria"), idea("Museum", kind: .museum), idea("Breakfast"),
     ]
     let schedules: [Schedule] = [
-      .daypart(1, .lunch), .timed(1, start: "12:30", end: nil), .timed(1, start: "09:00", end: nil),
-      .timed(1, start: "16:59", end: nil), .daypart(1, .dinner), .timed(1, start: "19:30", end: nil),
+      .daypart(1, .lunch), .timed(1, start: "11:00", end: nil), .timed(1, start: "12:30", end: nil),
+      .timed(1, start: "10:59", end: nil), .timed(1, start: "16:59", end: nil),
+      .daypart(1, .dinner), .timed(1, start: "17:00", end: nil), .timed(1, start: "19:30", end: nil),
       .day(1), .day(1), .daypart(1, .breakfast),
     ]
     let entries = zip(ideas, schedules).map { idea, schedule in scheduledEntry(trip.id, idea: idea, schedule: schedule) }
@@ -63,13 +64,14 @@ import Testing
       Issue.record("Expected lunch and dinner slots")
       return
     }
-    #expect(Set(lunch.map(\.title)) == Set(["Lunch part", "Lunch 12:30", "Morning 09:00", "Lunch 16:59"]))
-    #expect(Set(dinner.map(\.title)) == Set(["Dinner part", "Dinner 19:30"]))
+    #expect(Set(lunch.map(\.title)) == Set(["Lunch part", "Lunch 11:00", "Lunch 12:30", "Lunch 16:59"]))
+    #expect(Set(dinner.map(\.title)) == Set(["Dinner part", "Dinner 17:00", "Dinner 19:30"]))
     #expect(day.alsoThatDay.map(\.title) == ["Gelateria"])
     #expect(lens.badges[ideas[0].id] == .meal(day: 1, .lunch, ringActive: nil))
-    #expect(lens.badges[ideas[6].id] == .onTrip)
-    #expect(lens.badges[ideas[7].id] == .onTrip)
+    #expect(lens.badges[ideas[3].id] == .onTrip)
     #expect(lens.badges[ideas[8].id] == .onTrip)
+    #expect(lens.badges[ideas[9].id] == .onTrip)
+    #expect(lens.badges[ideas[10].id] == .onTrip)
   }
 
   @Test func ringAppearsOnceAsActiveMemberAndEveryMemberGetsMealBadge() {

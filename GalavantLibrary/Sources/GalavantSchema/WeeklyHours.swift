@@ -95,7 +95,7 @@ public enum Meal: String, CaseIterable, Codable, Sendable {
   /// not window membership, so a 16:30 stop still maps somewhere.
   public static func forClock(minute: Int) -> Meal {
     switch minute {
-    case ..<(9 * 60): .breakfast
+    case ..<(11 * 60): .breakfast
     case ..<(17 * 60): .lunch
     case ..<(22 * 60): .dinner
     default: .lateNight
