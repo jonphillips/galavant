@@ -27,7 +27,7 @@ struct RegionGuideScreen: View {
       if horizontalSizeClass == .regular {
         IdeaMapSplitView(
           ideaID: model.dossierID,
-          onBack: { model.closeDossier() },
+          onClose: { model.closeDossier() },
           column: {
             guideList(guide, headerThumbnails: headerThumbnails, plannerNames: plannerNames)
           },
@@ -51,8 +51,17 @@ struct RegionGuideScreen: View {
             .pickerStyle(.segmented)
           }
         }
-        .navigationDestination(item: $model.destination.dossier) { ideaID in
-          IdeaDetailView(ideaID: ideaID, canEdit: true)
+        .sheet(isPresented: Binding($model.destination.dossier)) {
+          if let ideaID = model.dossierID {
+            IdeaDetailView(
+              ideaID: ideaID,
+              canEdit: true,
+              chrome: .panel(onClose: { model.closeDossier() })
+            )
+            .id(ideaID)
+            .presentationDetents([.medium, .large])
+            .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+          }
         }
       }
     }

@@ -12,6 +12,20 @@ struct IdeasListDeleteTests {
   @Dependency(\.defaultDatabase) private var database
 
   @Test @MainActor
+  func openingAnotherIdeaReplacesTheDossierAndCloseClearsIt() {
+    let firstIdea = Idea(id: UUID(-10), name: "First")
+    let nextIdea = Idea(id: UUID(-11), name: "Next")
+    let model = IdeasListModel()
+
+    model.ideaTapped(firstIdea)
+    model.ideaTapped(nextIdea)
+    #expect(model.dossierID == nextIdea.id)
+
+    model.closeDossier()
+    #expect(model.dossierID == nil)
+  }
+
+  @Test @MainActor
   func deleteUsesTheDisplayedRegionFilteredIdeas() async throws {
     let (regionBID, regionAIdeaID, regionBIdeaID) = try await database.write { db in
       let partyID = UUID(-1)

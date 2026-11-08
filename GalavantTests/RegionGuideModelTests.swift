@@ -12,6 +12,20 @@ struct RegionGuideModelTests {
   @Dependency(\.defaultDatabase) private var database
 
   @Test @MainActor
+  func openingAnotherIdeaReplacesTheDossierAndCloseClearsIt() {
+    let firstIdea = Idea(id: UUID(-10), name: "First")
+    let nextIdea = Idea(id: UUID(-11), name: "Next")
+    let model = RegionGuideModel()
+
+    model.ideaTapped(firstIdea)
+    model.ideaTapped(nextIdea)
+    #expect(model.dossierID == nextIdea.id)
+
+    model.closeDossier()
+    #expect(model.dossierID == nil)
+  }
+
+  @Test @MainActor
   func modelGuideMatchesThePackageReadModelAndDoNotDoMovesTheCard() async throws {
     let partyID = UUID()
     let region = MapRegion(

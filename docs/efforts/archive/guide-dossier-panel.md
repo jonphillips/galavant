@@ -1,13 +1,13 @@
 # Effort — Dossier over the map: read a place without leaving the list
 
-**Status:** Dispatched · **Summary:** Slice 3.1 of [ADR-0053](../decisions/0053-taste-record-and-region-guide.md) (D8).
+**Status:** Dispatched · **Summary:** Slice 3.1 of [ADR-0053](../../decisions/0053-taste-record-and-region-guide.md) (D8).
 Tapping a place in the region guide or in Ideas opens its dossier over the map instead of in place of the list. On iPad it's
 a panel floating over the map's trailing edge. On iPhone it's a sheet that opens at half height. Tapping another place swaps
 what's in it, so there's no back step. No schema, migration, sync, or hand-off change.
 
-**Read first:** ADR-0053 D8; the mockup [`region-guide-trip-lens.html`](../mockups/region-guide-trip-lens.html), frames 1
-and 3; the archived [`idea-dossier`](archive/idea-dossier.md) brief (what the dossier is) and
-[`region-guide`](archive/region-guide.md) brief (the screen).
+**Read first:** ADR-0053 D8; the mockup [`region-guide-trip-lens.html`](../../mockups/region-guide-trip-lens.html), frames 1
+and 3; the archived [`idea-dossier`](idea-dossier.md) brief (what the dossier is) and
+[`region-guide`](region-guide.md) brief (the screen).
 
 ## Today
 
@@ -84,8 +84,8 @@ On compact width, `IdeasScreen` and `RegionGuideScreen` replace the dossier's `n
 
 ## Out of scope
 
-- The trip lens, slot strip, and Add to Trip. Those are [`guide-trip-lens`](guide-trip-lens.md) and
-  [`guide-slot-filling`](guide-slot-filling.md).
+- The trip lens, slot strip, and Add to Trip. Those are [`guide-trip-lens`](../guide-trip-lens.md) and
+  [`guide-slot-filling`](../guide-slot-filling.md).
 - Trip and Today's dossier presentation (`.navigationBar`). Don't change it.
 - Resizing or dragging the iPad panel, and remembering the iPhone sheet's height.
 

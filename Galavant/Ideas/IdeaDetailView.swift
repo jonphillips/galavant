@@ -15,45 +15,53 @@ struct StopDetailContext {
 }
 
 struct IdeaDetailView: View {
-  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @State private var model: IdeaDossierModel
   let stopContext: StopDetailContext?
   let whyOnTrip: String?
   let canEdit: Bool
-  let onBack: (() -> Void)?
+  let chrome: Chrome
+
+  enum Chrome {
+    case navigationBar
+    case panel(onClose: () -> Void)
+  }
 
   init(
     ideaID: Idea.ID,
     stopContext: StopDetailContext? = nil,
     whyOnTrip: String? = nil,
     canEdit: Bool = false,
-    onBack: (() -> Void)? = nil
+    chrome: Chrome = .navigationBar
   ) {
     _model = State(initialValue: IdeaDossierModel(ideaID: ideaID))
     self.stopContext = stopContext
     self.whyOnTrip = whyOnTrip
     self.canEdit = canEdit
-    self.onBack = onBack
+    self.chrome = chrome
   }
 
   var body: some View {
     let dossier = model.dossier
     return Group {
       if let dossier {
-        dossierList(dossier)
-          .navigationTitle(dossier.idea.name)
-          .navigationBarTitleDisplayMode(.inline)
+        switch chrome {
+        case .navigationBar:
+          dossierList(dossier)
+            .navigationTitle(dossier.idea.name)
+            .navigationBarTitleDisplayMode(.inline)
+        case let .panel(onClose):
+          VStack(spacing: 0) {
+            panelHeader(dossier.idea, onClose: onClose)
+            dossierList(dossier)
+          }
+          .background(.background)
+        }
       } else {
         ContentUnavailableView("Place no longer available", systemImage: Icon.ideas.systemName)
       }
     }
     .toolbar {
-      if let onBack, horizontalSizeClass == .regular {
-        ToolbarItem(placement: .topBarLeading) {
-          Button("Back", systemImage: "chevron.left", action: onBack)
-        }
-      }
-      if canEdit, dossier != nil {
+      if case .navigationBar = chrome, canEdit, dossier != nil {
         ToolbarItem(placement: .topBarTrailing) {
           Button("Edit", action: model.editButtonTapped)
         }
@@ -77,6 +85,30 @@ struct IdeaDetailView: View {
     .sheet(item: $model.destination.edit) { presentation in
       IdeaFormView(draft: presentation.draft, searchRegions: presentation.searchRegions)
     }
+  }
+
+  private func panelHeader(_ idea: Idea, onClose: @escaping () -> Void) -> some View {
+    HStack(spacing: 12) {
+      Text(idea.name)
+        .font(.headline)
+        .lineLimit(1)
+        .frame(maxWidth: .infinity, alignment: .leading)
+
+      if canEdit {
+        Button("Edit", action: model.editButtonTapped)
+      }
+
+      Button(action: onClose) {
+        Image(systemName: "xmark")
+          .font(.body.weight(.semibold))
+          .frame(minWidth: 44, minHeight: 44)
+          .contentShape(Rectangle())
+      }
+      .buttonStyle(.plain)
+      .accessibilityLabel("Close")
+    }
+    .padding(.leading, 16)
+    .padding(.trailing, 8)
   }
 
   private func dossierList(_ dossier: IdeaDossier) -> some View {
