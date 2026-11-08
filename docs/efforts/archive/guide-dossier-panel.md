@@ -1,6 +1,6 @@
 # Effort — Dossier over the map: read a place without leaving the list
 
-**Status:** Dispatched · **Summary:** Slice 3.1 of [ADR-0053](../../decisions/0053-taste-record-and-region-guide.md) (D8).
+**Status:** Done · **Summary:** Slice 3.1 of [ADR-0053](../../decisions/0053-taste-record-and-region-guide.md) (D8).
 Tapping a place in the region guide or in Ideas opens its dossier over the map instead of in place of the list. On iPad it's
 a panel floating over the map's trailing edge. On iPhone it's a sheet that opens at half height. Tapping another place swaps
 what's in it, so there's no back step. No schema, migration, sync, or hand-off change.

@@ -54,7 +54,6 @@ struct IdeaDetailView: View {
             panelHeader(dossier.idea, onClose: onClose)
             dossierList(dossier)
           }
-          .background(.background)
         }
       } else {
         ContentUnavailableView("Place no longer available", systemImage: Icon.ideas.systemName)

@@ -6,6 +6,8 @@ private enum IdeaMapPanelMetrics {
   static let width: CGFloat = 360
   static let inset: CGFloat = 12
   static let cornerRadius: CGFloat = 16
+  // The shadow uses the approved corner-radius scale as its visual depth.
+  static let shadowRadius: CGFloat = 16
 
   // Keep framing out from under the panel: width plus the trailing edge inset.
   static var mapTrailingReserve: CGFloat { width + inset }
@@ -39,7 +41,7 @@ struct IdeaMapSplitView<Column: View, Map: View>: View {
         .frame(width: IdeaMapPanelMetrics.width)
         .background(.background, in: RoundedRectangle(cornerRadius: IdeaMapPanelMetrics.cornerRadius))
         .clipShape(RoundedRectangle(cornerRadius: IdeaMapPanelMetrics.cornerRadius))
-        .shadow(radius: IdeaMapPanelMetrics.cornerRadius)
+        .shadow(radius: IdeaMapPanelMetrics.shadowRadius)
         .padding(IdeaMapPanelMetrics.inset)
         .id(ideaID)
         .transition(.move(edge: .trailing).combined(with: .opacity))

@@ -4,3 +4,4 @@
 **Briefs:** [docs/efforts/guide-trip-lens.md](efforts/guide-trip-lens.md)
 **Done when:** per the brief
 **Owed:** see [device-passes.md](device-passes.md)
+**Notes:** `guide-slot-filling` follows this slice; each builds on the preceding one.
