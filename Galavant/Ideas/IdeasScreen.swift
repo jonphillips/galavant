@@ -130,15 +130,32 @@ struct IdeasScreen: View {
   @ViewBuilder private var content: some View {
     if horizontalSizeClass == .regular {
       HStack(spacing: 0) {
-        ideasList
+        if case let .dossier(ideaID) = model.destination {
+          IdeaDetailView(
+            ideaID: ideaID,
+            canEdit: true,
+            onBack: {
+              if !model.ideas.contains(where: { $0.id == ideaID }) { focusedIdeaID = nil }
+              model.closeDossier()
+            }
+          )
           .frame(maxWidth: 420)
+          .id(ideaID)
+        } else {
+          ideasList.frame(maxWidth: 420)
+        }
         Divider()
         poolMap
       }
     } else {
-      switch mode {
-      case .list: ideasList
-      case .map: poolMap
+      Group {
+        switch mode {
+        case .list: ideasList
+        case .map: poolMap
+        }
+      }
+      .navigationDestination(item: $model.destination.dossier) { ideaID in
+        IdeaDetailView(ideaID: ideaID, canEdit: true)
       }
     }
   }
@@ -163,6 +180,7 @@ struct IdeasScreen: View {
       placeSelectionPolicy: horizontalSizeClass == .regular
         ? .exploreFirst(.popover)
         : .exploreFirst(.sheet),
+      selectedIdeaID: horizontalSizeClass == .regular ? focusedIdeaID : nil,
       onSelect: pinTapped,
       onSelectMapPlace: model.mapPlaceTapped,
       visibleRegion: $visibleRegion
@@ -337,7 +355,10 @@ struct IdeasScreen: View {
           isMatch: model.isMatch(idea),
           myInterest: model.myInterest(for: idea),
           tripAccessory: tripAccessory(for: idea),
-          onTap: { model.ideaTapped(idea) },
+          onTap: {
+            focusedIdeaID = idea.id
+            model.ideaTapped(idea)
+          },
           onSetInterest: { model.setMyInterest($0, for: idea) }
         )
         .id(idea.id)

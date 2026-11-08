@@ -194,13 +194,8 @@ struct TodayView: View {
     .sheet(item: $detailIdea) { idea in
       NavigationStack {
         IdeaDetailView(
-          idea: idea,
-          tagNames: planningModel.tagNames(for: idea),
-          interests: planningModel.interests(for: idea),
-          evaluations: planningModel.evaluations(for: idea),
-          stopContext: planningModel.stopContext(for: idea),
-          headerImage: model.displayImageData(forIdea: idea.id)
-            ?? model.thumbnail(forIdea: idea.id))
+          ideaID: idea.id,
+          stopContext: planningModel.stopContext(for: idea))
           .navigationTitle(idea.name)
           .navigationBarTitleDisplayMode(.inline)
       }

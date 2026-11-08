@@ -33,7 +33,6 @@ final class TodayModel {
   private(set) var weather: WeatherSummary?
   private(set) var weatherAnchor: WeatherAnchor?
   private(set) var displayImages: [Idea.ID: UIImage] = [:]
-  private(set) var displayImageDataByIdea: [Idea.ID: Data] = [:]
 
   /// Header thumbnail bytes per idea, for the active stop's leading image.
   var thumbnailByIdea: [Idea.ID: Data] {
@@ -52,17 +51,10 @@ final class TodayModel {
     return displayImages[ideaID]
   }
 
-  /// The original display-tier bytes for detail views that accept image data.
-  func displayImageData(forIdea ideaID: Idea.ID?) -> Data? {
-    guard let ideaID else { return nil }
-    return displayImageDataByIdea[ideaID]
-  }
-
   /// Reads and decodes display-tier images for only the current hero and detail
   /// idea. The request replaces the cache, keeping Today bounded to those ideas.
   func loadDisplayImages(_ ideaIDs: [Idea.ID]) async {
     displayImages = [:]
-    displayImageDataByIdea = [:]
     guard !ideaIDs.isEmpty else { return }
 
     let dataByIdea: [Idea.ID: Data]
@@ -92,7 +84,6 @@ final class TodayModel {
       }
     }.value
     guard !Task.isCancelled else { return }
-    displayImageDataByIdea = dataByIdea
     displayImages = Dictionary(uniqueKeysWithValues: decoded.map { ($0.0, UIImage(cgImage: $0.1)) })
   }
 

@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-07 — Idea dossier: tapping a place reads it before it edits (`effort/idea-dossier`)
+
+- **Result:** Added a shared IdeaDossier projection and per-idea observable model, and wired Ideas, Trip, and Today to a read-first dossier. Ideas taps now open the dossier with interest editing, note creation, photo browsing, and a route to the existing editor.
+- **Verification:** scripts/check-drift.sh passed: SwiftLint, 665 GalavantLibrary tests, 11 GalavantMCP tests, and GalavantUITests build-for-testing. Headless GalavantTests passed: 62 tests.
+- **Owed:** idea-dossier's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-07 — Plan snapshot (`effort/plan-snapshot`)
 
 - **Result:** Stored plan snapshots and one-pass itinerary facts remove repeated per-row plan work.

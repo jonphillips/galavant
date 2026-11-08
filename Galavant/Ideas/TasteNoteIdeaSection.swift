@@ -34,24 +34,3 @@ struct TasteNoteIdeaSection: View {
     }
   }
 }
-
-struct TasteNoteReadOnlySection: View {
-  let ideaID: Idea.ID
-  @FetchAll(TasteNote.order { $0.notedAt.desc() }) private var allNotes
-  @FetchAll(Planner.all) private var planners
-  private var notes: [TasteNote] { allNotes.filter { $0.ideaID == ideaID } }
-
-  var body: some View {
-    if !notes.isEmpty {
-      Section("Taste Notes") {
-        ForEach(notes) { note in
-          VStack(alignment: .leading, spacing: 3) {
-            Text(note.body).textSelection(.enabled)
-            Text("\(note.plannerID.flatMap { id in planners.first { $0.id == id }?.displayName } ?? "Both of us") · \(note.notedAt.formatted(date: .abbreviated, time: .omitted))")
-              .font(.caption).foregroundStyle(.secondary)
-          }
-        }
-      }
-    }
-  }
-}

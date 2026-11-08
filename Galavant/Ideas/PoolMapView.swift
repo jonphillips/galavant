@@ -14,6 +14,7 @@ struct PoolMapView: View {
   /// (ADR-0013). Empty for the eternal "All" pool, so nothing reads as "pulled."
   var pulledIDs: Set<Idea.ID> = []
   var placeSelectionPolicy: PlaceSelectionPresentationPolicy = .immediate
+  var selectedIdeaID: Idea.ID? = nil
   let onSelect: (Idea) -> Void
   let onSelectMapPlace: (Place) async -> Void
   @Binding var visibleRegion: MKCoordinateRegion?
@@ -52,6 +53,7 @@ struct PoolMapView: View {
         cameraPosition: $cameraPosition,
         selection: $mapSelection,
         visibleRegion: $visibleRegion,
+        selectedValue: selectedIdeaID,
         selectedMapItem: $selectedMapItem,
         presentationPolicy: placeSelectionPolicy,
         onSelectPlace: onSelectMapPlace,

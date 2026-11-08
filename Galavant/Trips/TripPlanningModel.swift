@@ -468,15 +468,6 @@ final class TripPlanningModel {
       dayLabel: label, schedule: schedule, calendarNotes: entry.calendarNotes)
   }
 
-  /// The names of an idea's tags, alphabetized — for the detail sheet.
-  func tagNames(for idea: Idea) -> [String] {
-    let ids = ideaTagIDs[idea.id] ?? []
-    return tags
-      .filter { ids.contains($0.id) }
-      .map(\.name)
-      .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-  }
-
   /// Pull an idea onto the trip as a "considering" maybe (the default + action).
   func pull(_ idea: Idea) {
     let (tripID, ideaID) = (tripID, idea.id)
