@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-08 — Dossier over the map (`effort/guide-dossier-panel`)
+
+- **Result:** Ideas and the Region Guide now keep their list visible while a place dossier floats over the map on regular width, or opens in a half-height sheet on compact width. The dossier uses explicit panel or navigation-bar chrome, and switching places replaces the dossier in place.
+- **Verification:** scripts/check-drift.sh passed: SwiftLint, GalavantLibrary and GalavantMCP tests, and the GalavantUITests build. Headless IdeasListDeleteTests and RegionGuideModelTests passed (5 tests across 2 suites).
+- **Owed:** guide-dossier-panel's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-07 — Region guide: see what we know about a place's restaurants and hotels (`effort/region-guide`)
 
 - **Result:** Added a one-pass region-guide read model, guide screen, scoped map, and entry from Ideas. Cards group by current source-native accolades, show planner interests and notes, and derive default-hidden Not for Me places from interest.

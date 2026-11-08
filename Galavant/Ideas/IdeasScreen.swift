@@ -138,7 +138,7 @@ struct IdeasScreen: View {
     } else if horizontalSizeClass == .regular {
       IdeaMapSplitView(
         ideaID: model.dossierID,
-        onBack: {
+        onClose: {
           if let ideaID = model.dossierID, !model.ideas.contains(where: { $0.id == ideaID }) {
             focusedIdeaID = nil
           }
@@ -154,8 +154,17 @@ struct IdeasScreen: View {
         case .map: poolMap
         }
       }
-      .navigationDestination(item: $model.destination.dossier) { ideaID in
-        IdeaDetailView(ideaID: ideaID, canEdit: true)
+      .sheet(isPresented: Binding($model.destination.dossier)) {
+        if let ideaID = model.dossierID {
+          IdeaDetailView(
+            ideaID: ideaID,
+            canEdit: true,
+            chrome: .panel(onClose: { model.closeDossier() })
+          )
+          .id(ideaID)
+          .presentationDetents([.medium, .large])
+          .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+        }
       }
       .navigationDestination(item: $model.destination.guide) { scope in
         RegionGuideScreen(scope: scope)
