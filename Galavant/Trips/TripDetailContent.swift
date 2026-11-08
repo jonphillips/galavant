@@ -131,13 +131,9 @@ struct TripDetailContent: View {
 
   private func detailView(_ idea: Idea) -> some View {
     IdeaDetailView(
-      idea: idea,
-      tagNames: model.tagNames(for: idea),
-      interests: model.interests(for: idea),
-      evaluations: model.evaluations(for: idea),
+      ideaID: idea.id,
       stopContext: model.stopContext(for: idea),
-      whyOnTrip: model.rationaleForDetail(),
-      headerImage: model.headerThumbnailByIdea[idea.id])
+      whyOnTrip: model.rationaleForDetail())
   }
 
   private var listPanel: some View {

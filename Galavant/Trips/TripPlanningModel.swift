@@ -54,6 +54,7 @@ final class TripPlanningModel {
     ImageAsset.where { $0.isHeader.eq(true) }
       .select { HeaderThumb.Columns(ideaID: $0.ideaID, thumbnail: $0.thumbnail) }
   ) var headerThumbs
+  @ObservationIgnored private var planSnapshot = TripPlanSnapshot()
 
   let tripID: Trip.ID
   var destination: Destination?
@@ -205,18 +206,35 @@ final class TripPlanningModel {
     Dictionary(regions.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
   }
 
-  /// This trip's resolved planning read-model — the joins, projections, and
-  /// canvas geometry live in the tested functional core (`TripPlan`), not here.
-  /// Views read `model.plan.shortlist`, `model.plan.itinerary`, etc.; the model
-  /// keeps only UI state and the db-write actions.
+  var planBuildCount: Int { planSnapshot.buildCount }
+
+  /// This trip's resolved planning read-model. Joins and projections live in the
+  /// tested functional core; every access reads the observations while the snapshot
+  /// rebuilds only when one of its inputs changes.
   var plan: TripPlan {
-    TripPlan(
-      entries: entries, ideasByID: ideaByID,
-      lengthInDays: trip?.lengthInDays ?? 1, tripStays: stays,
-      dayRegions: dayRegions, regionsByID: regionByID,
-      calendarConstraints: calendarConstraints,
-      alternativeGroups: alternativeGroups)
+    planSnapshot.plan(for: TripPlanInputs(
+      tripID: tripID,
+      lengthInDays: trip?.lengthInDays ?? 1,
+      tripIdeas: allTripIdeas,
+      ideas: ideas,
+      tripStays: allTripStays,
+      dayRegions: allTripDayRegions,
+      regions: regions,
+      calendarConstraints: allCalendarConstraints,
+      alternativeGroups: allAlternativeGroups))
   }
+
+  func itineraryList(focusedDay: Int?) -> ItineraryList {
+    plan.itineraryList(
+      focusedDay: focusedDay,
+      overrides: currentModeOverrides,
+      mainMode: trip?.mainTransportationMode,
+      travelTimes: travelTimes,
+      autoSwitchThreshold: Self.autoSwitchThreshold,
+      now: now,
+      tripStartDate: trip?.startDate)
+  }
+
 
   // MARK: - Start-day solver (ADR-0029 §5)
 
@@ -448,39 +466,6 @@ final class TripPlanningModel {
     let label = schedule.dayNumber.map { dayLabel($0, trip: trip) } ?? "To Be Scheduled"
     return StopDetailContext(
       dayLabel: label, schedule: schedule, calendarNotes: entry.calendarNotes)
-  }
-
-  /// The names of an idea's tags, alphabetized — for the detail sheet.
-  func tagNames(for idea: Idea) -> [String] {
-    let ids = ideaTagIDs[idea.id] ?? []
-    return tags
-      .filter { ids.contains($0.id) }
-      .map(\.name)
-      .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-  }
-
-  /// Each planner's rated interest in an idea (skipping unrated rows), ordered by
-  /// name — the his/hers display on the detail sheet.
-  func interests(for idea: Idea) -> [(planner: Planner, level: Interest)] {
-    interestRows
-      .filter { $0.ideaID == idea.id && $0.level != nil }
-      .compactMap { row in
-        guard let planner = planners.first(where: { $0.id == row.plannerID }),
-          let level = row.level
-        else { return nil }
-        return (planner, level)
-      }
-      .sorted { $0.planner.displayName < $1.planner.displayName }
-  }
-
-  /// Source evaluations for an idea, orphan-drops applied. Most-recently-recorded
-  /// first — the evaluations detail section's data source (ADR-0015).
-  func evaluations(for idea: Idea) -> [IdeaEvaluation] {
-    IdeaEvaluation.evaluations(
-      forIdea: idea.id,
-      from: allEvaluations,
-      knownIdeaIDs: Set(ideas.map(\.id))
-    )
   }
 
   /// Pull an idea onto the trip as a "considering" maybe (the default + action).

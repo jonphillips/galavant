@@ -16,8 +16,8 @@ extension TripPlanningModel {
   /// The trip day the given instant falls on, or `nil` when the trip is undated or
   /// that instant is outside its span.
   ///
-  /// Takes the length from the trip row rather than `plan`, which rebuilds the whole
-  /// join graph on every access — this is read on each layout pass.
+  /// Takes the length from the trip row rather than reading the plan snapshot for
+  /// a single scalar.
   func liveDay(at instant: Date) -> Int? {
     guard let trip, let startDate = trip.startDate else { return nil }
     return TodayProjection.tripDay(

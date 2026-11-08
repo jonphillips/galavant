@@ -14,171 +14,204 @@ struct StopDetailContext {
   let calendarNotes: String?
 }
 
-/// A read-only look at an idea — its location on a map, its place on the
-/// itinerary (for a scheduled stop), kind, region, link, his/hers interest, tags,
-/// and notes. Drilled into *within the planning panel* (the Trip Ideas list by row
-/// tap, the Itinerary by the row's info button) so it never covers the map; the
-/// host (`TripDetailContent`) supplies the back header + title around this content.
-/// The host also resolves the tag names, interests, and stop context; this view is
-/// pure presentation. (The Itinerary one may become a full-screen push later when
-/// a stop earns yet-richer context — travel time, hours, booking; docs/BACKLOG.md.)
 struct IdeaDetailView: View {
-  let idea: Idea
-  let tagNames: [String]
-  let interests: [(planner: Planner, level: Interest)]
-  /// Source evaluations for this idea (ADR-0015) — most-recently-recorded first.
-  var evaluations: [IdeaEvaluation] = []
-  /// Set when this is a scheduled itinerary stop (vs. a plain pool idea).
-  var stopContext: StopDetailContext? = nil
-  /// The rationale attached to this trip stop, independent of the pool idea's notes.
-  var whyOnTrip: String? = nil
-  /// The compact header image bytes supplied by the owning presentation model.
-  var headerImage: Data? = nil
+  @State private var model: IdeaDossierModel
+  let stopContext: StopDetailContext?
+  let whyOnTrip: String?
+  let canEdit: Bool
+  let chrome: Chrome
 
-  /// The link as a URL, if it parses — drives the tappable Link row.
-  private var link: URL? {
-    guard !idea.url.isEmpty else { return nil }
-    return URL(string: idea.url)
+  enum Chrome {
+    case navigationBar
+    case panel(onClose: () -> Void)
   }
 
-  /// An Apple Maps handoff URL for the stop's coordinate (named), or nil when the
-  /// idea has no location. A URL (not `MKMapItem.openInMaps`) so it reads as a
-  /// tappable row and dodges MapKit's beta API churn (CLAUDE.md).
-  private var mapsURL: URL? {
-    guard let coordinate = idea.coordinate,
-      var components = URLComponents(string: "https://maps.apple.com/")
-    else { return nil }
-    components.queryItems = [
-      URLQueryItem(name: "ll", value: "\(coordinate.latitude),\(coordinate.longitude)"),
-      URLQueryItem(name: "q", value: idea.name.isEmpty ? "Pinned location" : idea.name),
-    ]
-    return components.url
+  init(
+    ideaID: Idea.ID,
+    stopContext: StopDetailContext? = nil,
+    whyOnTrip: String? = nil,
+    canEdit: Bool = false,
+    chrome: Chrome = .navigationBar
+  ) {
+    _model = State(initialValue: IdeaDossierModel(ideaID: ideaID))
+    self.stopContext = stopContext
+    self.whyOnTrip = whyOnTrip
+    self.canEdit = canEdit
+    self.chrome = chrome
   }
 
   var body: some View {
-    List {
-      if let headerImage, let image = UIImage(data: headerImage) {
-        Section {
-          Image(uiImage: image)
-            .resizable()
-            .scaledToFill()
-            .frame(maxWidth: .infinity)
-            .frame(height: 220)
-            .clipped()
-            .accessibilityLabel("Photo of \(idea.name)")
-            .listRowInsets(EdgeInsets())
+    let dossier = model.dossier
+    return Group {
+      if let dossier {
+        switch chrome {
+        case .navigationBar:
+          dossierList(dossier)
+            .navigationTitle(dossier.idea.name)
+            .navigationBarTitleDisplayMode(.inline)
+        case let .panel(onClose):
+          VStack(spacing: 0) {
+            panelHeader(dossier.idea, onClose: onClose)
+            dossierList(dossier)
+          }
+        }
+      } else {
+        ContentUnavailableView("Place no longer available", systemImage: Icon.ideas.systemName)
+      }
+    }
+    .toolbar {
+      if case .navigationBar = chrome, canEdit, dossier != nil {
+        ToolbarItem(placement: .topBarTrailing) {
+          Button("Edit", action: model.editButtonTapped)
         }
       }
-      if let coordinate = idea.coordinate {
-        Section {
-          StopMap(coordinate: coordinate, name: idea.name)
-            .frame(height: 170)
-            .listRowInsets(EdgeInsets())
-          if let mapsURL {
-            Link(destination: mapsURL) {
-              Label("Open in Maps", systemImage: Icon.map.systemName)
+    }
+    .fullScreenCover(item: $model.destination.photo) { photo in
+      NavigationStack {
+        ZStack {
+          Color.black.ignoresSafeArea()
+          if let image = UIImage(data: photo.display) {
+            Image(uiImage: image).resizable().scaledToFit()
+          }
+        }
+        .toolbar {
+          ToolbarItem(placement: .confirmationAction) {
+            Button("Done") { model.destination = nil }
+          }
+        }
+      }
+    }
+    .sheet(item: $model.destination.edit) { presentation in
+      IdeaFormView(draft: presentation.draft, searchRegions: presentation.searchRegions)
+    }
+  }
+
+  private func panelHeader(_ idea: Idea, onClose: @escaping () -> Void) -> some View {
+    HStack(spacing: 12) {
+      Text(idea.name)
+        .font(.headline)
+        .lineLimit(1)
+        .frame(maxWidth: .infinity, alignment: .leading)
+
+      if canEdit {
+        Button("Edit", action: model.editButtonTapped)
+      }
+
+      Button(action: onClose) {
+        Image(systemName: "xmark")
+          .font(.body.weight(.semibold))
+          .frame(minWidth: 44, minHeight: 44)
+          .contentShape(Rectangle())
+      }
+      .buttonStyle(.plain)
+      .accessibilityLabel("Close")
+    }
+    .padding(.leading, 16)
+    .padding(.trailing, 8)
+  }
+
+  private func dossierList(_ dossier: IdeaDossier) -> some View {
+    return List {
+      overviewSections(dossier)
+      if dossier.emphasis == .notesFirst {
+        notesSection(dossier)
+        accoladesSection(dossier)
+        interestsSection(dossier)
+      } else {
+        accoladesSection(dossier)
+        interestsSection(dossier)
+        notesSection(dossier)
+      }
+      tripContextSections(dossier.idea)
+      gallerySection(dossier)
+      hoursSections(dossier.idea)
+      locationAndReferenceSections(dossier.idea)
+      tagsAndNotesSections(dossier)
+    }
+  }
+
+  @ViewBuilder private func overviewSections(_ dossier: IdeaDossier) -> some View {
+    let idea = dossier.idea
+    if let headerImage = model.headerImage, let image = UIImage(data: headerImage) {
+      Section {
+        Image(uiImage: image).resizable().scaledToFill()
+          .frame(maxWidth: .infinity).frame(height: 220).clipped()
+          .accessibilityLabel("Photo of \(idea.name)").listRowInsets(EdgeInsets())
+      }
+    }
+    Section { identity(idea) }
+    if idea.visited {
+      Section { Label("Visited", systemImage: Icon.checkmark.systemName).foregroundStyle(.secondary) }
+    }
+  }
+
+  @ViewBuilder private func tripContextSections(_ idea: Idea) -> some View {
+    if !idea.description.isEmpty { Section("Description") { Text(idea.description) } }
+    if let stopContext {
+      Section("On the Itinerary") { placement(stopContext) }
+      if let calendarNotes = stopContext.calendarNotes {
+        Section("Calendar booking details") { Text(calendarNotes).textSelection(.enabled) }
+      }
+    }
+    if let whyOnTrip, !whyOnTrip.isEmpty {
+      Section("Why it's on this trip") { Text(whyOnTrip).textSelection(.enabled) }
+    }
+  }
+
+  @ViewBuilder private func gallerySection(_ dossier: IdeaDossier) -> some View {
+    if !dossier.photos.isEmpty {
+      Section("Photos") {
+        ScrollView(.horizontal, showsIndicators: false) {
+          HStack(spacing: 10) {
+            ForEach(dossier.photos) { photo in
+              if let image = UIImage(data: photo.thumbnail) {
+                Button { Task { await model.photoTapped(photo) } } label: {
+                  Image(uiImage: image).resizable().scaledToFill()
+                    .frame(width: 100, height: 80).clipped().clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .buttonStyle(.plain)
+              }
             }
           }
-        }
-      }
-
-      Section { header }
-
-      if !idea.description.isEmpty {
-        Section("Description") { Text(idea.description) }
-      }
-
-      if let stopContext {
-        Section("On the Itinerary") {
-          placement(stopContext)
-        }
-        if let calendarNotes = stopContext.calendarNotes {
-          Section("Calendar booking details") {
-            Text(calendarNotes)
-              .textSelection(.enabled)
-          }
-        }
-      }
-
-      if let whyOnTrip, !whyOnTrip.isEmpty {
-        Section("Why it's on this trip") {
-          Text(whyOnTrip)
-            .textSelection(.enabled)
-        }
-      }
-
-      if let link {
-        Section {
-          Link(destination: link) {
-            Label(link.host() ?? idea.url, systemImage: "link").lineLimit(1)
-          }
-        }
-      }
-
-      if !interests.isEmpty {
-        Section("Interest") {
-          ForEach(interests, id: \.planner.id) { entry in
-            HStack {
-              Text(entry.planner.displayName)
-              Spacer()
-              InterestView(interest: entry.level)
-            }
-          }
-        }
-      }
-
-      if !evaluations.isEmpty {
-        Section("Evaluations") {
-          ForEach(evaluations) { eval in
-            EvaluationRow(evaluation: eval)
-          }
-        }
-      }
-
-      TasteNoteReadOnlySection(ideaID: idea.id)
-
-      if !tagNames.isEmpty {
-        Section("Tags") {
-          ForEach(tagNames, id: \.self) { name in
-            Label(name, systemImage: Icon.tag.systemName)
-          }
-        }
-      }
-
-      if let hours = idea.openingHours, !hours.isEmpty {
-        Section("Hours") {
-          Text(hours)
-          if let provenance = idea.hoursProvenance {
-            Text(provenance.label)
-              .font(.caption)
-              .foregroundStyle(.secondary)
-          }
-        }
-      }
-
-      if let weekly = idea.weeklyHours, weekly.hasAnyAssertion {
-        Section("Weekly hours") {
-          ForEach(Weekday.allCases, id: \.self) { weekday in
-            WeeklyHoursSummaryRow(weekday: weekday, day: weekly[weekday])
-          }
-        }
-      }
-
-      if !idea.notes.isEmpty {
-        Section("Notes") { Text(idea.notes) }
-      }
-
-      if idea.visited {
-        Section {
-          Label("Visited", systemImage: Icon.checkmark.systemName)
-            .foregroundStyle(.secondary)
         }
       }
     }
   }
 
-  /// The kind icon, the kind label, and the region — the at-a-glance identity.
-  private var header: some View {
+  @ViewBuilder private func hoursSections(_ idea: Idea) -> some View {
+    if let hours = idea.openingHours, !hours.isEmpty {
+      Section("Hours") {
+        Text(hours)
+        if let provenance = idea.hoursProvenance { Text(provenance.label).font(.caption).foregroundStyle(.secondary) }
+      }
+    }
+    if let weekly = idea.weeklyHours, weekly.hasAnyAssertion {
+      Section("Weekly hours") {
+        ForEach(Weekday.allCases, id: \.self) { WeeklyHoursSummaryRow(weekday: $0, day: weekly[$0]) }
+      }
+    }
+  }
+
+  @ViewBuilder private func locationAndReferenceSections(_ idea: Idea) -> some View {
+    if let coordinate = idea.coordinate {
+      Section {
+        StopMap(coordinate: coordinate, name: idea.name).frame(height: 170).listRowInsets(EdgeInsets())
+        if let url = mapsURL(for: idea) { Link(destination: url) { Label("Open in Maps", systemImage: Icon.map.systemName) } }
+      }
+    }
+    if let url = URL(string: idea.url), !idea.url.isEmpty {
+      Section { Link(destination: url) { Label(url.host() ?? idea.url, systemImage: "link").lineLimit(1) } }
+    }
+  }
+
+  @ViewBuilder private func tagsAndNotesSections(_ dossier: IdeaDossier) -> some View {
+    if !dossier.tagNames.isEmpty {
+      Section("Tags") { ForEach(dossier.tagNames, id: \.self) { Label($0, systemImage: Icon.tag.systemName) } }
+    }
+    if !dossier.idea.notes.isEmpty { Section("Notes") { Text(dossier.idea.notes) } }
+  }
+
+  private func identity(_ idea: Idea) -> some View {
     HStack(alignment: .top, spacing: 14) {
       Image(systemName: idea.kind?.systemImage ?? "mappin.and.ellipse")
         .font(.title)
@@ -198,7 +231,7 @@ struct IdeaDetailView: View {
             .foregroundStyle(.secondary)
         }
         if let phone = idea.phone, !phone.isEmpty {
-          if let telURL = telURL {
+          if let telURL = telURL(for: phone) {
             Link(destination: telURL) {
               Label(phone, systemImage: "phone").font(.subheadline)
             }
@@ -213,11 +246,63 @@ struct IdeaDetailView: View {
     .padding(.vertical, 4)
   }
 
-  /// A `tel:` URL for the stored phone number (digits/`+` only), or nil.
-  private var telURL: URL? {
-    guard let phone = idea.phone else { return nil }
+  private func telURL(for phone: String) -> URL? {
     let digits = phone.filter { $0.isNumber || $0 == "+" }
     return digits.isEmpty ? nil : URL(string: "tel:\(digits)")
+  }
+
+  private func mapsURL(for idea: Idea) -> URL? {
+    guard let coordinate = idea.coordinate, var components = URLComponents(string: "https://maps.apple.com/") else { return nil }
+    components.queryItems = [
+      URLQueryItem(name: "ll", value: "\(coordinate.latitude),\(coordinate.longitude)"),
+      URLQueryItem(name: "q", value: idea.name.isEmpty ? "Pinned location" : idea.name),
+    ]
+    return components.url
+  }
+
+  @ViewBuilder private func accoladesSection(_ dossier: IdeaDossier) -> some View {
+    if !dossier.accolades.current.isEmpty || !dossier.accolades.historical.isEmpty {
+      Section("Accolades") {
+        ForEach(dossier.accolades.current) { EvaluationRow(evaluation: $0) }
+        if !dossier.accolades.historical.isEmpty {
+          DisclosureGroup("Historical") {
+            ForEach(dossier.accolades.historical) { EvaluationRow(evaluation: $0) }
+          }
+        }
+      }
+    }
+  }
+
+  @ViewBuilder private func interestsSection(_ dossier: IdeaDossier) -> some View {
+    if !dossier.interests.isEmpty {
+      Section {
+        ForEach(dossier.interests, id: \.planner.id) { entry in
+          if entry.planner.id == UUID(uuidString: model.currentPlannerIDString) {
+            InterestMenu(current: entry.level, onSelect: model.setMyInterest) {
+              HStack { Text(entry.planner.displayName); Spacer(); InterestView(interest: entry.level) }
+            }
+          } else {
+            HStack { Text(entry.planner.displayName); Spacer(); InterestView(interest: entry.level) }
+          }
+        }
+        if dossier.standing == .match { MatchPill() }
+      } header: { Text("Interest") }
+    }
+  }
+
+  private func notesSection(_ dossier: IdeaDossier) -> some View {
+    Section("Taste Notes") {
+      ForEach(dossier.notes) { note in
+        VStack(alignment: .leading, spacing: 3) {
+          Text(note.body).textSelection(.enabled)
+          Text("\(note.plannerID.flatMap { id in model.planners.first { $0.id == id }?.displayName } ?? "Both of us") · \(note.notedAt.formatted(date: .abbreviated, time: .omitted))")
+            .font(.caption).foregroundStyle(.secondary)
+        }
+      }
+      if let partyID = dossier.idea.travelPartyID {
+        TasteNoteAddButton(travelPartyID: partyID, ideaID: dossier.idea.id, planners: model.planners)
+      }
+    }
   }
 
   /// Where the stop sits on the itinerary: its day + time, or the dayless bucket.
@@ -228,6 +313,20 @@ struct IdeaDetailView: View {
       LabeledContent("Day", value: context.dayLabel)
       LabeledContent("Time", value: context.schedule.display)
     }
+  }
+}
+
+private struct TasteNoteAddButton: View {
+  let travelPartyID: TravelParty.ID
+  let ideaID: Idea.ID
+  let planners: [Planner]
+  @State private var isPresented = false
+
+  var body: some View {
+    Button { isPresented = true } label: { Label("Add Taste Note", systemImage: "plus") }
+      .sheet(isPresented: $isPresented) {
+        TasteNoteEditorSheet(travelPartyID: travelPartyID, planners: planners, initialIdeaID: ideaID)
+      }
   }
 }
 

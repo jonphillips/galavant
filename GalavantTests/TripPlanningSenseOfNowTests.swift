@@ -4,6 +4,7 @@ import Foundation
 import GalavantAI
 import GalavantSchema
 import SQLiteData
+import Synchronization
 import Testing
 
 @testable import Galavant
@@ -60,6 +61,103 @@ struct TripPlanningSenseOfNowTests {
     let model = TripPlanningModel(tripID: tripID)
     try await model.$trips.load()
     return model
+  }
+
+  @MainActor
+  private func loadPlanInputs(_ model: TripPlanningModel) async throws {
+    try await model.$trips.load()
+    try await model.$allTripIdeas.load()
+    try await model.$ideas.load()
+    try await model.$allTripStays.load()
+    try await model.$allTripDayRegions.load()
+    try await model.$regions.load()
+    try await model.$allCalendarConstraints.load()
+    try await model.$allAlternativeGroups.load()
+  }
+
+  @Test
+  @MainActor
+  func planSnapshotBuildsOnInputChangeAndIgnoresUnrelatedTags() async throws {
+    let tripID = try await makeTrip(startDate: nil)
+    let entry = TripIdea.freeform(
+      id: UUID(), tripID: tripID, title: "Old stop", note: "First", shortlistRank: 0)
+    try await database.write { db in
+      try TripIdea.insert { TripIdea.Draft(entry) }.execute(db)
+    }
+    try await withDependencies {
+      $0.date.now = Date(timeIntervalSince1970: 1_799_097_600)
+    } operation: {
+      let model = TripPlanningModel(tripID: tripID)
+      try await loadPlanInputs(model)
+
+      _ = model.plan
+      _ = model.plan
+      _ = model.itineraryList(focusedDay: nil)
+      #expect(model.planBuildCount == 1)
+
+      let changed = TripIdea.freeform(
+        id: entry.id, tripID: tripID, title: "Old stop", note: "Updated", shortlistRank: 0)
+      try await database.write { db in
+        try TripIdea.find(entry.id).delete().execute(db)
+        try TripIdea.insert { TripIdea.Draft(changed) }.execute(db)
+      }
+      try await model.$allTripIdeas.load()
+      #expect(model.plan.entries.first?.inlineNote == "Updated")
+      #expect(model.planBuildCount == 2)
+
+      try await database.write { db in
+        try Tag.insert { Tag.Draft(Tag(id: UUID(), name: "Unrelated")) }.execute(db)
+      }
+      try await loadPlanInputs(model)
+      _ = model.plan
+      #expect(model.planBuildCount == 2)
+    }
+  }
+
+  @Test
+  @MainActor
+  func fetchAllReadsReuseTheirPublishedArrayBuffer() async throws {
+    let tripID = try await makeTrip(startDate: nil)
+    try await database.write { db in
+      let entry = TripIdea.freeform(
+        id: UUID(), tripID: tripID, title: "Stop", note: nil, shortlistRank: 0)
+      try TripIdea.insert { TripIdea.Draft(entry) }.execute(db)
+    }
+    let model = TripPlanningModel(tripID: tripID)
+    try await model.$allTripIdeas.load()
+    let firstAddress = model.allTripIdeas.withUnsafeBufferPointer { $0.baseAddress }
+    let secondAddress = model.allTripIdeas.withUnsafeBufferPointer { $0.baseAddress }
+    #expect(firstAddress != nil)
+    #expect(firstAddress == secondAddress)
+  }
+
+  @Test
+  @MainActor
+  func observationTracksInputsAfterSnapshotCacheHit() async throws {
+    let tripID = try await makeTrip(startDate: nil)
+    let entry = TripIdea.freeform(
+      id: UUID(), tripID: tripID, title: "Old stop", note: "First", shortlistRank: 0)
+    try await database.write { db in
+      try TripIdea.insert { TripIdea.Draft(entry) }.execute(db)
+    }
+    let model = TripPlanningModel(tripID: tripID)
+    try await loadPlanInputs(model)
+    _ = model.plan
+    _ = model.plan
+
+    let changed = Mutex(false)
+    withObservationTracking { _ = model.plan } onChange: { changed.withLock { $0 = true } }
+    let updated = TripIdea.freeform(
+      id: entry.id, tripID: tripID, title: "Old stop", note: "Observed", shortlistRank: 0)
+    try await database.write { db in
+      try TripIdea.find(entry.id).delete().execute(db)
+      try TripIdea.insert { TripIdea.Draft(updated) }.execute(db)
+    }
+    try await model.$allTripIdeas.load()
+
+    #expect(changed.withLock { $0 })
+    #expect(model.plan.entries.first?.inlineNote == "Observed")
+    #expect(model.planBuildCount == 2)
   }
 
   private func recommendationSession(tripID: Trip.ID) -> HandoffSession {

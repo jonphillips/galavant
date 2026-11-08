@@ -3,6 +3,42 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-08 — Filling slots from the guide (`effort/guide-slot-filling`)
+
+- **Result:** Adds the guide Add to Trip menu, meal-slot focus, alternative management, and hotel stays using the trip operations.
+- **Verification:** scripts/check-drift.sh passed: 685 GalavantLibrary tests, SwiftLint, handoff checks, and the GalavantUITests build; 70 headless GalavantTests passed.
+- **Owed:** guide-slot-filling's device gate, in [device-passes.md](device-passes.md).
+
+## 2026-11-08 — Trip lens from the region guide (`effort/guide-trip-lens`)
+
+- **Result:** Added a read-only guide lens that projects each selected trip’s regional meal slots and night runs from a snapshot-built TripPlan, with trip badges and compact/regular layouts.
+- **Verification:** scripts/check-drift.sh passed: 885 package tests, 11 headless GalavantTests, and GalavantUITests compiled and linked.
+- **Owed:** guide-trip-lens's device gate, in [device-passes.md](device-passes.md).
+
+## 2026-11-08 — Dossier over the map (`effort/guide-dossier-panel`)
+
+- **Result:** Ideas and the Region Guide now keep their list visible while a place dossier floats over the map on regular width, or opens in a half-height sheet on compact width. The dossier uses explicit panel or navigation-bar chrome, and switching places replaces the dossier in place.
+- **Verification:** scripts/check-drift.sh passed: SwiftLint, GalavantLibrary and GalavantMCP tests, and the GalavantUITests build. Headless IdeasListDeleteTests and RegionGuideModelTests passed (5 tests across 2 suites).
+- **Owed:** guide-dossier-panel's device gate, in [device-passes.md](device-passes.md).
+
+## 2026-11-07 — Region guide: see what we know about a place's restaurants and hotels (`effort/region-guide`)
+
+- **Result:** Added a one-pass region-guide read model, guide screen, scoped map, and entry from Ideas. Cards group by current source-native accolades, show planner interests and notes, and derive default-hidden Not for Me places from interest.
+- **Verification:** scripts/check-drift.sh passed (SwiftLint, package suites, and GalavantUITests build-for-testing); headless GalavantTests passed 64 tests.
+- **Owed:** region-guide's device gate, in [device-passes.md](device-passes.md).
+
+## 2026-11-07 — Idea dossier: tapping a place reads it before it edits (`effort/idea-dossier`)
+
+- **Result:** Added a shared IdeaDossier projection and per-idea observable model, and wired Ideas, Trip, and Today to a read-first dossier. Ideas taps now open the dossier with interest editing, note creation, photo browsing, and a route to the existing editor.
+- **Verification:** scripts/check-drift.sh passed: SwiftLint, 665 GalavantLibrary tests, 11 GalavantMCP tests, and GalavantUITests build-for-testing. Headless GalavantTests passed: 62 tests.
+- **Owed:** idea-dossier's device gate, in [device-passes.md](device-passes.md).
+
+## 2026-11-07 — Plan snapshot (`effort/plan-snapshot`)
+
+- **Result:** Stored plan snapshots and one-pass itinerary facts remove repeated per-row plan work.
+- **Verification:** scripts/check-drift.sh passed; 659 package tests passed; app-target tests were not run because the compile-only constraint prohibits simulator use.
+- **Owed:** This slice's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-07 — CloudKit expected-fields list covers every synced column (`claude/cloudkit-expected-fields-test`)
 
 - **Result:** cloudkit-expected-fields.txt now lists all 434 CloudKit fields of the 26 synced tables, and CloudKitSchemaCoverageTests fails when a synced column's value or modification-time field is missing from it, so testflight's Production check covers what the code syncs.

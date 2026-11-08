@@ -65,6 +65,11 @@ struct IdeasScreen: View {
         }
       }
       ToolbarItem {
+        Button(action: model.guideButtonTapped) {
+          Label("Guide", systemImage: "books.vertical")
+        }
+      }
+      ToolbarItem {
         Button {
           model.addIdeaButtonTapped()
         } label: {
@@ -128,17 +133,41 @@ struct IdeasScreen: View {
   /// The browse body: list + map side-by-side on iPad (regular width, ADR-0013 —
   /// the cavern fix; Jon wants pins always in view), the list/map toggle on iPhone.
   @ViewBuilder private var content: some View {
-    if horizontalSizeClass == .regular {
-      HStack(spacing: 0) {
-        ideasList
-          .frame(maxWidth: 420)
-        Divider()
-        poolMap
-      }
+    if case let .guide(scope) = model.destination, horizontalSizeClass == .regular {
+      RegionGuideScreen(scope: scope, onClose: { model.destination = nil })
+    } else if horizontalSizeClass == .regular {
+      IdeaMapSplitView(
+        ideaID: model.dossierID,
+        onClose: {
+          if let ideaID = model.dossierID, !model.ideas.contains(where: { $0.id == ideaID }) {
+            focusedIdeaID = nil
+          }
+          model.closeDossier()
+        },
+        column: { ideasList },
+        map: { poolMap }
+      )
     } else {
-      switch mode {
-      case .list: ideasList
-      case .map: poolMap
+      Group {
+        switch mode {
+        case .list: ideasList
+        case .map: poolMap
+        }
+      }
+      .sheet(isPresented: Binding($model.destination.dossier)) {
+        if let ideaID = model.dossierID {
+          IdeaDetailView(
+            ideaID: ideaID,
+            canEdit: true,
+            chrome: .panel(onClose: { model.closeDossier() })
+          )
+          .id(ideaID)
+          .presentationDetents([.medium, .large])
+          .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+        }
+      }
+      .navigationDestination(item: $model.destination.guide) { scope in
+        RegionGuideScreen(scope: scope)
       }
     }
   }
@@ -163,8 +192,9 @@ struct IdeasScreen: View {
       placeSelectionPolicy: horizontalSizeClass == .regular
         ? .exploreFirst(.popover)
         : .exploreFirst(.sheet),
+      selectedIdeaID: horizontalSizeClass == .regular ? focusedIdeaID : nil,
       onSelect: pinTapped,
-      onSelectMapPlace: model.mapPlaceTapped,
+      onSelectMapPlace: { place in await model.mapPlaceTapped(place) },
       visibleRegion: $visibleRegion
     )
   }
@@ -337,7 +367,10 @@ struct IdeasScreen: View {
           isMatch: model.isMatch(idea),
           myInterest: model.myInterest(for: idea),
           tripAccessory: tripAccessory(for: idea),
-          onTap: { model.ideaTapped(idea) },
+          onTap: {
+            focusedIdeaID = idea.id
+            model.ideaTapped(idea)
+          },
           onSetInterest: { model.setMyInterest($0, for: idea) }
         )
         .id(idea.id)

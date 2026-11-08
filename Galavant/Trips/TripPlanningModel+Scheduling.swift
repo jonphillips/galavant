@@ -402,14 +402,6 @@ extension TripPlanningModel {
 
   // MARK: - Non-drag intra-day reorder (ADR-0033 Slice 4)
 
-  /// Whether the stop can move one slot earlier in its day. Only a bare `.day`
-  /// "Anytime" stop carries a hand-order (`dayRank`), including ahead of the
-  /// day's first timed/dayparted stop.
-  func canMoveStopEarlier(_ stop: ResolvedStop) -> Bool { reorderedIDs(stop, earlier: true) != nil }
-
-  /// Whether the stop can move one slot later in its day (see `canMoveStopEarlier`).
-  func canMoveStopLater(_ stop: ResolvedStop) -> Bool { reorderedIDs(stop, earlier: false) != nil }
-
   /// Move a bare Anytime stop one slot earlier in its day, writing the day's new
   /// order to `dayRank` (ADR-0033). No-op when the move isn't expressible.
   func moveStopEarlier(_ stop: ResolvedStop) { reorderDay(stop, earlier: true) }
@@ -418,8 +410,9 @@ extension TripPlanningModel {
   func moveStopLater(_ stop: ResolvedStop) { reorderDay(stop, earlier: false) }
 
   private func reorderDay(_ stop: ResolvedStop, earlier: Bool) {
-    guard let ids = reorderedIDs(stop, earlier: earlier) else { return }
     guard let day = stop.entry.dayNumber else { return }
+    let stops = orderedStops(onDay: day)
+    guard let ids = TripPlan.reorderedIDs(moving: stop, in: stops, earlier: earlier) else { return }
     reorderDayStops(ids, on: day, moving: stop.id)
   }
 
@@ -450,22 +443,6 @@ extension TripPlanningModel {
     }
     carryOutgoingMode(
       for: source, beforeLegs: beforeLegs, afterLegs: afterLegs ?? beforeLegs)
-  }
-
-  /// The day's stop IDs after moving `stop` one slot in `earlier`/later direction,
-  /// or nil when the move isn't expressible by order alone. Only bare `.day`
-  /// stops reorder, including before the day's first timed/dayparted stop. Such
-  /// explicitly-leading Anytime rows receive the core's negative-rank marker.
-  private func reorderedIDs(_ stop: ResolvedStop, earlier: Bool) -> [TripIdea.ID]? {
-    guard case .day = stop.entry.schedule, let day = stop.entry.schedule.dayNumber else { return nil }
-    let stops = orderedStops(onDay: day)
-    guard let from = stops.firstIndex(where: { $0.id == stop.id }) else { return nil }
-    let to = earlier ? from - 1 : from + 1
-    guard stops.indices.contains(to) else { return nil }
-    var ids = stops.map(\.id)
-    ids.remove(at: from)
-    ids.insert(stop.id, at: to)
-    return ids
   }
 
   // MARK: - Ordered-day helpers

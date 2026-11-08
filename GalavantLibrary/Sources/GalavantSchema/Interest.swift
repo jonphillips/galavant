@@ -45,7 +45,7 @@ public enum Interest: Int, QueryBindable, CaseIterable, Sendable {
 /// Where an idea stands once the travel party's per-planner interests are taken
 /// together — the "worklist" projection over the flames (a derivation, not a new
 /// vote, so ADR-0007 stays intact). `match` floats up, `passed` sinks.
-public enum MatchStanding: Sendable {
+public enum MatchStanding: Equatable, Sendable {
   case match    // ≥2 planners want it (≥ Want to Do)
   case neutral
   case passed   // ≥2 planners said Do Not Do, none high — mutually rejected
