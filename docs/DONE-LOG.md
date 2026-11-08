@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-08 — Day design in Shape Trip (`effort/day-design-sheet`)
+
+- **Result:** Shape Trip now edits each day’s region, time zone, and summary; itinerary headers display those facts and open the focused day editor. The meal lens carries day summaries on iPad and iPhone.
+- **Verification:** check-drift.sh passed (SwiftLint, 922 GalavantLibrary tests, GalavantUITests build); headless GalavantTests passed (70 tests).
+- **Owed:** day-design-sheet's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-08 — CloudKit expected-fields list covers every synced column (`claude/cloudkit-expected-fields-test`)
 
 - **Result:** cloudkit-expected-fields.txt now lists all 434 CloudKit fields of the 26 synced tables, and CloudKitSchemaCoverageTests fails when a synced column's value or modification-time field is missing from it, so testflight's Production check covers what the code syncs.

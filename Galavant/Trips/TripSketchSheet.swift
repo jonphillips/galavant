@@ -1,42 +1,63 @@
 import GalavantSchema
 import SwiftUI
 
-/// Sketch the shape of a trip before any stop exists — how many days, and which
-/// region each part of the trip sits in ("four nights Loire, three nights Paris,
-/// fly home day 8"). A view + editor over `TripDayRegion` + `Trip.lengthInDays`
-/// (ADR-0012), never a new table; the span math is the pure `TripSketch` value type
-/// (docs/efforts/archive/trip-sketch-design.md).
+/// Edit the shape and purpose of each trip day (ADR-0054). Region assignments are
+/// still persisted through the pure `TripSketch` span model and `TripDayRegion`
+/// (ADR-0012); summaries and time-zone overrides remain their existing day rows.
 ///
-/// Edits persist live through the model, so a per-span "Add lodging" or the
+/// Edits persist live through the model, so a per-region-run "Add lodging" or the
 /// "Attach regions…" hand-off can leave for another editor without losing the
 /// region work already done. The working copy is held locally for a responsive UI
 /// and re-seeded each time the sheet is opened.
 struct TripSketchSheet: View {
   let model: TripPlanningModel
+  let presentation: TripSketchPresentation
+  let defaultTimeZone: TimeZone?
   @State private var sketch: TripSketch
+  @State private var summaryDrafts: [Int: String]
+  @FocusState private var focusedDay: Int?
   @Environment(\.dismiss) private var dismiss
 
-  init(model: TripPlanningModel) {
+  init(model: TripPlanningModel, presentation: TripSketchPresentation, defaultTimeZone: TimeZone?) {
     self.model = model
+    self.presentation = presentation
+    self.defaultTimeZone = defaultTimeZone
     _sketch = State(initialValue: model.sketch)
+    _summaryDrafts = State(initialValue: Dictionary(
+      (1...(model.trip?.lengthInDays ?? 1)).map { ($0, model.dayNote(forDay: $0) ?? "") },
+      uniquingKeysWith: { first, _ in first }))
   }
 
   var body: some View {
     NavigationStack {
-      Form {
-        durationSection
-        daysSection
+      ScrollViewReader { proxy in
+        Form {
+          durationSection
+          daysSection
+        }
+        .onAppear {
+          guard let day = presentation.focusDay, (1...sketch.lengthInDays).contains(day) else { return }
+          proxy.scrollTo(day, anchor: .center)
+          focusedDay = day
+        }
       }
       .navigationTitle("Shape Trip")
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .confirmationAction) {
-          Button("Done") { dismiss() }
+          Button("Done") {
+            commitAllSummaries()
+            dismiss()
+          }
         }
       }
     }
     .presentationDetents([.large])
     .presentationDragIndicator(.visible)
+    .onDisappear(perform: commitAllSummaries)
+    .onChange(of: focusedDay) { oldDay, _ in
+      if let oldDay { commitSummary(for: oldDay) }
+    }
   }
 
   private var durationSection: some View {
@@ -61,8 +82,9 @@ struct TripSketchSheet: View {
 
   private var daysSection: some View {
     Section {
-      ForEach(sketch.spans) { span in
-        spanRow(span)
+      ForEach(dayDesigns) { day in
+        dayRow(day)
+          .id(day.day)
       }
       NavigationLink {
         RangeAssignView(model: model, sketch: $sketch)
@@ -70,7 +92,7 @@ struct TripSketchSheet: View {
         Label("Set a region for specific days…", systemImage: Icon.map.systemName)
       }
     } header: {
-      Text("Regions by day")
+      Text("Days")
     } footer: {
       if model.tripRegions.isEmpty {
         Text(
@@ -82,42 +104,53 @@ struct TripSketchSheet: View {
     }
   }
 
-  @ViewBuilder private func spanRow(_ span: DaySpan) -> some View {
-    HStack(spacing: 12) {
-      VStack(alignment: .leading, spacing: 2) {
-        Text(dayRangeLabel(span)).font(.subheadline.weight(.medium))
-        Text("^[\(span.dayCount) day](inflect: true)")
-          .font(.caption)
-          .foregroundStyle(.secondary)
-        if let stay = model.stay(overlapping: span) {
-          Label(stay.content.title, systemImage: Icon.stay.systemName)
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
+  private var dayDesigns: [TripDayDesign] {
+    guard let trip = model.trip else { return [] }
+    return TripDayDesign.rows(
+      trip: trip, dayRegions: model.allTripDayRegions, dayTimeZones: model.allTripDayTimeZones,
+      dayNotes: model.allTripDayNotes, stays: model.plan.stays)
+  }
+
+  private func dayRow(_ day: TripDayDesign) -> some View {
+    let span = sketch.spans.first { $0.days.contains(day.day) }
+    return VStack(alignment: .leading, spacing: 8) {
+      HStack(alignment: .center, spacing: 8) {
+        Text(dayLabel(day))
+          .font(.subheadline.weight(.medium))
+        Spacer(minLength: 4)
+        regionMenu(for: day.day, span: span)
+        if day.date != nil {
+          DayTimeZoneMenu(day: day.day, model: model, defaultZone: defaultTimeZone)
         }
       }
-      Spacer(minLength: 8)
-      regionMenu(for: span)
-    }
-    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-      Button {
-        model.addLodging(forSpan: span)
-      } label: {
-        Label("Add lodging", systemImage: Icon.stay.systemName)
+      VStack(alignment: .leading, spacing: 4) {
+        Text("Summary")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+        TextField("What's this day for?", text: summaryBinding(for: day.day), axis: .vertical)
+          .lineLimit(1...3)
+          .focused($focusedDay, equals: day.day)
+          .submitLabel(.done)
+          .onSubmit { commitSummary(for: day.day) }
       }
-      .tint(.indigo)
+      if let title = day.stayTitle {
+        Label(title, systemImage: Icon.stay.systemName)
+          .font(.caption)
+          .foregroundStyle(.secondary)
+          .lineLimit(1)
+      }
     }
   }
 
-  private func regionMenu(for span: DaySpan) -> some View {
-    let assigned = model.region(span.regionID)
+  private func regionMenu(for day: Int, span: DaySpan?) -> some View {
+    let assigned = model.region(span?.regionID)
     return Menu {
       Picker(
         "Region",
         selection: Binding(
-          get: { span.regionID },
+          get: { sketch.spans.first { $0.days.contains(day) }?.regionID },
           set: { newRegionID in
-            sketch.assign(newRegionID, toDays: span.days)
+            sketch.assign(newRegionID, toDays: day...day)
             model.persistSketch(sketch)
           })
       ) {
@@ -128,7 +161,7 @@ struct TripSketchSheet: View {
       }
       Divider()
       Button {
-        model.addLodging(forSpan: span)
+        if let span { model.addLodging(forSpan: span) }
       } label: {
         Label("Add lodging for these nights", systemImage: Icon.stay.systemName)
       }
@@ -151,11 +184,25 @@ struct TripSketchSheet: View {
     .buttonStyle(.borderless)
   }
 
-  /// "Days 1–4" for a span, "Day 5" for a single day.
-  private func dayRangeLabel(_ span: DaySpan) -> String {
-    span.startDay == span.endDay
-      ? "Day \(span.startDay)"
-      : "Days \(span.startDay)–\(span.endDay)"
+  private func dayLabel(_ day: TripDayDesign) -> String {
+    guard let date = day.date else { return "Day \(day.day)" }
+    return "Day \(day.day) · \(date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))"
+  }
+
+  private func summaryBinding(for day: Int) -> Binding<String> {
+    Binding(
+      get: { summaryDrafts[day] ?? model.dayNote(forDay: day) ?? "" },
+      set: { summaryDrafts[day] = $0 })
+  }
+
+  private func commitSummary(for day: Int) {
+    guard let draft = summaryDrafts[day] else { return }
+    model.setDayNote(draft, forDay: day)
+    summaryDrafts[day] = model.dayNote(forDay: day) ?? ""
+  }
+
+  private func commitAllSummaries() {
+    for day in summaryDrafts.keys.sorted() { commitSummary(for: day) }
   }
 }
 

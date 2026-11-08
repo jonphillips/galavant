@@ -110,7 +110,7 @@ struct TripPlanningView: View {
             Icon.bookingBooked.label("Bookings")
           }
         }
-        Button(action: model.sketchTapped) {
+        Button { model.sketchTapped() } label: {
           Label("Shape Trip", systemImage: "compass.drawing")
         }
         if !model.startDaySolverStops.isEmpty {

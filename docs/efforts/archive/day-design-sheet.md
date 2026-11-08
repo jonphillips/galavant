@@ -1,11 +1,11 @@
 # Effort — Day design: region, time zone and summary for each day, in Shape Trip
 
-**Status:** Dispatched · **Summary:** Slice 1 of [ADR-0054](../decisions/0054-day-design-in-shape-trip.md) (D1–D3). Shape
+**Status:** Dispatched · **Summary:** Slice 1 of [ADR-0054](../../decisions/0054-day-design-in-shape-trip.md) (D1–D3). Shape
 Trip gets one row per day for editing its region, time zone and summary. The itinerary's day headers stop being editors
 and show the data instead: date, region, zone and a summary line, and a tap opens Shape Trip on that day. The guide's meal
 lens shows each day's summary. No schema, migration, sync or hand-off change.
 
-**Read first:** ADR-0054; ADR-0012 (per-day regions); [`trip-sketch-design.md`](archive/trip-sketch-design.md);
+**Read first:** ADR-0054; ADR-0012 (per-day regions); [`trip-sketch-design.md`](trip-sketch-design.md);
 `trip-time-model.md` §2 (day numbers, never dates); jon-platform `docs/ios/swiftui-forms.md`.
 
 ## Today

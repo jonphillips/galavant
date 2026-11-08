@@ -22,8 +22,8 @@ extension TripPlanningModel {
   }
 
   /// Present the trip-sketch sheet (the "···" menu and the empty-itinerary CTA).
-  func sketchTapped() {
-    destination = .sketch(TripSketchPresentation())
+  func sketchTapped(focusingDay day: Int? = nil) {
+    destination = .sketch(TripSketchPresentation(focusDay: day))
   }
 
   /// The `MapRegion` for a span's assigned id, resolved live against the region pool
@@ -45,14 +45,6 @@ extension TripPlanningModel {
         try Trip.setLength(length, tripID: tripID, in: db)
         try TripDayRegion.replaceAssignments(assignments, forTrip: tripID, in: db)
       }
-    }
-  }
-
-  /// Any lodging stay overlapping a span — shown as a hint on the sketch row so the
-  /// region and lodging layers stay legibly distinct but visibly agree.
-  func stay(overlapping span: DaySpan) -> ResolvedStay? {
-    plan.stays.first { stay in
-      stay.stay.checkInDay <= span.endDay && stay.stay.checkOutDay > span.startDay
     }
   }
 

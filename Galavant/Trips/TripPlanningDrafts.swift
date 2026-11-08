@@ -19,11 +19,10 @@ struct FreeformStopDraft: Identifiable {
   var booking = BookingFieldsDraft()
 }
 
-/// Presents the trip-sketch sheet (docs/efforts/archive/trip-sketch-design.md). The sheet
-/// reads the current sketch live from the model, so the presentation only needs an
-/// identity to drive `.sheet(item:)`.
+/// Presents Shape Trip, optionally opened on a specific day from its itinerary header.
 struct TripSketchPresentation: Identifiable {
   let id = UUID()
+  var focusDay: Int?
 }
 
 struct AlternativeSourceTarget: Identifiable {

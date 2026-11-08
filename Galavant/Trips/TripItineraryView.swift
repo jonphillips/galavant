@@ -13,7 +13,6 @@ struct TripItineraryView: View {
   /// When set, render only this day's stops (the canvas day lens). Nil = the
   /// whole trip.
   var focusedDay: Int?
-  var tripTimeZone: TimeZone?
   /// Shown as the list's first row on the planning column; nil on compact layouts.
   var heroImage: TripHeaderImage?
   @State private var selectedCalendarConstraint: CalendarTripConstraint?
@@ -122,8 +121,7 @@ struct TripItineraryView: View {
         SectionHeader(
           label: dayLabel(day, trip: model.trip),
           day: day,
-          model: model,
-          tripTimeZone: tripTimeZone)
+          model: model)
       }
     }
     // No custom `dragContainer`: `reorderContainer` is already its own drag
@@ -281,8 +279,7 @@ struct TripItineraryView: View {
           SectionHeader(
             label: dayLabel(day.number, trip: model.trip),
             day: day.number,
-            model: model,
-            tripTimeZone: tripTimeZone)
+            model: model)
             .id(DayAnchor.day(day.number))
         }
       }
@@ -294,9 +291,9 @@ struct TripItineraryView: View {
       model.addToSectionTapped(day: day)
     } label: {
       Icon.add.label("Add a stop")
-        .foregroundStyle(.tint)
     }
-    .buttonStyle(.plain)
+    .buttonStyle(.bordered)
+    .controlSize(.small)
   }
 
   /// Before any stop or region exists, the first thing a planner writes down is the
@@ -305,7 +302,7 @@ struct TripItineraryView: View {
   /// (docs/efforts/archive/trip-sketch-design.md).
   private var sketchPrompt: some View {
     Section {
-      Button(action: model.sketchTapped) {
+      Button { model.sketchTapped() } label: {
         HStack(spacing: 12) {
           Image(systemName: "calendar.day.timeline.leading")
             .imageScale(.large)
