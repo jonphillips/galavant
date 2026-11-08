@@ -25,8 +25,10 @@ retired `CURRENT_HANDOFF.md` and `ROADMAP.md`'s open items.
 ### Taste record and region guide (ADR-0053, proposed 2026-11-04)
 
 S1 `taste-notes` shipped. S2 [`idea-dossier`](efforts/archive/idea-dossier.md) shipped, and S3
-[`region-guide`](efforts/archive/region-guide.md) shipped. Its device review decides what follows: S4 recommendation
-records (question, narrative, stances with reasons, prediction beside outcome), then the universe gate and S5. The S3 brief
+[`region-guide`](efforts/archive/region-guide.md) shipped. Jon's first use of it (2026-11-08) produced ADR-0053 D8, the
+guide's trip lens, built as S3.1–S3.3 (`guide-dossier-panel`, `guide-trip-lens`, `guide-slot-filling`). After those: S4
+recommendation records (question, narrative, stances with reasons, prediction beside outcome), then the universe gate and
+S5. Candidate hotels for the same nights is ADR-0053 OQ5, a schema decision held until S3.3 has been used on a real trip. The S3 brief
 names the ADR's "Favorites" shelf "Noted", because notes carry no sentiment; the review settles whether a real Favorites is
 wanted. **Owed by Jon, no code:** export ChatGPT conversations now, so the history behind the notes backfill is safe whatever
 else happens. Exports never go in this repo, which is public. ADR OQ1–OQ4 stay in the ADR.
