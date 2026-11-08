@@ -177,6 +177,183 @@ import Testing
     #expect(lens.badges[doneIdea.id] == nil)
   }
 
+  @Test func guideMenuOffersOpenSlotOptionAndShortlistAndChecksCurrentSlot() {
+    let trip = Trip(id: UUID(), name: "Italy", lengthInDays: 2)
+    let targetIdea = idea("Target")
+    let candidate = idea("Candidate")
+    let target = scheduledEntry(trip.id, idea: targetIdea, schedule: .daypart(1, .dinner))
+    let lens = makeLens(trip: trip, ideas: [targetIdea], entries: [target], dayNumbers: [1])
+    let menu = GuideSlotMenu(lens: lens, idea: candidate, entries: [target], stays: [], calendar: .current)
+
+    #expect(menu.sections.count == 2)
+    #expect(menu.sections[0][0].action == .schedule(day: 1, .lunch))
+    #expect(menu.sections[0][1].action == .addOption(to: target.id))
+    #expect(menu.sections[0][1].detail == "Add as an option to Target")
+    #expect(menu.sections[1][0].action == .shortlist)
+
+    let currentMenu = GuideSlotMenu(lens: lens, idea: targetIdea, entries: [target], stays: [], calendar: .current)
+    #expect(currentMenu.sections[0][1].isCurrent)
+    #expect(currentMenu.sections[0][1].action == nil)
+    #expect(currentMenu.sections[0][1].detail == "Already on Day 1 dinner")
+    #expect(currentMenu.sections[1][0].isCurrent == false)
+  }
+
+  @Test func guideMenuExplainsWholeDayAndMealOnlyClosures() {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+    let trip = Trip(id: UUID(), name: "Dated", startDate: date(2026, 11, 9, calendar: calendar), lengthInDays: 2)
+    let closed = idea("Closed")
+    var closedIdea = closed
+    closedIdea.structuredHours = WeeklyHours(days: [.closed] + Array(repeating: .unknown, count: 6)).encoded()
+    let lunchOnly = idea("Lunch only")
+    var lunchIdea = lunchOnly
+    lunchIdea.structuredHours = WeeklyHours(days: [.open([ServicePeriod(meal: .lunch)])]
+      + Array(repeating: .unknown, count: 6)).encoded()
+
+    let closedLens = makeLens(trip: trip, dayNumbers: [1], calendar: calendar)
+    let closedMenu = GuideSlotMenu(lens: closedLens, idea: closedIdea, entries: [], stays: [], calendar: calendar)
+    #expect(closedMenu.sections[0][0].detail == "Closed Mondays")
+    #expect(closedMenu.sections[0][0].action == nil)
+    let lunchMenu = GuideSlotMenu(lens: closedLens, idea: lunchIdea, entries: [], stays: [], calendar: calendar)
+    #expect(lunchMenu.sections[0][1].detail == "No dinner on Mondays")
+    #expect(lunchMenu.sections[0][1].action == nil)
+  }
+
+  @Test func guideMenuAllowsClosedHoursOnAnUndatedTrip() {
+    let trip = Trip(id: UUID(), name: "Undated", lengthInDays: 1)
+    var closedIdea = idea("Closed")
+    closedIdea.structuredHours = WeeklyHours(days: Array(repeating: .closed, count: 7)).encoded()
+    let lens = makeLens(trip: trip, dayNumbers: [1])
+    let menu = GuideSlotMenu(lens: lens, idea: closedIdea, entries: [], stays: [], calendar: .current)
+    #expect(menu.sections[0][0].detail == "Open slot")
+    #expect(menu.sections[0][0].action == .schedule(day: 1, .lunch))
+  }
+
+  @Test func hotelMenuChecksItsStayAndPreventsAddingTheSameHotelAgain() {
+    let trip = Trip(id: UUID(), name: "Italy", lengthInDays: 4)
+    let hotel = idea("Hotel", kind: .stay)
+    let stay = TripStay(id: UUID(), tripID: trip.id, ideaID: hotel.id, checkInDay: 1, checkOutDay: 3)
+    let lens = makeLens(trip: trip, ideas: [hotel], stays: [stay], dayNumbers: [1, 2, 3], category: .hotels)
+    let currentMenu = GuideSlotMenu(lens: lens, idea: hotel, entries: [], stays: [stay], calendar: .current)
+    #expect(currentMenu.sections[0][0].isCurrent)
+    #expect(currentMenu.sections[0][0].action == nil)
+    #expect(currentMenu.sections[1][0].action == nil)
+
+    let candidate = idea("Another hotel", kind: .stay)
+    let candidateMenu = GuideSlotMenu(lens: lens, idea: candidate, entries: [], stays: [stay], calendar: .current)
+    #expect(candidateMenu.sections[1][0].action == .stay(nights: 3...3))
+  }
+
+  @Test func disabledRowsNameTheStopLocationInsteadOfTheMenuRow() {
+    let trip = Trip(id: UUID(), name: "Italy", lengthInDays: 3)
+    let currentIdea = idea("Current")
+    let firstTarget = idea("Lunch target")
+    let laterTarget = idea("Later target")
+    let current = scheduledEntry(trip.id, idea: currentIdea, schedule: .daypart(2, .dinner))
+    let first = scheduledEntry(trip.id, idea: firstTarget, schedule: .daypart(1, .lunch))
+    let later = scheduledEntry(trip.id, idea: laterTarget, schedule: .daypart(3, .lunch))
+    let lens = makeLens(trip: trip, ideas: [currentIdea, firstTarget, laterTarget],
+      entries: [current, first, later], dayNumbers: [1, 2, 3])
+    let menu = GuideSlotMenu(lens: lens, idea: currentIdea, entries: [current, first, later], stays: [], calendar: .current)
+    #expect(menu.sections[0][0].detail == "Already on Day 2 dinner")
+    #expect(menu.sections[0][0].isCurrent == false)
+    #expect(menu.sections[1][1].detail == "Already on Day 2 dinner")
+    #expect(menu.sections[1][1].isCurrent)
+    #expect(menu.sections[2][0].detail == "Already on Day 2 dinner")
+    #expect(menu.sections[2][0].action == nil)
+  }
+
+  @Test func scheduledLoneStopCanMoveToOpenSlotsButRingMembersAreDisabled() {
+    let trip = Trip(id: UUID(), name: "Italy", lengthInDays: 3)
+    let currentIdea = idea("Current")
+    let targetIdea = idea("Target")
+    let current = scheduledEntry(trip.id, idea: currentIdea, schedule: .daypart(2, .dinner))
+    let target = scheduledEntry(trip.id, idea: targetIdea, schedule: .daypart(3, .lunch))
+    let lens = makeLens(trip: trip, ideas: [currentIdea, targetIdea], entries: [current, target], dayNumbers: [1, 2, 3])
+    let menu = GuideSlotMenu(lens: lens, idea: currentIdea, entries: [current, target], stays: [], calendar: .current)
+    #expect(menu.sections[0][0].action == .move(stopID: current.id, day: 1, .lunch))
+    #expect(menu.sections[1][1].isCurrent)
+    #expect(menu.sections[1][1].action == nil)
+    #expect(menu.sections[2][0].detail == "Already on Day 2 dinner")
+    #expect(menu.sections[2][0].action == nil)
+    #expect(menu.sections[3][0].action == nil)
+
+    let groupID = UUID()
+    var ringMember = current
+    ringMember.alternativeGroupID = groupID
+    ringMember.isActive = false
+    var ringTarget = scheduledEntry(trip.id, idea: targetIdea, schedule: .daypart(2, .dinner))
+    ringTarget.alternativeGroupID = groupID
+    let ringLens = makeLens(trip: trip, ideas: [currentIdea, targetIdea], entries: [ringMember, ringTarget],
+      groups: [TripAlternativeGroup(id: groupID, tripID: trip.id, label: "Dinner")], dayNumbers: [1, 2, 3])
+    let ringMenu = GuideSlotMenu(lens: ringLens, idea: currentIdea, entries: [ringMember, ringTarget], stays: [], calendar: .current)
+    #expect(ringMenu.sections[0][0].action == nil)
+    #expect(ringMenu.sections[0][0].detail == "One of the options for Day 2 dinner")
+    #expect(ringMenu.sections[1][1].isCurrent)
+    #expect(ringMenu.sections[1][1].action == nil)
+    #expect(ringMenu.sections[3][0].action == nil)
+  }
+
+  @Test func doneAndSkippedIdeasStayDisabledWithTheirOriginalSlot() {
+    let trip = Trip(id: UUID(), name: "Italy", lengthInDays: 2)
+    for (status, reason) in [(TripIdeaStatus.done, "Done"), (.skipped, "Skipped")] {
+      let idea = self.idea(reason)
+      var entry = scheduledEntry(trip.id, idea: idea, schedule: .daypart(1, .dinner))
+      entry.status = status
+      let lens = makeLens(trip: trip, ideas: [idea], entries: [entry], dayNumbers: [1, 2])
+      let menu = GuideSlotMenu(lens: lens, idea: idea, entries: [entry], stays: [], calendar: .current)
+      #expect(menu.sections.flatMap { $0 }.allSatisfy { $0.action == nil && $0.detail == "\(reason) on Day 1 dinner" })
+      #expect(menu.sections[0][1].isCurrent)
+    }
+  }
+
+  @Test func focusedSlotProjectsRingOrderAndOpenCandidates() {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+    let datedTrip = Trip(id: UUID(), name: "Dated", startDate: date(2026, 11, 9, calendar: calendar), lengthInDays: 2)
+    let closedIdea = idea("Closed")
+    var closed = closedIdea
+    closed.structuredHours = WeeklyHours(days: [.closed] + Array(repeating: .unknown, count: 6)).encoded()
+    let unknown = idea("Unknown")
+    let openLens = makeLens(trip: datedTrip, dayNumbers: [1], calendar: calendar)
+    let datedFocus = GuideSlotFocus(day: 1, meal: .lunch, lens: openLens, entries: [], ideas: [closed, unknown])
+    #expect(datedFocus?.content == .open(ideaIDs: [unknown.id]))
+
+    let undatedTrip = Trip(id: UUID(), name: "Undated", lengthInDays: 2)
+    let undatedLens = makeLens(trip: undatedTrip, dayNumbers: [1])
+    let undatedFocus = GuideSlotFocus(day: 1, meal: .lunch, lens: undatedLens, entries: [], ideas: [closed, unknown])
+    #expect(undatedFocus?.content == .open(ideaIDs: [closed.id, unknown.id]))
+
+    let first = idea("First option")
+    let second = idea("Second option")
+    let freeform = TripIdea.freeform(id: UUID(), tripID: undatedTrip.id, title: "Picnic", shortlistRank: 3)
+    var firstEntry = scheduledEntry(undatedTrip.id, idea: first, schedule: .daypart(1, .dinner))
+    firstEntry.alternativeGroupID = UUID()
+    firstEntry.shortlistRank = 1
+    firstEntry.isActive = true
+    firstEntry.dayRank = 0
+    var secondEntry = scheduledEntry(undatedTrip.id, idea: second, schedule: .daypart(1, .dinner))
+    secondEntry.alternativeGroupID = firstEntry.alternativeGroupID
+    secondEntry.shortlistRank = 2
+    secondEntry.isActive = false
+    secondEntry.dayRank = 0
+    var picnic = freeform
+    picnic.apply(.daypart(1, .dinner))
+    picnic.dayRank = 1
+    let group = TripAlternativeGroup(id: firstEntry.alternativeGroupID!, tripID: undatedTrip.id, label: "Dinner")
+    let filledLens = makeLens(trip: undatedTrip, ideas: [first, second], entries: [firstEntry, secondEntry, picnic],
+      groups: [group], dayNumbers: [1])
+    let focused = GuideSlotFocus(day: 1, meal: .dinner, lens: filledLens,
+      entries: [firstEntry, secondEntry, picnic], ideas: [first, second])
+    guard case let .filled(stops)? = focused?.content else {
+      Issue.record("Expected focused meal options")
+      return
+    }
+    #expect(stops.map(\.title) == ["First option", "Second option", "Picnic"])
+    #expect(stops.map(\.isActive) == [true, false, true])
+    #expect(focused?.title == "Showing options for Day 1 dinner")
+  }
+
   private func idea(_ name: String, kind: IdeaKind = .food) -> Idea {
     Idea(id: UUID(), name: name, kind: kind)
   }

@@ -202,7 +202,7 @@ The S3 device review added three slices before S4 (D8):
 - **S3.1 — Dossier over the map** ([`guide-dossier-panel`](../efforts/archive/guide-dossier-panel.md)).
 - **S3.2 — The trip lens, read-only** ([`guide-trip-lens`](../efforts/archive/guide-trip-lens.md)): meal slots and nights, with
   badges on the cards.
-- **S3.3 — Filling slots from the guide** ([`guide-slot-filling`](../efforts/guide-slot-filling.md)): Add to Trip, choosing
+- **S3.3 — Filling slots from the guide** ([`guide-slot-filling`](../efforts/archive/guide-slot-filling.md)): Add to Trip, choosing
   among a slot's options, and Stay here for an open night.
 
 S2 onward get briefs when they're next. Only S1 is dispatched by this PR.

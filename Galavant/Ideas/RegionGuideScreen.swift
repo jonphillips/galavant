@@ -19,8 +19,9 @@ struct RegionGuideScreen: View {
   }
 
   var body: some View {
-    let guide = model.guide
     let tripLens = model.tripLens
+    let guide = model.visibleGuide
+    let mapGuide = model.mapGuide
     let headerThumbnails = model.headerThumbnailByIdea
     let plannerNames = Dictionary(model.planners.map { ($0.id, $0.displayName) }, uniquingKeysWith: { first, _ in first })
     return VStack(spacing: 0) {
@@ -32,14 +33,15 @@ struct RegionGuideScreen: View {
           column: {
             guideList(guide, tripLens: tripLens, headerThumbnails: headerThumbnails, plannerNames: plannerNames)
           },
-          map: { poolMap(guide) }
+          map: { poolMap(mapGuide) },
+          dossierAccessory: { dossierAccessory(ideaID: model.dossierID) }
         )
       } else {
         Group {
           switch mode {
           case .list:
             guideList(guide, tripLens: tripLens, headerThumbnails: headerThumbnails, plannerNames: plannerNames)
-          case .map: poolMap(guide)
+          case .map: poolMap(mapGuide)
           }
         }
         .toolbar {
@@ -60,6 +62,7 @@ struct RegionGuideScreen: View {
               chrome: .panel(onClose: { model.closeDossier() })
             )
             .id(ideaID)
+            .safeAreaInset(edge: .bottom) { dossierAccessory(ideaID: ideaID) }
             .presentationDetents([.medium, .large])
             .presentationBackgroundInteraction(.enabled(upThrough: .medium))
           }
@@ -79,6 +82,43 @@ struct RegionGuideScreen: View {
       }
     }
     .task { model.task(scope: scope) }
+    .sensoryFeedback(.success, trigger: model.successfulAddCount)
+  }
+
+  @ViewBuilder private func dossierAccessory(ideaID: Idea.ID?) -> some View {
+    if let ideaID, let menu = model.slotMenu(for: ideaID) {
+      Menu {
+        ForEach(Array(menu.sections.enumerated()), id: \.offset) { _, rows in
+          Section {
+            ForEach(rows) { row in
+              Button {
+                guard let action = row.action else { return }
+                _ = model.addToTrip(action, ideaID: ideaID)
+              } label: {
+                HStack {
+                  VStack(alignment: .leading, spacing: 2) {
+                    Text(row.title)
+                    Text(row.detail).font(.caption).foregroundStyle(.secondary)
+                  }
+                  if row.isCurrent { Image(systemName: "checkmark") }
+                }
+              }
+              .disabled(row.action == nil)
+            }
+          }
+        }
+      } label: {
+        Label("Add to Trip", systemImage: "plus")
+          .font(.headline)
+          .frame(maxWidth: .infinity)
+          .padding(.vertical, 12)
+          .contentShape(Rectangle())
+      }
+      .buttonStyle(.borderedProminent)
+      .padding(.horizontal, 16)
+      .padding(.vertical, 8)
+      .background(.bar)
+    }
   }
 
   private func header(guide: RegionGuide?) -> some View {
@@ -144,40 +184,46 @@ struct RegionGuideScreen: View {
         systemImage: Icon.map.systemName,
         description: Text("Choose a saved region to see its places.")
       )
-    } else if let guide, guide.sections.isEmpty {
-      let notForMeCount = guide.counts[.notForMe, default: 0]
-      VStack(spacing: 0) {
-        if let tripLens { tripLensView(tripLens).padding(.horizontal) }
-        ContentUnavailableView("Nothing in \(model.shelf.label)", systemImage: Icon.ideas.systemName,
-          description: Text("\(notForMeCount) \(notForMeCount == 1 ? "place is" : "places are") on Not for Me."))
-      }
-    } else if let guide {
+    } else {
       List {
         if let tripLens {
           Section {
-            tripLensView(tripLens)
+            RegionGuideTripLensView(lens: tripLens, model: model, horizontalSizeClass: horizontalSizeClass,
+              onSelectSlot: { model.slotTapped(day: $0, meal: $1) })
               .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
           }
         }
-        ForEach(guide.sections) { section in
-          Section(section.title) {
-            ForEach(section.cards) { card in
-              Button {
-                model.ideaTapped(card.idea)
-                focusedIdeaID = card.idea.id
-              } label: {
-                VStack(alignment: .leading, spacing: 6) {
-                  cardView(card, headerThumbnail: headerThumbnails[card.idea.id], plannerNames: plannerNames)
-                  if let tripLens, let label = tripLens.badgeLabel(for: card.idea.id) {
-                    Text(label)
-                      .font(.caption2.weight(.medium))
-                      .padding(.horizontal, 7).padding(.vertical, 3)
-                      .background(.thinMaterial, in: Capsule())
-                  }
-                }
+        if let focusedSlot = model.focusedSlot, let tripLens {
+          Section {
+            focusedSlotRows(focusedSlot, tripID: tripLens.trip.id)
+          } header: {
+            HStack {
+              Text(focusedSlot.title)
+              Spacer()
+              Button { model.clearSlotFocus() } label: {
+                Image(systemName: "xmark")
               }
               .buttonStyle(.plain)
-              .listRowBackground(focusedIdeaID == card.idea.id ? Color.accentColor.opacity(0.15) : nil)
+              .accessibilityLabel("Clear slot focus")
+            }
+          }
+        }
+        if model.focusedSlot?.isFilled != true, let guide, guide.sections.isEmpty {
+          let notForMeCount = guide.counts[.notForMe, default: 0]
+          ContentUnavailableView("Nothing in \(model.shelf.label)", systemImage: Icon.ideas.systemName,
+            description: Text("\(notForMeCount) \(notForMeCount == 1 ? "place is" : "places are") on Not for Me."))
+        } else if model.focusedSlot?.isFilled != true, let guide {
+          ForEach(guide.sections) { section in
+            Section(section.title) {
+              ForEach(section.cards) { card in
+                RegionGuideCardRow(
+                  card: card, headerThumbnail: headerThumbnails[card.idea.id], plannerNames: plannerNames,
+                  badge: tripLens?.badgeLabel(for: card.idea.id), isFocused: focusedIdeaID == card.idea.id,
+                  onTap: {
+                    model.ideaTapped(card.idea)
+                    focusedIdeaID = card.idea.id
+                  })
+              }
             }
           }
         }
@@ -185,184 +231,31 @@ struct RegionGuideScreen: View {
     }
   }
 
-  @ViewBuilder private func tripLensView(_ lens: GuideTripLens) -> some View {
-    VStack(alignment: .leading, spacing: 10) {
-      HStack {
-        Menu {
-          ForEach([lens.trip] + lens.otherTrips) { trip in
-            Button(trip.name) { model.tripSelected(trip.id) }
-          }
-        } label: {
-          Label(lens.trip.name, systemImage: "airplane")
-            .font(.subheadline.weight(.semibold)).lineLimit(1)
-        }
-        Spacer()
-        Text(lens.heading)
-          .font(.caption).foregroundStyle(.secondary).lineLimit(1)
-        Button { model.lensFoldButtonTapped() } label: {
-          Image(systemName: model.lensFolded ? "chevron.down" : "chevron.up")
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(model.lensFolded ? "Expand trip lens" : "Fold trip lens")
-      }
-      if !model.lensFolded {
-        switch lens.body {
-        case let .meals(days): mealDaysView(days)
-        case let .nights(runs): nightRunsView(runs)
-        }
-      }
-    }
-    .padding(.vertical, 4)
-  }
-
-  @ViewBuilder private func mealDaysView(_ days: [GuideTripLens.MealDay]) -> some View {
-    if horizontalSizeClass == .regular {
-      VStack(alignment: .leading, spacing: 8) {
+  @ViewBuilder private func focusedSlotRows(_ focus: GuideSlotFocus, tripID: Trip.ID) -> some View {
+    if case let .filled(stops) = focus.content {
+      ForEach(stops) { stop in
         HStack {
-          Text("Day").frame(width: 80, alignment: .leading)
-          Text("Lunch").frame(maxWidth: .infinity, alignment: .leading)
-          Text("Dinner").frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .font(.caption.bold()).foregroundStyle(.secondary)
-        ForEach(days) { day in
-          HStack(alignment: .top, spacing: 8) {
-            Text(day.weekday?.shortLabel ?? "Day \(day.day)").font(.caption.bold()).frame(width: 80, alignment: .leading)
-            mealCell(day.lunch, label: "Lunch")
-            mealCell(day.dinner, label: "Dinner")
-          }
-          if !day.alsoThatDay.isEmpty { alsoThatDay(day.alsoThatDay).padding(.leading, 88) }
-        }
-      }
-    } else {
-      ScrollView(.horizontal, showsIndicators: false) {
-        HStack(alignment: .top, spacing: 8) {
-          ForEach(days) { day in
-            VStack(alignment: .leading, spacing: 6) {
-              Text(day.weekday?.shortLabel ?? "Day \(day.day)").font(.caption.bold())
-              mealCell(day.lunch, label: "L")
-              mealCell(day.dinner, label: "D")
-              if !day.alsoThatDay.isEmpty { alsoThatDay(day.alsoThatDay) }
+          VStack(alignment: .leading, spacing: 3) {
+            if let ideaID = stop.ideaID {
+              Button(stop.title) { model.tripStopTapped(ideaID) }
+                .buttonStyle(.plain)
+            } else {
+              Text(stop.title).italic()
             }
-            .frame(width: 155, alignment: .leading)
-            .padding(8).background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10))
-          }
-        }
-      }
-    }
-  }
-
-  private func alsoThatDay(_ stops: [GuideTripLens.SlotStop]) -> some View {
-    Text("Also: \(stops.map(\.title).joined(separator: ", "))")
-      .font(.caption2).foregroundStyle(.secondary).lineLimit(2)
-  }
-
-  private func nightRunsView(_ runs: [GuideTripLens.NightRun]) -> some View {
-    Group {
-      if horizontalSizeClass == .regular {
-        VStack(alignment: .leading, spacing: 8) {
-          ForEach(Array(runs.enumerated()), id: \.offset) { _, run in nightRunView(run) }
-        }
-      } else {
-        ScrollView(.horizontal, showsIndicators: false) {
-          HStack(spacing: 8) {
-            ForEach(Array(runs.enumerated()), id: \.offset) { _, run in
-              nightRunView(run).padding(8).background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10))
+            if let distance = model.distanceFromStay(ideaID: stop.ideaID, tripID: tripID, day: focus.day) {
+              Text("\(distance.distance.formatted(.measurement(width: .abbreviated, usage: .road))) from \(distance.hotelName)")
+                .font(.caption).foregroundStyle(.secondary)
             }
           }
-        }
-      }
-    }
-  }
-
-  @ViewBuilder private func nightRunView(_ run: GuideTripLens.NightRun) -> some View {
-      switch run {
-      case let .open(nights):
-        Text("Open · Night \(nights.lowerBound)\(nights.lowerBound == nights.upperBound ? "" : "–\(nights.upperBound)")")
-          .font(.subheadline).padding(8).overlay(RoundedRectangle(cornerRadius: 8).stroke(style: StrokeStyle(lineWidth: 1, dash: [4])))
-      case let .stay(_, ideaID, title, booked, nights):
-        Button { model.tripStopTapped(ideaID) } label: {
-          Label("\(title) · Night \(nights.lowerBound)\(nights.lowerBound == nights.upperBound ? "" : "–\(nights.upperBound)")", systemImage: booked ? "checkmark.circle.fill" : "bed.double")
-        }.buttonStyle(.plain)
-      }
-  }
-
-  @ViewBuilder private func mealCell(_ cell: GuideTripLens.MealCell, label: String) -> some View {
-    switch cell {
-    case .open:
-      Text("\(label) · Open").font(.caption).padding(.horizontal, 7).padding(.vertical, 5)
-        .overlay(RoundedRectangle(cornerRadius: 7).stroke(style: StrokeStyle(lineWidth: 1, dash: [4])))
-    case let .filled(stops):
-      if let stop = stops.first {
-        Button { model.tripStopTapped(stop.ideaID) } label: {
-          HStack(spacing: 4) {
-            if stop.isBooked { Image(systemName: "checkmark.circle.fill").foregroundStyle(.green) }
-            Text("\(label) · \(stop.title)\(stop.optionCount > 1 ? " · \(stop.optionCount) options" : "")\(stops.count > 1 ? " +\(stops.count - 1)" : "")")
-              .italic(stop.isFreeform).lineLimit(1)
-          }.font(.caption).padding(.horizontal, 7).padding(.vertical, 5)
-            .background(stop.optionCount > 1 ? Color.orange.opacity(0.14) : Color.green.opacity(stop.isBooked ? 0.14 : 0.06), in: RoundedRectangle(cornerRadius: 7))
-        }.buttonStyle(.plain)
-      }
-    }
-  }
-
-  private func cardView(
-    _ card: RegionGuide.Card,
-    headerThumbnail: Data?,
-    plannerNames: [Planner.ID: String]
-  ) -> some View {
-    HStack(alignment: .top, spacing: 12) {
-      if let headerThumbnail, let image = UIImage(data: headerThumbnail) {
-        Image(uiImage: image)
-          .resizable()
-          .scaledToFill()
-          .frame(width: 70, height: 70)
-          .clipShape(RoundedRectangle(cornerRadius: 8))
-      }
-      VStack(alignment: .leading, spacing: 5) {
-        Text(card.idea.name).font(.headline)
-        let address = card.idea.address.flatMap { $0.isEmpty ? nil : $0 }
-        if let locality = address ?? card.idea.regionName, !locality.isEmpty {
-          Text(locality).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
-        }
-        if card.emphasis == .notesFirst, let note = card.latestNote {
-          noteText(note, lines: 2, plannerNames: plannerNames)
-        }
-        if let accolade = card.accolade {
-          Text("\(accolade.sourceName) · \(accolade.nativeDisplay)")
-            .font(.subheadline)
-        }
-        if card.emphasis == .accoladesFirst, let note = card.latestNote {
-          noteText(note, lines: 1, plannerNames: plannerNames)
-        }
-        HStack(spacing: 10) {
-          ForEach(card.interests, id: \.planner.id) { entry in
-            Text("\(entry.planner.displayName): \(entry.level?.label ?? "Not rated")")
-              .font(.caption)
-              .foregroundStyle(.secondary)
+          if stop.isAlternative && stop.isActive { Text("Active").font(.caption).foregroundStyle(.secondary) }
+          Spacer()
+          if stop.isAlternative && !stop.isActive {
+            Button("Make active") { model.setActive(stopID: stop.id) }
           }
-          if card.idea.visited {
-            Label("Visited", systemImage: Icon.checkmark.systemName)
-              .font(.caption)
-              .foregroundStyle(.secondary)
-          }
+          Button("Take out") { model.takeOut(stopID: stop.id) }
         }
       }
-      Spacer(minLength: 0)
     }
-    .padding(.vertical, 4)
-    .contentShape(Rectangle())
-    .accessibilityElement(children: .combine)
-  }
-
-  private func noteText(
-    _ note: TasteNote, lines: Int, plannerNames: [Planner.ID: String]
-  ) -> some View {
-    let who = note.plannerID.flatMap { plannerNames[$0] } ?? "Both of us"
-    let firstLine = note.body.split(whereSeparator: \.isNewline).first.map(String.init) ?? note.body
-    return Text("\(firstLine) · \(who)")
-      .font(.subheadline)
-      .foregroundStyle(.secondary)
-      .lineLimit(lines)
   }
 
   private func poolMap(_ guide: RegionGuide?) -> some View {

@@ -13,11 +13,26 @@ private enum IdeaMapPanelMetrics {
   static var mapTrailingReserve: CGFloat { width + inset }
 }
 
-struct IdeaMapSplitView<Column: View, Map: View>: View {
+struct IdeaMapSplitView<Column: View, Map: View, Accessory: View>: View {
   let ideaID: Idea.ID?
   let onClose: () -> Void
   @ViewBuilder let column: () -> Column
   @ViewBuilder let map: () -> Map
+  @ViewBuilder let dossierAccessory: () -> Accessory
+
+  init(
+    ideaID: Idea.ID?,
+    onClose: @escaping () -> Void,
+    @ViewBuilder column: @escaping () -> Column,
+    @ViewBuilder map: @escaping () -> Map,
+    @ViewBuilder dossierAccessory: @escaping () -> Accessory = { EmptyView() }
+  ) {
+    self.ideaID = ideaID
+    self.onClose = onClose
+    self.column = column
+    self.map = map
+    self.dossierAccessory = dossierAccessory
+  }
 
   var body: some View {
     HStack(spacing: 0) {
@@ -38,6 +53,7 @@ struct IdeaMapSplitView<Column: View, Map: View>: View {
           canEdit: true,
           chrome: .panel(onClose: onClose)
         )
+        .safeAreaInset(edge: .bottom) { dossierAccessory() }
         .frame(width: IdeaMapPanelMetrics.width)
         .background(.background, in: RoundedRectangle(cornerRadius: IdeaMapPanelMetrics.cornerRadius))
         .clipShape(RoundedRectangle(cornerRadius: IdeaMapPanelMetrics.cornerRadius))

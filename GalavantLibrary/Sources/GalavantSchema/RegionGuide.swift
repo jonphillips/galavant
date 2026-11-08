@@ -77,10 +77,21 @@ public struct RegionGuide: Equatable, Sendable {
     public var title: String
     public var cards: [Card]
     public var id: String
+
+    public init(title: String, cards: [Card], id: String) {
+      self.title = title
+      self.cards = cards
+      self.id = id
+    }
   }
 
   public var sections: [Section]
   public var counts: [GuideShelf: Int]
+
+  public init(sections: [Section], counts: [GuideShelf: Int]) {
+    self.sections = sections
+    self.counts = counts
+  }
 
   public init(
     region: MapRegion,
