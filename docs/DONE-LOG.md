@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-08 — Trip lens from the region guide (`effort/guide-trip-lens`)
+
+- **Result:** Added a read-only guide lens that projects each selected trip’s regional meal slots and night runs from a snapshot-built TripPlan, with trip badges and compact/regular layouts.
+- **Verification:** scripts/check-drift.sh passed: 885 package tests, 11 headless GalavantTests, and GalavantUITests compiled and linked.
+- **Owed:** guide-trip-lens's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-08 — Dossier over the map (`effort/guide-dossier-panel`)
 
 - **Result:** Ideas and the Region Guide now keep their list visible while a place dossier floats over the map on regular width, or opens in a half-height sheet on compact width. The dossier uses explicit panel or navigation-bar chrome, and switching places replaces the dossier in place.

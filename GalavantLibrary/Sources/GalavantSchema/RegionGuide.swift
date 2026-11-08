@@ -31,27 +31,32 @@ public enum GuideShelf: String, CaseIterable, Equatable, Sendable {
 public struct RegionGuideScope: Equatable, Hashable, Identifiable, Sendable {
   public var region: MapRegion?
   public var category: GuideCategory
-  public var id: String { "\(region?.id.uuidString ?? "none")-\(category.rawValue)" }
+  public var preferredTripID: Trip.ID?
+  public var id: String { "\(region?.id.uuidString ?? "none")-\(category.rawValue)-\(preferredTripID?.uuidString ?? "none")" }
 
   public func hash(into hasher: inout Hasher) {
     hasher.combine(region?.id)
     hasher.combine(category)
+    hasher.combine(preferredTripID)
   }
 
-  public init(region: MapRegion?, category: GuideCategory) {
+  public init(region: MapRegion?, category: GuideCategory, preferredTripID: Trip.ID? = nil) {
     self.region = region
     self.category = category
+    self.preferredTripID = preferredTripID
   }
 
   public init(
     selectedRegion: MapRegion?,
     activeTripRegions: [MapRegion],
     lastGuideRegion: MapRegion?,
-    selectedKindGroups: Set<IdeaKindGroup>
+    selectedKindGroups: Set<IdeaKindGroup>,
+    preferredTripID: Trip.ID? = nil
   ) {
     self.init(
       region: selectedRegion ?? (activeTripRegions.count == 1 ? activeTripRegions.first : nil) ?? lastGuideRegion,
-      category: selectedKindGroups == [.stay] ? .hotels : .dining
+      category: selectedKindGroups == [.stay] ? .hotels : .dining,
+      preferredTripID: preferredTripID
     )
   }
 }
