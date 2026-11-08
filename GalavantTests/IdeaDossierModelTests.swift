@@ -8,7 +8,11 @@ import Testing
 
 @testable import Galavant
 
-@Suite(.serialized, .dependencies { try $0.bootstrapDatabase() })
+@Suite(.serialized, .dependencies {
+  try $0.bootstrapDatabase()
+  $0.date = .constant(Date(timeIntervalSince1970: 1_700_000_000))
+  $0.calendar = Calendar(identifier: .gregorian)
+})
 struct IdeaDossierModelTests {
   @Dependency(\.defaultDatabase) private var database
 

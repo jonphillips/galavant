@@ -452,6 +452,27 @@ struct RecommendationHandoffTests {
     #expect(committed.shortlistRank == 4)
   }
 
+  @Test func recommittingLegacyRationaleFillsEmptyFieldsAndClearsOnlyTheDuplicateNote() async throws {
+    let candidate = TripCandidate(name: "Museum", why: "Worth the visit", fit: "Easy from the hotel", visit: "Tuesday")
+    let updated = try await database.write { db -> TripIdea in
+      let trip = try Trip.create(name: "Denmark", in: db)
+      let original = try TripIdea.commit(candidate: candidate, into: trip.id, in: db)
+      try TripIdea.find(original.id).update {
+        $0.inlineNote = #bind(candidate.rationale)
+        $0.rationaleVisit = #bind(nil as String?)
+        $0.rationaleWhy = #bind(nil as String?)
+        $0.rationaleFit = #bind(nil as String?)
+      }.execute(db)
+
+      return try TripIdea.commit(candidate: candidate, into: trip.id, in: db)
+    }
+
+    #expect(updated.rationaleVisit == "Tuesday")
+    #expect(updated.rationaleWhy == "Worth the visit")
+    #expect(updated.rationaleFit == "Easy from the hotel")
+    #expect(updated.inlineNote == nil)
+  }
+
   @Test func bookAheadSeedsOnlyANewCandidateMarkedTrue() async throws {
     let committed = try await database.write { db -> [TripIdea] in
       let trip = try Trip.create(name: "South Tyrol", in: db)

@@ -220,6 +220,13 @@ public struct TripRationale: Equatable, Sendable {
   public var fit: String?
   public var note: String?
 
+  public init(visit: String?, why: String?, fit: String?, note: String?) {
+    self.visit = visit
+    self.why = why
+    self.fit = fit
+    self.note = note
+  }
+
   public var isEmpty: Bool {
     [visit, why, fit, note].allSatisfy { $0?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true }
   }

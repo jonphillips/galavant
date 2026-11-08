@@ -104,10 +104,10 @@ import Testing
     let ideaID = UUID()
     let existing = TripIdea(
       id: UUID(), tripID: tripID, ideaID: ideaID,
-      inlineNote: "Already on the shortlist.", status: .shortlisted)
+      inlineNote: "Already on the shortlist.", rationaleWhy: "A good fit.", status: .shortlisted)
     let candidate = TripIdea(
       id: UUID(), tripID: tripID, ideaID: ideaID,
-      inlineNote: "A useful rainy-day alternative.", status: .considering)
+      inlineNote: "A useful rainy-day alternative.", rationaleWhy: "Works in the rain.", status: .considering)
 
     let collision = ResolveReconcile(
       tripIdeas: [candidate, existing], resolvedIdeaID: ideaID, candidateID: candidate.id
@@ -116,11 +116,15 @@ import Testing
     #expect(collision?.existingID == existing.id)
     #expect(collision?.duplicateID == candidate.id)
     #expect(collision?.mergedInlineNote == "Already on the shortlist.\n\nA useful rainy-day alternative.")
+    #expect(collision?.mergedRationaleWhy == "A good fit.\n\nWorks in the rain.")
     #expect(
       collision?.action(for: .merge)
         == .merge(
           existingID: existing.id,
           duplicateID: candidate.id,
+          rationaleVisit: nil,
+          rationaleWhy: "A good fit.\n\nWorks in the rain.",
+          rationaleFit: nil,
           inlineNote: "Already on the shortlist.\n\nA useful rainy-day alternative."
         )
     )

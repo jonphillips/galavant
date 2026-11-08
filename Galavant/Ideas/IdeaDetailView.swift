@@ -114,7 +114,7 @@ struct IdeaDetailView: View {
     return List {
       overviewSections(dossier)
       tripRationaleSection
-      if dossier.idea.visited {
+      if dossier.notesPlacement == .top {
         notesSection(dossier)
         accoladesSection(dossier)
         interestsSection(dossier)

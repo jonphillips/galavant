@@ -8,7 +8,7 @@ public struct IdeaDossier: Equatable, Sendable {
   public var notes: [TasteNote]
   public var tagNames: [String]
   public var photos: [DossierPhoto]
-  public var emphasis: Emphasis
+  public var notesPlacement: NotesPlacement
 
   public init(
     idea: Idea,
@@ -19,7 +19,11 @@ public struct IdeaDossier: Equatable, Sendable {
     tags: [Tag],
     ideaTags: [IdeaTag],
     photos: [(id: ImageAsset.ID, ideaID: Idea.ID, thumbnail: Data, sortRank: Int, isHeader: Bool)],
-    knownIdeaIDs: Set<Idea.ID>
+    knownIdeaIDs: Set<Idea.ID>,
+    stops: [TripIdea] = [],
+    trips: [Trip] = [],
+    now: Date? = nil,
+    calendar: Calendar = .current
   ) {
     self.idea = idea
     let split = IdeaEvaluation.currentAndHistorical(
@@ -35,7 +39,7 @@ public struct IdeaDossier: Equatable, Sendable {
       .filter { $0.ideaID == idea.id && !$0.isHeader }
       .sorted { $0.sortRank == $1.sortRank ? $0.id.uuidString < $1.id.uuidString : $0.sortRank < $1.sortRank }
       .map { DossierPhoto(id: $0.id, thumbnail: $0.thumbnail) }
-    self.emphasis = Emphasis.forKind(idea.kind)
+    self.notesPlacement = NotesPlacement.forIdea(idea, stops: stops, trips: trips, now: now, calendar: calendar)
   }
 }
 
@@ -62,6 +66,34 @@ public struct DossierPhoto: Identifiable, Equatable, Sendable {
   public var thumbnail: Data
 }
 
+public enum NotesPlacement: Equatable, Sendable {
+  case top
+  case bottom
+
+  public static func forIdea(
+    _ idea: Idea, stops: [TripIdea], trips: [Trip], now: Date?, calendar: Calendar
+  ) -> NotesPlacement {
+    guard !idea.visited else { return .top }
+    let ideaStops = stops.filter { $0.ideaID == idea.id }
+    guard !ideaStops.isEmpty else { return .bottom }
+    if ideaStops.contains(where: { $0.completedAt != nil }) { return .top }
+    guard let now else { return .bottom }
+    let tripsByID = Dictionary(trips.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    let today = calendar.startOfDay(for: now)
+    let hasPastScheduledStop = ideaStops.contains { stop in
+      guard stop.status == .scheduled, stop.skippedAt == nil,
+        let dayNumber = stop.dayNumber,
+        let startDate = tripsByID[stop.tripID]?.startDate,
+        let dayDate = calendar.date(byAdding: .day, value: dayNumber - 1, to: startDate)
+      else { return false }
+      return calendar.startOfDay(for: dayDate) < today
+    }
+    return hasPastScheduledStop ? .top : .bottom
+  }
+}
+
+/// Compact guide cards keep their kind-based ordering; the full dossier uses
+/// `NotesPlacement`, which accounts for visits and trip history.
 public enum Emphasis: Equatable, Sendable {
   case accoladesFirst
   case notesFirst

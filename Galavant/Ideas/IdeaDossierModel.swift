@@ -18,7 +18,11 @@ final class IdeaDossierModel {
   @ObservationIgnored @FetchAll var ideaTags: [IdeaTag]
   @ObservationIgnored @FetchAll var photoRows: [PhotoRow]
   @ObservationIgnored @FetchAll var headerRows: [HeaderRow]
+  @ObservationIgnored @FetchAll(TripIdea.all) var stops
+  @ObservationIgnored @FetchAll(Trip.all) var trips
   @ObservationIgnored @Shared(.appStorage("currentPlannerID")) var currentPlannerIDString = ""
+  @ObservationIgnored @Dependency(\.date) var date
+  @ObservationIgnored @Dependency(\.calendar) var calendar
 
   let ideaID: Idea.ID
   var destination: Destination?
@@ -57,7 +61,7 @@ final class IdeaDossierModel {
       tags: tags.filter { $0.travelPartyID == idea.travelPartyID },
       ideaTags: ideaTags,
       photos: photoRows.map { ($0.id, $0.ideaID, $0.thumbnail, $0.sortRank, $0.isHeader) },
-      knownIdeaIDs: [idea.id]
+      knownIdeaIDs: [idea.id], stops: stops, trips: trips, now: date(), calendar: calendar
     )
   }
 

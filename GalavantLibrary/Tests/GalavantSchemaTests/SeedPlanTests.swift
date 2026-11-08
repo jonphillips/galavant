@@ -206,7 +206,7 @@ struct SeedPlanTests {
       try Idea.insert { Idea.Draft(idea) }.execute(db)
       let seed = try SeedReturn.decode("""
         GV-SEED
-        {"places":[{"name":"DYVIG BADEHOTEL ApS","locality":"Nordborg","verdict":"deferred","future_trip":"Northern Denmark","reason":"Save for later","place_notes":"Rooms vary; ask for the larger room."}]}
+        {"places":[{"name":"DYVIG BADEHOTEL ApS","locality":"Nordborg","verdict":"deferred","future_trip":"Northern Denmark","reason":"Save for later","why":"Quiet waterfront base","fit":"Good for a slow weekend","visit":"Stay two nights","place_notes":"Rooms vary; ask for the larger room."}]}
         """)
       var plan = SeedPlan.make(from: seed, trip: trip, context: SeedPlanContext(
         trip: trip, tripIdeas: [], ideasByID: [idea.id: idea], stays: [],
@@ -225,6 +225,9 @@ struct SeedPlanTests {
       let row = try #require(try TripIdea.where { $0.tripID.eq(trip.id) }.fetchOne(db))
       #expect(row.ideaID == idea.id)
       #expect(row.status == .declined)
+      #expect(row.rationaleVisit == "Stay two nights")
+      #expect(row.rationaleWhy == "Quiet waterfront base")
+      #expect(row.rationaleFit == "Good for a slow weekend")
       #expect(!(row.inlineNote?.contains("About the place:") ?? false))
       #expect(row.inlineNote?.contains("Deferred — Northern Denmark") == true)
       let evaluation = try #require(try IdeaEvaluation.where { $0.ideaID.eq(idea.id) }.fetchOne(db))
