@@ -38,7 +38,7 @@ struct RegionGuideModelTests {
     }
 
     let model = RegionGuideModel()
-    model.task(scope: RegionGuideScope(region: region, category: .dining), availableRegions: [region])
+    model.task(scope: RegionGuideScope(region: region, category: .dining))
     try await model.$ideas.load()
     try await model.$evaluations.load()
     try await model.$interests.load()
@@ -59,5 +59,47 @@ struct RegionGuideModelTests {
     model.shelf = .notForMe
     #expect(model.guide?.counts[.notForMe] == 1)
     #expect(model.guide?.sections.flatMap(\.cards).map(\.idea.id) == [idea.id])
+  }
+
+  @Test @MainActor
+  func guideEntryUsesTheSingleActiveTripSubregion() async throws {
+    let trip = Trip(id: UUID(), name: "Paris and Lyon")
+    let paris = MapRegion(
+      id: UUID(), name: "Paris", centerLatitude: 48, centerLongitude: 2,
+      latitudeDelta: 1, longitudeDelta: 1
+    )
+    let lyon = MapRegion(
+      id: UUID(), name: "Lyon", centerLatitude: 45, centerLongitude: 4,
+      latitudeDelta: 1, longitudeDelta: 1
+    )
+    try await database.write { db in
+      try Trip.insert { Trip.Draft(trip) }.execute(db)
+      try MapRegion.insert { MapRegion.Draft(paris) }.execute(db)
+      try MapRegion.insert { MapRegion.Draft(lyon) }.execute(db)
+      try TripRegion.insert { TripRegion.Draft(TripRegion(id: UUID(), tripID: trip.id, regionID: paris.id)) }.execute(db)
+      try TripRegion.insert { TripRegion.Draft(TripRegion(id: UUID(), tripID: trip.id, regionID: lyon.id)) }.execute(db)
+    }
+
+    let model = IdeasListModel()
+    try await model.$trips.load()
+    try await model.$tripRegions.load()
+    try await model.$regions.load()
+    model.activeTripID = trip.id
+    model.selectedSubregionIDs = [lyon.id]
+    model.$lastGuideRegionIDString.withLock { $0 = paris.id.uuidString }
+    model.guideButtonTapped()
+    if case let .guide(scope) = model.destination {
+      #expect(scope.region == lyon)
+    } else {
+      Issue.record("Expected the guide destination")
+    }
+
+    model.selectedSubregionIDs = []
+    model.guideButtonTapped()
+    if case let .guide(scope) = model.destination {
+      #expect(scope.region == paris)
+    } else {
+      Issue.record("Expected the guide destination")
+    }
   }
 }

@@ -112,7 +112,13 @@ final class IdeasListModel {
   enum Destination {
     case form(IdeaFormPresentation)
     case dossier(Idea.ID)
+    case guide(RegionGuideScope)
     case identity
+  }
+
+  var dossierID: Idea.ID? {
+    guard case let .dossier(ideaID) = destination else { return nil }
+    return ideaID
   }
 
   /// The editor's draft plus the geographic lens it must use for Apple Maps
@@ -188,7 +194,7 @@ final class IdeasListModel {
   /// subregions when any are on, else its full union (ADR-0013) — otherwise the
   /// manual region filter. A trip defines its own geography, so its capsule replaces
   /// the single-region menu.
-  private var scopeRegions: [MapRegion] {
+  var scopeRegions: [MapRegion] {
     if activeTrip != nil {
       let all = tripSubregions
       guard !selectedSubregionIDs.isEmpty else { return all }  // none on = full union

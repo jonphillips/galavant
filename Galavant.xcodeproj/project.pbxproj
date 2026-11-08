@@ -17,6 +17,7 @@
 		0BB238241FF15660518799F8 /* GalavantSchema in Frameworks */ = {isa = PBXBuildFile; productRef = 9CF31E175F7DCB4D59EAF394 /* GalavantSchema */; };
 		0D41C115701ECA126F98EB77 /* TripPlanningModel+Now.swift in Sources */ = {isa = PBXBuildFile; fileRef = 027A438B9BEF5C05EBB3F4EF /* TripPlanningModel+Now.swift */; };
 		0D52F2373EEF284921180A85 /* IdeaRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EF8BE4704C36D1A6FFB14D6 /* IdeaRow.swift */; };
+		0DBBD01B546DEC7A972D733E /* IdeaMapSplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C142EB7F3A79B44B5971F768 /* IdeaMapSplitView.swift */; };
 		1284CC7780258FD4F4425010 /* BrowserScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8181602270C693F3DBB397 /* BrowserScreen.swift */; };
 		12F45B75F8F418158124463E /* GalavantSchema in Frameworks */ = {isa = PBXBuildFile; productRef = F2CB005A8EB3216DE2ACF7EF /* GalavantSchema */; };
 		1478F87385340E3D96C6112D /* CalendarReconciliationModel+Ingestion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DE96A186A7350AD7E625B04 /* CalendarReconciliationModel+Ingestion.swift */; };
@@ -171,6 +172,7 @@
 		DA333E1DC58A089ED9E9C3E1 /* GalavantApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43AABFB8B03E2303AECAF355 /* GalavantApp.swift */; };
 		DA85FF15D14C272FA8D11E03 /* TripFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 803A41898CEB755AAE0E4A68 /* TripFormView.swift */; };
 		DB86B6A165A761BBA4B4C2C5 /* RecommendationWorkspaceImageDropWell.swift in Sources */ = {isa = PBXBuildFile; fileRef = F488B618BA63C6AA12590997 /* RecommendationWorkspaceImageDropWell.swift */; };
+		DD57DB75C6A7558B6BCB12C8 /* RegionGuideModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B6BF0F430926961250257F6 /* RegionGuideModel.swift */; };
 		E0CB76C004B10C1F20EC249A /* IdeaFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C956244AC0CCEFCA45A4128 /* IdeaFormView.swift */; };
 		E1D19BD846DA4EB913EA8F22 /* RegionGuideModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E103847A8844A2A7ADF7497B /* RegionGuideModelTests.swift */; };
 		E291A3A716DDBC83661706CB /* SyncHealthModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E00FB978F8AEB5F20B8B8C5D /* SyncHealthModel.swift */; };
@@ -275,6 +277,7 @@
 		274D2DC49725AD4EE4C36BC0 /* VisitedRollupModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisitedRollupModelTests.swift; sourceTree = "<group>"; };
 		292BC932AEA1B53EB11DA125 /* InterestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterestView.swift; sourceTree = "<group>"; };
 		2B2DC50A26F7695EC3EC536A /* StartDayPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartDayPanel.swift; sourceTree = "<group>"; };
+		2B6BF0F430926961250257F6 /* RegionGuideModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegionGuideModel.swift; sourceTree = "<group>"; };
 		2CD37357C07AFC3DAE3CDAE7 /* DemoFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoFixtures.swift; sourceTree = "<group>"; };
 		2E5272AC4D331B81C40BD5FD /* TripPlanningModel+Booking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TripPlanningModel+Booking.swift"; sourceTree = "<group>"; };
 		303F78DF16866293469C4FFF /* TripDocumentsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripDocumentsModel.swift; sourceTree = "<group>"; };
@@ -369,6 +372,7 @@
 		C03BF0F90A008DC4A1E8E3BA /* MapPlaceSearchOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapPlaceSearchOverlay.swift; sourceTree = "<group>"; };
 		C071E50FDA62E29FC448F993 /* GalavantLibrary */ = {isa = PBXFileReference; lastKnownFileType = folder; name = GalavantLibrary; path = GalavantLibrary; sourceTree = SOURCE_ROOT; };
 		C0A1B810182571FD874E4261 /* SyncSeedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncSeedTests.swift; sourceTree = "<group>"; };
+		C142EB7F3A79B44B5971F768 /* IdeaMapSplitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaMapSplitView.swift; sourceTree = "<group>"; };
 		C33D788AD43C3F7C886F55D5 /* AssignConstraintLocationSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssignConstraintLocationSheet.swift; sourceTree = "<group>"; };
 		C3C3B8F62248626E20BD1B05 /* CalendarReconciliationModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarReconciliationModel.swift; sourceTree = "<group>"; };
 		C552773D568B292127E75164 /* SettingsModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsModelTests.swift; sourceTree = "<group>"; };
@@ -805,6 +809,7 @@
 				4B9FED849BC102F6EA429B42 /* IdeaDossierModel.swift */,
 				99EE3153CDA64E66C39149A9 /* IdeaFormModel.swift */,
 				9C956244AC0CCEFCA45A4128 /* IdeaFormView.swift */,
+				C142EB7F3A79B44B5971F768 /* IdeaMapSplitView.swift */,
 				1EF8BE4704C36D1A6FFB14D6 /* IdeaRow.swift */,
 				15F0079F14EE5923209192B1 /* IdeasFilterMenu.swift */,
 				E146770B6C9957BA19FC94EC /* IdeasListModel.swift */,
@@ -816,6 +821,7 @@
 				292BC932AEA1B53EB11DA125 /* InterestView.swift */,
 				B58F3C28841A950ECB1ED2A5 /* MapPlaceCreateIdeaButton.swift */,
 				1791F203077D8B7907351B9F /* PoolMapView.swift */,
+				2B6BF0F430926961250257F6 /* RegionGuideModel.swift */,
 				5511A893791FB3CFE09ECA8C /* RegionGuideScreen.swift */,
 				E0587DE2E1AA61B9BD3D0073 /* RegionManagerView.swift */,
 				891C5DF7F4A25741DE3421FD /* StructuredHoursEditor.swift */,
@@ -1097,6 +1103,7 @@
 				2B0A50DCCAAD2AEC9304BEF5 /* IdeaDossierModel.swift in Sources */,
 				90C301112D6C03ED59D12E2C /* IdeaFormModel.swift in Sources */,
 				E0CB76C004B10C1F20EC249A /* IdeaFormView.swift in Sources */,
+				0DBBD01B546DEC7A972D733E /* IdeaMapSplitView.swift in Sources */,
 				0D52F2373EEF284921180A85 /* IdeaRow.swift in Sources */,
 				53262564E42B4E5C64231A96 /* IdeasFilterMenu.swift in Sources */,
 				3AC5A49CA57E3D7BDCA7D522 /* IdeasListModel+Filtering.swift in Sources */,
@@ -1130,6 +1137,7 @@
 				CBD322C7EF720E884780D9D9 /* RecommendationWorkspaceModel+Projection.swift in Sources */,
 				861F0BD9CC28029356E7DF09 /* RecommendationWorkspaceModel.swift in Sources */,
 				600B8A48EBF6C2B3E5856903 /* RecommendationWorkspaceView.swift in Sources */,
+				DD57DB75C6A7558B6BCB12C8 /* RegionGuideModel.swift in Sources */,
 				1A88E9EB3A1FA9BD54A6C323 /* RegionGuideScreen.swift in Sources */,
 				AD17477A05EDF3DE9D52E3A5 /* RegionManagementSettingsModel.swift in Sources */,
 				BE4EC3D93E562C6724906B1A /* RegionManagementSettingsView.swift in Sources */,

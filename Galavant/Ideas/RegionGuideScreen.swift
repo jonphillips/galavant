@@ -1,63 +1,7 @@
-import Dependencies
-import GalavantSchema
 import MapKit
-import SQLiteData
-import Sharing
+import GalavantSchema
 import SwiftUI
 import UIKit
-
-@MainActor
-@Observable
-final class RegionGuideModel {
-  @ObservationIgnored @FetchAll(Idea.all) var ideas
-  @ObservationIgnored @FetchAll(IdeaEvaluation.all) var evaluations
-  @ObservationIgnored @FetchAll(IdeaInterest.all) var interests
-  @ObservationIgnored @FetchAll(Planner.all) var planners
-  @ObservationIgnored @FetchAll(TasteNote.where { $0.ideaID.isNot(nil) }) var notes
-  @ObservationIgnored @FetchAll(ImageAsset.where { $0.isHeader.eq(true) }
-    .select { HeaderThumb.Columns(ideaID: $0.ideaID, thumbnail: $0.thumbnail) }) var headerThumbs
-  @ObservationIgnored @Shared(.appStorage("lastRegionGuideID")) private var lastRegionID = ""
-
-  var region: MapRegion?
-  var category: GuideCategory = .dining
-  var shelf: GuideShelf = .all
-  private var initialScopeApplied = false
-
-  @Selection
-  struct HeaderThumb {
-    let ideaID: Idea.ID
-    let thumbnail: Data
-  }
-
-  var guide: RegionGuide? {
-    guard let region else { return nil }
-    return RegionGuide(
-      region: region, category: category, shelf: shelf, ideas: ideas,
-      evaluations: evaluations, interests: interests, planners: planners, notes: notes
-    )
-  }
-
-  var headerThumbnailByIdea: [Idea.ID: Data] {
-    Dictionary(headerThumbs.map { ($0.ideaID, $0.thumbnail) }, uniquingKeysWith: { first, _ in first })
-  }
-
-  func task(scope: RegionGuideScope, availableRegions: [MapRegion]) {
-    guard !initialScopeApplied else { return }
-    initialScopeApplied = true
-    category = scope.category
-    if let region = scope.region, availableRegions.contains(where: { $0.id == region.id }) {
-      selectRegion(region)
-    } else if let id = UUID(uuidString: lastRegionID),
-      let region = availableRegions.first(where: { $0.id == id }) {
-      selectRegion(region)
-    }
-  }
-
-  func selectRegion(_ region: MapRegion?) {
-    self.region = region
-    $lastRegionID.withLock { $0 = region?.id.uuidString ?? "" }
-  }
-}
 
 struct RegionGuideScreen: View {
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -67,7 +11,6 @@ struct RegionGuideScreen: View {
   @State private var focusedIdeaID: Idea.ID?
 
   let scope: RegionGuideScope
-  let ideasModel: IdeasListModel
   var onClose: (() -> Void)? = nil
 
   enum Mode: String, CaseIterable {
@@ -77,34 +20,24 @@ struct RegionGuideScreen: View {
 
   var body: some View {
     let guide = model.guide
-    let category = model.category
     let headerThumbnails = model.headerThumbnailByIdea
     let plannerNames = Dictionary(model.planners.map { ($0.id, $0.displayName) }, uniquingKeysWith: { first, _ in first })
     return VStack(spacing: 0) {
       header(guide: guide)
       if horizontalSizeClass == .regular {
-        HStack(spacing: 0) {
-          if case let .dossier(ideaID) = ideasModel.destination {
-            IdeaDetailView(
-              ideaID: ideaID,
-              canEdit: true,
-              onBack: { ideasModel.closeDossier() }
-            )
-            .frame(maxWidth: 440)
-          } else {
-            guideList(
-              guide, category: category, headerThumbnails: headerThumbnails, plannerNames: plannerNames)
-              .frame(maxWidth: 440)
-          }
-          Divider()
-          poolMap(guide)
-        }
+        IdeaMapSplitView(
+          ideaID: model.dossierID,
+          onBack: { model.closeDossier() },
+          column: {
+            guideList(guide, headerThumbnails: headerThumbnails, plannerNames: plannerNames)
+          },
+          map: { poolMap(guide) }
+        )
       } else {
         Group {
           switch mode {
           case .list:
-            guideList(
-              guide, category: category, headerThumbnails: headerThumbnails, plannerNames: plannerNames)
+            guideList(guide, headerThumbnails: headerThumbnails, plannerNames: plannerNames)
           case .map: poolMap(guide)
           }
         }
@@ -122,6 +55,12 @@ struct RegionGuideScreen: View {
     }
     .navigationTitle("Region Guide")
     .navigationBarTitleDisplayMode(.inline)
+    .navigationDestination(item: $model.destination.dossier) { ideaID in
+      IdeaDetailView(ideaID: ideaID, canEdit: true)
+    }
+    .sheet(item: $model.destination.form) { presentation in
+      IdeaFormView(draft: presentation.draft, searchRegions: presentation.searchRegions)
+    }
     .toolbar {
       if horizontalSizeClass == .regular, let onClose {
         ToolbarItem(placement: .topBarLeading) {
@@ -129,21 +68,21 @@ struct RegionGuideScreen: View {
         }
       }
     }
-    .task { model.task(scope: scope, availableRegions: ideasModel.sortedRegions) }
+    .task { model.task(scope: scope) }
   }
 
   private func header(guide: RegionGuide?) -> some View {
     VStack(spacing: 10) {
       HStack {
         Menu {
-          ForEach(ideasModel.sortedRegions) { region in
+          ForEach(model.sortedRegions) { region in
             Button(region.name) { model.selectRegion(region) }
           }
         } label: {
           Label(model.region?.name ?? "Choose a Region", systemImage: Icon.map.systemName)
             .lineLimit(1)
         }
-        .disabled(ideasModel.sortedRegions.isEmpty)
+        .disabled(model.sortedRegions.isEmpty)
         Spacer()
         Picker("Category", selection: $model.category) {
           Text("Dining").tag(GuideCategory.dining)
@@ -179,11 +118,10 @@ struct RegionGuideScreen: View {
 
   @ViewBuilder private func guideList(
     _ guide: RegionGuide?,
-    category: GuideCategory,
     headerThumbnails: [Idea.ID: Data],
     plannerNames: [Planner.ID: String]
   ) -> some View {
-    if ideasModel.sortedRegions.isEmpty {
+    if model.sortedRegions.isEmpty {
       ContentUnavailableView(
         "No saved regions",
         systemImage: Icon.map.systemName,
@@ -196,22 +134,20 @@ struct RegionGuideScreen: View {
         description: Text("Choose a saved region to see its places.")
       )
     } else if let guide, guide.sections.isEmpty {
-      ContentUnavailableView(
-        "Nothing in \(model.shelf.label)",
-        systemImage: Icon.ideas.systemName,
-        description: Text("\(guide.counts[.notForMe, default: 0]) places are on Not for Me.")
-      )
+      let notForMeCount = guide.counts[.notForMe, default: 0]
+      ContentUnavailableView("Nothing in \(model.shelf.label)", systemImage: Icon.ideas.systemName,
+        description: Text("\(notForMeCount) \(notForMeCount == 1 ? "place is" : "places are") on Not for Me."))
     } else if let guide {
       List {
         ForEach(guide.sections) { section in
           Section(section.title) {
             ForEach(section.cards) { card in
               Button {
+                model.ideaTapped(card.idea)
                 focusedIdeaID = card.idea.id
-                ideasModel.ideaTapped(card.idea)
               } label: {
                 cardView(
-                  card, category: category,
+                  card,
                   headerThumbnail: headerThumbnails[card.idea.id], plannerNames: plannerNames)
               }
               .buttonStyle(.plain)
@@ -225,7 +161,6 @@ struct RegionGuideScreen: View {
 
   private func cardView(
     _ card: RegionGuide.Card,
-    category: GuideCategory,
     headerThumbnail: Data?,
     plannerNames: [Planner.ID: String]
   ) -> some View {
@@ -243,14 +178,14 @@ struct RegionGuideScreen: View {
         if let locality = address ?? card.idea.regionName, !locality.isEmpty {
           Text(locality).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
         }
-        if category == .hotels, let note = card.latestNote {
+        if card.emphasis == .notesFirst, let note = card.latestNote {
           noteText(note, lines: 2, plannerNames: plannerNames)
         }
         if let accolade = card.accolade {
           Text("\(accolade.sourceName) · \(accolade.nativeDisplay)")
             .font(.subheadline)
         }
-        if category == .dining, let note = card.latestNote {
+        if card.emphasis == .accoladesFirst, let note = card.latestNote {
           noteText(note, lines: 1, plannerNames: plannerNames)
         }
         HStack(spacing: 10) {
@@ -292,11 +227,9 @@ struct RegionGuideScreen: View {
       selectedIdeaID: horizontalSizeClass == .regular ? focusedIdeaID : nil,
       onSelect: { idea in
         focusedIdeaID = idea.id
-        ideasModel.ideaTapped(idea)
+        model.ideaTapped(idea)
       },
-      onSelectMapPlace: { place in
-        await ideasModel.mapPlaceTapped(place, searchRegions: model.region.map { [$0] } ?? [])
-      },
+      onSelectMapPlace: { place in await model.mapPlaceTapped(place) },
       visibleRegion: $visibleRegion
     )
   }

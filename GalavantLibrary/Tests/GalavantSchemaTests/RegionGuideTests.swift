@@ -139,10 +139,13 @@ import Testing
     let selected = MapRegion(id: UUID(), name: "Selected", centerLatitude: 0, centerLongitude: 0, latitudeDelta: 1, longitudeDelta: 1)
     let tripRegion = MapRegion(id: UUID(), name: "Trip", centerLatitude: 0, centerLongitude: 0, latitudeDelta: 1, longitudeDelta: 1)
     let fallback = MapRegion(id: UUID(), name: "Last", centerLatitude: 0, centerLongitude: 0, latitudeDelta: 1, longitudeDelta: 1)
+    let paris = MapRegion(id: UUID(), name: "Paris", centerLatitude: 0, centerLongitude: 0, latitudeDelta: 1, longitudeDelta: 1)
+    let lyon = MapRegion(id: UUID(), name: "Lyon", centerLatitude: 0, centerLongitude: 0, latitudeDelta: 1, longitudeDelta: 1)
 
     #expect(RegionGuideScope(selectedRegion: selected, activeTripRegions: [tripRegion], lastGuideRegion: fallback, selectedKindGroups: [.stay]) == RegionGuideScope(region: selected, category: .hotels))
     #expect(RegionGuideScope(selectedRegion: nil, activeTripRegions: [tripRegion], lastGuideRegion: fallback, selectedKindGroups: [.food]) == RegionGuideScope(region: tripRegion, category: .dining))
     #expect(RegionGuideScope(selectedRegion: nil, activeTripRegions: [tripRegion, selected], lastGuideRegion: fallback, selectedKindGroups: [.stay, .food]) == RegionGuideScope(region: fallback, category: .dining))
+    #expect(RegionGuideScope(selectedRegion: nil, activeTripRegions: [lyon], lastGuideRegion: paris, selectedKindGroups: []) == RegionGuideScope(region: lyon, category: .dining))
     #expect(RegionGuideScope(selectedRegion: nil, activeTripRegions: [], lastGuideRegion: nil, selectedKindGroups: []) == RegionGuideScope(region: nil, category: .dining))
   }
 }

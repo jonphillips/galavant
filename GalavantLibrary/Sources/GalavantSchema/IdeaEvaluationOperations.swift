@@ -136,7 +136,7 @@ extension IdeaEvaluation {
 
   /// Row-headline precedence, lower = shown first. A current judgment beats a stale
   /// one; within that, a tiered accolade beats a soft mention (see `EvaluationKind`).
-  public static func headlineRank(_ evaluation: IdeaEvaluation) -> Int {
+  package static func headlineRank(_ evaluation: IdeaEvaluation) -> Int {
     let stalenessRank = evaluation.staleness == .current ? 0 : 1
     let kindRank: Int
     switch evaluation.kind {

@@ -64,6 +64,7 @@ public struct RegionGuide: Equatable, Sendable {
     public var standing: MatchStanding
     public var latestNote: TasteNote?
     public var noteCount: Int
+    public var emphasis: Emphasis
     public var id: Idea.ID { idea.id }
   }
 
@@ -108,21 +109,15 @@ private extension RegionGuide {
     let currentEvaluations = Dictionary(grouping: evaluations.filter { $0.staleness == .current }, by: \.ideaID)
     let interestsByIdea = Dictionary(
       grouping: interests.convergingByKey { [$0.ideaID, $0.plannerID] }.survivors, by: \.ideaID)
-    let sortedPlanners = planners.sorted {
-      $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
-    }
     let notesByIdea = notes.filter { $0.ideaID != nil }.reduce(into: [Idea.ID: [TasteNote]]()) { result, note in
       guard let ideaID = note.ideaID else { return }
       result[ideaID, default: []].append(note)
     }.mapValues {
-      $0.sorted {
-        $0.notedAt == $1.notedAt ? $0.id.uuidString < $1.id.uuidString : $0.notedAt > $1.notedAt
-      }
+      TasteNote.newestFirst($0)
     }
     return members.map { idea in
-      let levels = Dictionary(
-        uniqueKeysWithValues: (interestsByIdea[idea.id] ?? []).map { ($0.plannerID, $0.level) })
-      let plannerInterests = sortedPlanners.map { PlannerInterest(planner: $0, level: levels[$0.id] ?? nil) }
+      let plannerInterests = PlannerInterest.list(
+        planners: planners, levels: interestsByIdea[idea.id] ?? [])
       let ideaNotes = notesByIdea[idea.id] ?? []
       return Card(
         idea: idea,
@@ -131,7 +126,8 @@ private extension RegionGuide {
         interests: plannerInterests,
         standing: Interest.standing(plannerInterests.map(\.level)),
         latestNote: ideaNotes.first,
-        noteCount: ideaNotes.count
+        noteCount: ideaNotes.count,
+        emphasis: Emphasis.forKind(idea.kind)
       )
     }
   }
