@@ -1,11 +1,11 @@
 # Effort — Trip lens: see the trip's lunches, dinners, and nights from the guide
 
-**Status:** Ready · **Summary:** Slice 3.2 of [ADR-0053](../decisions/0053-taste-record-and-region-guide.md) (D8). When
+**Status:** Ready · **Summary:** Slice 3.2 of [ADR-0053](../../decisions/0053-taste-record-and-region-guide.md) (D8). When
 the guide's region falls on a trip's days, a strip above the cards shows that trip's lunch and dinner slots on those days
 (Dining), or its nights (Hotels). Cards already on the trip carry a badge saying where. Read-only: filling slots is
-[`guide-slot-filling`](guide-slot-filling.md). No schema, migration, sync, or hand-off change.
+[`guide-slot-filling`](../guide-slot-filling.md). No schema, migration, sync, or hand-off change.
 
-**Read first:** ADR-0053 D8; the mockup [`region-guide-trip-lens.html`](../mockups/region-guide-trip-lens.html), frames 1,
+**Read first:** ADR-0053 D8; the mockup [`region-guide-trip-lens.html`](../../mockups/region-guide-trip-lens.html), frames 1,
 3, and 4; ADR-0035 (rings: exactly one effective active member); ADR-0012 (per-day regions); `trip-time-model.md` §2 (day
 numbers, never dates).
 
@@ -170,7 +170,7 @@ rows. Switching trips from the chip rebuilds it. A region with no trip days give
 ## Out of scope
 
 - Writing anything: Add to Trip, choosing an option, Stay here, and slot focus. Those are
-  [`guide-slot-filling`](guide-slot-filling.md).
+  [`guide-slot-filling`](../guide-slot-filling.md).
 - The mockup's hatched "Travel day" cell. Galavant has no travel-day fact, so don't invent one.
 - Distance to the night's hotel (`guide-slot-filling`).
 - Changing the Ideas list's own badges.

@@ -6,7 +6,7 @@ shortlist. A hotel can take an open run of nights. Tapping a slot narrows the gu
 option or take one out. Every write goes through the trip's own operations. No schema, migration, sync, or hand-off change.
 
 **Read first:** ADR-0053 D8; the mockup [`region-guide-trip-lens.html`](../mockups/region-guide-trip-lens.html), frames 1
-and 2; ADR-0035 (rings); ADR-0029 (meal-aware hours); the [`guide-trip-lens`](guide-trip-lens.md) brief, whose
+and 2; ADR-0035 (rings); ADR-0029 (meal-aware hours); the [`guide-trip-lens`](archive/guide-trip-lens.md) brief, whose
 `GuideTripLens` this reads.
 
 **Depends on `guide-trip-lens`.** Start from a `main` that has it.

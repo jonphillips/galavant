@@ -10,7 +10,8 @@ extension IdeasListModel {
       selectedRegion: selectedRegion,
       activeTripRegions: activeTrip == nil ? [] : scopeRegions,
       lastGuideRegion: lastRegion,
-      selectedKindGroups: selectedKindGroups
+      selectedKindGroups: selectedKindGroups,
+      preferredTripID: activeTrip?.id
     ))
   }
 }
