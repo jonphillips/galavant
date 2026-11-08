@@ -73,6 +73,11 @@ export moves the event instead of duplicating it. If it's keyed by day, raise it
 - A locked row shows a lock symbol with its reason as a caption. If `reorderable()` can disable dragging one item, use it.
   If it can't, refuse the drop.
 - A refused drop shows an alert with the refusal's text, and the order snaps back.
+- **Summary drafts only for edited days** (from the #229 review). `TripSketchSheet` seeds `summaryDrafts` for every day
+  when it opens, and `commitAllSummaries` writes them all on close. A summary Wendy changes while the sheet is open gets
+  overwritten with the stale seeded value. Create a draft only when a field is edited, let the binding fall back to
+  `dayNote(forDay:)` otherwise, and commit only edited days. A reorder also changes which day a draft belongs to, so
+  commit or drop the drafts before applying a move.
 - The footer gains one line: "Drag a day to move its stops, summary, region and time zone. Lodging stays with its
   nights."
 
