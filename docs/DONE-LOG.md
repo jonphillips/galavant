@@ -3,6 +3,11 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-08 — CloudKit expected-fields list covers every synced column (`claude/cloudkit-expected-fields-test`)
+
+- **Result:** cloudkit-expected-fields.txt now lists all 434 CloudKit fields of the 26 synced tables, and CloudKitSchemaCoverageTests fails when a synced column's value or modification-time field is missing from it, so testflight's Production check covers what the code syncs.
+- **Verification:** scripts/check-drift.sh (swiftlint, GalavantLibrary and GalavantMCP tests, UI-test build; UI tests compiled, not run). Removing trips visitedRolledUpAt from the list fails the new test. The list passes testflight's expected-fields check against a read-only Production export of 2026-11-07.
+
 ## 2026-11-08 — Filling slots from the guide (`effort/guide-slot-filling`)
 
 - **Result:** Adds the guide Add to Trip menu, meal-slot focus, alternative management, and hotel stays using the trip operations.
@@ -38,11 +43,6 @@ History, newest first. The PR that completes a dispatch adds its entry naming it
 - **Result:** Stored plan snapshots and one-pass itinerary facts remove repeated per-row plan work.
 - **Verification:** scripts/check-drift.sh passed; 659 package tests passed; app-target tests were not run because the compile-only constraint prohibits simulator use.
 - **Owed:** This slice's device gate, in [device-passes.md](device-passes.md).
-
-## 2026-11-07 — CloudKit expected-fields list covers every synced column (`claude/cloudkit-expected-fields-test`)
-
-- **Result:** cloudkit-expected-fields.txt now lists all 434 CloudKit fields of the 26 synced tables, and CloudKitSchemaCoverageTests fails when a synced column's value or modification-time field is missing from it, so testflight's Production check covers what the code syncs.
-- **Verification:** scripts/check-drift.sh (swiftlint, GalavantLibrary and GalavantMCP tests, UI-test build; UI tests compiled, not run). Removing trips visitedRolledUpAt from the list fails the new test. The list passes testflight's expected-fields check against a read-only Production export of 2026-11-07.
 
 ## 2026-11-07 — Itinerary scroll freeze (`fix/itinerary-scroll-freeze`)
 
