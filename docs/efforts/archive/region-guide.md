@@ -1,11 +1,11 @@
 # Effort — Region guide: see what we know about a place's restaurants and hotels
 
-**Status:** Ready · **Summary:** Slice 3 of [ADR-0053](../decisions/0053-taste-record-and-region-guide.md). A guide screen
+**Status:** Ready · **Summary:** Slice 3 of [ADR-0053](../../decisions/0053-taste-record-and-region-guide.md). A guide screen
 reached from Ideas, scoped to one saved region and one category, Dining or Hotels. It shows kept Ideas as cards, grouped by
 their headline accolade, with shelves for Want to Go, Noted, and Not for Me. Do Not Do places are hidden by default. It's
 built to be judged on a device, and that review decides what comes next. No schema, migration, sync, or hand-off change.
 
-**Read first:** ADR-0053 D1 and D6; the [idea-dossier](archive/idea-dossier.md) brief, since this screen opens that dossier; ADR-0015
+**Read first:** ADR-0053 D1 and D6; the [idea-dossier](idea-dossier.md) brief, since this screen opens that dossier; ADR-0015
 (accolades as the source wrote them); and `PRODUCT.md` § The other loop and § Scoping the pool.
 
 **Depends on `idea-dossier`.** Start from a `main` that has it.

@@ -18,6 +18,7 @@ struct IdeasScreen: View {
   /// The idea whose map pin was last tapped — the list scrolls to and highlights
   /// its row, so the pin and the row read as one selection.
   @State private var focusedIdeaID: Idea.ID?
+  @State private var guideScope: RegionGuideScope?
 
   enum Mode: String, CaseIterable {
     case list, map
@@ -62,6 +63,13 @@ struct IdeasScreen: View {
             Icon.defineRegion.label("Define Region")
           }
           .disabled(visibleRegion == nil)
+        }
+      }
+      ToolbarItem {
+        Button {
+          guideScope = model.guideButtonTapped()
+        } label: {
+          Label("Guide", systemImage: "books.vertical")
         }
       }
       ToolbarItem {
@@ -128,7 +136,12 @@ struct IdeasScreen: View {
   /// The browse body: list + map side-by-side on iPad (regular width, ADR-0013 —
   /// the cavern fix; Jon wants pins always in view), the list/map toggle on iPhone.
   @ViewBuilder private var content: some View {
-    if horizontalSizeClass == .regular {
+    if let activeGuideScope = guideScope, horizontalSizeClass == .regular {
+      RegionGuideScreen(scope: activeGuideScope, ideasModel: model, onClose: {
+        guideScope = nil
+        model.destination = nil
+      })
+    } else if horizontalSizeClass == .regular {
       HStack(spacing: 0) {
         if case let .dossier(ideaID) = model.destination {
           IdeaDetailView(
@@ -157,6 +170,9 @@ struct IdeasScreen: View {
       .navigationDestination(item: $model.destination.dossier) { ideaID in
         IdeaDetailView(ideaID: ideaID, canEdit: true)
       }
+      .navigationDestination(item: $guideScope) { scope in
+        RegionGuideScreen(scope: scope, ideasModel: model, onClose: { model.destination = nil })
+      }
     }
   }
 
@@ -182,7 +198,7 @@ struct IdeasScreen: View {
         : .exploreFirst(.sheet),
       selectedIdeaID: horizontalSizeClass == .regular ? focusedIdeaID : nil,
       onSelect: pinTapped,
-      onSelectMapPlace: model.mapPlaceTapped,
+      onSelectMapPlace: { place in await model.mapPlaceTapped(place) },
       visibleRegion: $visibleRegion
     )
   }
