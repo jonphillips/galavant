@@ -1,3 +1,4 @@
+import CasePaths
 import Dependencies
 import GalavantSchema
 import SQLiteData
@@ -20,7 +21,13 @@ final class IdeaDossierModel {
   @ObservationIgnored @Shared(.appStorage("currentPlannerID")) var currentPlannerIDString = ""
 
   let ideaID: Idea.ID
-  var selectedPhoto: SelectedPhoto?
+  var destination: Destination?
+
+  @CasePathable
+  enum Destination {
+    case edit(IdeasListModel.IdeaFormPresentation)
+    case photo(SelectedPhoto)
+  }
 
   init(ideaID: Idea.ID) {
     self.ideaID = ideaID
@@ -56,6 +63,11 @@ final class IdeaDossierModel {
 
   var headerImage: Data? { headerRows.first?.display }
 
+  func editButtonTapped() {
+    guard let idea = ideas.first else { return }
+    destination = .edit(IdeasListModel.IdeaFormPresentation(draft: Idea.Draft(idea), searchRegions: []))
+  }
+
   func setMyInterest(_ level: Interest?) {
     guard let plannerID = UUID(uuidString: currentPlannerIDString),
       planners.contains(where: { $0.id == plannerID }),
@@ -73,7 +85,7 @@ final class IdeaDossierModel {
       guard let display = try await database.read({ db in
         try ImageAsset.find(photo.id).fetchOne(db)?.display
       }) else { return }
-      selectedPhoto = SelectedPhoto(id: photo.id, display: display)
+      destination = .photo(SelectedPhoto(id: photo.id, display: display))
     }
   }
 

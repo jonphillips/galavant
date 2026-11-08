@@ -133,15 +133,14 @@ struct IdeasScreen: View {
         if case let .dossier(ideaID) = model.destination {
           IdeaDetailView(
             ideaID: ideaID,
-            onEdit: model.editPresentation(for:),
+            canEdit: true,
             onBack: {
-              if focusedIdeaID != ideaID || !model.ideas.contains(where: { $0.id == ideaID }) {
-                focusedIdeaID = nil
-              }
+              if !model.ideas.contains(where: { $0.id == ideaID }) { focusedIdeaID = nil }
               model.closeDossier()
             }
           )
           .frame(maxWidth: 420)
+          .id(ideaID)
         } else {
           ideasList.frame(maxWidth: 420)
         }
@@ -156,7 +155,7 @@ struct IdeasScreen: View {
         }
       }
       .navigationDestination(item: $model.destination.dossier) { ideaID in
-        IdeaDetailView(ideaID: ideaID, onEdit: model.editPresentation(for:))
+        IdeaDetailView(ideaID: ideaID, canEdit: true)
       }
     }
   }
@@ -181,6 +180,7 @@ struct IdeasScreen: View {
       placeSelectionPolicy: horizontalSizeClass == .regular
         ? .exploreFirst(.popover)
         : .exploreFirst(.sheet),
+      selectedIdeaID: horizontalSizeClass == .regular ? focusedIdeaID : nil,
       onSelect: pinTapped,
       onSelectMapPlace: model.mapPlaceTapped,
       visibleRegion: $visibleRegion

@@ -473,10 +473,6 @@ final class IdeasListModel {
     destination = .dossier(idea.id)
   }
 
-  func editPresentation(for idea: Idea) -> IdeaFormPresentation {
-    IdeaFormPresentation(draft: Idea.Draft(idea), searchRegions: [])
-  }
-
   func closeDossier() {
     if case .dossier = destination { destination = nil }
   }

@@ -1,6 +1,6 @@
 # Effort — Idea dossier: tapping a place reads it before it edits
 
-**Status:** Ready · **Summary:** Slice 2 of [ADR-0053](../../decisions/0053-taste-record-and-region-guide.md). Tapping an idea in
+**Status:** Done · **Summary:** Slice 2 of [ADR-0053](../../decisions/0053-taste-record-and-region-guide.md). Tapping an idea in
 Ideas, or its pin, opens a read-first dossier instead of the editor. The dossier leads with what we already know: accolades,
 photos, both planners' interest, and our taste notes. Edit is one tap away. One dossier view and model serve Ideas, Trip, and
 Today. No schema, migration, sync, or hand-off change.

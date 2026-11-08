@@ -62,6 +62,26 @@ struct IdeaDossierModelTests {
   }
 
   @Test @MainActor
+  func editButtonTappedCreatesTheIdeaFormDraft() async throws {
+    let partyID = UUID()
+    let ideaID = UUID()
+    try await database.write { db in
+      try TravelParty.insert { TravelParty.Draft(TravelParty(id: partyID, name: "Test")) }.execute(db)
+      try Idea.insert { Idea.Draft(Idea(id: ideaID, name: "Cafe", travelPartyID: partyID)) }.execute(db)
+    }
+
+    let model = IdeaDossierModel(ideaID: ideaID)
+    try await model.$ideas.load()
+    model.editButtonTapped()
+    if case let .edit(presentation) = model.destination {
+      #expect(presentation.draft.id == ideaID)
+      #expect(presentation.draft.name == "Cafe")
+    } else {
+      Issue.record("Expected an edit destination")
+    }
+  }
+
+  @Test @MainActor
   func headerUsesDisplayBytes() async throws {
     let partyID = UUID()
     let ideaID = UUID()

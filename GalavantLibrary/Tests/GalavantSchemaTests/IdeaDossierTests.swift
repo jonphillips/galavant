@@ -9,15 +9,18 @@ import Testing
     let ideaID = UUID()
     let jon = Planner(id: UUID(), displayName: "Jon", travelPartyID: partyID)
     let wendy = Planner(id: UUID(), displayName: "Wendy", travelPartyID: partyID)
+    let jonSurvivorID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+    let jonLoserID = UUID(uuidString: "00000000-0000-0000-0000-000000000002")!
     let rows = [
-      IdeaInterest(id: UUID(), ideaID: ideaID, plannerID: jon.id, level: .wantToDo),
-      IdeaInterest(id: UUID(), ideaID: ideaID, plannerID: jon.id, level: .mustDo),
+      IdeaInterest(id: jonLoserID, ideaID: ideaID, plannerID: jon.id, level: .wantToDo),
+      IdeaInterest(id: jonSurvivorID, ideaID: ideaID, plannerID: jon.id, level: .mustDo),
     ]
     let dossier = IdeaDossier(
       idea: Idea(id: ideaID), evaluations: [], interests: rows, planners: [wendy, jon], notes: [],
       tags: [], ideaTags: [], photos: [], knownIdeaIDs: [ideaID])
     #expect(dossier.interests.map(\.planner.displayName) == ["Jon", "Wendy"])
     #expect(dossier.interests.count == 2)
+    #expect(dossier.interests[0].level == .mustDo)
     #expect(dossier.interests[1].level == nil)
   }
 

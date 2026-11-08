@@ -17,29 +17,29 @@ struct StopDetailContext {
 struct IdeaDetailView: View {
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @State private var model: IdeaDossierModel
-  @State private var editPresentation: IdeasListModel.IdeaFormPresentation?
   let stopContext: StopDetailContext?
   let whyOnTrip: String?
-  let onEdit: ((Idea) -> IdeasListModel.IdeaFormPresentation)?
+  let canEdit: Bool
   let onBack: (() -> Void)?
 
   init(
     ideaID: Idea.ID,
     stopContext: StopDetailContext? = nil,
     whyOnTrip: String? = nil,
-    onEdit: ((Idea) -> IdeasListModel.IdeaFormPresentation)? = nil,
+    canEdit: Bool = false,
     onBack: (() -> Void)? = nil
   ) {
     _model = State(initialValue: IdeaDossierModel(ideaID: ideaID))
     self.stopContext = stopContext
     self.whyOnTrip = whyOnTrip
-    self.onEdit = onEdit
+    self.canEdit = canEdit
     self.onBack = onBack
   }
 
   var body: some View {
-    Group {
-      if let dossier = model.dossier {
+    let dossier = model.dossier
+    return Group {
+      if let dossier {
         dossierList(dossier)
           .navigationTitle(dossier.idea.name)
           .navigationBarTitleDisplayMode(.inline)
@@ -53,25 +53,28 @@ struct IdeaDetailView: View {
           Button("Back", systemImage: "chevron.left", action: onBack)
         }
       }
-      if let onEdit, let idea = model.dossier?.idea {
+      if canEdit, dossier != nil {
         ToolbarItem(placement: .topBarTrailing) {
-          Button("Edit") { editPresentation = onEdit(idea) }
+          Button("Edit", action: model.editButtonTapped)
         }
       }
     }
-    .fullScreenCover(item: $model.selectedPhoto) { photo in
+    .fullScreenCover(item: $model.destination.photo) { photo in
       NavigationStack {
-        if let image = UIImage(data: photo.display) {
-          Image(uiImage: image).resizable().scaledToFit().background(.black)
+        ZStack {
+          Color.black.ignoresSafeArea()
+          if let image = UIImage(data: photo.display) {
+            Image(uiImage: image).resizable().scaledToFit()
+          }
         }
-      }
-      .toolbar {
-        ToolbarItem(placement: .confirmationAction) {
-          Button("Done") { model.selectedPhoto = nil }
+        .toolbar {
+          ToolbarItem(placement: .confirmationAction) {
+            Button("Done") { model.destination = nil }
+          }
         }
       }
     }
-    .sheet(item: $editPresentation) { presentation in
+    .sheet(item: $model.destination.edit) { presentation in
       IdeaFormView(draft: presentation.draft, searchRegions: presentation.searchRegions)
     }
   }
@@ -265,8 +268,8 @@ struct IdeaDetailView: View {
             .font(.caption).foregroundStyle(.secondary)
         }
       }
-      if let idea = model.dossier?.idea, let partyID = idea.travelPartyID {
-        TasteNoteAddButton(travelPartyID: partyID, ideaID: idea.id, planners: model.planners)
+      if let partyID = dossier.idea.travelPartyID {
+        TasteNoteAddButton(travelPartyID: partyID, ideaID: dossier.idea.id, planners: model.planners)
       }
     }
   }
