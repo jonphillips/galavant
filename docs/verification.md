@@ -2,7 +2,8 @@
 
 The standing pattern for every dispatch (jon-platform ADR-0005). Compile and test, then hand off:
 Jon reviews on his own device, so **no simulator walkthroughs, installs, screenshots, or taps**.
-Name any device-only risk in the PR as unverified and stop.
+Name any device-only risk in the PR as unverified and stop. That rule is about looking at the app.
+The headless app-target test run below is not a walkthrough, and it is never exempt (see that section).
 
 ## The gate
 
@@ -27,6 +28,13 @@ full gate once before marking a PR ready.
 ```
 
 Check the "Test run with N tests" line, not just the exit code: see the XcodeGen trap below.
+
+**This is allowed under compile-only.** It boots a simulator only to host the test bundle: nobody looks
+at the app, and nothing is launched by hand, tapped, or screenshotted. A brief that says "compile only, no
+simulator walkthrough" still requires this run whenever its done-criteria list app-target tests. If a
+sandbox or approval step refuses the command for using a simulator, request escalation and cite this
+paragraph. Don't skip the run. A PR that skips it isn't green. (Plan snapshot, PR 218: the skipped run
+hid a failing test.)
 
 ## XcodeGen: the project is generated, but the pbxproj is tracked
 
