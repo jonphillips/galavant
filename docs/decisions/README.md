@@ -63,3 +63,5 @@ at creation). See `docs/README.md` (the atlas) and `jon-platform/docs/agent-work
 | [0051](0051-planner-identity-from-icloud.md) | Planner identity comes from the iCloud account |
 | [0052](0052-chat-access-over-mcp.md) | Chat assistants stage trip options into Evaluate through a local MCP server |
 | [0053](0053-taste-record-and-region-guide.md) | Galavant keeps the taste record, and a region guide is where it's read |
+| [0054](0054-day-design-in-shape-trip.md) | A trip's days are designed in Shape Trip, and the itinerary only shows them |
+| [0055](0055-trip-rationale-fields.md) | Chat's visit, why and fit are kept as three fields on the trip stop |
