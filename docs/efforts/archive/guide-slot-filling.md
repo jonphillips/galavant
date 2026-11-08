@@ -1,12 +1,12 @@
 # Effort — Filling slots from the guide: put places in the trip without going back to it
 
-**Status:** Ready · **Summary:** Slice 3.3 of [ADR-0053](../decisions/0053-taste-record-and-region-guide.md) (D8). From
+**Status:** Ready · **Summary:** Slice 3.3 of [ADR-0053](../../decisions/0053-taste-record-and-region-guide.md) (D8). From
 the guide, a place can go into an open lunch or dinner slot, join a filled slot as another option, or go on the trip's
 shortlist. A hotel can take an open run of nights. Tapping a slot narrows the guide to that slot, where you pick the active
 option or take one out. Every write goes through the trip's own operations. No schema, migration, sync, or hand-off change.
 
-**Read first:** ADR-0053 D8; the mockup [`region-guide-trip-lens.html`](../mockups/region-guide-trip-lens.html), frames 1
-and 2; ADR-0035 (rings); ADR-0029 (meal-aware hours); the [`guide-trip-lens`](archive/guide-trip-lens.md) brief, whose
+**Read first:** ADR-0053 D8; the mockup [`region-guide-trip-lens.html`](../../mockups/region-guide-trip-lens.html), frames 1
+and 2; ADR-0035 (rings); ADR-0029 (meal-aware hours); the [`guide-trip-lens`](guide-trip-lens.md) brief, whose
 `GuideTripLens` this reads.
 
 **Depends on `guide-trip-lens`.** Start from a `main` that has it.

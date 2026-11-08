@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-08 — Filling slots from the guide (`effort/guide-slot-filling`)
+
+- **Result:** Adds the guide Add to Trip menu, meal-slot focus, alternative management, and hotel stays using the trip operations.
+- **Verification:** scripts/check-drift.sh passed: 685 GalavantLibrary tests, SwiftLint, handoff checks, and the GalavantUITests build; 70 headless GalavantTests passed.
+- **Owed:** guide-slot-filling's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-08 — Trip lens from the region guide (`effort/guide-trip-lens`)
 
 - **Result:** Added a read-only guide lens that projects each selected trip’s regional meal slots and night runs from a snapshot-built TripPlan, with trip badges and compact/regular layouts.

@@ -85,7 +85,7 @@ On compact width, `IdeasScreen` and `RegionGuideScreen` replace the dossier's `n
 ## Out of scope
 
 - The trip lens, slot strip, and Add to Trip. Those are [`guide-trip-lens`](guide-trip-lens.md) and
-  [`guide-slot-filling`](../guide-slot-filling.md).
+  [`guide-slot-filling`](guide-slot-filling.md).
 - Trip and Today's dossier presentation (`.navigationBar`). Don't change it.
 - Resizing or dragging the iPad panel, and remembering the iPhone sheet's height.
 
