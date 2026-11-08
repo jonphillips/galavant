@@ -23,6 +23,18 @@ struct TripDayNoteTests {
     #expect(rows.first?.dayNumber == 2)
   }
 
+  @Test("Repeating the same note before observation refresh leaves it intact")
+  func repeatedSameValueIsIdempotent() async throws {
+    let row = try await database.write { db -> TripDayNote? in
+      let trip = try Trip.create(name: "Manchester", lengthInDays: 4, in: db)
+      try TripDayNote.set("Concert in Manchester", forTrip: trip.id, day: 3, in: db)
+      try TripDayNote.set("Concert in Manchester", forTrip: trip.id, day: 3, in: db)
+      return try TripDayNote.where { $0.tripID.eq(trip.id) }.fetchOne(db)
+    }
+    #expect(row?.note == "Concert in Manchester")
+    #expect(row?.dayNumber == 3)
+  }
+
   @Test("A blank note clears the day")
   func blankClears() async throws {
     let count = try await database.write { db -> Int in

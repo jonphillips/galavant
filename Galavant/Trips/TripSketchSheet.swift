@@ -198,7 +198,6 @@ struct TripSketchSheet: View {
   private func commitSummary(for day: Int) {
     guard let draft = summaryDrafts[day] else { return }
     model.setDayNote(draft, forDay: day)
-    summaryDrafts[day] = model.dayNote(forDay: day) ?? ""
   }
 
   private func commitAllSummaries() {

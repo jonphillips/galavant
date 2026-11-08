@@ -205,20 +205,7 @@ extension TripPlanningModel {
     }
   }
 
-  /// Assign (or, with `nil`, clear) one of the trip's regions to a day (ADR-0012)
-  /// — frames the day's empty map and labels it. Replaces any existing assignment
-  /// for the day.
-  func setDayRegion(_ regionID: MapRegion.ID?, forDay day: Int) {
-    let tripID = tripID
-    withErrorReporting {
-      try database.write { db in
-        try TripDayRegion.setRegion(regionID, forTrip: tripID, day: day, in: db)
-      }
-    }
-  }
-
-  /// The region currently assigned to a day, if any — drives the day-header menu's
-  /// selection.
+  /// The region currently assigned to a day, if any — displayed in the day header.
   func dayRegion(forDay day: Int) -> MapRegion? { plan.region(forDay: day) }
 
   /// A trip with no regions attached has nothing for the day-header region chip
