@@ -53,6 +53,7 @@ struct PoolMapView: View {
         cameraPosition: $cameraPosition,
         selection: $mapSelection,
         visibleRegion: $visibleRegion,
+        selectedValue: selectedIdeaID,
         selectedMapItem: $selectedMapItem,
         presentationPolicy: placeSelectionPolicy,
         onSelectPlace: onSelectMapPlace,
@@ -75,10 +76,6 @@ struct PoolMapView: View {
         }
       }
       .onChange(of: framingRegions.map(\.id), initial: true) { frameSelectedRegion() }
-      .onChange(of: selectedIdeaID, initial: true) { _, id in
-        let selection = id.map(MapSelection.init)
-        if mapSelection != selection { mapSelection = selection }
-      }
       .overlay {
         if mappableIdeas.isEmpty {
           ContentUnavailableView(
