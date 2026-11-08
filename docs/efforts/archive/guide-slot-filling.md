@@ -157,7 +157,7 @@ load. In slot focus, Make active and Take out change the lens.
   > Guide's Dining strip, open a restaurant and Add to Trip: an open lunch. The cell fills, and the trip's itinerary shows it
   > on that day. Add a second restaurant to that same slot: it reads "2 options", and the itinerary's route doesn't change.
   > Tap the cell: both options, one Active. Make the other active, then take one out: the slot keeps the rest. Find a place
-  > closed one of your days: that row says why. Drag a card onto an open dinner. On Hotels, give an open night a hotel with
+  > closed one of your days: that row says why. On Hotels, give an open night a hotel with
   > Stay here. Then on the iPhone, add one place from the sheet. Open the trip and check everything you did is there. **Then
   > judge:** Did you plan meals here without going back to the trip? What did you still have to go back for? Do you want
   > candidate hotels (ADR-0053 OQ5)?

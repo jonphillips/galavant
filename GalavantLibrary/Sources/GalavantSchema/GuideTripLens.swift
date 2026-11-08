@@ -67,6 +67,25 @@ public struct GuideTripLens: Equatable, Sendable {
       latitude2: destination.latitude, longitude2: destination.longitude) / 1_000
   }
 
+  /// Straight-line distance from an idea to the accommodation that owns `day`.
+  /// The result stays unformatted so the presentation can choose locale and units.
+  public static func distanceFromStay(
+    day: Int, ideaID: Idea.ID, plan: TripPlan, stays: [TripStay], ideas: [Idea]
+  ) -> (distance: Measurement<UnitLength>, hotelName: String)? {
+    guard let stayID = plan.stayID(owningDay: day),
+      let stay = stays.first(where: { $0.id == stayID }),
+      let hotelID = stay.ideaID,
+      let hotel = ideas.first(where: { $0.id == hotelID }),
+      let hotelLatitude = hotel.latitude, let hotelLongitude = hotel.longitude,
+      let idea = ideas.first(where: { $0.id == ideaID }),
+      let latitude = idea.latitude, let longitude = idea.longitude
+    else { return nil }
+    let meters = MapFraming.distanceInMeters(
+      latitude1: latitude, longitude1: longitude,
+      latitude2: hotelLatitude, longitude2: hotelLongitude)
+    return (Measurement(value: meters, unit: UnitLength.meters), hotel.name)
+  }
+
   public var heading: String {
     switch body {
     case .meals:
@@ -118,7 +137,8 @@ public struct GuideTripLens: Equatable, Sendable {
     regionDays = plan.dayRegions.filter { $0.regionID == region.id }
       .map(\.dayNumber).filter { $0 >= 1 && $0 <= trip.lengthInDays }.sorted()
     regionName = region.name
-    weekdaysByDay = Dictionary(regionDays.compactMap { day in
+    let tripDays = trip.lengthInDays > 0 ? Array(1...trip.lengthInDays) : []
+    weekdaysByDay = Dictionary(tripDays.compactMap { day in
       trip.date(forDay: day).flatMap { date in Weekday.from(date, calendar: calendar).map { (day, $0) } }
     }, uniquingKeysWith: { first, _ in first })
 

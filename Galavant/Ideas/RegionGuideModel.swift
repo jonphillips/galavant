@@ -32,11 +32,15 @@ final class RegionGuideModel {
   @ObservationIgnored private var planSnapshot = TripPlanSnapshot()
 
   var region: MapRegion?
-  var category: GuideCategory = .dining
+  var category: GuideCategory = .dining {
+    didSet { focusedSlot = nil }
+  }
   var shelf: GuideShelf = .all
   private var initialScopeApplied = false
   private var initialPreferredTripID: Trip.ID?
   var chosenTripID: Trip.ID?
+  var focusedSlot: GuideSlotFocus?
+  var successfulAddCount = 0
   var destination: Destination?
 
   @CasePathable
@@ -57,6 +61,16 @@ final class RegionGuideModel {
       region: region, category: category, shelf: shelf, ideas: ideas,
       evaluations: evaluations, interests: interests, planners: planners, notes: notes
     )
+  }
+
+  var visibleGuide: RegionGuide? {
+    guard let guide, let focusedSlot, case .open = focusedSlot.content else { return guide }
+    return guide.filtered(to: Set(focusedSlot.ideaIDs))
+  }
+
+  var mapGuide: RegionGuide? {
+    guard let guide, let focusedSlot else { return guide }
+    return guide.filtered(to: Set(focusedSlot.ideaIDs))
   }
 
   var tripLens: GuideTripLens? {
@@ -100,11 +114,38 @@ final class RegionGuideModel {
   func selectRegion(_ region: MapRegion?) {
     self.region = region
     chosenTripID = nil
+    focusedSlot = nil
     $lastRegionID.withLock { $0 = region?.id.uuidString ?? "" }
   }
 
   func tripSelected(_ tripID: Trip.ID) {
     chosenTripID = tripID
+    focusedSlot = nil
+  }
+
+  func slotTapped(day: Int, meal: Meal) {
+    if focusedSlot?.day == day, focusedSlot?.meal == meal {
+      focusedSlot = nil
+      return
+    }
+    rebuildFocusedSlot(day: day, meal: meal)
+  }
+
+  func clearSlotFocus() {
+    focusedSlot = nil
+  }
+
+  func refreshFocusedSlot() {
+    guard let focusedSlot else { return }
+    rebuildFocusedSlot(day: focusedSlot.day, meal: focusedSlot.meal)
+  }
+
+  private func rebuildFocusedSlot(day: Int, meal: Meal) {
+    guard let lens = tripLens else { focusedSlot = nil; return }
+    let candidateIdeaIDs = Set(guide?.sections.flatMap(\.cards).map(\.idea.id) ?? [])
+    focusedSlot = GuideSlotFocus(day: day, meal: meal, lens: lens,
+      entries: tripIdeas.filter { $0.tripID == lens.trip.id }, ideas: ideas,
+      candidateIdeaIDs: candidateIdeaIDs)
   }
 
   func lensFoldButtonTapped() {
@@ -131,13 +172,17 @@ final class RegionGuideModel {
         try action.apply(ideaID: ideaID, tripID: tripID, in: db)
       }
     }
-    return result != nil
+    guard result != nil else { return false }
+    successfulAddCount += 1
+    refreshFocusedSlot()
+    return true
   }
 
   func setActive(stopID: TripIdea.ID) {
     withErrorReporting {
       try database.write { db in _ = try TripIdea.setActiveAlternative(stopID: stopID, in: db) }
     }
+    refreshFocusedSlot()
   }
 
   func takeOut(stopID: TripIdea.ID) {
@@ -150,28 +195,18 @@ final class RegionGuideModel {
         }
       }
     }
+    refreshFocusedSlot()
   }
 
-  func distanceFromStay(entry: TripIdea, day: Int) -> String? {
-    guard let trip = trips.first(where: { $0.id == entry.tripID }) else { return nil }
+  func distanceFromStay(ideaID: Idea.ID?, tripID: Trip.ID, day: Int) -> (distance: Measurement<UnitLength>, hotelName: String)? {
+    guard let ideaID, let trip = trips.first(where: { $0.id == tripID }) else { return nil }
     let inputs = TripPlanInputs(
       tripID: trip.id, lengthInDays: trip.lengthInDays, tripIdeas: tripIdeas, ideas: ideas,
       tripStays: tripStays, dayRegions: tripDayRegions, regions: regions,
       calendarConstraints: calendarConstraints, alternativeGroups: alternativeGroups)
     let plan = planSnapshot.plan(for: inputs)
-    guard let stayID = plan.stayID(owningDay: day),
-      let stay = tripStays.first(where: { $0.id == stayID }),
-      let hotelID = stay.ideaID,
-      let hotel = ideas.first(where: { $0.id == hotelID }),
-      let latitude = hotel.latitude, let longitude = hotel.longitude,
-      let ideaID = entry.ideaID,
-      let idea = ideas.first(where: { $0.id == ideaID }),
-      let placeLatitude = idea.latitude, let placeLongitude = idea.longitude
-    else { return nil }
-    let distance = GuideTripLens.distanceInKilometers(
-      from: TripCoordinate(latitude: placeLatitude, longitude: placeLongitude),
-      to: TripCoordinate(latitude: latitude, longitude: longitude))
-    return "\(distance.formatted(.number.precision(.fractionLength(1)))) km from \(hotel.name)"
+    return GuideTripLens.distanceFromStay(
+      day: day, ideaID: ideaID, plan: plan, stays: tripStays, ideas: ideas)
   }
 
   func ideaTapped(_ idea: Idea) {
@@ -186,5 +221,16 @@ final class RegionGuideModel {
     let draft = await MapPlaceCapture().draft(for: place)
     destination = .form(IdeasListModel.IdeaFormPresentation(
       draft: draft, searchRegions: region.map { [$0] } ?? []))
+  }
+}
+
+private extension RegionGuide {
+  func filtered(to ideaIDs: Set<Idea.ID>) -> RegionGuide {
+    let sections = self.sections.compactMap { section -> RegionGuide.Section? in
+      let cards = section.cards.filter { ideaIDs.contains($0.idea.id) }
+      guard !cards.isEmpty else { return nil }
+      return RegionGuide.Section(title: section.title, cards: cards, id: section.id)
+    }
+    return RegionGuide(sections: sections, counts: counts)
   }
 }
