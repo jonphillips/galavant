@@ -89,13 +89,11 @@ struct TripItineraryView: View {
   /// One day's stops, for the canvas's day lens. Its trailing Add a stop row adds
   /// straight onto this day.
   private func focusedDayList(_ day: Int) -> some View {
-    let plan = model.plan
-    let stops = plan.itinerary.first(where: { $0.number == day })?.stops ?? []
-    let items = plan.itineraryItems(
-      forDay: day, travelTimes: model.travelTimes, effectiveModes: model.effectiveModes,
-      now: model.now, tripStartDate: model.trip?.startDate,
-      stays: plan.stays(coveringDay: day))
-    let sequence = plan.locatedSequenceNumbers(forDay: day)
+    let list = model.itineraryList(focusedDay: day)
+    let dayList = list.days[0]
+    let stops = dayList.stops
+    let items = dayList.items
+    let sequence = dayList.sequence
     let cells = focusedDayCells(stops: stops, items: items)
     return List {
       if let heroImage {
@@ -107,17 +105,17 @@ struct TripItineraryView: View {
             .font(.subheadline)
             .foregroundStyle(.tertiary)
         } else if stops.isEmpty {
-          ForEach(items) { item in itineraryRow(item, sequence: sequence) }
+          ForEach(items) { item in itineraryRow(item, sequence: sequence, list: list) }
         } else {
-          ForEach(cells.head) { item in itineraryRow(item, sequence: sequence) }
+          ForEach(cells.head) { item in itineraryRow(item, sequence: sequence, list: list) }
           ForEach(stops) { stop in
             focusedDayStopCell(
               stop,
               cell: cells.byStopID[stop.id] ?? FocusedDayStopCell(stop: stop),
-              sequence: sequence)
+              sequence: sequence, list: list)
           }
           .reorderable()
-          ForEach(cells.tail) { item in itineraryRow(item, sequence: sequence) }
+          ForEach(cells.tail) { item in itineraryRow(item, sequence: sequence, list: list) }
         }
         addStopRow(for: day)
       } header: {
@@ -206,7 +204,7 @@ struct TripItineraryView: View {
 
   @ViewBuilder
   private func focusedDayStopCell(
-    _ stop: ResolvedStop, cell: FocusedDayStopCell, sequence: [TripIdea.ID: Int]
+    _ stop: ResolvedStop, cell: FocusedDayStopCell, sequence: [TripIdea.ID: Int], list: ItineraryList
   ) -> some View {
     // The selection tint sits on `stopRow` alone (a plain `.background`): a nested
     // `.listRowBackground` can't reach the row, and a cell-wide one would also tint
@@ -220,12 +218,13 @@ struct TripItineraryView: View {
         // ForEach yet), but the divider + stop-only tint keep them reading as their
         // own rows rather than glued to the stop.
         ForEach(cell.leading) { item in
-          itineraryRow(item, sequence: sequence)
+          itineraryRow(item, sequence: sequence, list: list)
           Divider()
         }
         StopRow(
           model: model,
           resolved: stop,
+          facts: list.facts(forStop: stop.id),
           booking: bookingByRow[.stop(stop.id)],
           sequence: sequence,
           includesLifecycleSwipeActions: false,
@@ -233,7 +232,7 @@ struct TripItineraryView: View {
           .background(
             model.canvasSelectedStopID == stop.id
               ? Color.accentColor.opacity(0.12) : Color.clear)
-        ForEach(cell.trailing) { item in itineraryRow(item, sequence: sequence) }
+        ForEach(cell.trailing) { item in itineraryRow(item, sequence: sequence, list: list) }
       }
     }
   }
@@ -245,25 +244,22 @@ struct TripItineraryView: View {
   /// Xcode 27 beta 1; the `StopMenu`'s Move-to-Day / To-Be-Scheduled covers it.
   /// See KNOWN-ISSUES.)
   private var fullItinerary: some View {
-    List {
+    let list = model.itineraryList(focusedDay: nil)
+    return List {
       if let heroImage {
         TripHeroSection(image: heroImage)
       }
-      // Build the plan and the leg-mode map once for the whole list — both are
-      // computed properties; reading them per day rebuilt the plan's leg-graph
-      // O(days) times per layout pass and locked up large trips.
-      let plan = model.plan
-      let modes = model.effectiveModes
-      if !plan.hasScheduledStops && plan.dayRegions.isEmpty {
+      if list.showsSketchPrompt {
         sketchPrompt
       }
-      let bucket = plan.toBeScheduled
+      let bucket = list.toBeScheduled
       if !bucket.isEmpty {
         Section {
           ForEach(bucket) { resolved in
             StopRow(
               model: model,
               resolved: resolved,
+              facts: list.facts(forStop: resolved.id),
               booking: bookingByRow[.stop(resolved.id)],
               onRemove: requestStopRemoval)
           }
@@ -271,19 +267,14 @@ struct TripItineraryView: View {
           SectionHeader(label: "To Be Scheduled", day: nil, model: model)
         }
       }
-      ForEach(plan.itinerary) { day in
-        let items = plan.itineraryItems(
-          forDay: day.number, travelTimes: model.travelTimes, effectiveModes: modes,
-          now: model.now, tripStartDate: model.trip?.startDate,
-          stays: plan.stays(coveringDay: day.number))
-        let sequence = plan.locatedSequenceNumbers(forDay: day.number)
+      ForEach(list.days) { day in
         Section {
-          if items.isEmpty {
+          if day.items.isEmpty {
             Text("No stops yet")
               .font(.subheadline)
               .foregroundStyle(.tertiary)
           } else {
-            ForEach(items) { item in itineraryRow(item, sequence: sequence) }
+            ForEach(day.items) { item in itineraryRow(item, sequence: day.sequence, list: list) }
           }
           addStopRow(for: day.number)
         } header: {
@@ -334,13 +325,14 @@ struct TripItineraryView: View {
   }
 
   @ViewBuilder private func itineraryRow(
-    _ item: ItineraryItem, sequence: [TripIdea.ID: Int] = [:]
+    _ item: ItineraryItem, sequence: [TripIdea.ID: Int] = [:], list: ItineraryList
   ) -> some View {
     switch item {
     case .stop(let resolved):
       StopRow(
         model: model,
         resolved: resolved,
+        facts: list.facts(forStop: resolved.id),
         booking: bookingByRow[.stop(resolved.id)],
         sequence: sequence,
         onRemove: requestStopRemoval)
@@ -365,7 +357,7 @@ struct TripItineraryView: View {
     case .homeBase(let stay):
       HomeBaseRow(
         stay: stay,
-        isOverlapping: model.plan.overlappingStayIDs.contains(stay.id),
+        isOverlapping: list.overlappingStayIDs.contains(stay.id),
         booking: bookingByRow[.stay(stay.id)],
         onEdit: model.editStay)
     }

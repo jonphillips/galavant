@@ -39,12 +39,31 @@ extension TripPlan {
     travelTimes: [LegKey: [TransportMode: TravelTime]],
     autoSwitchThreshold: TimeInterval
   ) -> [LegKey: TransportMode] {
-    legIdentities.reduce(into: [LegKey: TransportMode]()) { result, pair in
-      result[pair.key] = Self.legMode(
-        leg: pair.key, identity: pair.value, overrides: overrides,
+    Self.legModes(
+      pairs: allLegPairs,
+      overrides: overrides,
+      mainMode: mainMode,
+      travelTimes: travelTimes,
+      autoSwitchThreshold: autoSwitchThreshold)
+  }
+
+  /// Resolve ordered leg pairs with first-wins behavior for duplicate coordinate
+  /// keys, matching `legIdentities` and the ETA cache's coordinate identity.
+  public static func legModes(
+    pairs: [(leg: LegKey, identity: LegIdentity)],
+    overrides: [LegIdentity: TransportMode],
+    mainMode: TransportMode?,
+    travelTimes: [LegKey: [TransportMode: TravelTime]],
+    autoSwitchThreshold: TimeInterval
+  ) -> [LegKey: TransportMode] {
+    var modes: [LegKey: TransportMode] = [:]
+    for pair in pairs where modes[pair.leg] == nil {
+      modes[pair.leg] = Self.legMode(
+        leg: pair.leg, identity: pair.identity, overrides: overrides,
         mainMode: mainMode, travelTimes: travelTimes,
         autoSwitchThreshold: autoSwitchThreshold)
     }
+    return modes
   }
 
   /// The per-leg resolution rule over already-built lookups — pure and O(1). A

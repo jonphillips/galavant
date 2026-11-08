@@ -17,9 +17,9 @@ landed between them. Removing the modifier fixed it. Restoring it froze the list
 a callback that fired only on threshold crossings, no closure passed to the list, and collapse state
 that only the hero read.
 
-**Cause:** Not fully understood. We don't know why the modifier alone does this. The rendering cost
-it multiplies is known: `model.plan` rebuilds per access, several times per row, so stop-heavy trips
-suffer most.
+**Cause:** Still not fully understood. The per-row plan rebuilds have been removed by the trip-plan
+snapshot and one-pass itinerary list. That rendering cost no longer explains the freeze; the
+modifier's behavior remains unexplained.
 
 **Rule:** Don't put `.onScrollGeometryChange` on the itinerary `List`. The hero is that list's first
 section, so it scrolls away without any tracking. Re-test on a stop-heavy trip, on a device, before

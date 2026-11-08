@@ -229,7 +229,7 @@ public struct TripPlan: Equatable, Sendable {
   /// The alternatives rings after orphan/malformed members are dropped. This is
   /// deliberately non-mutating: a later explicit ring operation persists the
   /// effective winner and clears a one-member remnant.
-  private var resolvedAlternativeRings: [UUID: ResolvedAlternativeRing] {
+  package var resolvedAlternativeRings: [UUID: ResolvedAlternativeRing] {
     alternativeRings(
       in: entries.compactMap(resolve),
       labelsByGroupID: Dictionary(
@@ -261,7 +261,7 @@ public struct TripPlan: Equatable, Sendable {
 
   /// Resolve one visible member for every ring. Filtering after resolution keeps
   /// an orphaned stored-active member from hiding the rest of a valid slot.
-  private var effectiveResolvedStops: [ResolvedStop] {
+  package var effectiveResolvedStops: [ResolvedStop] {
     let resolved = entries.compactMap(resolve)
     let winners = Dictionary(uniqueKeysWithValues: alternativeRings(in: resolved).map {
       ($0.key, $0.value.activeMember.id)
@@ -550,11 +550,7 @@ public struct TripPlan: Equatable, Sendable {
   /// order). Unlocated/freeform stops are absent (they carry no pin), so a timeline
   /// row looks itself up here and shows a number only when it has a matching pin.
   public func locatedSequenceNumbers(forDay day: Int) -> [TripIdea.ID: Int] {
-    var result: [TripIdea.ID: Int] = [:]
-    for (index, stop) in locatedStops(forDay: day).enumerated() {
-      result[stop.id] = index + 1
-    }
-    return result
+    Self.locatedSequenceNumbers(for: locatedStops(forDay: day))
   }
 
   /// The interleaved rows for one day's timeline: stops, travel-time connectors
@@ -581,6 +577,20 @@ public struct TripPlan: Equatable, Sendable {
     stays: [ResolvedStay] = []
   ) -> [ItineraryItem] {
     let stops = itinerary.first(where: { $0.number == day })?.stops ?? []
+    return itineraryItems(
+      forDay: day, stops: stops, travelTimes: travelTimes, effectiveModes: effectiveModes,
+      now: now, tripStartDate: tripStartDate, stays: stays)
+  }
+
+  package func itineraryItems(
+    forDay day: Int,
+    stops: [ResolvedStop],
+    travelTimes: [LegKey: [TransportMode: TravelTime]],
+    effectiveModes: [LegKey: TransportMode],
+    now: Date? = nil,
+    tripStartDate: Date? = nil,
+    stays: [ResolvedStay] = []
+  ) -> [ItineraryItem] {
     let rows = orderedEventRows(forDay: day, stops: stops, stays: stays)
     guard !rows.isEmpty else { return [] }
 

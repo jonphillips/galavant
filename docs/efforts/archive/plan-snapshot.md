@@ -1,13 +1,13 @@
 # Effort — Plan snapshot: stop rebuilding the plan while the itinerary renders
 
-**Status:** Designed · **Summary:** Revives Phase 2 of [plan-memoization](archive/plan-memoization.md) with a different
+**Status:** Done (2026-11-07) · **Summary:** Revives Phase 2 of [plan-memoization](plan-memoization.md) with a different
 mechanism. `TripPlanningModel.plan` becomes a stored snapshot keyed on the arrays it's built from, and the itinerary derives
 everything its rows need in one pass per list. `StopRow` stops calling back into the plan during `body`. No schema, migration,
 sync, or product change.
 
-**Read first:** [archive/plan-memoization.md](archive/plan-memoization.md),
-[ADR-0038](../decisions/0038-journey-today-projections-and-weather.md), and the `.onScrollGeometryChange` entry in
-[KNOWN-ISSUES.md](../KNOWN-ISSUES.md).
+**Read first:** [archive/plan-memoization.md](plan-memoization.md),
+[ADR-0038](../../decisions/0038-journey-today-projections-and-weather.md), and the `.onScrollGeometryChange` entry in
+[KNOWN-ISSUES.md](../../KNOWN-ISSUES.md).
 
 **No ADR.** This implements the existing functional-core / observable-shell decision, and `TripPlan` stays an ordinary value.
 That's the line the Phase 2 write-up drew for needing one.
@@ -197,7 +197,7 @@ Pinned:
   `TripPlanningModel+Sketch.swift`, `TripPlanningModel+Directions.swift`, `TripPlanningView.swift`, and
   `TripItineraryView.swift`.
 - A new source or test file means running `xcodegen generate` and committing `project.yml` and the pbxproj per
-  [verification.md](../verification.md).
+  [verification.md](../../verification.md).
 
 ## Tests that count derivations
 
@@ -232,7 +232,7 @@ Pinned:
 - **Observation survives a hit.** Read `plan` once to fill the snapshot. Read it again inside `withObservationTracking`, which
   is a hit. Write a stop and load. The `onChange` fires. This is the test the manual-cache alternative was feared to fail, and
   the most important one here.
-- Run these per [verification.md](../verification.md) § App-target tests, and check the "Test run with N tests" line.
+- Run these per [verification.md](../../verification.md) § App-target tests, and check the "Test run with N tests" line.
 
 ## Out of scope
 
