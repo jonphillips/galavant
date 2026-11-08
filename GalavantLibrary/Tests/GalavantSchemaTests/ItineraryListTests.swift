@@ -6,10 +6,12 @@ import Testing
   private func stop(
     id: UUID = UUID(), tripID: Trip.ID, ideaID: UUID,
     schedule: Schedule, rank: Int = 0, groupID: UUID? = nil, active: Bool = true,
+    status: TripIdeaStatus? = nil,
     latitude: Double? = 40, longitude: Double? = 11
   ) -> (TripIdea, Idea) {
     var entry = TripIdea(
-      id: id, tripID: tripID, ideaID: ideaID, status: schedule == .unscheduled ? .shortlisted : .scheduled,
+      id: id, tripID: tripID, ideaID: ideaID,
+      status: status ?? (schedule == .unscheduled ? .shortlisted : .scheduled),
       shortlistRank: rank, dayRank: Double(rank), alternativeGroupID: groupID, isActive: active)
     entry.apply(schedule)
     return (entry, Idea(id: ideaID, name: "Stop \(rank)", latitude: latitude, longitude: longitude))
@@ -72,11 +74,22 @@ import Testing
       groupID: groupID, active: false)
     let (unscheduled, unscheduledIdea) = stop(
       tripID: tripID, ideaID: UUID(), schedule: .unscheduled, rank: 4)
-    let entries = [before, unlocated, winner, alternative, unscheduled]
-    let ideas = [beforeIdea, unlocatedIdea, winnerIdea, alternativeIdea, unscheduledIdea]
+    let (toBeScheduled, toBeScheduledIdea) = stop(
+      tripID: tripID, ideaID: UUID(), schedule: .unscheduled, rank: 5, status: .scheduled)
+    let entries = [before, unlocated, winner, alternative, unscheduled, toBeScheduled]
+    let ideas = [beforeIdea, unlocatedIdea, winnerIdea, alternativeIdea, unscheduledIdea, toBeScheduledIdea]
     let start = Calendar.current.date(from: DateComponents(year: 2026, month: 11, day: 7))!
-    let stay1 = TripStay(id: UUID(), tripID: tripID, ideaID: nil, inlineTitle: "First", checkInDay: 1, checkOutDay: 3)
-    let stay2 = TripStay(id: UUID(), tripID: tripID, ideaID: nil, inlineTitle: "Second", checkInDay: 2, checkOutDay: 4)
+    let hotel1ID = UUID()
+    let hotel2ID = UUID()
+    let hotel3ID = UUID()
+    let hotelIdeas = [
+      Idea(id: hotel1ID, name: "First", kind: .stay, latitude: 39, longitude: 10),
+      Idea(id: hotel2ID, name: "Second", kind: .stay, latitude: 42, longitude: 12),
+      Idea(id: hotel3ID, name: "Overlap", kind: .stay, latitude: 43, longitude: 13),
+    ]
+    let stay1 = TripStay(id: UUID(), tripID: tripID, ideaID: hotel1ID, checkInDay: 1, checkOutDay: 2)
+    let stay2 = TripStay(id: UUID(), tripID: tripID, ideaID: hotel2ID, checkInDay: 2, checkOutDay: 3)
+    let stay3 = TripStay(id: UUID(), tripID: tripID, ideaID: hotel3ID, checkInDay: 1, checkOutDay: 3)
     let commitment = CalendarCommitment(
       temporal: .absolute(
         start: start.addingTimeInterval(9 * 60 * 60), end: start.addingTimeInterval(10 * 60 * 60),
@@ -87,17 +100,18 @@ import Testing
       dayNumber: 1, startTime: "09:00", endTime: "10:00", commitment: commitment)!
     let plan = TripPlan(
       entries: entries,
-      ideasByID: Dictionary(uniqueKeysWithValues: ideas.map { ($0.id, $0) }),
-      lengthInDays: 3, tripStays: [stay1, stay2], calendarConstraints: [constraint],
+      ideasByID: Dictionary(uniqueKeysWithValues: (ideas + hotelIdeas).map { ($0.id, $0) }),
+      lengthInDays: 3, tripStays: [stay1, stay2, stay3], calendarConstraints: [constraint],
       alternativeGroups: [TripAlternativeGroup(id: groupID, tripID: tripID, label: "Options")])
     let list = plan.itineraryList(
-      focusedDay: nil, overrides: [:], mainMode: .walking, travelTimes: [:],
+      focusedDay: nil, overrides: [:], mainMode: nil, travelTimes: [:],
       autoSwitchThreshold: 1_200, now: start.addingTimeInterval(12 * 60 * 60), tripStartDate: start)
     let modes = plan.legModes(
-      overrides: [:], mainMode: .walking, travelTimes: [:], autoSwitchThreshold: 1_200)
+      overrides: [:], mainMode: nil, travelTimes: [:], autoSwitchThreshold: 1_200)
 
     #expect(list.overlappingStayIDs == plan.overlappingStayIDs)
     #expect(list.toBeScheduled.map(\.id) == plan.toBeScheduled.map(\.id))
+    #expect(list.toBeScheduled.contains { $0.id == toBeScheduled.id })
     #expect(list.days.count == plan.itinerary.count)
     for day in plan.itinerary {
       let projected = try #require(list.days.first { $0.number == day.number })
@@ -112,6 +126,50 @@ import Testing
     }
     #expect(list.days[0].items.contains(.nowMarker))
     #expect(list.days[0].items.contains { if case .calendarConstraint = $0 { true } else { false } })
+  }
+
+  @Test func coordinateCollisionKeepsFirstLegIdentityForModes() throws {
+    let tripID = UUID()
+    let coordinates = [(40.0, 11.0), (41.0, 12.0), (40.0, 11.0), (41.0, 12.0)]
+    let stops = coordinates.enumerated().map { index, coordinate in
+      stop(
+        tripID: tripID, ideaID: UUID(), schedule: .day(1), rank: index,
+        latitude: coordinate.0, longitude: coordinate.1)
+    }
+    let entries = stops.map(\.0)
+    let ideas = stops.map(\.1)
+    let plan = TripPlan(
+      entries: entries, ideasByID: Dictionary(uniqueKeysWithValues: ideas.map { ($0.id, $0) }),
+      lengthInDays: 1)
+    let pairs = plan.allLegPairs(itinerary: { plan.itinerary }, stays: { plan.stays })
+    let duplicate = try #require(pairs.first { first in
+      pairs.dropFirst().contains { $0.leg == first.leg && $0.identity != first.identity }
+    })
+    let collisionPairs = pairs.filter { $0.leg == duplicate.leg }
+    #expect(collisionPairs.count == 2)
+    #expect(collisionPairs[0].identity != collisionPairs[1].identity)
+    let autoPair = try #require(pairs.first { $0.leg != duplicate.leg })
+    let overrides = [collisionPairs[0].identity: TransportMode.transit]
+    let travelTimes: [LegKey: [TransportMode: TravelTime]] = [
+      duplicate.leg: [.walking: TravelTime(seconds: 60, meters: 80)],
+      autoPair.leg: [.walking: TravelTime(seconds: 1_500, meters: 2_000)],
+    ]
+    let threshold = 1_200.0
+    let list = plan.itineraryList(
+      focusedDay: nil, overrides: overrides, mainMode: nil, travelTimes: travelTimes,
+      autoSwitchThreshold: threshold, now: nil, tripStartDate: nil)
+    let expectedModes = plan.legModes(
+      overrides: overrides, mainMode: nil, travelTimes: travelTimes,
+      autoSwitchThreshold: threshold)
+    let connectors = list.days.flatMap(\.items).compactMap { item -> TravelConnector? in
+      guard case let .connector(connector) = item else { return nil }
+      return connector
+    }
+
+    #expect(expectedModes[duplicate.leg] == .transit)
+    #expect(expectedModes[autoPair.leg] == .transit)
+    #expect(connectors.first { $0.leg == duplicate.leg }?.mode == expectedModes[duplicate.leg])
+    #expect(connectors.first { $0.leg == autoPair.leg }?.mode == expectedModes[autoPair.leg])
   }
 
   @Test func moveFactsRespectAnytimeOrderAndExcludedRows() {

@@ -84,29 +84,34 @@ struct TripPlanningSenseOfNowTests {
     try await database.write { db in
       try TripIdea.insert { TripIdea.Draft(entry) }.execute(db)
     }
-    let model = TripPlanningModel(tripID: tripID)
-    try await loadPlanInputs(model)
+    try await withDependencies {
+      $0.date.now = Date(timeIntervalSince1970: 1_799_097_600)
+    } operation: {
+      let model = TripPlanningModel(tripID: tripID)
+      try await loadPlanInputs(model)
 
-    _ = model.plan
-    _ = model.plan
-    _ = model.itineraryList(focusedDay: nil)
-    #expect(model.planBuildCount == 1)
+      _ = model.plan
+      _ = model.plan
+      _ = model.itineraryList(focusedDay: nil)
+      #expect(model.planBuildCount == 1)
 
-    let changed = TripIdea.freeform(
-      id: entry.id, tripID: tripID, title: "Old stop", note: "Updated", shortlistRank: 0)
-    try await database.write { db in
-      try TripIdea.find(entry.id).delete().execute(db)
-      try TripIdea.insert { TripIdea.Draft(changed) }.execute(db)
+      let changed = TripIdea.freeform(
+        id: entry.id, tripID: tripID, title: "Old stop", note: "Updated", shortlistRank: 0)
+      try await database.write { db in
+        try TripIdea.find(entry.id).delete().execute(db)
+        try TripIdea.insert { TripIdea.Draft(changed) }.execute(db)
+      }
+      try await model.$allTripIdeas.load()
+      #expect(model.plan.entries.first?.inlineNote == "Updated")
+      #expect(model.planBuildCount == 2)
+
+      try await database.write { db in
+        try Tag.insert { Tag.Draft(Tag(id: UUID(), name: "Unrelated")) }.execute(db)
+      }
+      try await loadPlanInputs(model)
+      _ = model.plan
+      #expect(model.planBuildCount == 2)
     }
-    try await model.$allTripIdeas.load()
-    #expect(model.planBuildCount == 2)
-    #expect(model.plan.entries.first?.inlineNote == "Updated")
-
-    try await database.write { db in
-      try Tag.insert { Tag.Draft(Tag(id: UUID(), name: "Unrelated")) }.execute(db)
-    }
-    _ = model.plan
-    #expect(model.planBuildCount == 2)
   }
 
   @Test

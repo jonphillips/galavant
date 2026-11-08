@@ -2,34 +2,6 @@ import Dependencies
 import GalavantSchema
 
 extension TripPlanningModel {
-  var planBuildCount: Int { planSnapshot.buildCount }
-
-  /// Every input is read on every access so Observation tracks all fetches, while
-  /// the value snapshot rebuilds only when one of them changes.
-  var plan: TripPlan {
-    planSnapshot.plan(for: TripPlanInputs(
-      tripID: tripID,
-      lengthInDays: trip?.lengthInDays ?? 1,
-      tripIdeas: allTripIdeas,
-      ideas: ideas,
-      tripStays: allTripStays,
-      dayRegions: allTripDayRegions,
-      regions: regions,
-      calendarConstraints: allCalendarConstraints,
-      alternativeGroups: allAlternativeGroups))
-  }
-
-  func itineraryList(focusedDay: Int?) -> ItineraryList {
-    plan.itineraryList(
-      focusedDay: focusedDay,
-      overrides: currentModeOverrides,
-      mainMode: trip?.mainTransportationMode,
-      travelTimes: travelTimes,
-      autoSwitchThreshold: Self.autoSwitchThreshold,
-      now: now,
-      tripStartDate: trip?.startDate)
-  }
-
   // MARK: - ETA mode resolution
 
   /// The effective transport mode for a leg — single-leg convenience over the pure

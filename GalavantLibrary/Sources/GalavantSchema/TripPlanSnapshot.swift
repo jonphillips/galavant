@@ -50,20 +50,19 @@ extension TripPlan {
 /// every input so Swift Observation keeps tracking all fetches on cache hits.
 public struct TripPlanSnapshot: Sendable {
   public private(set) var buildCount = 0
-  private var inputs: TripPlanInputs?
-  private var cachedPlan: TripPlan?
+  private var cached: (inputs: TripPlanInputs, plan: TripPlan)?
 
   public init() {}
 
   public mutating func plan(for inputs: TripPlanInputs) -> TripPlan {
-    if let current = self.inputs, current == inputs {
+    if var cached, cached.inputs == inputs {
       // Adopt republished equal buffers so later hits regain Array's identity fast path.
-      self.inputs = inputs
-      return cachedPlan!
+      cached.inputs = inputs
+      self.cached = cached
+      return cached.plan
     }
-    self.inputs = inputs
     let plan = TripPlan(inputs)
-    cachedPlan = plan
+    cached = (inputs, plan)
     buildCount += 1
     return plan
   }

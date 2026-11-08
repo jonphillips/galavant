@@ -1,6 +1,6 @@
 # Effort — Plan snapshot: stop rebuilding the plan while the itinerary renders
 
-**Status:** Designed · **Summary:** Revives Phase 2 of [plan-memoization](plan-memoization.md) with a different
+**Status:** Done (2026-11-07) · **Summary:** Revives Phase 2 of [plan-memoization](plan-memoization.md) with a different
 mechanism. `TripPlanningModel.plan` becomes a stored snapshot keyed on the arrays it's built from, and the itinerary derives
 everything its rows need in one pass per list. `StopRow` stops calling back into the plan during `body`. No schema, migration,
 sync, or product change.

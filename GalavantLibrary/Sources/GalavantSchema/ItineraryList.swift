@@ -93,17 +93,10 @@ extension TripPlan {
     let ringFacts = rings
     let overlappingStayIDs = TripStay.overlapping(resolvedStays.map(\.stay))
 
-    // Resolve the graph once, from the same day/stay values that feed the rows.
-    var modes: [LegKey: TransportMode] = [:]
-    for day in allDays {
-      let dayStays = resolvedStays.filter { $0.stay.covers(day: day.number) }
-      for route in routeLegs(forDay: day.number, stops: day.stops, stays: dayStays) {
-        modes[route.leg] = Self.legMode(
-          leg: route.leg, identity: route.identity, overrides: overrides,
-          mainMode: mainMode, travelTimes: travelTimes,
-          autoSwitchThreshold: autoSwitchThreshold)
-      }
-    }
+    let pairs = allLegPairs(itinerary: { allDays }, stays: { resolvedStays })
+    let modes = Self.legModes(
+      pairs: pairs, overrides: overrides, mainMode: mainMode,
+      travelTimes: travelTimes, autoSwitchThreshold: autoSwitchThreshold)
 
     let visibleDays: [ResolvedDay]
     if let focusedDay {
@@ -125,12 +118,10 @@ extension TripPlan {
     var facts: [TripIdea.ID: ItineraryStopFacts] = [:]
     for day in allDays {
       for (index, stop) in day.stops.enumerated() {
-        let isAnytime: Bool
-        if case .day = stop.entry.schedule { isAnytime = true } else { isAnytime = false }
         facts[stop.id] = ItineraryStopFacts(
           ring: ringFacts[stop.id],
-          canMoveEarlier: isAnytime && index > 0,
-          canMoveLater: isAnytime && index + 1 < day.stops.count)
+          canMoveEarlier: Self.moveTarget(from: index, in: day.stops, earlier: true) != nil,
+          canMoveLater: Self.moveTarget(from: index, in: day.stops, earlier: false) != nil)
       }
     }
     // Rings include unscheduled entries and non-winning members too.
@@ -154,15 +145,19 @@ extension TripPlan {
   public static func reorderedIDs(
     moving stop: ResolvedStop, in orderedStops: [ResolvedStop], earlier: Bool
   ) -> [TripIdea.ID]? {
-    guard case .day = stop.entry.schedule,
-      let from = orderedStops.firstIndex(where: { $0.id == stop.id })
+    guard let from = orderedStops.firstIndex(where: { $0.id == stop.id }),
+      let to = moveTarget(from: from, in: orderedStops, earlier: earlier)
     else { return nil }
-    let to = earlier ? from - 1 : from + 1
-    guard orderedStops.indices.contains(to) else { return nil }
     var ids = orderedStops.map(\.id)
     ids.remove(at: from)
     ids.insert(stop.id, at: to)
     return ids
+  }
+
+  public static func moveTarget(from index: Int, in stops: [ResolvedStop], earlier: Bool) -> Int? {
+    guard stops.indices.contains(index), case .day = stops[index].entry.schedule else { return nil }
+    let target = earlier ? index - 1 : index + 1
+    return stops.indices.contains(target) ? target : nil
   }
 
   static func locatedSequenceNumbers(for stops: [ResolvedStop]) -> [TripIdea.ID: Int] {

@@ -54,7 +54,7 @@ final class TripPlanningModel {
     ImageAsset.where { $0.isHeader.eq(true) }
       .select { HeaderThumb.Columns(ideaID: $0.ideaID, thumbnail: $0.thumbnail) }
   ) var headerThumbs
-  @ObservationIgnored var planSnapshot = TripPlanSnapshot()
+  @ObservationIgnored private var planSnapshot = TripPlanSnapshot()
 
   let tripID: Trip.ID
   var destination: Destination?
@@ -204,6 +204,35 @@ final class TripPlanningModel {
   }
   private var regionByID: [MapRegion.ID: MapRegion] {
     Dictionary(regions.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+  }
+
+  var planBuildCount: Int { planSnapshot.buildCount }
+
+  /// This trip's resolved planning read-model. Joins and projections live in the
+  /// tested functional core; every access reads the observations while the snapshot
+  /// rebuilds only when one of its inputs changes.
+  var plan: TripPlan {
+    planSnapshot.plan(for: TripPlanInputs(
+      tripID: tripID,
+      lengthInDays: trip?.lengthInDays ?? 1,
+      tripIdeas: allTripIdeas,
+      ideas: ideas,
+      tripStays: allTripStays,
+      dayRegions: allTripDayRegions,
+      regions: regions,
+      calendarConstraints: allCalendarConstraints,
+      alternativeGroups: allAlternativeGroups))
+  }
+
+  func itineraryList(focusedDay: Int?) -> ItineraryList {
+    plan.itineraryList(
+      focusedDay: focusedDay,
+      overrides: currentModeOverrides,
+      mainMode: trip?.mainTransportationMode,
+      travelTimes: travelTimes,
+      autoSwitchThreshold: Self.autoSwitchThreshold,
+      now: now,
+      tripStartDate: trip?.startDate)
   }
 
 
@@ -446,30 +475,6 @@ final class TripPlanningModel {
       .filter { ids.contains($0.id) }
       .map(\.name)
       .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-  }
-
-  /// Each planner's rated interest in an idea (skipping unrated rows), ordered by
-  /// name — the his/hers display on the detail sheet.
-  func interests(for idea: Idea) -> [(planner: Planner, level: Interest)] {
-    interestRows
-      .filter { $0.ideaID == idea.id && $0.level != nil }
-      .compactMap { row in
-        guard let planner = planners.first(where: { $0.id == row.plannerID }),
-          let level = row.level
-        else { return nil }
-        return (planner, level)
-      }
-      .sorted { $0.planner.displayName < $1.planner.displayName }
-  }
-
-  /// Source evaluations for an idea, orphan-drops applied. Most-recently-recorded
-  /// first — the evaluations detail section's data source (ADR-0015).
-  func evaluations(for idea: Idea) -> [IdeaEvaluation] {
-    IdeaEvaluation.evaluations(
-      forIdea: idea.id,
-      from: allEvaluations,
-      knownIdeaIDs: Set(ideas.map(\.id))
-    )
   }
 
   /// Pull an idea onto the trip as a "considering" maybe (the default + action).
