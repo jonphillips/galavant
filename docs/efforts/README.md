@@ -14,7 +14,6 @@ folder listing and `DONE-LOG.md` cover it. A parked brief also gets a candidate 
 
 | Brief | Implements | Status |
 | --- | --- | --- |
-| [region-guide.md](region-guide.md) | ADR-0053 S3 | Ready |
 | [handoff-menu-adoption.md](handoff-menu-adoption.md) | jon-platform `docs/ios/ui-and-platforms.md` § The AI entry point | Blocked |
 
 **Authoring a brief:** add its entry here in the same change (index at creation), give it a

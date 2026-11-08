@@ -51,6 +51,12 @@ public enum TasteNoteSubject: Equatable, Sendable {
 }
 
 extension TasteNote {
+  public static func newestFirst(_ notes: [TasteNote]) -> [TasteNote] {
+    notes.sorted {
+      $0.notedAt == $1.notedAt ? $0.id.uuidString < $1.id.uuidString : $0.notedAt > $1.notedAt
+    }
+  }
+
   public var subject: TasteNoteSubject {
     guard let placeName, !placeName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
       return .general

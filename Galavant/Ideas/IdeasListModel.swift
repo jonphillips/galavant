@@ -33,6 +33,7 @@ final class IdeasListModel {
       .select { HeaderThumb.Columns(ideaID: $0.ideaID, thumbnail: $0.thumbnail) }
   ) var headerThumbs
   @ObservationIgnored @Shared(.appStorage("currentPlannerID")) var currentPlannerIDString = ""
+  @ObservationIgnored @Shared(.appStorage("lastRegionGuideID")) var lastGuideRegionIDString = ""
   var destination: Destination?
 
   // Pool filters (the "Virginia case" scoping).
@@ -111,7 +112,13 @@ final class IdeasListModel {
   enum Destination {
     case form(IdeaFormPresentation)
     case dossier(Idea.ID)
+    case guide(RegionGuideScope)
     case identity
+  }
+
+  var dossierID: Idea.ID? {
+    guard case let .dossier(ideaID) = destination else { return nil }
+    return ideaID
   }
 
   /// The editor's draft plus the geographic lens it must use for Apple Maps
@@ -187,7 +194,7 @@ final class IdeasListModel {
   /// subregions when any are on, else its full union (ADR-0013) — otherwise the
   /// manual region filter. A trip defines its own geography, so its capsule replaces
   /// the single-region menu.
-  private var scopeRegions: [MapRegion] {
+  var scopeRegions: [MapRegion] {
     if activeTrip != nil {
       let all = tripSubregions
       guard !selectedSubregionIDs.isEmpty else { return all }  // none on = full union
@@ -477,12 +484,12 @@ final class IdeasListModel {
     if case .dossier = destination { destination = nil }
   }
 
-  func mapPlaceTapped(_ place: Place) async {
+  func mapPlaceTapped(_ place: Place, searchRegions: [MapRegion]? = nil) async {
     let draft = await MapPlaceCapture().draft(for: place)
     destination = .form(
       IdeaFormPresentation(
         draft: draft,
-        searchRegions: scopeRegions
+        searchRegions: searchRegions ?? scopeRegions
       )
     )
   }
@@ -519,40 +526,6 @@ extension IdeasListModel {
       }
     }
     return result
-  }
-
-  var isFiltering: Bool {
-    selectedRegionID != nil || !selectedKinds.isEmpty || !selectedKindGroups.isEmpty
-      || !effectiveSelectedTagIDs.isEmpty || !includeVisited || showMatchesOnly
-      || scheduleFilter != nil
-  }
-
-  var effectiveSelectedTagIDs: Set<Tag.ID> {
-    tagIndex.effectiveSelection(selectedTagIDs)
-  }
-
-  /// Human-readable summary of the active filters, for the reminder bar.
-  var filterSummary: String {
-    let index = tagIndex
-    let effectiveTagIDs = index.effectiveSelection(selectedTagIDs)
-    var parts: [String] = []
-    if let region = selectedRegion { parts.append(region.name) }
-    if !selectedKinds.isEmpty {
-      parts.append(selectedKinds.map(\.label).sorted().joined(separator: ", "))
-    }
-    if !selectedKindGroups.isEmpty {
-      parts.append(
-        IdeaKindGroup.allCases.filter(selectedKindGroups.contains).map(\.label).joined(separator: ", ")
-      )
-    }
-    if !effectiveTagIDs.isEmpty {
-      let names = index.tags.filter { effectiveTagIDs.contains($0.id) }.map(\.name)
-      parts.append(names.joined(separator: ", "))
-    }
-    if let scheduleFilter { parts.append(scheduleFilter.label) }
-    if !includeVisited { parts.append("hiding visited") }
-    if showMatchesOnly { parts.append("matches only") }
-    return parts.joined(separator: " · ")
   }
 
   func toggleKind(_ kind: IdeaKind) {

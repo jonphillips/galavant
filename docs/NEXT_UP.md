@@ -1,6 +1,5 @@
-# Next Up — Region guide: see what we know about a place's restaurants and hotels
+# Next Up — nothing dispatched
 
-**Slices:** effort `region-guide`
-**Briefs:** [docs/efforts/region-guide.md](efforts/region-guide.md)
-**Done when:** per the brief
+Nothing dispatched.
+
 **Owed:** see [device-passes.md](device-passes.md)

@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-07 — Region guide: see what we know about a place's restaurants and hotels (`effort/region-guide`)
+
+- **Result:** Added a one-pass region-guide read model, guide screen, scoped map, and entry from Ideas. Cards group by current source-native accolades, show planner interests and notes, and derive default-hidden Not for Me places from interest.
+- **Verification:** scripts/check-drift.sh passed (SwiftLint, package suites, and GalavantUITests build-for-testing); headless GalavantTests passed 64 tests.
+- **Owed:** region-guide's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-07 — Idea dossier: tapping a place reads it before it edits (`effort/idea-dossier`)
 
 - **Result:** Added a shared IdeaDossier projection and per-idea observable model, and wired Ideas, Trip, and Today to a read-first dossier. Ideas taps now open the dossier with interest editing, note creation, photo browsing, and a route to the existing editor.
