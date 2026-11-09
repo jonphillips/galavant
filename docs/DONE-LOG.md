@@ -3,6 +3,17 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-09 — Plan: re-evaluate with Chat; medals (`plan/chat-reevaluation`)
+
+- **Result:** ADR-0055 gains D8 (a newer return from Chat replaces its earlier evaluation, and a re-rank within one
+  conversation replaces that conversation's ranking) and D9 (gold, silver and bronze for Chat's top three where the
+  choice is open). ADR-0037 OQ5 is amended so that Keep Both is retired. New brief
+  [`chat-reevaluation`](efforts/chat-reevaluation.md). It supersedes
+  [`rationale-priority-per-return`](efforts/archive/rationale-priority-per-return.md), which was never dispatched,
+  because its "a repeat keeps its first stamp" rule went the opposite way.
+- **Why:** Jon's dogfooding, 2026-11-09. He re-ranked with Chat and restaged. Merge kept the old rank and stacked the
+  old and new reasoning, and Keep Both was the only way to keep a rank.
+
 ## 2026-11-09 — Ideas along the way (`effort/route-ideas`)
 
 - **Result:** Added the selected-day route corridor, its filtered and cached idea pins, and one-tap add or move scheduling from idea detail.
@@ -14,7 +25,7 @@ History, newest first. The PR that completes a dispatch adds its entry naming it
 - **Gate cleared by Jon, 2026-11-09:** the architect imported `rationalePriority` and `rationalePriorityOutOf` on
   `tripIdeas` to Development with `cktool` (Production unchanged by the import), Jon deployed to Production, merged #239,
   and confirmed on TestFlight that Chat's pick shows and survives a shortlist reorder.
-- **Follow-up:** [`rationale-priority-per-return`](efforts/rationale-priority-per-return.md) counts a rank's "of N" per
+- **Follow-up:** [`rationale-priority-per-return`](efforts/archive/rationale-priority-per-return.md) counts a rank's "of N" per
   return, as ADR-0055 D7 says, instead of across the whole handoff session.
 
 ## 2026-11-09 — Preserve Chat’s ranked priority through shortlist changes (`effort/trip-rationale-priority`)

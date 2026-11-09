@@ -7,7 +7,13 @@ rationale note). Reads into the dossier from [ADR-0053](0053-taste-record-and-re
 *Amended 2026-11-08: **D7** keeps Chat's `priority` too, after Jon noticed it was missing from the dossier. Effort:
 [`trip-rationale-priority`](../efforts/archive/trip-rationale-priority.md).
 Its brief counted "of N" across the whole session, not per return;
-[`rationale-priority-per-return`](../efforts/rationale-priority-per-return.md) corrects it.*
+[`rationale-priority-per-return`](../efforts/archive/rationale-priority-per-return.md) corrected it, and
+[`chat-reevaluation`](../efforts/chat-reevaluation.md) folds that fix in.*
+
+*Amended 2026-11-09: **D8** makes a newer return from Chat replace its earlier evaluation of a place on the trip, and
+**D9** gives Chat's top three medals. This came from Jon re-ranking with Chat and restaging. Effort:
+[`chat-reevaluation`](../efforts/chat-reevaluation.md), which folds in the per-return fix. D8 replaces D6 for the
+rationale fields.*
 
 Summary: When Chat recommends a place, its `visit`, `why` and `fit` are kept as three labeled fields on the trip stop
 (`TripIdea`), not packed into one note. The dossier shows them as "On this trip" wherever it knows the trip, including the
@@ -52,7 +58,7 @@ For each handoff-session link that points at a stop: if the stop's three fields 
 equals what the old import wrote from that candidate, write the three fields and clear the note. Any other row is left
 alone. The backfill runs on the device that holds the history (Jon's), and the result syncs to Wendy.
 
-**D6. Duplicate merges handle each field the way `inlineNote` is merged today** (`RecommendationEvaluation.mergedNote`).
+**D6. Duplicate merges handle each field the way `inlineNote` is merged today** (`RecommendationEvaluation.mergedNote`). *Superseded by D8 for Visit, Why, Fit and rank; `inlineNote` still merges this way.*
 
 **D7. Chat's `priority` is kept too, as a rank within its list** (amendment, 2026-11-08). Today import copies
 `priority` into `shortlistRank`. That's an ordering key: it's renumbered whenever the shortlist or a ring is reordered, it's
@@ -69,6 +75,29 @@ never shown, and the contract never said which way it points. So:
   contract fix may point either way. The backfill keeps them anyway, because the dossier shows the number and doesn't act
   on it.
 - Seed returns don't send `priority`, and that's unchanged.
+
+**D8. A newer return from Chat replaces its earlier evaluation** (amendment, 2026-11-09). Going back to Chat and
+re-ranking is normal use, and the newer opinion is the one Jon wants. Stacking the old and new text, and keeping the
+first rank (D6, ADR-0037 OQ5), hid the update.
+
+- When a return names a place that's already on the trip, its Visit, Why and Fit replace the old ones as a unit, and
+  its rank replaces the old rank when it carries one. Placement never changes: status, day, ring and order stay Jon's.
+  So does the stop's own note (D2).
+- Within one Chat conversation (one handoff session), a ranked return that repeats an earlier place is the current
+  ranking. Places it leaves out lose their rank. A ranked return that repeats nothing ("five more") adds a list
+  alongside the first. Across conversations, ranks are never cleared, because each conversation ranks its own list.
+  The contract text says this, so Chat knows to return the whole revised list.
+- Each rank's "of N" counts its own return (D7 as written; the per-session count was a bug).
+- Resolving a candidate onto a place already on the trip folds into the existing row without asking. That amends
+  ADR-0037 OQ5: Keep Both is retired. Going to a place twice is `repeatScheduled`.
+- The paste that brings the newer return is Jon's gesture, and it only changes Chat's notes on places that are already
+  on the trip. ADR-0004's pull rule holds.
+- No schema change. These are D1 and D7's columns, overwritten.
+
+**D9. Chat's top three wear medals where the choice is still open** (amendment, 2026-11-09). Gold, silver and bronze,
+with the numeral, on Considering rows, alternatives options and candidate cards. There are no medals on the shortlist,
+the itinerary or the map, because there the decision is Jon's. A one-place return earns no medal. Medals don't sort.
+Two lists in one conversation can each have a gold. That's honest, because each was its own ranking.
 
 ## Consequences
 
