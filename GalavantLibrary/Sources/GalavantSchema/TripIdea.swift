@@ -26,6 +26,8 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
   public var rationaleVisit: String?
   public var rationaleWhy: String?
   public var rationaleFit: String?
+  public var rationalePriority: Int?
+  public var rationalePriorityOutOf: Int?
   /// Optional coordinates for a freeform stop. Both values are populated together
   /// by the custom-stop editor; a partial pair remains unlocated in the read model.
   public var inlineLatitude: Double?
@@ -87,6 +89,8 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
     rationaleVisit: String? = nil,
     rationaleWhy: String? = nil,
     rationaleFit: String? = nil,
+    rationalePriority: Int? = nil,
+    rationalePriorityOutOf: Int? = nil,
     inlineLatitude: Double? = nil,
     inlineLongitude: Double? = nil,
     calendarNotes: String? = nil,
@@ -115,6 +119,8 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
     self.rationaleVisit = rationaleVisit
     self.rationaleWhy = rationaleWhy
     self.rationaleFit = rationaleFit
+    self.rationalePriority = rationalePriority
+    self.rationalePriorityOutOf = rationalePriorityOutOf
     self.inlineLatitude = inlineLatitude
     self.inlineLongitude = inlineLongitude
     self.calendarNotes = calendarNotes
@@ -172,7 +178,9 @@ public enum StopOutcome: Equatable, Sendable {
 
 extension TripIdea {
   public var rationale: TripRationale {
-    TripRationale(visit: rationaleVisit, why: rationaleWhy, fit: rationaleFit, note: inlineNote)
+    TripRationale(
+      visit: rationaleVisit, why: rationaleWhy, fit: rationaleFit,
+      priority: rationalePriority, priorityOutOf: rationalePriorityOutOf, note: inlineNote)
   }
 
   /// This stop's day-relative placement as a domain value, rebuilt from columns.
@@ -218,28 +226,68 @@ public struct TripRationale: Equatable, Sendable {
   public var visit: String?
   public var why: String?
   public var fit: String?
+  public var priority: Int?
+  public var priorityOutOf: Int?
   public var note: String?
 
-  public init(visit: String?, why: String?, fit: String?, note: String?) {
+  public init(
+    visit: String?, why: String?, fit: String?, priority: Int? = nil,
+    priorityOutOf: Int? = nil, note: String?
+  ) {
     self.visit = visit
     self.why = why
     self.fit = fit
+    self.priority = priority
+    self.priorityOutOf = priorityOutOf
     self.note = note
   }
 
   public var isEmpty: Bool {
-    [visit, why, fit, note].allSatisfy { $0?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true }
+    priority == nil && priorityOutOf == nil
+      && [visit, why, fit, note].allSatisfy { $0?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true }
+  }
+
+  public var priorityLabel: String? {
+    guard let priority else { return nil }
+    return priorityOutOf.map { "#\(priority) of \($0)" } ?? "#\(priority)"
   }
 }
 
 public enum TripRationaleBackfill {
   /// Return the rationale to write, or nil when history cannot safely reconstruct it.
-  public static func update(for stop: TripIdea, from candidate: TripCandidate) -> TripRationale? {
-    guard stop.rationaleVisit == nil, stop.rationaleWhy == nil, stop.rationaleFit == nil else { return nil }
-    let oldNote = stop.inlineNote?.trimmingCharacters(in: .whitespacesAndNewlines)
-    let oldRationale = candidate.rationale?.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard oldNote == oldRationale || (stop.inlineNote == nil && candidate.visit != nil) else { return nil }
-    return TripRationale(visit: candidate.visit, why: candidate.why, fit: candidate.fit, note: nil)
+  public static func update(
+    for stop: TripIdea, from candidate: TripCandidate, priorityOutOf: Int? = nil
+  ) -> TripRationale? {
+    var visit = stop.rationaleVisit
+    var why = stop.rationaleWhy
+    var fit = stop.rationaleFit
+    var note = stop.inlineNote
+    var didUpdate = false
+
+    if stop.rationaleVisit == nil, stop.rationaleWhy == nil, stop.rationaleFit == nil {
+      let oldNote = stop.inlineNote?.trimmingCharacters(in: .whitespacesAndNewlines)
+      let oldRationale = candidate.rationale?.trimmingCharacters(in: .whitespacesAndNewlines)
+      if oldNote == oldRationale || (stop.inlineNote == nil && candidate.visit != nil) {
+        visit = candidate.visit
+        why = candidate.why
+        fit = candidate.fit
+        note = nil
+        didUpdate = true
+      }
+    }
+
+    var priority = stop.rationalePriority
+    var savedPriorityOutOf = stop.rationalePriorityOutOf
+    if priority == nil, let candidatePriority = candidate.priority {
+      priority = candidatePriority
+      savedPriorityOutOf = priorityOutOf
+      didUpdate = true
+    }
+
+    guard didUpdate else { return nil }
+    return TripRationale(
+      visit: visit, why: why, fit: fit, priority: priority,
+      priorityOutOf: savedPriorityOutOf, note: note)
   }
 }
 

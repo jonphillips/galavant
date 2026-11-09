@@ -39,18 +39,24 @@ public struct ResolveReconcile: Equatable, Sendable {
   public enum Action: Equatable, Sendable {
     case merge(
       existingID: TripIdea.ID, duplicateID: TripIdea.ID, rationaleVisit: String?,
-      rationaleWhy: String?, rationaleFit: String?, inlineNote: String?
+      rationaleWhy: String?, rationaleFit: String?, rationalePriority: Int?,
+      rationalePriorityOutOf: Int?, inlineNote: String?
     )
     case keepBoth
 
     /// Apply the user's decision in the caller's transaction.
     public func apply(in db: Database) throws {
-      guard case let .merge(existingID, duplicateID, rationaleVisit, rationaleWhy, rationaleFit, inlineNote) = self else { return }
+      guard case let .merge(
+        existingID, duplicateID, rationaleVisit, rationaleWhy, rationaleFit,
+        rationalePriority, rationalePriorityOutOf, inlineNote
+      ) = self else { return }
       try TripIdea.find(existingID)
         .update {
           $0.rationaleVisit = #bind(rationaleVisit)
           $0.rationaleWhy = #bind(rationaleWhy)
           $0.rationaleFit = #bind(rationaleFit)
+          $0.rationalePriority = #bind(rationalePriority)
+          $0.rationalePriorityOutOf = #bind(rationalePriorityOutOf)
           $0.inlineNote = #bind(inlineNote)
         }
         .execute(db)
@@ -66,6 +72,8 @@ public struct ResolveReconcile: Equatable, Sendable {
     public let mergedRationaleVisit: String?
     public let mergedRationaleWhy: String?
     public let mergedRationaleFit: String?
+    public let mergedRationalePriority: Int?
+    public let mergedRationalePriorityOutOf: Int?
 
     public func action(for choice: Choice) -> Action {
       switch choice {
@@ -73,7 +81,10 @@ public struct ResolveReconcile: Equatable, Sendable {
         .merge(
           existingID: existingID, duplicateID: duplicateID,
           rationaleVisit: mergedRationaleVisit, rationaleWhy: mergedRationaleWhy,
-          rationaleFit: mergedRationaleFit, inlineNote: mergedInlineNote)
+          rationaleFit: mergedRationaleFit,
+          rationalePriority: mergedRationalePriority,
+          rationalePriorityOutOf: mergedRationalePriorityOutOf,
+          inlineNote: mergedInlineNote)
       case .keepBoth:
         .keepBoth
       }
@@ -114,7 +125,10 @@ public struct ResolveReconcile: Equatable, Sendable {
         mergedInlineNote: Self.mergedNote(existing: $0.inlineNote, duplicate: candidate.inlineNote),
         mergedRationaleVisit: Self.mergedNote(existing: $0.rationaleVisit, duplicate: candidate.rationaleVisit),
         mergedRationaleWhy: Self.mergedNote(existing: $0.rationaleWhy, duplicate: candidate.rationaleWhy),
-        mergedRationaleFit: Self.mergedNote(existing: $0.rationaleFit, duplicate: candidate.rationaleFit)
+        mergedRationaleFit: Self.mergedNote(existing: $0.rationaleFit, duplicate: candidate.rationaleFit),
+        mergedRationalePriority: $0.rationalePriority ?? candidate.rationalePriority,
+        mergedRationalePriorityOutOf: $0.rationalePriority == nil
+          ? candidate.rationalePriorityOutOf : $0.rationalePriorityOutOf
       )
     }
   }

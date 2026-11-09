@@ -1,6 +1,6 @@
-# Next Up — Keep Chat's priority: "Chat's #2 of 5"
+# Next Up — Ideas along the way: saved places near a day's route, added to that day from the trip map
 
-**Slices:** effort `trip-rationale-priority`
-**Briefs:** [docs/efforts/trip-rationale-priority.md](efforts/trip-rationale-priority.md)
+**Slices:** effort `route-ideas`
+**Briefs:** [docs/efforts/route-ideas.md](efforts/route-ideas.md)
 **Done when:** per the brief
 **Owed:** see [device-passes.md](device-passes.md)

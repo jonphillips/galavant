@@ -1,11 +1,11 @@
 # Effort — Keep Chat's priority: "Chat's #2 of 5"
 
-**Status:** Ready · **Summary:** [ADR-0055](../decisions/0055-trip-rationale-fields.md) D7. The hand-off contract says what
+**Status:** Ready · **Summary:** [ADR-0055](../../decisions/0055-trip-rationale-fields.md) D7. The hand-off contract says what
 `priority` means (1 is Chat's first choice, ranked within this list). `TripIdea` gains `rationalePriority` and
 `rationalePriorityOutOf`, so Chat's rank survives a shortlist reorder, and "On this trip" shows it as "Chat's #2 of 5". The
 history backfill fills them in for existing stops. **Adds synced columns: a CloudKit deploy is owed before TestFlight.**
 
-**Read first:** ADR-0055 (all of it, D7 especially); the archived [`trip-rationale-fields`](archive/trip-rationale-fields.md)
+**Read first:** ADR-0055 (all of it, D7 especially); the archived [`trip-rationale-fields`](trip-rationale-fields.md)
 brief, which this extends in the same places; jon-platform `docs/ios/persistence-and-sync.md` § Adding a synced table or
 column.
 

@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-09 — Preserve Chat’s ranked priority through shortlist changes (`effort/trip-rationale-priority`)
+
+- **Result:** Chat’s one-based priority and ranked-set size now persist on each trip stop, survive shortlist reordering, matching, duplicate merges, and history backfill, and appear as Chat’s pick in On this trip and candidate review. Adds the nullable CloudKit fields, which need import and Production deployment before TestFlight, and updates the handoff instructions.
+- **Verification:** scripts/check-drift.sh passed: SwiftLint, 721 GalavantLibrary tests, 151 GalavantMCP tests, and the GalavantUITests build. Headless GalavantTests passed: 71 tests.
+- **Owed:** trip-rationale-priority's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-09 — Ideas map and Guide (`codex/ideas-map-and-guide`)
 
 - **Result:** Restored pin taps, added a focused pin with camera panning, removed Ideas browse controls while the regular-width Guide is open, and added one-tap placement into an open meal slot from the dossier and cards.

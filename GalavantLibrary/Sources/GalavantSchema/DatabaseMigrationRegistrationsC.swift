@@ -35,4 +35,11 @@ enum GalavantDatabaseMigrationRegistrationsC {
       try #sql("ALTER TABLE tripIdeas ADD COLUMN rationaleFit TEXT").execute(db)
     }
   }
+
+  static func register3(into migrator: inout DatabaseMigrator) {
+    migrator.registerMigration("Add trip rationale priority fields (ADR-0055 D7)") { db in
+      try #sql("ALTER TABLE tripIdeas ADD COLUMN rationalePriority INTEGER").execute(db)
+      try #sql("ALTER TABLE tripIdeas ADD COLUMN rationalePriorityOutOf INTEGER").execute(db)
+    }
+  }
 }

@@ -124,7 +124,9 @@ struct RecommendationCandidateCardPresentation<BottomContent: View>: View {
       // strip never has to grow taller.
       ScrollView {
         VStack(alignment: .leading, spacing: 10) {
-          if let why = candidate.candidate.why { dossierField("Why", why) }
+          if let why = candidate.candidate.why {
+            dossierField("Why", why, badge: candidate.tripIdea.rationale.priorityLabel)
+          }
           if let fit = candidate.candidate.fit { dossierField("Fit", fit) }
           if let visit = candidate.candidate.visit { dossierField("Time", visit) }
           if let placementAfter = candidate.candidate.placementAfter {
@@ -158,7 +160,9 @@ struct RecommendationCandidateCardPresentation<BottomContent: View>: View {
       statusLabel
 
       VStack(alignment: .leading, spacing: 10) {
-        if let why = candidate.candidate.why { dossierField("Why", why) }
+        if let why = candidate.candidate.why {
+          dossierField("Why", why, badge: candidate.tripIdea.rationale.priorityLabel)
+        }
         if let fit = candidate.candidate.fit { dossierField("Fit", fit) }
         if let visit = candidate.candidate.visit { dossierField("Time", visit) }
         if let placementAfter = candidate.candidate.placementAfter {
@@ -249,11 +253,18 @@ struct RecommendationCandidateCardPresentation<BottomContent: View>: View {
     }
   }
 
-  private func dossierField(_ label: String, _ value: String) -> some View {
+  private func dossierField(_ label: String, _ value: String, badge: String? = nil) -> some View {
     VStack(alignment: .leading, spacing: 2) {
-      Text(label)
-        .font(.caption)
-        .foregroundStyle(.secondary)
+      HStack(spacing: 6) {
+        Text(label)
+          .font(.caption)
+          .foregroundStyle(.secondary)
+        if let badge {
+          Text(badge)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+      }
       Text(value)
         .font(.subheadline)
     }
