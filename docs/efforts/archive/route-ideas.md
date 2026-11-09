@@ -4,7 +4,7 @@
 day's route. Tapping one opens it with **Add to Wed 26**, which puts it on that day. For transfer days, so Jon is reminded
 of what he saved along the drive. No schema change.
 
-**Read first:** [`trip-canvas.md`](../trip-canvas.md); ADR-0013 (pool tints: green is on this trip); jon-platform
+**Read first:** [`trip-canvas.md`](../../trip-canvas.md); ADR-0013 (pool tints: green is on this trip); jon-platform
 `docs/ios/ui-and-platforms.md` § Toolbars. Jon's request, 2026-11-09, came with a screenshot: Day 6, Beaune to Talloires
 by way of Baume-les-Messieurs.
 

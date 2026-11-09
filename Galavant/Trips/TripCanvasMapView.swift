@@ -14,6 +14,7 @@ struct TripCanvasMapView: View {
   /// where the detail is a side column) — so `revealStop` keeps a selected pin
   /// out from under the sheet. See `MapFraming.reveal(bottomInset:)`.
   var bottomInsetFraction: Double = 0
+  @Binding var showsIdeasAlongRoute: Bool
 
   @State private var cameraPosition: MapCameraPosition = .automatic
   @State private var visibleRegion: MKCoordinateRegion?
@@ -45,6 +46,7 @@ struct TripCanvasMapView: View {
   @MapContentBuilder
   private var canvasMapContent: some MapContent {
     lodgingPathContent
+    routeIdeasContent
     ForEach(visibleDays) { day in
       dayContent(day)
     }
