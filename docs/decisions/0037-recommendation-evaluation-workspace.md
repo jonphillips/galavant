@@ -269,7 +269,9 @@ model (watch-for-fat-models).
   on the Trip/Ideas screen? a push straight from paste?). Decide at Slice 1 alongside
   ADR-0036's paste door.
 - **OQ5 — resolve-time reconcile when the place is already in the trip. — Resolved 2026-08-14
-  (Jon).** *(Raised the same day from dogfooding — the "Louisiana Museum of Art in both
+  (Jon).** *(Amended 2026-11-09 by [ADR-0055](0055-trip-rationale-fields.md) D8: the fold no longer
+  asks, and Keep Both is retired. The resolving candidate's Chat rationale replaces the existing row's, rather than
+  being stacked with it.)* *(Raised the same day from dogfooding — the "Louisiana Museum of Art in both
   Shortlist and Considering" case; see D4.)* When Use This Place resolves a candidate onto a
   place that is **already a `TripIdea` in the same trip** (already shortlisted, already
   scheduled, or another candidate in this very set), the pool `Idea` dedup fires but leaves two
