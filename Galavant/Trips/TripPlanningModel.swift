@@ -55,6 +55,7 @@ final class TripPlanningModel {
       .select { HeaderThumb.Columns(ideaID: $0.ideaID, thumbnail: $0.thumbnail) }
   ) var headerThumbs
   @ObservationIgnored private var planSnapshot = TripPlanSnapshot()
+  @ObservationIgnored var routeIdeasSnapshot = RouteIdeasSnapshot()
 
   let tripID: Trip.ID
   var destination: Destination?
@@ -69,6 +70,8 @@ final class TripPlanningModel {
   /// so it resolves live and stays out of `Hashable`.
   var detailIdeaID: Idea.ID?
   var detailStopID: TripIdea.ID?
+  var routeIdeaDetailDay: Int?
+  var routeIdeaAddFeedback = 0
 
   // Canvas state (M3d): the map is the trip's home. `canvasSelectedDay` is the
   // day lens (nil = the whole trip, all days color-coded), while
@@ -435,37 +438,10 @@ final class TripPlanningModel {
     addNewIdeaToShortlist(ideaID)
   }
 
-  /// Present a pulled idea's read-only detail from the visible planning surface.
-  func showDetail(_ idea: Idea, stopID: TripIdea.ID? = nil) {
-    detailIdeaID = idea.id
-    detailStopID = stopID
-  }
-
   /// Edit the pool idea behind an itinerary row. The stop's placement remains
   /// untouched; this is specifically for correcting a captured/display title.
   func editIdea(_ idea: Idea) {
     destination = .idea(TripIdeaEditPresentation(idea))
-  }
-
-  /// Resolve the presented detail's idea, or nil if it was deleted while open
-  /// (ADR-0007 read-time reconciliation).
-  func ideaForDetail(_ id: Idea.ID) -> Idea? { ideaByID[id] }
-
-  func rationaleForDetail() -> TripRationale? {
-    guard let detailStopID else { return nil }
-    return entries.first { $0.id == detailStopID }?.rationale
-  }
-
-  /// This idea's place on the itinerary, *if* it's a scheduled stop on the trip —
-  /// drives the detail's "On the Itinerary" section (nil for a plain pool idea, so
-  /// the Trip Ideas drill-down stays placement-free).
-  func stopContext(for idea: Idea) -> StopDetailContext? {
-    guard let entry = entries.first(where: { $0.ideaID == idea.id && $0.status == .scheduled })
-    else { return nil }
-    let schedule = entry.schedule
-    let label = schedule.dayNumber.map { dayLabel($0, trip: trip) } ?? "To Be Scheduled"
-    return StopDetailContext(
-      dayLabel: label, schedule: schedule, calendarNotes: entry.calendarNotes)
   }
 
   /// Pull an idea onto the trip as a "considering" maybe (the default + action).

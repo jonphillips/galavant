@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-09 — Ideas along the way (`effort/route-ideas`)
+
+- **Result:** Added the selected-day route corridor, its filtered and cached idea pins, and one-tap add or move scheduling from idea detail.
+- **Verification:** scripts/check-drift.sh passed: SwiftLint, GalavantLibrary tests, GalavantMCP tests, and the GalavantUITests build. Headless GalavantTests passed (73 tests).
+- **Owed:** route-ideas's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-09 — Gate cleared: trip-rationale-priority; follow-up brief (`plan/rationale-priority-per-return`)
 
 - **Gate cleared by Jon, 2026-11-09:** the architect imported `rationalePriority` and `rationalePriorityOutOf` on

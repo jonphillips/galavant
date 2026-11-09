@@ -130,10 +130,21 @@ struct TripDetailContent: View {
   }
 
   private func detailView(_ idea: Idea) -> some View {
-    IdeaDetailView(
+    let actionTitle = model.routeIdeaActionTitle(for: idea)
+    return IdeaDetailView(
       ideaID: idea.id,
       stopContext: model.stopContext(for: idea),
       tripRationale: model.rationaleForDetail())
+      .safeAreaInset(edge: .bottom, spacing: 0) {
+        if let actionTitle {
+          Button(actionTitle) { model.addRouteIdeaDetailToDay(idea) }
+            .buttonStyle(.borderedProminent)
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(.bar)
+        }
+      }
+      .sensoryFeedback(.success, trigger: model.routeIdeaAddFeedback)
   }
 
   private var listPanel: some View {

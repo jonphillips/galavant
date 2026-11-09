@@ -28,6 +28,7 @@ struct TripPlanningView: View {
   @State private var showingChat = false
   @State private var showingToday = false
   @State private var showingJourney = false
+  @State private var showsIdeasAlongRoute = false
   @State private var todayRequested = false
   /// M7's local, read-only reconciliation view. Its results never leave this
   /// per-view model until later slices prove the durable authority semantics.
@@ -112,6 +113,17 @@ struct TripPlanningView: View {
         }
         Button { model.sketchTapped() } label: {
           Label("Shape Trip", systemImage: "compass.drawing")
+        }
+        if model.canvasSelectedDay != nil && model.canvasSelectedStayID == nil {
+          Button {
+            showsIdeasAlongRoute.toggle()
+          } label: {
+            Label(
+              "Ideas Along the Way",
+              systemImage: showsIdeasAlongRoute
+                ? "signpost.right.fill" : Icon.ideasAlongRoute.systemName)
+          }
+          .accessibilityAddTraits(showsIdeasAlongRoute ? .isSelected : [])
         }
         if !model.startDaySolverStops.isEmpty {
           Button {
@@ -295,7 +307,10 @@ struct TripPlanningView: View {
     // stay tappable. (docs/KNOWN-ISSUES.md)
     VStack(spacing: 0) {
       DayChipBar(model: model, bookingByRow: bookingByRow)
-      TripCanvasMapView(model: model, bottomInsetFraction: bottomInsetFraction)
+      TripCanvasMapView(
+        model: model,
+        bottomInsetFraction: bottomInsetFraction,
+        showsIdeasAlongRoute: $showsIdeasAlongRoute)
     }
   }
 }

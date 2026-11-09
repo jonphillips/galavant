@@ -14,6 +14,7 @@ struct TripCanvasMapView: View {
   /// where the detail is a side column) — so `revealStop` keeps a selected pin
   /// out from under the sheet. See `MapFraming.reveal(bottomInset:)`.
   var bottomInsetFraction: Double = 0
+  @Binding var showsIdeasAlongRoute: Bool
 
   @State private var cameraPosition: MapCameraPosition = .automatic
   @State private var visibleRegion: MKCoordinateRegion?
@@ -48,6 +49,7 @@ struct TripCanvasMapView: View {
     ForEach(visibleDays) { day in
       dayContent(day)
     }
+    routeIdeasContent
     baseContent
     previewContent
     transientFreeformContent
@@ -200,6 +202,7 @@ struct TripCanvasMapView: View {
       alternativePinContent(for: resolved, color: color)
     }
   }
+
 
   /// Inactive peers are deliberately annotations only: no sequence number, no
   /// selection tag, and no route segment. They appear while their timeline slot is
@@ -517,6 +520,7 @@ struct TripCanvasMapView: View {
     MapRegion.boundingBox(of: model.tripRegions)?.region
   }
 }
+
 
 /// The off-sequence home-base marker: a neutral bed glyph in a soft capsule,
 /// deliberately *unlike* the numbered route pins so it reads as "the place you
