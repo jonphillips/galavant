@@ -27,7 +27,7 @@ struct RankMedal: View {
   }
 
   var body: some View {
-    if let tier, let priority,
+    if tier != nil, let priority,
       let label = ChatRankMedal.accessibilityLabel(priority: priority, priorityOutOf: priorityOutOf)
     {
       Text(priority.formatted())
@@ -39,7 +39,6 @@ struct RankMedal: View {
         .overlay { Circle().strokeBorder(.white.opacity(0.35), lineWidth: 0.75) }
         .accessibilityLabel(label)
         .accessibilityAddTraits(.isStaticText)
-        .id(tier)
     }
   }
 }

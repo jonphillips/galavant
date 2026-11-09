@@ -39,9 +39,9 @@ struct UnresolvedRecommendationSheet: View {
               Label("Remove", systemImage: "trash")
             }
           }
-        } else if let warning = model.recommendationHandoffPaste.warning {
+        } else if let notice = model.recommendationResolveNotice {
           Section {
-            Text(warning)
+            Text(notice)
               .font(.subheadline)
           }
         }
@@ -49,10 +49,10 @@ struct UnresolvedRecommendationSheet: View {
       .navigationTitle("Recommendation")
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
-        if stop == nil, model.recommendationHandoffPaste.warning != nil {
+        if stop == nil, model.recommendationResolveNotice != nil {
           ToolbarItem(placement: .confirmationAction) {
             Button("Done") {
-              model.recommendationHandoffPaste.warning = nil
+              model.recommendationResolveNotice = nil
               model.destination = nil
               dismiss()
             }
@@ -73,6 +73,7 @@ struct UnresolvedRecommendationSheet: View {
           .padding(.top, 8)
         }
       }
+      .onDisappear { model.recommendationResolveNotice = nil }
     }
   }
 }

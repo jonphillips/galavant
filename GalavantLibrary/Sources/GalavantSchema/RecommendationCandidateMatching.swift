@@ -40,12 +40,17 @@ public enum RecommendationCandidateSet {
     existing: [TripCandidate],
     incoming: [TripCandidate]
   ) -> Merge {
-    let rankedCount = incoming.filter { $0.priority != nil }.count
+    var seenIncoming = Set<RecommendationCandidateIdentity>()
+    let uniqueIncoming = incoming.filter { candidate in
+      guard let identity = RecommendationCandidateIdentity(candidate: candidate) else { return true }
+      return seenIncoming.insert(identity).inserted
+    }
+    let rankedCount = uniqueIncoming.filter { $0.priority != nil }.count
     let hasRanking = rankedCount > 0
     var candidates = existing
     var addedCandidates: [TripCandidate] = []
     var updatedCandidates: [TripCandidate] = []
-    let stampedIncoming = incoming.map { candidate -> TripCandidate in
+    let stampedIncoming = uniqueIncoming.map { candidate -> TripCandidate in
       var candidate = candidate
       candidate.priorityOutOf = candidate.priority == nil ? nil : rankedCount
       return candidate
@@ -106,7 +111,10 @@ public enum RecommendationCandidateSet {
     _ merge: Merge, links: [HandoffCandidateLink], in db: Database
   ) throws {
     let linkByCandidate = Dictionary(uniqueKeysWithValues: links.map { ($0.candidateID, $0.tripIdeaID) })
-    let updatedByID = Dictionary(uniqueKeysWithValues: merge.updatedCandidates.map { ($0.id, $0) })
+    let updatedByID = Dictionary(
+      merge.updatedCandidates.map { ($0.id, $0) },
+      uniquingKeysWith: { first, _ in first }
+    )
     let unrankedIDs = Set(merge.unrankedCandidates.map(\.id))
     for (candidateID, candidate) in updatedByID {
       guard let stopID = linkByCandidate[candidateID] ?? nil,

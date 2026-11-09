@@ -78,7 +78,7 @@ struct PlanningRow<Trailing: View>: View {
     HStack(alignment: .top, spacing: 12) {
       leadingMarker
       VStack(alignment: .leading, spacing: 2) {
-        HStack(spacing: 6) {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
           Text(title ?? content.title)
           RankMedal(priority: chatPriority, priorityOutOf: chatPriorityOutOf)
         }

@@ -333,7 +333,7 @@ extension TripPlanningModel {
     }
     guard let result, result.confirmed else { return }
     if result.collision != nil {
-      recommendationHandoffPaste.warning = "Already on this trip — updated Chat's notes."
+      recommendationResolveNotice = "Already on this trip — updated Chat's notes."
     } else {
       destination = nil
     }

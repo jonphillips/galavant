@@ -623,6 +623,36 @@ struct RecommendationHandoffTests {
     #expect(merge.candidates.last?.priorityOutOf == 4)
   }
 
+  @Test func repeatedPlacesWithinOneReturnDeduplicateBeforeStampingAndApplying() async throws {
+    let values = try await database.write { db -> (RecommendationCandidateSet.Merge, TripIdea) in
+      let trip = try Trip.create(name: "Denmark", in: db)
+      let stop = TripIdea(
+        id: UUID(), tripID: trip.id, ideaID: nil, inlineTitle: "Cafe", status: .considering
+      )
+      try TripIdea.insert { TripIdea.Draft(stop) }.execute(db)
+      let stored = TripCandidate(id: UUID(-50), name: "Cafe", priority: 1, priorityOutOf: 1)
+      let merge = RecommendationCandidateSet.merging(existing: [stored], incoming: [
+        TripCandidate(name: "Cafe", why: "First Cafe entry", priority: 1),
+        TripCandidate(name: "cafe", why: "Duplicate Cafe entry", priority: 2),
+        TripCandidate(name: "Bistro", why: "First Bistro entry", priority: 2),
+        TripCandidate(name: "bistro", why: "Duplicate Bistro entry", priority: 1),
+      ])
+
+      let links = [HandoffCandidateLink(candidateID: stored.id, tripIdeaID: stop.id)]
+      try RecommendationCandidateSet.applyReevaluation(merge, links: links, in: db)
+      return (merge, try #require(try TripIdea.find(stop.id).fetchOne(db)))
+    }
+
+    #expect(values.0.updatedCandidates.map(\.id) == [UUID(-50)])
+    #expect(values.0.addedCandidates.count == 1)
+    #expect(values.0.addedCandidates.first?.name == "Bistro")
+    #expect(values.0.candidates.count == 2)
+    #expect(values.0.candidates.map(\.priorityOutOf) == [2, 2])
+    #expect(values.0.candidates.map(\.why) == ["First Cafe entry", "First Bistro entry"])
+    #expect(values.1.rationaleWhy == "First Cafe entry")
+    #expect(values.1.rationalePriorityOutOf == 2)
+  }
+
   @Test func unrankedRereturnUpdatesTextAndKeepsTheOldRankPair() {
     let stored = [TripCandidate(id: UUID(-35), name: "One", why: "Old", priority: 2, priorityOutOf: 5)]
     let merge = RecommendationCandidateSet.merging(

@@ -104,17 +104,19 @@ public struct ResolveReconcile: Equatable, Sendable {
       .sorted(by: Self.preferredExistingOrder)
       .first
 
-    collision = existing.map {
-      Collision(
-        existingID: $0.id,
+    let resolvingRationale = candidate.rationale
+    collision = existing.map { existing in
+      let rationale = existing.rationale.superseded(by: resolvingRationale)
+      return Collision(
+        existingID: existing.id,
         duplicateID: candidate.id,
-        existingStatus: $0.status,
-        mergedInlineNote: Self.mergedNote(existing: $0.inlineNote, duplicate: candidate.inlineNote),
-        mergedRationaleVisit: $0.rationale.superseded(by: candidate.rationale).visit,
-        mergedRationaleWhy: $0.rationale.superseded(by: candidate.rationale).why,
-        mergedRationaleFit: $0.rationale.superseded(by: candidate.rationale).fit,
-        mergedRationalePriority: $0.rationale.superseded(by: candidate.rationale).priority,
-        mergedRationalePriorityOutOf: $0.rationale.superseded(by: candidate.rationale).priorityOutOf
+        existingStatus: existing.status,
+        mergedInlineNote: Self.mergedNote(existing: existing.inlineNote, duplicate: candidate.inlineNote),
+        mergedRationaleVisit: rationale.visit,
+        mergedRationaleWhy: rationale.why,
+        mergedRationaleFit: rationale.fit,
+        mergedRationalePriority: rationale.priority,
+        mergedRationalePriorityOutOf: rationale.priorityOutOf
       )
     }
   }
