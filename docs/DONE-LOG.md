@@ -3,6 +3,14 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-09 — Gate cleared: trip-rationale-priority; follow-up brief (`plan/rationale-priority-per-return`)
+
+- **Gate cleared by Jon, 2026-11-09:** the architect imported `rationalePriority` and `rationalePriorityOutOf` on
+  `tripIdeas` to Development with `cktool` (Production unchanged by the import), Jon deployed to Production, merged #239,
+  and confirmed on TestFlight that Chat's pick shows and survives a shortlist reorder.
+- **Follow-up:** [`rationale-priority-per-return`](efforts/rationale-priority-per-return.md) counts a rank's "of N" per
+  return, as ADR-0055 D7 says, instead of across the whole handoff session.
+
 ## 2026-11-09 — Preserve Chat’s ranked priority through shortlist changes (`effort/trip-rationale-priority`)
 
 - **Result:** Chat’s one-based priority and ranked-set size now persist on each trip stop, survive shortlist reordering, matching, duplicate merges, and history backfill, and appear as Chat’s pick in On this trip and candidate review. Adds the nullable CloudKit fields, which need import and Production deployment before TestFlight, and updates the handoff instructions.
