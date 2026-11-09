@@ -1,6 +1,6 @@
-# Next Up — On this trip: keep Chat's visit, why and fit, and show them before Taste Notes
+# Next Up — Drag days into a new order in Shape Trip
 
-**Slices:** effort `trip-rationale-fields`
-**Briefs:** [docs/efforts/trip-rationale-fields.md](efforts/trip-rationale-fields.md)
+**Slices:** effort `day-reorder`
+**Briefs:** [docs/efforts/day-reorder.md](efforts/day-reorder.md)
 **Done when:** per the brief
 **Owed:** see [device-passes.md](device-passes.md)

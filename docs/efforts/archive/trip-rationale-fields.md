@@ -1,6 +1,6 @@
 # Effort — On this trip: keep Chat's visit, why and fit, and show them before Taste Notes
 
-**Status:** Ready · **Summary:** [ADR-0055](../decisions/0055-trip-rationale-fields.md). `TripIdea` gains `rationaleVisit`,
+**Status:** Ready · **Summary:** [ADR-0055](../../decisions/0055-trip-rationale-fields.md). `TripIdea` gains `rationaleVisit`,
 `rationaleWhy` and `rationaleFit`. Import writes them instead of packing them into `inlineNote`, and existing rows are
 backfilled from this device's hand-off history. The dossier shows an "On this trip" section wherever it has a trip,
 including the guide. Taste Notes go to the bottom until the place has been visited. **Adds synced columns: a CloudKit

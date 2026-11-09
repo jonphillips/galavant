@@ -1,7 +1,7 @@
 # ADR-0055: Chat's visit, why and fit are kept as three fields on the trip stop
 
 *Status: **proposed** — 2026-11-08, ratified by Jon merging this ADR's PR. Effort:
-[`trip-rationale-fields`](../efforts/trip-rationale-fields.md). Amends [ADR-0036](0036-recommendation-handoff.md) D3 (the
+[`trip-rationale-fields`](../efforts/archive/trip-rationale-fields.md). Amends [ADR-0036](0036-recommendation-handoff.md) D3 (the
 rationale note). Reads into the dossier from [ADR-0053](0053-taste-record-and-region-guide.md).*
 
 Summary: When Chat recommends a place, its `visit`, `why` and `fit` are kept as three labeled fields on the trip stop
