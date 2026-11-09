@@ -111,9 +111,14 @@ struct DatabaseBackupTests {
     try migrator.migrate(oldStore)
     let previousMigrations = Array(migrator.migrations.suffix(4))
     let existingTripID = UUID()
+    let existingTripIdeaID = UUID()
     try await oldStore.write { db in
       try Trip.insert { Trip.Draft(Trip(id: existingTripID, name: "Before roll-up migration")) }
         .execute(db)
+      try TripIdea.insert {
+        TripIdea.Draft(TripIdea(
+          id: existingTripIdeaID, tripID: existingTripID, ideaID: nil, inlineTitle: "Old stop"))
+      }.execute(db)
       try db.execute(sql: "DROP TABLE tasteNotes")
       try db.execute(sql: "ALTER TABLE trips DROP COLUMN visitedRolledUpAt")
       try db.execute(sql: "ALTER TABLE tripIdeas DROP COLUMN rationaleVisit")
@@ -155,6 +160,11 @@ struct DatabaseBackupTests {
       try Trip.find(existingTripID).fetchOne(db)
     }
     #expect(existingTrip?.visitedRolledUpAt == nil)
+    let existingTripIdea = try await migrated.read { db in
+      try TripIdea.find(existingTripIdeaID).fetchOne(db)
+    }
+    #expect(existingTripIdea?.rationalePriority == nil)
+    #expect(existingTripIdea?.rationalePriorityOutOf == nil)
     let hasTripDocuments = try await migrated.read { db in
       try Bool.fetchOne(
         db,
