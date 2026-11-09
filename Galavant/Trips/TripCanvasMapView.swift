@@ -46,10 +46,10 @@ struct TripCanvasMapView: View {
   @MapContentBuilder
   private var canvasMapContent: some MapContent {
     lodgingPathContent
+    routeIdeasContent
     ForEach(visibleDays) { day in
       dayContent(day)
     }
-    routeIdeasContent
     baseContent
     previewContent
     transientFreeformContent
@@ -202,7 +202,6 @@ struct TripCanvasMapView: View {
       alternativePinContent(for: resolved, color: color)
     }
   }
-
 
   /// Inactive peers are deliberately annotations only: no sequence number, no
   /// selection tag, and no route segment. They appear while their timeline slot is
@@ -520,7 +519,6 @@ struct TripCanvasMapView: View {
     MapRegion.boundingBox(of: model.tripRegions)?.region
   }
 }
-
 
 /// The off-sequence home-base marker: a neutral bed glyph in a soft capsule,
 /// deliberately *unlike* the numbered route pins so it reads as "the place you

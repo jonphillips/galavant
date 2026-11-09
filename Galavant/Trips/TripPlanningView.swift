@@ -120,9 +120,9 @@ struct TripPlanningView: View {
           } label: {
             Label(
               "Ideas Along the Way",
-              systemImage: showsIdeasAlongRoute
-                ? "signpost.right.fill" : Icon.ideasAlongRoute.systemName)
+              systemImage: Icon.ideasAlongRoute.systemName)
           }
+          .symbolVariant(showsIdeasAlongRoute ? .fill : .none)
           .accessibilityAddTraits(showsIdeasAlongRoute ? .isSelected : [])
         }
         if !model.startDaySolverStops.isEmpty {

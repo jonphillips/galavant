@@ -71,6 +71,7 @@ final class TripPlanningModel {
   var detailIdeaID: Idea.ID?
   var detailStopID: TripIdea.ID?
   var routeIdeaDetailDay: Int?
+  var routeIdeaDetailAction: RouteIdeaAction?
   var routeIdeaAddFeedback = 0
 
   // Canvas state (M3d): the map is the trip's home. `canvasSelectedDay` is the

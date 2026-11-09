@@ -9,19 +9,24 @@ struct RouteIdeasSnapshotTests {
     let tripID = UUID()
     let onDay = Idea(id: UUID(), name: "On Wednesday", latitude: 1, longitude: 1)
     let anotherDay = Idea(id: UUID(), name: "On Thursday", latitude: 1, longitude: 1)
+    let unscheduled = Idea(id: UUID(), name: "To be scheduled", latitude: 1, longitude: 1)
     let declined = Idea(id: UUID(), name: "Ruled out", latitude: 1, longitude: 1)
     let stay = Idea(id: UUID(), name: "Hotel", kind: .stay, latitude: 1, longitude: 1)
     let noLocation = Idea(id: UUID(), name: "Unlocated")
     let entries = [
       TripIdea(id: UUID(), tripID: tripID, ideaID: onDay.id, status: .scheduled, dayNumber: 2),
       TripIdea(id: UUID(), tripID: tripID, ideaID: anotherDay.id, status: .scheduled, dayNumber: 3),
+      TripIdea(id: UUID(), tripID: tripID, ideaID: unscheduled.id, status: .scheduled),
       TripIdea(id: UUID(), tripID: tripID, ideaID: declined.id, status: .declined),
     ]
 
     let candidates = RouteIdeaCandidates.filter(
-      ideas: [onDay, anotherDay, declined, stay, noLocation], tripIdeas: entries, day: 2)
+      ideas: [onDay, anotherDay, unscheduled, declined, stay, noLocation],
+      tripIdeas: entries,
+      day: 2)
 
-    #expect(candidates.map(\.id) == [anotherDay.id])
+    #expect(candidates.map(\.id) == [anotherDay.id, unscheduled.id])
+    #expect(candidates.map(\.isOnTrip) == [true, true])
   }
 
   @Test func geometryBuildsAgainOnlyWhenInputsChange() {
@@ -32,8 +37,9 @@ struct RouteIdeasSnapshotTests {
     ]
     let candidate = Idea(id: UUID(), latitude: 0, longitude: 0.5)
 
-    _ = snapshot.matches(route: route, candidates: [candidate])
-    _ = snapshot.matches(route: route, candidates: [candidate])
+    let pin = RouteIdeaPinModel(idea: candidate, latitude: 0, longitude: 0.5, isOnTrip: false)
+    _ = snapshot.matches(route: route, candidates: [pin])
+    _ = snapshot.matches(route: route, candidates: [pin])
     #expect(snapshot.buildCount == 1)
 
     _ = snapshot.matches(route: route, candidates: [])

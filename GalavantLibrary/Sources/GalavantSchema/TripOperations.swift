@@ -1021,4 +1021,5 @@ public struct ItineraryDay: Equatable, Identifiable, Sendable {
 public enum TripError: Error {
   case creationFailed
   case invalidSchedule
+  case invalidRouteIdeaAction
 }

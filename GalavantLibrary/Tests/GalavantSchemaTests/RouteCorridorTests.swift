@@ -59,7 +59,8 @@ struct RouteCorridorTests {
   }
 
   @Test func pullingAndSchedulingAddsOrMovesIdeaToTargetDay() async throws {
-    let (newStop, movedStop) = try await database.write { db -> (TripIdea, TripIdea) in
+    let (newStop, movedStop, untouchedStop, expectedMovedID) = try await database.write {
+      db -> (TripIdea, TripIdea, TripIdea, TripIdea.ID) in
       let trip = try Trip.create(name: "Transfer", in: db)
       let party = try TravelParty.ensureDefault(in: db)
       let newID = UUID()
@@ -72,21 +73,28 @@ struct RouteCorridorTests {
       }.execute(db)
       let existing = try TripIdea.pull(ideaID: movedID, into: trip.id, status: .scheduled, in: db)
       try TripIdea.schedule(.day(3), stopID: existing.id, in: db)
+      let otherOccurrence = try TripIdea.repeatScheduled(
+        ideaID: movedID, into: trip.id, on: .day(4), in: db)
 
-      for ideaID in [newID, movedID] {
-        try TripIdea.pull(ideaID: ideaID, into: trip.id, in: db)
-        try TripIdea.setStatus(.shortlisted, ideaID: ideaID, tripID: trip.id, in: db)
-        try TripIdea.schedule(.day(2), ideaID: ideaID, tripID: trip.id, in: db)
-      }
+      try TripIdea.applyRouteIdeaAction(.add(ideaID: newID), into: trip.id, on: 2, in: db)
+      try TripIdea.applyRouteIdeaAction(
+        .move(ideaID: movedID, stopID: existing.id), into: trip.id, on: 2, in: db)
       let added = try TripIdea.where { $0.ideaID.eq(newID) }.fetchOne(db)
       let moved = try TripIdea.find(existing.id).fetchOne(db)
-      return (try #require(added), try #require(moved))
+      let untouchedOccurrence = try TripIdea.find(otherOccurrence.id).fetchOne(db)
+      return (
+        try #require(added),
+        try #require(moved),
+        try #require(untouchedOccurrence),
+        existing.id)
     }
 
     #expect(newStop.status == .scheduled)
     #expect(newStop.schedule == .day(2))
     #expect(movedStop.status == .scheduled)
+    #expect(movedStop.id == expectedMovedID)
     #expect(movedStop.schedule == .day(2))
+    #expect(untouchedStop.schedule == .day(4))
   }
 
   private func endpoint(_ latitude: Double, _ longitude: Double) -> TravelEndpoint {

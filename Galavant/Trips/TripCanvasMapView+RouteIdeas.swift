@@ -12,23 +12,19 @@ extension TripCanvasMapView {
       model.canvasSelectedStayID == nil,
       let day = model.canvasSelectedDay
     {
-      ForEach(model.ideasAlongRoute(forDay: day), id: \.ideaID) { match in
-        if let idea = model.idea(id: match.ideaID),
-          let latitude = idea.latitude, let longitude = idea.longitude
-        {
-          let isOnTrip = model.entries.contains { $0.ideaID == idea.id }
-          Annotation(
-            idea.name,
-            coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
-          ) {
-            Button {
-              model.showRouteIdeaDetail(idea, day: day)
-            } label: {
-              RouteIdeaPin(systemImage: idea.kind?.systemImage ?? "mappin", isOnTrip: isOnTrip)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Show details for \(idea.name)")
+      ForEach(model.ideasAlongRoute(forDay: day)) { pin in
+        let idea = pin.idea
+        Annotation(
+          idea.name,
+          coordinate: CLLocationCoordinate2D(latitude: pin.latitude, longitude: pin.longitude)
+        ) {
+          Button {
+            model.showRouteIdeaDetail(idea, day: day)
+          } label: {
+            RouteIdeaPin(systemImage: idea.kind?.systemImage ?? "mappin", isOnTrip: pin.isOnTrip)
           }
+          .buttonStyle(.plain)
+          .accessibilityLabel("Show details for \(idea.name)")
         }
       }
     }
