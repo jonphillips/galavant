@@ -1,3 +1,4 @@
+import CoreTransferable
 import GalavantSchema
 import SwiftUI
 
@@ -15,6 +16,7 @@ struct TripSketchSheet: View {
   let defaultTimeZone: TimeZone?
   @State private var sketch: TripSketch
   @State private var summaryDrafts: [Int: String]
+  @State private var moveRefusal: DayMoveRefusal?
   @FocusState private var focusedDay: Int?
   @Environment(\.dismiss) private var dismiss
 
@@ -23,23 +25,13 @@ struct TripSketchSheet: View {
     self.presentation = presentation
     self.defaultTimeZone = defaultTimeZone
     _sketch = State(initialValue: model.sketch)
-    _summaryDrafts = State(initialValue: Dictionary(
-      (1...(model.trip?.lengthInDays ?? 1)).map { ($0, model.dayNote(forDay: $0) ?? "") },
-      uniquingKeysWith: { first, _ in first }))
+    _summaryDrafts = State(initialValue: [:])
   }
 
   var body: some View {
     NavigationStack {
       ScrollViewReader { proxy in
-        Form {
-          durationSection
-          daysSection
-        }
-        .onAppear {
-          guard let day = presentation.focusDay, (1...sketch.lengthInDays).contains(day) else { return }
-          proxy.scrollTo(day, anchor: .center)
-          focusedDay = day
-        }
+        form.onAppear { focusPresentedDay(using: proxy) }
       }
       .navigationTitle("Shape Trip")
       .navigationBarTitleDisplayMode(.inline)
@@ -58,6 +50,36 @@ struct TripSketchSheet: View {
     .onChange(of: focusedDay) { oldDay, _ in
       if let oldDay { commitSummary(for: oldDay) }
     }
+    .alert(
+      "Day didn't move",
+      isPresented: Binding(
+        get: { moveRefusal != nil },
+        set: { if !$0 { moveRefusal = nil } })) {
+      Button("OK", role: .cancel) { moveRefusal = nil }
+    } message: {
+      Text(moveRefusal?.localizedDescription ?? "")
+    }
+  }
+
+  private var form: some View {
+    Form {
+      durationSection
+      daysSection
+    }
+    .reorderContainer(for: TripDayDesign.self) { difference in
+      reorderDays(difference)
+    }
+    .dragContainer(for: DayDesignDragPayload.self, itemID: \.id) { draggedID -> [DayDesignDragPayload] in
+      guard dayDesigns.contains(where: { $0.id == draggedID && $0.lock == nil }) else { return [] }
+      return [DayDesignDragPayload(id: draggedID)]
+    }
+  }
+
+  private func focusPresentedDay(using proxy: ScrollViewProxy) {
+    guard let day = presentation.focusDay else { return }
+    guard (1...sketch.lengthInDays).contains(day) else { return }
+    proxy.scrollTo(day, anchor: .center)
+    focusedDay = day
   }
 
   private var durationSection: some View {
@@ -84,8 +106,8 @@ struct TripSketchSheet: View {
     Section {
       ForEach(dayDesigns) { day in
         dayRow(day)
-          .id(day.day)
       }
+      .reorderable()
       NavigationLink {
         RangeAssignView(model: model, sketch: $sketch)
       } label: {
@@ -101,6 +123,7 @@ struct TripSketchSheet: View {
       } else {
         Text("Assign each part of the trip to a region — it scopes that day's ideas and frames its map (ADR-0012).")
       }
+      Text("Drag a day to move its stops, summary, region and time zone. Lodging stays with its nights.")
     }
   }
 
@@ -108,7 +131,8 @@ struct TripSketchSheet: View {
     guard let trip = model.trip else { return [] }
     return TripDayDesign.rows(
       trip: trip, dayRegions: model.allTripDayRegions, dayTimeZones: model.allTripDayTimeZones,
-      dayNotes: model.allTripDayNotes, stays: model.plan.stays)
+      dayNotes: model.allTripDayNotes, stays: model.plan.stays,
+      stops: model.plan.scheduled, now: model.now)
   }
 
   private func dayRow(_ day: TripDayDesign) -> some View {
@@ -121,6 +145,12 @@ struct TripSketchSheet: View {
         regionMenu(for: day.day, span: span)
         if day.date != nil {
           DayTimeZoneMenu(day: day.day, model: model, defaultZone: defaultTimeZone)
+        }
+        if day.lock != nil {
+          Image(systemName: "lock.fill")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .accessibilityLabel(day.lockCaption ?? "Locked day")
         }
       }
       VStack(alignment: .leading, spacing: 4) {
@@ -138,6 +168,11 @@ struct TripSketchSheet: View {
           .font(.caption)
           .foregroundStyle(.secondary)
           .lineLimit(1)
+      }
+      if let lockCaption = day.lockCaption {
+        Text(lockCaption)
+          .font(.caption)
+          .foregroundStyle(.secondary)
       }
     }
   }
@@ -196,12 +231,45 @@ struct TripSketchSheet: View {
   }
 
   private func commitSummary(for day: Int) {
-    guard let draft = summaryDrafts[day] else { return }
+    guard let draft = summaryDrafts.removeValue(forKey: day) else { return }
     model.setDayNote(draft, forDay: day)
   }
 
   private func commitAllSummaries() {
-    for day in summaryDrafts.keys.sorted() { commitSummary(for: day) }
+    let drafts = summaryDrafts
+    summaryDrafts.removeAll()
+    for day in drafts.keys.sorted() {
+      guard let draft = drafts[day] else { continue }
+      model.setDayNote(draft, forDay: day)
+    }
+  }
+
+  private func reorderDays(
+    _ difference: ReorderDifference<TripDayDesign.ID, ReorderableSingleCollectionIdentifier>
+  ) {
+    guard let from = difference.sources.first else { return }
+    let to: Int
+    switch difference.destination.position {
+    case let .before(day): to = day - (from < day ? 1 : 0)
+    case .end: to = dayDesigns.count
+    }
+    guard from != to else { return }
+
+    commitAllSummaries()
+    focusedDay = nil
+    if let refusal = model.moveDay(DayMove(from: from, to: to)) {
+      moveRefusal = refusal
+    } else {
+      sketch = model.sketch
+    }
+  }
+}
+
+private struct DayDesignDragPayload: Codable, Identifiable, Transferable {
+  let id: Int
+
+  static var transferRepresentation: some TransferRepresentation {
+    CodableRepresentation(contentType: .plainText)
   }
 }
 
