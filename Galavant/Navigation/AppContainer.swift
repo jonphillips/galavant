@@ -8,6 +8,7 @@ struct AppContainer: View {
   @State private var chatInbox = ChatInboxModel()
   @State private var browserModel = BrowserScreenModel()
   @State private var visitedRollupModel = VisitedRollupModel()
+  @State private var rationaleBackfillModel = TripRationaleBackfillModel()
   @Environment(\.prefersTabNavigation) private var prefersTabNavigation
   @Environment(\.scenePhase) private var scenePhase
   /// Where this scene was, mirrored from the router so it survives iPadOS killing
@@ -79,6 +80,7 @@ struct AppContainer: View {
       }
     }
     .task {
+      await rationaleBackfillModel.run()
       await visitedRollupModel.run()
       await chatInbox.prepare()
     }

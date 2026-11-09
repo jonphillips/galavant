@@ -109,13 +109,16 @@ struct DatabaseBackupTests {
     let oldStore = try DatabaseQueue(path: oldStoreURL.path)
     let migrator = GalavantDatabaseMigrations.makeMigrator()
     try migrator.migrate(oldStore)
-    let previousMigrations = Array(migrator.migrations.suffix(2))
+    let previousMigrations = Array(migrator.migrations.suffix(3))
     let existingTripID = UUID()
     try await oldStore.write { db in
       try Trip.insert { Trip.Draft(Trip(id: existingTripID, name: "Before roll-up migration")) }
         .execute(db)
       try db.execute(sql: "DROP TABLE tasteNotes")
       try db.execute(sql: "ALTER TABLE trips DROP COLUMN visitedRolledUpAt")
+      try db.execute(sql: "ALTER TABLE tripIdeas DROP COLUMN rationaleVisit")
+      try db.execute(sql: "ALTER TABLE tripIdeas DROP COLUMN rationaleWhy")
+      try db.execute(sql: "ALTER TABLE tripIdeas DROP COLUMN rationaleFit")
       for migration in previousMigrations {
         try db.execute(
           sql: "DELETE FROM grdb_migrations WHERE identifier = ?",

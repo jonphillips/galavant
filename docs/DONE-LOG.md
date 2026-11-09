@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-08 — Chat's trip rationale fields (`effort/trip-rationale-fields`)
+
+- **Result:** Trip stops keep visit, why, and fit in separate synced fields. The dossier shows trip context, backfills from local handoff history, and moves Taste Notes according to visit history.
+- **Verification:** scripts/check-drift.sh passed: GalavantLibrary 706 tests in 75 suites (13 known issues), related package suites 151/17, 5/1, 17/3, 38/5, and 11/1; headless GalavantTests passed: 71 tests in 15 suites.
+- **Owed:** trip-rationale-fields's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-08 — Day design in Shape Trip (`effort/day-design-sheet`)
 
 - **Result:** Shape Trip now edits each day’s region, time zone, and summary; itinerary headers display those facts and open the focused day editor. The meal lens carries day summaries on iPad and iPhone.

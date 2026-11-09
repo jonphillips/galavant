@@ -297,10 +297,25 @@ extension TripIdea {
     if let existing = RecommendationCandidateSet.liveTripIdea(
       matching: candidate, in: context.tripIdeas, ideasByID: context.ideasByID
     ) {
+      var didUpdateRationale = false
+      if existing.rationaleVisit == nil || existing.rationaleWhy == nil || existing.rationaleFit == nil {
+        try TripIdea.find(existing.id).update {
+          if existing.rationaleVisit == nil, let visit = candidate.visit { $0.rationaleVisit = #bind(visit) }
+          if existing.rationaleWhy == nil, let why = candidate.why { $0.rationaleWhy = #bind(why) }
+          if existing.rationaleFit == nil, let fit = candidate.fit { $0.rationaleFit = #bind(fit) }
+          if let oldRationale = candidate.rationale?.trimmingCharacters(in: .whitespacesAndNewlines),
+            existing.inlineNote?.trimmingCharacters(in: .whitespacesAndNewlines) == oldRationale
+          {
+            $0.inlineNote = #bind(nil as String?)
+          }
+        }.execute(db)
+        didUpdateRationale = true
+      }
       if existing.bookingStatus == nil, candidate.bookAhead == true {
         try TripIdea.find(existing.id).update { $0.bookingStatus = #bind(BookingStatus.toBook) }.execute(db)
         return try TripIdea.find(existing.id).fetchOne(db) ?? existing
       }
+      if didUpdateRationale { return try TripIdea.find(existing.id).fetchOne(db) ?? existing }
       return existing
     }
     let id = UUID()
@@ -309,7 +324,9 @@ extension TripIdea {
       tripID: tripID,
       ideaID: nil,
       inlineTitle: candidate.name,
-      inlineNote: candidate.rationale,
+      rationaleVisit: candidate.visit,
+      rationaleWhy: candidate.why,
+      rationaleFit: candidate.fit,
       status: .considering,
       shortlistRank: candidate.priority ?? 0,
       bookingStatus: candidate.bookAhead == true ? .toBook : nil

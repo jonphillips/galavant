@@ -119,6 +119,18 @@ final class RegionGuideModel {
     return ideaID
   }
 
+  func tripRationale(for ideaID: Idea.ID?) -> TripRationale? {
+    guard let ideaID, let tripID = tripLens?.trip.id else { return nil }
+    let stops = tripIdeas.filter { $0.tripID == tripID && $0.ideaID == ideaID }
+    let ordered = TripIdea.canonicalAlternativeOrder(stops)
+    let scheduled = ordered.first { $0.status == .scheduled }
+    let active = TripIdea.effectiveActiveEntries(stops)
+      .sorted { ($0.shortlistRank, $0.id.uuidString) < ($1.shortlistRank, $1.id.uuidString) }
+      .first
+    let selected = scheduled ?? active ?? ordered.first
+    return selected?.rationale
+  }
+
   func task(scope: RegionGuideScope) {
     guard !initialScopeApplied else { return }
     initialScopeApplied = true

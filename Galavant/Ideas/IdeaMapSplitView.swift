@@ -15,6 +15,7 @@ private enum IdeaMapPanelMetrics {
 
 struct IdeaMapSplitView<Column: View, Map: View, Accessory: View>: View {
   let ideaID: Idea.ID?
+  let tripRationale: TripRationale?
   let onClose: () -> Void
   @ViewBuilder let column: () -> Column
   @ViewBuilder let map: () -> Map
@@ -22,12 +23,14 @@ struct IdeaMapSplitView<Column: View, Map: View, Accessory: View>: View {
 
   init(
     ideaID: Idea.ID?,
+    tripRationale: TripRationale? = nil,
     onClose: @escaping () -> Void,
     @ViewBuilder column: @escaping () -> Column,
     @ViewBuilder map: @escaping () -> Map,
     @ViewBuilder dossierAccessory: @escaping () -> Accessory = { EmptyView() }
   ) {
     self.ideaID = ideaID
+    self.tripRationale = tripRationale
     self.onClose = onClose
     self.column = column
     self.map = map
@@ -50,6 +53,7 @@ struct IdeaMapSplitView<Column: View, Map: View, Accessory: View>: View {
       if let ideaID {
         IdeaDetailView(
           ideaID: ideaID,
+          tripRationale: tripRationale,
           canEdit: true,
           chrome: .panel(onClose: onClose)
         )

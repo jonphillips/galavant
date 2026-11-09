@@ -29,6 +29,7 @@ struct RegionGuideScreen: View {
       if horizontalSizeClass == .regular {
         IdeaMapSplitView(
           ideaID: model.dossierID,
+          tripRationale: model.tripRationale(for: model.dossierID),
           onClose: { model.closeDossier() },
           column: {
             guideList(guide, tripLens: tripLens, headerThumbnails: headerThumbnails, plannerNames: plannerNames)
@@ -58,6 +59,7 @@ struct RegionGuideScreen: View {
           if let ideaID = model.dossierID {
             IdeaDetailView(
               ideaID: ideaID,
+              tripRationale: model.tripRationale(for: ideaID),
               canEdit: true,
               chrome: .panel(onClose: { model.closeDossier() })
             )

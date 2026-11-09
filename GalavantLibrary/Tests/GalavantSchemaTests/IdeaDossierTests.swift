@@ -57,17 +57,39 @@ import Testing
     #expect(dossier.accolades.historical.count == 1)
   }
 
-  @Test func emphasisFollowsKindGroup() {
-    func emphasis(_ kind: IdeaKind?) -> Emphasis {
-      IdeaDossier(
-        idea: Idea(id: UUID(), kind: kind), evaluations: [], interests: [], planners: [], notes: [],
-        tags: [], ideaTags: [], photos: [], knownIdeaIDs: [])
-        .emphasis
+  @Test func notesPlacementUsesEachVisitedSignal() {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+    func day(_ day: Int) -> Date {
+      calendar.date(from: DateComponents(year: 2025, month: 1, day: day))!
     }
-    #expect(emphasis(.stay) == .notesFirst)
-    #expect(emphasis(.food) == .accoladesFirst)
-    #expect(emphasis(.sight) == .accoladesFirst)
-    #expect(emphasis(nil) == .accoladesFirst)
+    let now = day(10)
+    let ideaID = UUID()
+    let tripID = UUID()
+    let trip = Trip(id: tripID, startDate: day(9))
+    func placement(_ idea: Idea, _ stops: [TripIdea] = [], _ trips: [Trip] = []) -> NotesPlacement {
+      IdeaDossier(
+        idea: idea, evaluations: [], interests: [], planners: [], notes: [], tags: [], ideaTags: [],
+        photos: [], knownIdeaIDs: [idea.id], stops: stops, trips: trips, now: now, calendar: calendar
+      ).notesPlacement
+    }
+
+    #expect(placement(Idea(id: ideaID, visited: true)) == .top)
+    #expect(placement(Idea(id: ideaID), [TripIdea(
+      id: UUID(), tripID: tripID, ideaID: ideaID, completedAt: now
+    )]) == .top)
+    #expect(placement(Idea(id: ideaID), [TripIdea(
+      id: UUID(), tripID: tripID, ideaID: ideaID, status: .scheduled, dayNumber: 1
+    )], [trip]) == .top)
+    #expect(placement(Idea(id: ideaID), [TripIdea(
+      id: UUID(), tripID: tripID, ideaID: ideaID, status: .scheduled, dayNumber: 3
+    )], [trip]) == .bottom)
+    #expect(placement(Idea(id: ideaID), [TripIdea(
+      id: UUID(), tripID: tripID, ideaID: ideaID, status: .scheduled, dayNumber: 1, skippedAt: now
+    )], [trip]) == .bottom)
+    #expect(placement(Idea(id: ideaID), [TripIdea(
+      id: UUID(), tripID: tripID, ideaID: ideaID, status: .scheduled, dayNumber: 1
+    )]) == .bottom)
   }
 
   @Test func notesSurviveMissingIdeaAssociationsAndPhotosExcludeHeader() {

@@ -82,7 +82,7 @@ public struct SeedPlacePlan: Equatable, Identifiable, Sendable {
       place.reason
     }
     return SeedPlan.note([
-      place.candidate.why, place.candidate.fit, place.candidate.visit, deferred,
+      deferred,
       resolved ? nil : place.placeNotes.map { "About the place: \($0)" },
     ])
   }
@@ -450,7 +450,8 @@ extension TripIdea {
     let row = TripIdea(
       id: id, tripID: tripID, ideaID: ideaID,
       inlineTitle: candidate.name ?? candidate.suggestedTitle,
-      inlineNote: note, status: status, shortlistRank: shortlistRank, bookingStatus: bookingStatus
+      inlineNote: note, rationaleVisit: candidate.visit, rationaleWhy: candidate.why,
+      rationaleFit: candidate.fit, status: status, shortlistRank: shortlistRank, bookingStatus: bookingStatus
     )
     try TripIdea.insert { TripIdea.Draft(row) }.execute(db)
     guard let committed = try TripIdea.find(id).fetchOne(db) else { throw TripError.creationFailed }

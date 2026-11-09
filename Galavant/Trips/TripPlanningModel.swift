@@ -451,9 +451,9 @@ final class TripPlanningModel {
   /// (ADR-0007 read-time reconciliation).
   func ideaForDetail(_ id: Idea.ID) -> Idea? { ideaByID[id] }
 
-  func rationaleForDetail() -> String? {
+  func rationaleForDetail() -> TripRationale? {
     guard let detailStopID else { return nil }
-    return entries.first { $0.id == detailStopID }?.inlineNote
+    return entries.first { $0.id == detailStopID }?.rationale
   }
 
   /// This idea's place on the itinerary, *if* it's a scheduled stop on the trip —

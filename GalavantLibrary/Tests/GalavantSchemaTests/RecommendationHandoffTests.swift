@@ -445,9 +445,32 @@ struct RecommendationHandoffTests {
 
     #expect(committed.ideaID == nil)
     #expect(committed.inlineTitle == "Lumiere Brasserie")
-    #expect(committed.inlineNote == "A relaxed dinner after the museum.\n\nWalkable from the old town.")
+    #expect(committed.inlineNote == nil)
+    #expect(committed.rationaleWhy == "A relaxed dinner after the museum.")
+    #expect(committed.rationaleFit == "Walkable from the old town.")
     #expect(committed.status == .considering)
     #expect(committed.shortlistRank == 4)
+  }
+
+  @Test func recommittingLegacyRationaleFillsEmptyFieldsAndClearsOnlyTheDuplicateNote() async throws {
+    let candidate = TripCandidate(name: "Museum", why: "Worth the visit", fit: "Easy from the hotel", visit: "Tuesday")
+    let updated = try await database.write { db -> TripIdea in
+      let trip = try Trip.create(name: "Denmark", in: db)
+      let original = try TripIdea.commit(candidate: candidate, into: trip.id, in: db)
+      try TripIdea.find(original.id).update {
+        $0.inlineNote = #bind(candidate.rationale)
+        $0.rationaleVisit = #bind(nil as String?)
+        $0.rationaleWhy = #bind(nil as String?)
+        $0.rationaleFit = #bind(nil as String?)
+      }.execute(db)
+
+      return try TripIdea.commit(candidate: candidate, into: trip.id, in: db)
+    }
+
+    #expect(updated.rationaleVisit == "Tuesday")
+    #expect(updated.rationaleWhy == "Worth the visit")
+    #expect(updated.rationaleFit == "Easy from the hotel")
+    #expect(updated.inlineNote == nil)
   }
 
   @Test func bookAheadSeedsOnlyANewCandidateMarkedTrue() async throws {
@@ -697,7 +720,8 @@ struct RecommendationHandoffTests {
     }
 
     #expect(result.0.ideaID == result.1.only?.id)
-    #expect(result.0.inlineNote == "A relaxed dinner after the museum.")
+    #expect(result.0.inlineNote == nil)
+    #expect(result.0.rationaleWhy == "A relaxed dinner after the museum.")
     #expect(result.1.count == 1)
     #expect(result.1.only?.name == "Lumiere Brasserie")
     #expect(result.1.only?.regionName == "Bolzano")

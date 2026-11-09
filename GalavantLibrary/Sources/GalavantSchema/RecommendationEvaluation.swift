@@ -37,14 +37,22 @@ public struct ResolveReconcile: Equatable, Sendable {
   }
 
   public enum Action: Equatable, Sendable {
-    case merge(existingID: TripIdea.ID, duplicateID: TripIdea.ID, inlineNote: String?)
+    case merge(
+      existingID: TripIdea.ID, duplicateID: TripIdea.ID, rationaleVisit: String?,
+      rationaleWhy: String?, rationaleFit: String?, inlineNote: String?
+    )
     case keepBoth
 
     /// Apply the user's decision in the caller's transaction.
     public func apply(in db: Database) throws {
-      guard case let .merge(existingID, duplicateID, inlineNote) = self else { return }
+      guard case let .merge(existingID, duplicateID, rationaleVisit, rationaleWhy, rationaleFit, inlineNote) = self else { return }
       try TripIdea.find(existingID)
-        .update { $0.inlineNote = #bind(inlineNote) }
+        .update {
+          $0.rationaleVisit = #bind(rationaleVisit)
+          $0.rationaleWhy = #bind(rationaleWhy)
+          $0.rationaleFit = #bind(rationaleFit)
+          $0.inlineNote = #bind(inlineNote)
+        }
         .execute(db)
       try TripIdea.remove(stopID: duplicateID, in: db)
     }
@@ -55,11 +63,17 @@ public struct ResolveReconcile: Equatable, Sendable {
     public let duplicateID: TripIdea.ID
     public let existingStatus: TripIdeaStatus
     public let mergedInlineNote: String?
+    public let mergedRationaleVisit: String?
+    public let mergedRationaleWhy: String?
+    public let mergedRationaleFit: String?
 
     public func action(for choice: Choice) -> Action {
       switch choice {
       case .merge:
-        .merge(existingID: existingID, duplicateID: duplicateID, inlineNote: mergedInlineNote)
+        .merge(
+          existingID: existingID, duplicateID: duplicateID,
+          rationaleVisit: mergedRationaleVisit, rationaleWhy: mergedRationaleWhy,
+          rationaleFit: mergedRationaleFit, inlineNote: mergedInlineNote)
       case .keepBoth:
         .keepBoth
       }
@@ -97,7 +111,10 @@ public struct ResolveReconcile: Equatable, Sendable {
         existingID: $0.id,
         duplicateID: candidate.id,
         existingStatus: $0.status,
-        mergedInlineNote: Self.mergedNote(existing: $0.inlineNote, duplicate: candidate.inlineNote)
+        mergedInlineNote: Self.mergedNote(existing: $0.inlineNote, duplicate: candidate.inlineNote),
+        mergedRationaleVisit: Self.mergedNote(existing: $0.rationaleVisit, duplicate: candidate.rationaleVisit),
+        mergedRationaleWhy: Self.mergedNote(existing: $0.rationaleWhy, duplicate: candidate.rationaleWhy),
+        mergedRationaleFit: Self.mergedNote(existing: $0.rationaleFit, duplicate: candidate.rationaleFit)
       )
     }
   }
