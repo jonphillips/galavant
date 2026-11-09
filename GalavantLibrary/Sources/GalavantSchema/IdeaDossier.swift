@@ -83,8 +83,8 @@ public enum NotesPlacement: Equatable, Sendable {
     let hasPastScheduledStop = ideaStops.contains { stop in
       guard stop.status == .scheduled, stop.skippedAt == nil,
         let dayNumber = stop.dayNumber,
-        let startDate = tripsByID[stop.tripID]?.startDate,
-        let dayDate = calendar.date(byAdding: .day, value: dayNumber - 1, to: startDate)
+        let trip = tripsByID[stop.tripID],
+        let dayDate = trip.date(forDay: dayNumber)
       else { return false }
       return calendar.startOfDay(for: dayDate) < today
     }

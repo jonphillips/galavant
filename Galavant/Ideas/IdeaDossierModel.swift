@@ -18,7 +18,7 @@ final class IdeaDossierModel {
   @ObservationIgnored @FetchAll var ideaTags: [IdeaTag]
   @ObservationIgnored @FetchAll var photoRows: [PhotoRow]
   @ObservationIgnored @FetchAll var headerRows: [HeaderRow]
-  @ObservationIgnored @FetchAll(TripIdea.all) var stops
+  @ObservationIgnored @FetchAll var stops: [TripIdea]
   @ObservationIgnored @FetchAll(Trip.all) var trips
   @ObservationIgnored @Shared(.appStorage("currentPlannerID")) var currentPlannerIDString = ""
   @ObservationIgnored @Dependency(\.date) var date
@@ -48,6 +48,7 @@ final class IdeaDossierModel {
       ImageAsset.where { $0.ideaID.eq(ideaID) && $0.isHeader.eq(true) }
         .select { HeaderRow.Columns(display: $0.display) }
     )
+    _stops = FetchAll(TripIdea.where { $0.ideaID.eq(ideaID) })
   }
 
   var dossier: IdeaDossier? {

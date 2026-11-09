@@ -12,10 +12,10 @@ final class TripRationaleBackfillModel {
   @ObservationIgnored @Dependency(\.handoffSessionStore) private var handoffSessionStore
 
   func run() async {
-    await withErrorReporting {
-      for session in handoffSessionStore.sessions() {
-        guard let payload = session.candidatePayload else { continue }
-        let candidates = try TripCandidate.decodeReturn(payload).candidates
+    let sessions = handoffSessionStore.sessions().sorted { $0.id.uuidString < $1.id.uuidString }
+    for session in sessions {
+      await withErrorReporting {
+        let candidates = try session.recommendationCandidates()
         let candidatesByID = candidates.reduce(into: [TripCandidate.ID: TripCandidate]()) { result, candidate in
           result[candidate.id] = candidate
         }

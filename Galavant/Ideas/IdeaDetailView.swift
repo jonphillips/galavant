@@ -127,7 +127,7 @@ struct IdeaDetailView: View {
       hoursSections(dossier.idea)
       locationAndReferenceSections(dossier.idea)
       tagsAndNotesSections(dossier)
-      if !dossier.idea.visited { notesSection(dossier) }
+      if dossier.notesPlacement == .bottom { notesSection(dossier) }
     }
   }
 
