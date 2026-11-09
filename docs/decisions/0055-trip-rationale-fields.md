@@ -4,6 +4,9 @@
 [`trip-rationale-fields`](../efforts/archive/trip-rationale-fields.md). Amends [ADR-0036](0036-recommendation-handoff.md) D3 (the
 rationale note). Reads into the dossier from [ADR-0053](0053-taste-record-and-region-guide.md).*
 
+*Amended 2026-11-08: **D7** keeps Chat's `priority` too, after Jon noticed it was missing from the dossier. Effort:
+[`trip-rationale-priority`](../efforts/trip-rationale-priority.md).*
+
 Summary: When Chat recommends a place, its `visit`, `why` and `fit` are kept as three labeled fields on the trip stop
 (`TripIdea`), not packed into one note. The dossier shows them as "On this trip" wherever it knows the trip, including the
 guide, above Taste Notes. Taste Notes move to the bottom of the dossier until the place has been visited, then to the top.
@@ -49,9 +52,26 @@ alone. The backfill runs on the device that holds the history (Jon's), and the r
 
 **D6. Duplicate merges handle each field the way `inlineNote` is merged today** (`RecommendationEvaluation.mergedNote`).
 
+**D7. Chat's `priority` is kept too, as a rank within its list** (amendment, 2026-11-08). Today import copies
+`priority` into `shortlistRank`. That's an ordering key: it's renumbered whenever the shortlist or a ring is reordered, it's
+never shown, and the contract never said which way it points. So:
+
+- The contract says it: `priority` is 1 for Chat's first choice, 2 for the next, and so on, ranked within this one list.
+  The version marker stays `GV-CONTRACT: v2`, since this clarifies a field that's already there. Jon re-pastes the project
+  instructions into ChatGPT and Claude.
+- `TripIdea` gains two nullable synced integer columns: `rationalePriority`, and `rationalePriorityOutOf`, the number of
+  candidates in that return that carried a priority. A rank only means something within its own list, so the dossier
+  shows it as "Chat's #2 of 5", and nothing sorts across lists by it. `shortlistRank` still takes its starting order from
+  `priority`, but reordering no longer erases Chat's rank.
+- Merges and the history backfill treat these two like the other rationale fields. Ranks from returns made before the
+  contract fix may point either way. The backfill keeps them anyway, because the dossier shows the number and doesn't act
+  on it.
+- Seed returns don't send `priority`, and that's unchanged.
+
 ## Consequences
 
 - **Owed before TestFlight:** import the three fields with `cktool` and deploy the schema to Production, as for any added
   synced column. The same PR updates `cloudkit-expected-fields.txt`.
 - The migration is appended as a new registration. Registered migrations stay frozen.
 - Recommendation cards in Evaluate already show Why, Fit and Time. They now match what's saved.
+- D7 adds two more synced columns, so the same `cktool` import and Production deploy are owed for that slice.

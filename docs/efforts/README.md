@@ -15,6 +15,7 @@ folder listing and `DONE-LOG.md` cover it. A parked brief also gets a candidate 
 | Brief | Implements | Status |
 | --- | --- | --- |
 | [day-reorder.md](day-reorder.md) | ADR-0054 D4–D6 | Ready |
+| [trip-rationale-priority.md](trip-rationale-priority.md) | ADR-0055 D7 | Ready |
 | [idea-pin-focus.md](idea-pin-focus.md) | ADR-0044 (Ideas map) | Ready |
 | [handoff-menu-adoption.md](handoff-menu-adoption.md) | jon-platform `docs/ios/ui-and-platforms.md` § The AI entry point | Blocked |
 
