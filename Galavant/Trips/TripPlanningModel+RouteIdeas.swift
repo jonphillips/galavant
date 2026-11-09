@@ -21,7 +21,10 @@ extension TripPlanningModel {
       }
       return true
     } ?? false
-    if didSave { routeIdeaAddFeedback += 1 }
+    guard didSave else { return }
+    // The action is spent: clearing it hides the button while the detail stays open.
+    routeIdeaDetailAction = nil
+    routeIdeaAddFeedback += 1
   }
 
   func showRouteIdeaDetail(_ idea: Idea, day: Int) {
