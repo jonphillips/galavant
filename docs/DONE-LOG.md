@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-09 — Drag days into a new order in Shape Trip (`effort/day-reorder`)
+
+- **Result:** Shape Trip now reorders days as units, moving their scheduled stops, summaries, regions, and time-zone overrides while lodging remains with its nights. Booking and past-day locks are checked again inside the write transaction; only edited summaries are committed before a move.
+- **Verification:** scripts/check-drift.sh passed (lint, package tests, UI-test build, handoff hygiene); headless GalavantTests passed with 71 tests.
+- **Owed:** day-reorder's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-08 — Chat's trip rationale fields (`effort/trip-rationale-fields`)
 
 - **Result:** Trip stops keep visit, why, and fit in separate synced fields. The dossier shows trip context, backfills from local handoff history, and moves Taste Notes according to visit history.

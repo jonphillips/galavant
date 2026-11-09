@@ -1,9 +1,6 @@
-# Next Up — Drag days into a new order in Shape Trip
+# Next Up — Ideas map and Guide: pins open again, the tapped pin stands out, the Guide drops dead controls, and an open meal takes one tap
 
-**Slices:** effort `day-reorder`
-**Briefs:** [docs/efforts/day-reorder.md](efforts/day-reorder.md)
+**Slices:** effort `ideas-map-and-guide`
+**Briefs:** [docs/efforts/ideas-map-and-guide.md](efforts/ideas-map-and-guide.md)
 **Done when:** per the brief
 **Owed:** see [device-passes.md](device-passes.md)
-**Notes:** Next in the efforts index, in order: `ideas-map-and-guide` (pin taps regressed on the Ideas map, so it
-goes first), then `trip-rationale-priority` (adds synced columns, so its closeout owes a CloudKit deploy before
-TestFlight), then `route-ideas`. Each closeout advances to the next.
