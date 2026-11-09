@@ -46,14 +46,14 @@ struct RegionGuideTripLensView: View {
         }
         .font(.caption.bold()).foregroundStyle(.secondary)
         ForEach(days) { day in
+          if let summary = day.summary {
+            Text(summary).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+              .padding(.leading, 88)
+          }
           HStack(alignment: .top, spacing: 8) {
             Text(day.weekday?.shortLabel ?? "Day \(day.day)").font(.caption.bold()).frame(width: 80, alignment: .leading)
             mealCell(day.lunch, day: day.day, meal: .lunch, label: "Lunch")
             mealCell(day.dinner, day: day.day, meal: .dinner, label: "Dinner")
-          }
-          if let summary = day.summary {
-            Text(summary).font(.caption).foregroundStyle(.secondary).lineLimit(2)
-              .padding(.leading, 88)
           }
           if !day.alsoThatDay.isEmpty { alsoThatDay(day.alsoThatDay).padding(.leading, 88) }
         }
@@ -127,7 +127,7 @@ struct RegionGuideTripLensView: View {
         Button { onSelectSlot(day, meal) } label: {
           HStack(spacing: 4) {
             if stop.isBooked { Image(systemName: "checkmark.circle.fill").foregroundStyle(.green) }
-            Text("\(label) · \(stop.title)\(stop.optionCount > 1 ? " · \(stop.optionCount) options" : "")\(stops.count > 1 ? " +\(stops.count - 1)" : "")")
+            Text("\(stop.title)\(stop.optionCount > 1 ? " · \(stop.optionCount) options" : "")\(stops.count > 1 ? " +\(stops.count - 1)" : "")")
               .italic(stop.isFreeform).lineLimit(1)
           }.font(.caption).padding(.horizontal, 7).padding(.vertical, 5)
             .background(stop.optionCount > 1 ? Color.orange.opacity(0.14) : Color.green.opacity(stop.isBooked ? 0.14 : 0.06), in: RoundedRectangle(cornerRadius: 7))

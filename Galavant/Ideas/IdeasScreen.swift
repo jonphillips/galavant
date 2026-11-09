@@ -66,7 +66,7 @@ struct IdeasScreen: View {
       }
       ToolbarItem {
         Button(action: model.guideButtonTapped) {
-          Label("Guide", systemImage: "books.vertical")
+          Label("Guide", systemImage: "book.and.wrench")
         }
       }
       ToolbarItem {
