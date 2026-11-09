@@ -26,10 +26,10 @@ struct IdeasScreen: View {
 
   var body: some View {
     VStack(spacing: 0) {
-      if !model.capsules.isEmpty {
+      if !isRegularGuidePresented, !model.capsules.isEmpty {
         capsuleBar
       }
-      quickFilterBar
+      if !isRegularGuidePresented { quickFilterBar }
       content
     }
     .navigationTitle("Ideas")
@@ -50,30 +50,32 @@ struct IdeasScreen: View {
           .pickerStyle(.segmented)
         }
       }
-      ToolbarItem {
-        IdeasFilterMenu(model: model, managingRegions: $managingRegions)
-      }
-      // Define Region whenever a map is on screen (always on regular, map mode on compact).
-      if horizontalSizeClass == .regular || mode == .map {
+      if !isRegularGuidePresented {
+        ToolbarItem {
+          IdeasFilterMenu(model: model, managingRegions: $managingRegions)
+        }
+        // Define Region whenever a map is on screen (always on regular, map mode on compact).
+        if horizontalSizeClass == .regular || mode == .map {
+          ToolbarItem {
+            Button {
+              namingRegion = true
+            } label: {
+              Icon.defineRegion.label("Define Region")
+            }
+            .disabled(visibleRegion == nil)
+          }
+        }
+        ToolbarItem {
+          Button(action: model.guideButtonTapped) {
+            Label("Guide", systemImage: "book.and.wrench")
+          }
+        }
         ToolbarItem {
           Button {
-            namingRegion = true
+            model.addIdeaButtonTapped()
           } label: {
-            Icon.defineRegion.label("Define Region")
+            Icon.add.label("Add Idea")
           }
-          .disabled(visibleRegion == nil)
-        }
-      }
-      ToolbarItem {
-        Button(action: model.guideButtonTapped) {
-          Label("Guide", systemImage: "book.and.wrench")
-        }
-      }
-      ToolbarItem {
-        Button {
-          model.addIdeaButtonTapped()
-        } label: {
-          Icon.add.label("Add Idea")
         }
       }
     }
@@ -139,9 +141,7 @@ struct IdeasScreen: View {
       IdeaMapSplitView(
         ideaID: model.dossierID,
         onClose: {
-          if let ideaID = model.dossierID, !model.ideas.contains(where: { $0.id == ideaID }) {
-            focusedIdeaID = nil
-          }
+          focusedIdeaID = nil
           model.closeDossier()
         },
         column: { ideasList },
@@ -159,7 +159,7 @@ struct IdeasScreen: View {
           IdeaDetailView(
             ideaID: ideaID,
             canEdit: true,
-            chrome: .panel(onClose: { model.closeDossier() })
+            chrome: .panel(onClose: closeDossier)
           )
           .id(ideaID)
           .presentationDetents([.medium, .large])
@@ -192,7 +192,7 @@ struct IdeasScreen: View {
       placeSelectionPolicy: horizontalSizeClass == .regular
         ? .exploreFirst(.popover)
         : .exploreFirst(.sheet),
-      selectedIdeaID: horizontalSizeClass == .regular ? focusedIdeaID : nil,
+      selectedIdeaID: focusedIdeaID,
       onSelect: pinTapped,
       onSelectMapPlace: { place in await model.mapPlaceTapped(place) },
       visibleRegion: $visibleRegion
@@ -204,6 +204,17 @@ struct IdeasScreen: View {
   private func pinTapped(_ idea: Idea) {
     focusedIdeaID = idea.id
     model.ideaTapped(idea)
+  }
+
+  private var isRegularGuidePresented: Bool {
+    guard horizontalSizeClass == .regular else { return false }
+    if case .guide = model.destination { return true }
+    return false
+  }
+
+  private func closeDossier() {
+    focusedIdeaID = nil
+    model.closeDossier()
   }
 
   /// The one-tap browse filters and the active trip's optional region narrowing.

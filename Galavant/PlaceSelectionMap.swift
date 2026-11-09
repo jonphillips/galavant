@@ -23,7 +23,6 @@ struct PlaceSelectionMap<Content: MapContent>: View {
 
   let initialRegion: MKCoordinateRegion?
   let existingPlace: Place?
-  let selectedValue: UUID?
   let presentationPolicy: PlaceSelectionPresentationPolicy
   let onSelectPlace: (Place) async -> Void
   let onSelectValue: ((UUID) -> Void)?
@@ -35,7 +34,6 @@ struct PlaceSelectionMap<Content: MapContent>: View {
     visibleRegion: Binding<MKCoordinateRegion?> = .constant(nil),
     initialRegion: MKCoordinateRegion? = nil,
     existingPlace: Place? = nil,
-    selectedValue: UUID? = nil,
     selectedMapItem: Binding<MKMapItem?> = .constant(nil),
     presentationPolicy: PlaceSelectionPresentationPolicy = .immediate,
     onSelectPlace: @escaping (Place) async -> Void,
@@ -48,7 +46,6 @@ struct PlaceSelectionMap<Content: MapContent>: View {
     self._selectedMapItem = selectedMapItem
     self.initialRegion = initialRegion
     self.existingPlace = existingPlace
-    self.selectedValue = selectedValue
     self.presentationPolicy = presentationPolicy
     self.onSelectPlace = onSelectPlace
     self.onSelectValue = onSelectValue
@@ -72,9 +69,6 @@ struct PlaceSelectionMap<Content: MapContent>: View {
     .task(id: mapSelection) {
       await handleMapSelection()
     }
-    .onChange(of: selectedValue, initial: true) { _, value in
-      mapSelection = value.map(MapSelection.init)
-    }
     .modifier(MapFeatureSelectionAccessoryModifier())
     .modifier(MapFeatureSelectionDisabledModifier())
     .modifier(
@@ -97,7 +91,6 @@ struct PlaceSelectionMap<Content: MapContent>: View {
     guard let mapSelection else { return }
 
     if let id = mapSelection.value {
-      guard id != selectedValue else { return }
       onSelectValue?(id)
       self.mapSelection = nil
       return

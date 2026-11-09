@@ -191,8 +191,12 @@ struct RegionGuideModelTests {
     try await model.$regions.load()
     let menu = try #require(model.slotMenu(for: candidate.id))
     #expect(menu.sections[0][0].action == .schedule(day: 1, .lunch))
-    #expect(model.addToTrip(.schedule(day: 1, .lunch), ideaID: candidate.id))
+    model.slotTapped(day: 1, meal: .lunch)
+    #expect(model.focusedSlot?.isFilled == false)
+    let lunchAction = try #require(menu.row(day: 1, meal: .lunch)?.action)
+    #expect(model.addToTrip(lunchAction, ideaID: candidate.id))
     try await model.$tripIdeas.load()
+    #expect(model.focusedSlot?.isFilled == true)
     guard case let .meals(days) = model.tripLens?.body,
       let day = days.first, case let .filled(lunch) = day.lunch else {
       Issue.record("Expected the new lunch choice to appear in the guide lens")

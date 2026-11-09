@@ -218,6 +218,25 @@ import Testing
     #expect(currentMenu.sections[1][0].isCurrent == false)
   }
 
+  @Test func guideMenuLooksUpMealRowsByDayAndMeal() {
+    let trip = Trip(id: UUID(), name: "Italy", lengthInDays: 1)
+    let candidate = idea("Candidate")
+    let lens = makeLens(trip: trip, dayNumbers: [1])
+    let menu = GuideSlotMenu(lens: lens, idea: candidate, entries: [], stays: [], calendar: .current)
+    #expect(menu.row(day: 1, meal: .lunch)?.action == .schedule(day: 1, .lunch))
+    #expect(menu.row(day: 2, meal: .lunch) == nil)
+
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+    let datedTrip = Trip(id: UUID(), name: "Dated", startDate: date(2026, 11, 9, calendar: calendar), lengthInDays: 1)
+    var closed = candidate
+    closed.structuredHours = WeeklyHours(days: [.closed] + Array(repeating: .unknown, count: 6)).encoded()
+    let closedLens = makeLens(trip: datedTrip, dayNumbers: [1], calendar: calendar)
+    let closedMenu = GuideSlotMenu(lens: closedLens, idea: closed, entries: [], stays: [], calendar: calendar)
+    #expect(closedMenu.row(day: 1, meal: .lunch)?.action == nil)
+    #expect(closedMenu.row(day: 1, meal: .lunch)?.detail == "Closed Mondays")
+  }
+
   @Test func guideMenuExplainsWholeDayAndMealOnlyClosures() {
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = TimeZone(secondsFromGMT: 0)!

@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-09 — Ideas map and Guide (`codex/ideas-map-and-guide`)
+
+- **Result:** Restored pin taps, added a focused pin with camera panning, removed Ideas browse controls while the regular-width Guide is open, and added one-tap placement into an open meal slot from the dossier and cards.
+- **Verification:** scripts/check-drift.sh passed; headless GalavantTests passed (71 tests).
+- **Owed:** ideas-map-and-guide's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-09 — Drag days into a new order in Shape Trip (`effort/day-reorder`)
 
 - **Result:** Shape Trip now reorders days as units, moving their scheduled stops, summaries, regions, and time-zone overrides while lodging remains with its nights. Booking and past-day locks are checked again inside the write transaction; only edited summaries are committed before a move.
