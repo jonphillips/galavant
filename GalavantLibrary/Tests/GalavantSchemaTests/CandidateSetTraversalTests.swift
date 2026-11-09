@@ -125,9 +125,36 @@ import Testing
           rationaleVisit: nil,
           rationaleWhy: "A good fit.\n\nWorks in the rain.",
           rationaleFit: nil,
+          rationalePriority: nil,
+          rationalePriorityOutOf: nil,
           inlineNote: "Already on the shortlist.\n\nA useful rainy-day alternative."
         )
     )
+  }
+
+  @Test func resolveReconcileKeepsTheExistingPriorityPairOrTakesTheDuplicatePair() {
+    let tripID = UUID()
+    let ideaID = UUID()
+    let existing = TripIdea(
+      id: UUID(), tripID: tripID, ideaID: ideaID,
+      rationalePriority: 4, rationalePriorityOutOf: 5, status: .shortlisted)
+    let candidate = TripIdea(
+      id: UUID(), tripID: tripID, ideaID: ideaID,
+      rationalePriority: 2, rationalePriorityOutOf: 3, status: .considering)
+
+    let collision = ResolveReconcile(
+      tripIdeas: [candidate, existing], resolvedIdeaID: ideaID, candidateID: candidate.id
+    ).collision
+
+    #expect(collision?.mergedRationalePriority == 4)
+    #expect(collision?.mergedRationalePriorityOutOf == 5)
+
+    let emptyExisting = TripIdea(id: UUID(), tripID: tripID, ideaID: ideaID, status: .shortlisted)
+    let second = ResolveReconcile(
+      tripIdeas: [candidate, emptyExisting], resolvedIdeaID: ideaID, candidateID: candidate.id
+    ).collision
+    #expect(second?.mergedRationalePriority == 2)
+    #expect(second?.mergedRationalePriorityOutOf == 3)
   }
 
   @Test func resolveReconcileRepresentsKeepingBothRows() {

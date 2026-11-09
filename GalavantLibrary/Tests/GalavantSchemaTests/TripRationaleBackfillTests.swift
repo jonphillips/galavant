@@ -46,4 +46,35 @@ import Testing
 
     #expect(TripRationaleBackfill.update(for: afterFirstRun, from: candidate) == nil)
   }
+
+  @Test func priorityBackfillsEvenWhenTextRationaleWasAlreadyFilled() throws {
+    let candidate = TripCandidate(priority: 3)
+    let stop = TripIdea(
+      id: UUID(), tripID: UUID(), ideaID: nil,
+      rationaleVisit: "Thursday", rationaleWhy: "Worth the visit", rationaleFit: "Near the hotel")
+
+    let update = try #require(TripRationaleBackfill.update(for: stop, from: candidate, priorityOutOf: 5))
+
+    #expect(update.visit == "Thursday")
+    #expect(update.why == "Worth the visit")
+    #expect(update.fit == "Near the hotel")
+    #expect(update.priority == 3)
+    #expect(update.priorityOutOf == 5)
+    #expect(TripRationaleBackfill.update(
+      for: TripIdea(
+        id: stop.id, tripID: stop.tripID, ideaID: nil,
+        rationaleVisit: update.visit, rationaleWhy: update.why, rationaleFit: update.fit,
+        rationalePriority: update.priority, rationalePriorityOutOf: update.priorityOutOf),
+      from: candidate, priorityOutOf: 5) == nil)
+  }
+
+  @Test func priorityBackfillLeavesAnExistingPriorityPairAlone() {
+    let stop = TripIdea(
+      id: UUID(), tripID: UUID(), ideaID: nil,
+      rationaleVisit: "Thursday", rationaleWhy: "Existing", rationaleFit: "Near the hotel",
+      rationalePriority: 4, rationalePriorityOutOf: 6)
+
+    #expect(TripRationaleBackfill.update(
+      for: stop, from: TripCandidate(priority: 2), priorityOutOf: 5) == nil)
+  }
 }

@@ -291,6 +291,7 @@ extension TripIdea {
   public static func commit(
     candidate: TripCandidate,
     into tripID: Trip.ID,
+    priorityOutOf: Int? = nil,
     in db: Database
   ) throws -> TripIdea {
     let context = try recommendationMatchingContext(for: tripID, in: db)
@@ -298,11 +299,17 @@ extension TripIdea {
       matching: candidate, in: context.tripIdeas, ideasByID: context.ideasByID
     ) {
       var didUpdateRationale = false
-      if existing.rationaleVisit == nil || existing.rationaleWhy == nil || existing.rationaleFit == nil {
+      let fillsTextRationale = existing.rationaleVisit == nil || existing.rationaleWhy == nil || existing.rationaleFit == nil
+      let fillsPriority = existing.rationalePriority == nil && candidate.priority != nil
+      if fillsTextRationale || fillsPriority {
         try TripIdea.find(existing.id).update {
           if existing.rationaleVisit == nil, let visit = candidate.visit { $0.rationaleVisit = #bind(visit) }
           if existing.rationaleWhy == nil, let why = candidate.why { $0.rationaleWhy = #bind(why) }
           if existing.rationaleFit == nil, let fit = candidate.fit { $0.rationaleFit = #bind(fit) }
+          if existing.rationalePriority == nil, let priority = candidate.priority {
+            $0.rationalePriority = #bind(priority)
+            $0.rationalePriorityOutOf = #bind(priorityOutOf)
+          }
           if let oldRationale = candidate.rationale?.trimmingCharacters(in: .whitespacesAndNewlines),
             existing.inlineNote?.trimmingCharacters(in: .whitespacesAndNewlines) == oldRationale
           {
@@ -327,6 +334,8 @@ extension TripIdea {
       rationaleVisit: candidate.visit,
       rationaleWhy: candidate.why,
       rationaleFit: candidate.fit,
+      rationalePriority: candidate.priority,
+      rationalePriorityOutOf: candidate.priority == nil ? nil : priorityOutOf,
       status: .considering,
       shortlistRank: candidate.priority ?? 0,
       bookingStatus: candidate.bookAhead == true ? .toBook : nil

@@ -251,9 +251,16 @@ struct RecommendationCandidateCardPresentation<BottomContent: View>: View {
 
   private func dossierField(_ label: String, _ value: String) -> some View {
     VStack(alignment: .leading, spacing: 2) {
-      Text(label)
-        .font(.caption)
-        .foregroundStyle(.secondary)
+      HStack(spacing: 6) {
+        Text(label)
+          .font(.caption)
+          .foregroundStyle(.secondary)
+        if label == "Why", let priorityLabel = candidate.priorityLabel {
+          Text(priorityLabel)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+      }
       Text(value)
         .font(.subheadline)
     }

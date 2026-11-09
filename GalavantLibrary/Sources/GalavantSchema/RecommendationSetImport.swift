@@ -24,11 +24,15 @@ public enum RecommendationSetImport {
   ) throws {
     var candidate = candidate
     if candidate.name == nil { candidate.name = candidate.suggestedTitle }
-    let committed = try TripIdea.commit(candidate: candidate, into: tripID, in: db)
-    try session.replaceRecommendationCandidate(candidate)
-    session.link(candidateID: candidate.id, to: committed.id)
-    session.importedAt = now
-    session.status = .imported
+    var updatedSession = session
+    try updatedSession.replaceRecommendationCandidate(candidate)
+    let priorityOutOf = try updatedSession.recommendationCandidates().filter { $0.priority != nil }.count
+    let committed = try TripIdea.commit(
+      candidate: candidate, into: tripID, priorityOutOf: candidate.priority == nil ? nil : priorityOutOf, in: db)
+    updatedSession.link(candidateID: candidate.id, to: committed.id)
+    updatedSession.importedAt = now
+    updatedSession.status = .imported
+    session = updatedSession
   }
 
   public static func apply(

@@ -37,6 +37,40 @@ struct RecommendationSetImportTests {
     }
   }
 
+  @Test func storesPriorityRanksAgainstTheRankedCandidatesAndLeavesThemIndependentOfShortlistOrder() throws {
+    try database.write { db in
+      let trip = try Trip.create(name: "Denmark", in: db)
+      let session = HandoffSession(sourceType: "trip", sourceID: trip.id, taskType: "candidatePlaces", exportedPrompt: "")
+      let candidates = (1...5).map { (rank: Int) in
+        TripCandidate(name: "Place \(rank)", priority: rank)
+      }
+      let result = try RecommendationSetImport.apply(
+        candidates: candidates, note: nil, into: trip.id, session: session, now: .now, in: db)
+      let rows = try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db).sorted { $0.shortlistRank < $1.shortlistRank }
+      #expect(rows.map(\.rationalePriority) == [1, 2, 3, 4, 5])
+      #expect(rows.map(\.rationalePriorityOutOf) == [5, 5, 5, 5, 5])
+
+      try TripIdea.reorderShortlist(rows.reversed().map(\.id), in: db)
+      let reordered = try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db)
+      #expect(Set(reordered.compactMap(\.rationalePriority)) == Set([1, 2, 3, 4, 5]))
+      #expect(reordered.allSatisfy { $0.rationalePriorityOutOf == 5 })
+      #expect(result.session.candidateLinks.count == 5)
+    }
+  }
+
+  @Test func candidatesWithoutPriorityKeepBothPriorityFieldsNil() throws {
+    try database.write { db in
+      let trip = try Trip.create(name: "Denmark", in: db)
+      let session = HandoffSession(sourceType: "trip", sourceID: trip.id, taskType: "candidatePlaces", exportedPrompt: "")
+      _ = try RecommendationSetImport.apply(
+        candidates: [TripCandidate(name: "Unranked")], note: nil, into: trip.id, session: session, now: .now, in: db)
+      let fetched = try TripIdea.where { $0.tripID.eq(trip.id) }.fetchOne(db)
+      let row = try #require(fetched)
+      #expect(row.rationalePriority == nil)
+      #expect(row.rationalePriorityOutOf == nil)
+    }
+  }
+
   @Test(arguments: [RecommendationHandoffTask.candidatePlaces, RecommendationHandoffTask.seedTrip])
   func tokenReusesOnlySessionsForTheSameTripAndTask(taskType: String) {
     let trip = UUID()

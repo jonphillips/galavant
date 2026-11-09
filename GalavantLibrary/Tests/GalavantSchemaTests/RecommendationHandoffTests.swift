@@ -398,6 +398,12 @@ struct RecommendationHandoffTests {
     #expect(RecommendationHandoffContract.projectInstructions.contains("timed entry, popular restaurant, show"))
   }
 
+  @Test func projectInstructionsDefinePriorityAsOneBasedListRank() {
+    #expect(RecommendationHandoffContract.projectInstructions.contains(
+      "priority ranks this list: 1 is your first choice, 2 the next, and so on. Omit it if you can't rank."))
+    #expect(RecommendationHandoffContract.projectInstructions.contains("\"priority\":1"))
+  }
+
   @Test func malformedReturnFailsLoudly() {
     #expect(throws: TripCandidateDecodeError.malformedJSON) {
       try TripCandidate.decodeReturn("[{\"name\": }]")
@@ -471,6 +477,27 @@ struct RecommendationHandoffTests {
     #expect(updated.rationaleWhy == "Worth the visit")
     #expect(updated.rationaleFit == "Easy from the hotel")
     #expect(updated.inlineNote == nil)
+  }
+
+  @Test func matchingCandidateFillsAnEmptyPriorityPairAndKeepsAnExistingPair() async throws {
+    let rows = try await database.write { db -> (TripIdea, TripIdea) in
+      let trip = try Trip.create(name: "Denmark", in: db)
+      let candidate = TripCandidate(name: "Museum", priority: 2)
+      let original = try TripIdea.commit(candidate: candidate, into: trip.id, priorityOutOf: 5, in: db)
+      try TripIdea.find(original.id).update {
+        $0.rationalePriority = #bind(nil as Int?)
+        $0.rationalePriorityOutOf = #bind(nil as Int?)
+      }.execute(db)
+      let filled = try TripIdea.commit(candidate: candidate, into: trip.id, priorityOutOf: 7, in: db)
+      let kept = try TripIdea.commit(
+        candidate: TripCandidate(name: "Museum", priority: 1), into: trip.id, priorityOutOf: 9, in: db)
+      return (filled, kept)
+    }
+
+    #expect(rows.0.rationalePriority == 2)
+    #expect(rows.0.rationalePriorityOutOf == 7)
+    #expect(rows.1.rationalePriority == 2)
+    #expect(rows.1.rationalePriorityOutOf == 7)
   }
 
   @Test func bookAheadSeedsOnlyANewCandidateMarkedTrue() async throws {

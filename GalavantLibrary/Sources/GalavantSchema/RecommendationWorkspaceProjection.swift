@@ -5,15 +5,21 @@ public struct RecommendationWorkspaceCandidate: Identifiable {
   public let candidate: TripCandidate
   public let tripIdea: TripIdea
   public let idea: Idea?
+  public let priorityOutOf: Int?
 
-  public init(candidate: TripCandidate, tripIdea: TripIdea, idea: Idea?) {
+  public init(candidate: TripCandidate, tripIdea: TripIdea, idea: Idea?, priorityOutOf: Int? = nil) {
     self.candidate = candidate
     self.tripIdea = tripIdea
     self.idea = idea
+    self.priorityOutOf = priorityOutOf
   }
 
   public var id: TripIdea.ID { tripIdea.id }
   public var title: String { tripIdea.inlineTitle ?? candidate.suggestedTitle }
+  public var priorityLabel: String? {
+    guard let priority = candidate.priority else { return nil }
+    return priorityOutOf.map { "#\(priority) of \($0)" } ?? "#\(priority)"
+  }
   public var isResolved: Bool { tripIdea.ideaID != nil }
   public var isAwaitingResolutionOnItinerary: Bool { tripIdea.status == .scheduled && !isResolved }
 }
@@ -151,6 +157,7 @@ public struct RecommendationWorkspaceProjection {
     let candidateByID = Dictionary(uniqueKeysWithValues: handoffCandidates.map { ($0.id, $0) })
     let tripIdeasByID = Dictionary(uniqueKeysWithValues: tripIdeas.map { ($0.id, $0) })
     let ideasByID = Dictionary(uniqueKeysWithValues: ideas.map { ($0.id, $0) })
+    let priorityOutOf = handoffCandidates.filter { $0.priority != nil }.count
     return candidateLinks.compactMap { link in
       guard
         let stopID = link.tripIdeaID,
@@ -162,7 +169,8 @@ public struct RecommendationWorkspaceProjection {
       return RecommendationWorkspaceCandidate(
         candidate: candidate,
         tripIdea: tripIdea,
-        idea: tripIdea.ideaID.flatMap { ideasByID[$0] }
+        idea: tripIdea.ideaID.flatMap { ideasByID[$0] },
+        priorityOutOf: candidate.priority == nil ? nil : priorityOutOf
       )
     }
   }
