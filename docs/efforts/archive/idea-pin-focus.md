@@ -1,6 +1,6 @@
 # Effort — The tapped idea's pin stands out on the map
 
-*Superseded 2026-11-09 by [`ideas-map-and-guide`](../ideas-map-and-guide.md) Part 2, before dispatch.*
+*Superseded 2026-11-09 by [`ideas-map-and-guide`](ideas-map-and-guide.md) Part 2, before dispatch.*
 
 **Status:** Ready · **Summary:** Tapping an idea in the Ideas list, the region guide or the guide's trip lens makes its
 pin on the map bigger and a different color, and brings it into view if it's off screen. Today this relies on MapKit's own

@@ -45,6 +45,11 @@ public struct GuideSlotMenu: Equatable, Sendable {
 
   public var sections: [[Row]]
 
+  public func row(day: Int, meal: Meal) -> Row? {
+    let id = "\(day)-\(meal.rawValue)"
+    return sections.lazy.flatMap { $0 }.first { $0.id == id }
+  }
+
   public init(lens: GuideTripLens, idea: Idea, entries: [TripIdea], stays: [TripStay], calendar: Calendar) {
     let currentStay = stays.first { $0.ideaID == idea.id }
     switch lens.body {

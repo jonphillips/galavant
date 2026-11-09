@@ -53,7 +53,6 @@ struct PoolMapView: View {
         cameraPosition: $cameraPosition,
         selection: $mapSelection,
         visibleRegion: $visibleRegion,
-        selectedValue: selectedIdeaID,
         selectedMapItem: $selectedMapItem,
         presentationPolicy: placeSelectionPolicy,
         onSelectPlace: onSelectMapPlace,
@@ -64,7 +63,7 @@ struct PoolMapView: View {
         }
       ) {
         ForEach(mappableIdeas) { idea in
-          if let coordinate = idea.coordinate {
+          if idea.id != selectedIdeaID, let coordinate = idea.coordinate {
             Marker(
               idea.name,
               systemImage: idea.kind?.systemImage ?? "mappin",
@@ -74,8 +73,32 @@ struct PoolMapView: View {
             .tag(idea.id)
           }
         }
+        if let idea = mappableIdeas.first(where: { $0.id == selectedIdeaID }),
+           let coordinate = idea.coordinate {
+          Annotation(idea.name, coordinate: coordinate, anchor: .bottom) {
+            Button { onSelect(idea) } label: {
+              VStack(spacing: -5) {
+                Image(systemName: idea.kind?.systemImage ?? "mappin")
+                  .font(.system(size: 16, weight: .semibold))
+                  .foregroundStyle(.white)
+                  .frame(width: 34, height: 34)
+                  .background(Color.accentColor, in: Circle())
+                  .overlay(Circle().stroke(.white, lineWidth: 2))
+                Image(systemName: "triangle.fill")
+                  .font(.system(size: 10))
+                  .rotationEffect(.degrees(180))
+                  .foregroundStyle(Color.accentColor)
+              }
+              .shadow(color: .black.opacity(0.3), radius: 3, y: 2)
+              .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+          }
+          .annotationTitles(.hidden)
+        }
       }
       .onChange(of: framingRegions.map(\.id), initial: true) { frameSelectedRegion() }
+      .onChange(of: selectedIdeaID) { _, ideaID in focusIdea(ideaID) }
       .overlay {
         if mappableIdeas.isEmpty {
           ContentUnavailableView(
@@ -117,5 +140,15 @@ struct PoolMapView: View {
     } else {
       cameraPosition = .automatic
     }
+  }
+
+  private func focusIdea(_ ideaID: Idea.ID?) {
+    guard let ideaID,
+          let coordinate = mappableIdeas.first(where: { $0.id == ideaID })?.coordinate else { return }
+    guard let region = visibleRegion ?? cameraPosition.region else { return }
+    let latitudeIsVisible = abs(coordinate.latitude - region.center.latitude) <= region.span.latitudeDelta / 2
+    let longitudeIsVisible = abs(coordinate.longitude - region.center.longitude) <= region.span.longitudeDelta / 2
+    guard !latitudeIsVisible || !longitudeIsVisible else { return }
+    cameraPosition = .region(MKCoordinateRegion(center: coordinate, span: region.span))
   }
 }

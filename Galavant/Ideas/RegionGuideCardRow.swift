@@ -9,6 +9,8 @@ struct RegionGuideCardRow: View {
   let badge: String?
   let isFocused: Bool
   let onTap: () -> Void
+  var putInTitle: String? = nil
+  var onPutHere: (() -> Void)? = nil
 
   var body: some View {
     Button(action: onTap) {
@@ -53,6 +55,19 @@ struct RegionGuideCardRow: View {
     .buttonStyle(.plain)
     .listRowBackground(isFocused ? Color.accentColor.opacity(0.15) : nil)
     .accessibilityElement(children: .combine)
+    .swipeActions(edge: .leading, allowsFullSwipe: false) {
+      if let onPutHere {
+        Button(action: onPutHere) {
+          Label("Put here", systemImage: "calendar.badge.plus")
+        }
+        .tint(.accentColor)
+      }
+    }
+    .contextMenu {
+      if let putInTitle, let onPutHere {
+        Button(putInTitle, systemImage: "calendar.badge.plus", action: onPutHere)
+      }
+    }
   }
 
   private func noteText(_ note: TasteNote, lines: Int) -> some View {

@@ -69,22 +69,27 @@ final class RegionGuideModel {
     )
   }
 
-  var visibleGuide: RegionGuide? {
-    guard let guide, let focusedSlot, case .open = focusedSlot.content else { return guide }
-    return guide.filtered(to: Set(focusedSlot.ideaIDs))
-  }
-
-  var mapGuide: RegionGuide? {
-    guard let guide, let focusedSlot else { return guide }
-    return guide.filtered(to: Set(focusedSlot.ideaIDs))
-  }
-
   var focusedSlot: GuideSlotFocus? {
-    guard let key = focusedSlotKey, let lens = tripLens else { return nil }
+    guard let lens = tripLens else { return nil }
+    return focusedSlot(in: lens, guide: guide)
+  }
+
+  func focusedSlot(in lens: GuideTripLens, guide: RegionGuide?) -> GuideSlotFocus? {
+    guard let key = focusedSlotKey else { return nil }
     let candidateIdeaIDs = Set(guide?.sections.flatMap(\.cards).map(\.idea.id) ?? [])
     return GuideSlotFocus(day: key.day, meal: key.meal, lens: lens,
       entries: tripIdeas.filter { $0.tripID == lens.trip.id }, ideas: ideas,
       candidateIdeaIDs: candidateIdeaIDs)
+  }
+
+  func visibleGuide(_ guide: RegionGuide?, focusedSlot: GuideSlotFocus?) -> RegionGuide? {
+    guard let guide, let focusedSlot, case .open = focusedSlot.content else { return guide }
+    return guide.filtered(to: Set(focusedSlot.ideaIDs))
+  }
+
+  func mapGuide(_ guide: RegionGuide?, focusedSlot: GuideSlotFocus?) -> RegionGuide? {
+    guard let guide, let focusedSlot else { return guide }
+    return guide.filtered(to: Set(focusedSlot.ideaIDs))
   }
 
   var tripLens: GuideTripLens? {
@@ -119,7 +124,7 @@ final class RegionGuideModel {
     return ideaID
   }
 
-  func tripRationale(for ideaID: Idea.ID?) -> TripRationale? {
+  func tripRationale(for ideaID: Idea.ID?, tripLens: GuideTripLens?) -> TripRationale? {
     guard let ideaID, let tripID = tripLens?.trip.id else { return nil }
     let stops = tripIdeas.filter { $0.tripID == tripID && $0.ideaID == ideaID }
     let ordered = TripIdea.canonicalAlternativeOrder(stops)
@@ -173,10 +178,28 @@ final class RegionGuideModel {
   }
 
   func slotMenu(for ideaID: Idea.ID) -> GuideSlotMenu? {
-    guard let lens = tripLens, let idea = ideas.first(where: { $0.id == ideaID }) else { return nil }
+    guard let lens = tripLens else { return nil }
+    return slotMenu(for: ideaID, lens: lens)
+  }
+
+  func slotMenu(for ideaID: Idea.ID, lens: GuideTripLens) -> GuideSlotMenu? {
+    guard let idea = ideas.first(where: { $0.id == ideaID }) else { return nil }
     let entries = tripIdeas.filter { $0.tripID == lens.trip.id }
     let stays = tripStays.filter { $0.tripID == lens.trip.id }
     return GuideSlotMenu(lens: lens, idea: idea, entries: entries, stays: stays, calendar: calendar)
+  }
+
+  func slotRows(
+    for ideas: [Idea], focusedSlot: GuideSlotFocus?, lens: GuideTripLens?
+  ) -> [Idea.ID: GuideSlotMenu.Row] {
+    guard let focusedSlot, case .open = focusedSlot.content, let lens else { return [:] }
+    let entries = tripIdeas.filter { $0.tripID == lens.trip.id }
+    let stays = tripStays.filter { $0.tripID == lens.trip.id }
+    return Dictionary(uniqueKeysWithValues: ideas.compactMap { idea in
+      GuideSlotMenu(lens: lens, idea: idea, entries: entries, stays: stays, calendar: calendar)
+        .row(day: focusedSlot.day, meal: focusedSlot.meal)
+        .map { (idea.id, $0) }
+    })
   }
 
   @discardableResult

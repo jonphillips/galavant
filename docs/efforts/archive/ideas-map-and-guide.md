@@ -3,10 +3,10 @@
 **Status:** Ready · **Summary:** Four small fixes on the Ideas map and the Region Guide, from Jon's iPad use on 2026-11-09.
 Tapping a pin opens the idea again (a regression since #132). The focused idea's pin is drawn bigger and accent-colored,
 and pans into view. While the Guide is open on iPad, the Ideas filter bars and browse buttons go away. In an open lunch or
-dinner slot, a place goes in with one tap. Supersedes [`idea-pin-focus`](archive/idea-pin-focus.md). No schema change.
+dinner slot, a place goes in with one tap. Supersedes [`idea-pin-focus`](idea-pin-focus.md). No schema change.
 
 **Read first:** ADR-0044 (explore, then capture); ADR-0053 D8; the archived briefs
-[`guide-dossier-panel`](archive/guide-dossier-panel.md) and [`guide-slot-filling`](archive/guide-slot-filling.md).
+[`guide-dossier-panel`](guide-dossier-panel.md) and [`guide-slot-filling`](guide-slot-filling.md).
 
 The four parts touch different code and can land in order in one PR. If Part 2's custom pin fights MapKit, ship Parts 1, 3
 and 4, and say so on the PR.

@@ -20,8 +20,15 @@ struct RegionGuideScreen: View {
 
   var body: some View {
     let tripLens = model.tripLens
-    let guide = model.visibleGuide
-    let mapGuide = model.mapGuide
+    let sourceGuide = model.guide
+    let focusedSlot = tripLens.flatMap { model.focusedSlot(in: $0, guide: sourceGuide) }
+    let guide = model.visibleGuide(sourceGuide, focusedSlot: focusedSlot)
+    let mapGuide = model.mapGuide(sourceGuide, focusedSlot: focusedSlot)
+    let slotRows = model.slotRows(
+      for: sourceGuide?.sections.flatMap(\.cards).map(\.idea) ?? [],
+      focusedSlot: focusedSlot,
+      lens: tripLens
+    )
     let headerThumbnails = model.headerThumbnailByIdea
     let plannerNames = Dictionary(model.planners.map { ($0.id, $0.displayName) }, uniquingKeysWith: { first, _ in first })
     return VStack(spacing: 0) {
@@ -29,19 +36,21 @@ struct RegionGuideScreen: View {
       if horizontalSizeClass == .regular {
         IdeaMapSplitView(
           ideaID: model.dossierID,
-          tripRationale: model.tripRationale(for: model.dossierID),
-          onClose: { model.closeDossier() },
+          tripRationale: model.tripRationale(for: model.dossierID, tripLens: tripLens),
+          onClose: closeDossier,
           column: {
-            guideList(guide, tripLens: tripLens, headerThumbnails: headerThumbnails, plannerNames: plannerNames)
+            guideList(guide, tripLens: tripLens, focusedSlot: focusedSlot, slotRows: slotRows,
+              headerThumbnails: headerThumbnails, plannerNames: plannerNames)
           },
           map: { poolMap(mapGuide) },
-          dossierAccessory: { dossierAccessory(ideaID: model.dossierID) }
+          dossierAccessory: { dossierAccessory(ideaID: model.dossierID, tripLens: tripLens, focusedSlot: focusedSlot) }
         )
       } else {
         Group {
           switch mode {
           case .list:
-            guideList(guide, tripLens: tripLens, headerThumbnails: headerThumbnails, plannerNames: plannerNames)
+            guideList(guide, tripLens: tripLens, focusedSlot: focusedSlot, slotRows: slotRows,
+              headerThumbnails: headerThumbnails, plannerNames: plannerNames)
           case .map: poolMap(mapGuide)
           }
         }
@@ -59,12 +68,12 @@ struct RegionGuideScreen: View {
           if let ideaID = model.dossierID {
             IdeaDetailView(
               ideaID: ideaID,
-              tripRationale: model.tripRationale(for: ideaID),
+              tripRationale: model.tripRationale(for: ideaID, tripLens: tripLens),
               canEdit: true,
-              chrome: .panel(onClose: { model.closeDossier() })
+              chrome: .panel(onClose: closeDossier)
             )
             .id(ideaID)
-            .safeAreaInset(edge: .bottom) { dossierAccessory(ideaID: ideaID) }
+            .safeAreaInset(edge: .bottom) { dossierAccessory(ideaID: ideaID, tripLens: tripLens, focusedSlot: focusedSlot) }
             .presentationDetents([.medium, .large])
             .presentationBackgroundInteraction(.enabled(upThrough: .medium))
           }
@@ -87,39 +96,72 @@ struct RegionGuideScreen: View {
     .sensoryFeedback(.success, trigger: model.successfulAddCount)
   }
 
-  @ViewBuilder private func dossierAccessory(ideaID: Idea.ID?) -> some View {
-    if let ideaID, let menu = model.slotMenu(for: ideaID) {
-      Menu {
-        ForEach(Array(menu.sections.enumerated()), id: \.offset) { _, rows in
-          Section {
-            ForEach(rows) { row in
-              Button {
-                guard let action = row.action else { return }
-                _ = model.addToTrip(action, ideaID: ideaID)
-              } label: {
-                HStack {
-                  VStack(alignment: .leading, spacing: 2) {
-                    Text(row.title)
-                    Text(row.detail).font(.caption).foregroundStyle(.secondary)
-                  }
-                  if row.isCurrent { Image(systemName: "checkmark") }
-                }
-              }
-              .disabled(row.action == nil)
+  @ViewBuilder private func dossierAccessory(
+    ideaID: Idea.ID?, tripLens: GuideTripLens?, focusedSlot: GuideSlotFocus?
+  ) -> some View {
+    if let ideaID, let tripLens, let menu = model.slotMenu(for: ideaID, lens: tripLens) {
+      if let focus = focusedSlot, case .open = focus.content,
+         let row = menu.row(day: focus.day, meal: focus.meal) {
+        HStack(spacing: 10) {
+          VStack(alignment: .leading, spacing: 3) {
+            Button {
+              guard let action = row.action else { return }
+              _ = model.addToTrip(action, ideaID: ideaID)
+            } label: {
+              Text("Put in \(row.title)")
+                .font(.headline)
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(row.action == nil)
+            if row.action == nil {
+              Text(row.detail).font(.caption).foregroundStyle(.secondary)
             }
           }
+          addToTripMenu(menu, ideaID: ideaID, compact: true)
+            .buttonStyle(.bordered)
         }
-      } label: {
-        Label("Add to Trip", systemImage: "plus")
-          .font(.headline)
-          .frame(maxWidth: .infinity)
-          .padding(.vertical, 12)
-          .contentShape(Rectangle())
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(.bar)
+      } else {
+        addToTripMenu(menu, ideaID: ideaID, compact: false)
+          .buttonStyle(.borderedProminent)
+          .padding(.horizontal, 16)
+          .padding(.vertical, 8)
+          .background(.bar)
       }
-      .buttonStyle(.borderedProminent)
-      .padding(.horizontal, 16)
-      .padding(.vertical, 8)
-      .background(.bar)
+    }
+  }
+
+  private func addToTripMenu(_ menu: GuideSlotMenu, ideaID: Idea.ID, compact: Bool) -> some View {
+    Menu {
+      ForEach(Array(menu.sections.enumerated()), id: \.offset) { _, rows in
+        Section {
+          ForEach(rows) { row in
+            Button {
+              guard let action = row.action else { return }
+              _ = model.addToTrip(action, ideaID: ideaID)
+            } label: {
+              HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                  Text(row.title)
+                  Text(row.detail).font(.caption).foregroundStyle(.secondary)
+                }
+                if row.isCurrent { Image(systemName: "checkmark") }
+              }
+            }
+            .disabled(row.action == nil)
+          }
+        }
+      }
+    } label: {
+      Label("Add to Trip", systemImage: "plus")
+        .font(compact ? .body : .headline)
+        .frame(maxWidth: compact ? nil : .infinity)
+        .padding(.vertical, compact ? 0 : 12)
+        .contentShape(Rectangle())
     }
   }
 
@@ -171,6 +213,8 @@ struct RegionGuideScreen: View {
   @ViewBuilder private func guideList(
     _ guide: RegionGuide?,
     tripLens: GuideTripLens?,
+    focusedSlot: GuideSlotFocus?,
+    slotRows: [Idea.ID: GuideSlotMenu.Row],
     headerThumbnails: [Idea.ID: Data],
     plannerNames: [Planner.ID: String]
   ) -> some View {
@@ -195,7 +239,7 @@ struct RegionGuideScreen: View {
               .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
           }
         }
-        if let focusedSlot = model.focusedSlot, let tripLens {
+        if let focusedSlot, let tripLens {
           Section {
             focusedSlotRows(focusedSlot, tripID: tripLens.trip.id)
           } header: {
@@ -210,21 +254,16 @@ struct RegionGuideScreen: View {
             }
           }
         }
-        if model.focusedSlot?.isFilled != true, let guide, guide.sections.isEmpty {
+        if focusedSlot?.isFilled != true, let guide, guide.sections.isEmpty {
           let notForMeCount = guide.counts[.notForMe, default: 0]
           ContentUnavailableView("Nothing in \(model.shelf.label)", systemImage: Icon.ideas.systemName,
             description: Text("\(notForMeCount) \(notForMeCount == 1 ? "place is" : "places are") on Not for Me."))
-        } else if model.focusedSlot?.isFilled != true, let guide {
+        } else if focusedSlot?.isFilled != true, let guide {
           ForEach(guide.sections) { section in
             Section(section.title) {
               ForEach(section.cards) { card in
-                RegionGuideCardRow(
-                  card: card, headerThumbnail: headerThumbnails[card.idea.id], plannerNames: plannerNames,
-                  badge: tripLens?.badgeLabel(for: card.idea.id), isFocused: focusedIdeaID == card.idea.id,
-                  onTap: {
-                    model.ideaTapped(card.idea)
-                    focusedIdeaID = card.idea.id
-                  })
+                guideCard(card, tripLens: tripLens, slotRow: slotRows[card.idea.id],
+                  thumbnails: headerThumbnails, plannerNames: plannerNames)
               }
             }
           }
@@ -233,13 +272,36 @@ struct RegionGuideScreen: View {
     }
   }
 
+  private func guideCard(
+    _ card: RegionGuide.Card,
+    tripLens: GuideTripLens?,
+    slotRow: GuideSlotMenu.Row?,
+    thumbnails: [Idea.ID: Data],
+    plannerNames: [Planner.ID: String]
+  ) -> some View {
+    return RegionGuideCardRow(
+      card: card, headerThumbnail: thumbnails[card.idea.id], plannerNames: plannerNames,
+      badge: tripLens?.badgeLabel(for: card.idea.id), isFocused: focusedIdeaID == card.idea.id,
+      onTap: {
+        focusedIdeaID = card.idea.id
+        model.ideaTapped(card.idea)
+      },
+      putInTitle: slotRow?.action == nil ? nil : slotRow.map { "Put in \($0.title)" },
+      onPutHere: slotRow?.action.map { action in
+        { _ = model.addToTrip(action, ideaID: card.idea.id) }
+      })
+  }
+
   @ViewBuilder private func focusedSlotRows(_ focus: GuideSlotFocus, tripID: Trip.ID) -> some View {
     if case let .filled(stops) = focus.content {
       ForEach(stops) { stop in
         HStack {
           VStack(alignment: .leading, spacing: 3) {
             if let ideaID = stop.ideaID {
-              Button(stop.title) { model.tripStopTapped(ideaID) }
+              Button(stop.title) {
+                focusedIdeaID = ideaID
+                model.tripStopTapped(ideaID)
+              }
                 .buttonStyle(.plain)
             } else {
               Text(stop.title).italic()
@@ -265,7 +327,7 @@ struct RegionGuideScreen: View {
       ideas: guide?.sections.flatMap(\.cards).map(\.idea) ?? [],
       framingRegions: model.region.map { [$0] } ?? [],
       placeSelectionPolicy: horizontalSizeClass == .regular ? .exploreFirst(.popover) : .exploreFirst(.sheet),
-      selectedIdeaID: horizontalSizeClass == .regular ? focusedIdeaID : nil,
+      selectedIdeaID: focusedIdeaID,
       onSelect: { idea in
         focusedIdeaID = idea.id
         model.ideaTapped(idea)
@@ -273,5 +335,10 @@ struct RegionGuideScreen: View {
       onSelectMapPlace: { place in await model.mapPlaceTapped(place) },
       visibleRegion: $visibleRegion
     )
+  }
+
+  private func closeDossier() {
+    focusedIdeaID = nil
+    model.closeDossier()
   }
 }
