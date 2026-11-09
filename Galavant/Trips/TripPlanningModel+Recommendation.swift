@@ -219,14 +219,11 @@ extension TripPlanningModel {
       var updatedSession = handoffSessionStore.session(session.id) ?? session
       let merge = try updatedSession.storeRecommendationCandidates(candidates)
       try handoffSessionStore.save(updatedSession)
-      let context = try database.read { db in
-        try TripIdea.recommendationMatchingContext(for: tripID, in: db)
+      try database.write { db in
+        try RecommendationCandidateSet.applyReevaluation(
+          merge, links: updatedSession.candidateLinks, in: db
+        )
       }
-      let alreadyOnTrip = candidates.filter {
-        RecommendationCandidateSet.liveTripIdea(
-          matching: $0, in: context.tripIdeas, ideasByID: context.ideasByID
-        ) != nil
-      }.count
       let linkedCandidateIDs = Set(
         updatedSession.candidateLinks.compactMap { link in
           link.tripIdeaID == nil ? nil : link.candidateID
@@ -235,9 +232,12 @@ extension TripPlanningModel {
       recommendationReview = try updatedSession.recommendationCandidates()
         .filter { !linkedCandidateIDs.contains($0.id) }
         .map(RecommendationCandidateDraft.init(candidate:))
-      warnings.insert(
-        "\(merge.addedCandidates.count) new, \(alreadyOnTrip) already on this trip.", at: 0
-      )
+      let summary = [
+        merge.addedCandidates.isEmpty ? nil : "\(merge.addedCandidates.count) new",
+        merge.updatedCandidates.isEmpty ? nil : "\(merge.updatedCandidates.count) updated",
+        merge.unrankedCandidates.isEmpty ? nil : "\(merge.unrankedCandidates.count) no longer ranked",
+      ].compactMap { $0 }.joined(separator: " · ")
+      warnings.insert(summary.isEmpty ? "Nothing new." : summary, at: 0)
       recommendationHandoffPaste.warning = warnings.joined(separator: "\n\n")
       recommendationHandoffPaste.note = decoded.note
       recommendationHandoffPaste.noteSaved = false
@@ -325,24 +325,17 @@ extension TripPlanningModel {
           capture: place.ideaCapture(),
           in: db
         ) else { return (nil, false) }
+        if let collision = resolution.collision {
+          try collision.action.apply(in: db)
+        }
         return (resolution.collision, true)
       }
     }
     guard let result, result.confirmed else { return }
-    pendingRecommendationReconcile = result.collision
-    if result.collision == nil { destination = nil }
-  }
-
-  func recommendationReconcileChoice(_ choice: ResolveReconcile.Choice) {
-    guard let collision = pendingRecommendationReconcile else { return }
-    let action = collision.action(for: choice)
-    let succeeded = withErrorReporting {
-      try database.write { db in
-        try action.apply(in: db)
-      }
+    if result.collision != nil {
+      recommendationHandoffPaste.warning = "Already on this trip — updated Chat's notes."
+    } else {
+      destination = nil
     }
-    guard succeeded != nil else { return }
-    pendingRecommendationReconcile = nil
-    destination = nil
   }
 }

@@ -26,9 +26,9 @@ public enum RecommendationSetImport {
     if candidate.name == nil { candidate.name = candidate.suggestedTitle }
     var updatedSession = session
     try updatedSession.replaceRecommendationCandidate(candidate)
-    let priorityOutOf = try updatedSession.recommendationCandidates().filter { $0.priority != nil }.count
+    let priorityOutOf = try updatedSession.priorityOutOf(for: candidate.id)
     let committed = try TripIdea.commit(
-      candidate: candidate, into: tripID, priorityOutOf: candidate.priority == nil ? nil : priorityOutOf, in: db)
+      candidate: candidate, into: tripID, priorityOutOf: priorityOutOf, in: db)
     updatedSession.link(candidateID: candidate.id, to: committed.id)
     updatedSession.importedAt = now
     updatedSession.status = .imported
@@ -45,7 +45,8 @@ public enum RecommendationSetImport {
       if candidate.name == nil { candidate.name = candidate.suggestedTitle }
       return candidate
     }
-    try session.storeRecommendationCandidates(normalized)
+    let merge = try session.storeRecommendationCandidates(normalized)
+    try RecommendationCandidateSet.applyReevaluation(merge, links: session.candidateLinks, in: db)
     let linked = Set(session.candidateLinks.filter { $0.tripIdeaID != nil }.map(\.candidateID))
     for candidate in try session.recommendationCandidates() where !linked.contains(candidate.id) {
       guard !candidate.suggestedTitle.isEmpty else { continue }

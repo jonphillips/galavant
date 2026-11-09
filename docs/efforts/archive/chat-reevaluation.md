@@ -1,6 +1,6 @@
 # Effort — Re-evaluate with Chat: a newer return updates places already on the trip, and Chat's top three wear medals
 
-**Status:** Ready · **Summary:** [ADR-0055](../decisions/0055-trip-rationale-fields.md) D8 and D9. When Chat returns a
+**Status:** Ready · **Summary:** [ADR-0055](../../decisions/0055-trip-rationale-fields.md) D8 and D9. When Chat returns a
 place that's already on the trip, its new Visit, Why, Fit and rank replace the old ones. Today they're dropped or stacked
 under the old text. A ranked return that repeats places from earlier in the same conversation replaces that
 conversation's ranking. The resolve-time Merge / Keep Both dialog goes away. In Considering, on candidate cards and on
@@ -8,7 +8,7 @@ alternatives, Chat's top three show gold, silver and bronze medals. Folds in the
 No schema change.
 
 **Read first:** ADR-0055 D7–D9; ADR-0037 OQ5 (amended); the superseded
-[`rationale-priority-per-return`](archive/rationale-priority-per-return.md) brief, whose Parts 1–2 are this brief's
+[`rationale-priority-per-return`](rationale-priority-per-return.md) brief, whose Parts 1–2 are this brief's
 Part 1. Jon's report, 2026-11-09: he staged Chat's picks, talked with Chat for another 15 minutes, re-ranked, and
 restaged. Merge kept the old rank and stacked the old and new reasoning. Keep Both was the only way to keep a rank.
 

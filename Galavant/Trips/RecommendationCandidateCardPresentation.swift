@@ -67,9 +67,15 @@ struct RecommendationCandidateCardPresentation<BottomContent: View>: View {
     HStack(alignment: .top, spacing: 6) {
       Button(action: select) {
         VStack(alignment: .leading, spacing: 6) {
-          Text(candidate.title)
-            .font(.headline)
-            .lineLimit(2)
+          HStack(alignment: .top, spacing: 6) {
+            Text(candidate.title)
+              .font(.headline)
+              .lineLimit(2)
+            RankMedal(
+              priority: candidate.candidate.priority,
+              priorityOutOf: candidate.candidate.priorityOutOf
+            )
+          }
           statusLabel
           if let why = candidate.candidate.why {
             Text(why)
@@ -103,11 +109,17 @@ struct RecommendationCandidateCardPresentation<BottomContent: View>: View {
           .accessibilityLabel("Collapse")
 
           Button(action: select) {
-            Text(candidate.title)
-              .font(.headline)
-              .lineLimit(3)
-              .frame(maxWidth: .infinity, alignment: .leading)
-              .contentShape(Rectangle())
+            HStack(alignment: .top, spacing: 6) {
+              Text(candidate.title)
+                .font(.headline)
+                .lineLimit(3)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+              RankMedal(
+                priority: candidate.candidate.priority,
+                priorityOutOf: candidate.candidate.priorityOutOf
+              )
+            }
           }
           .buttonStyle(.plain)
         }
@@ -147,11 +159,17 @@ struct RecommendationCandidateCardPresentation<BottomContent: View>: View {
     VStack(alignment: .leading, spacing: 10) {
       HStack(alignment: .top, spacing: 8) {
         Button(action: select) {
-          Text(candidate.title)
-            .font(.headline)
-            .lineLimit(3)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
+          HStack(alignment: .top, spacing: 6) {
+            Text(candidate.title)
+              .font(.headline)
+              .lineLimit(3)
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .contentShape(Rectangle())
+            RankMedal(
+              priority: candidate.candidate.priority,
+              priorityOutOf: candidate.candidate.priorityOutOf
+            )
+          }
         }
         .buttonStyle(.plain)
         actionsMenu

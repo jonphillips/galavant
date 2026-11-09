@@ -1,6 +1,6 @@
 # Effort — Chat's rank counts against its own return
 
-**Status:** Superseded by [`chat-reevaluation`](../chat-reevaluation.md), 2026-11-09, which folds in Parts 1–2 · **Summary:** [ADR-0055](../../decisions/0055-trip-rationale-fields.md) D7, corrected. A rank's "of N"
+**Status:** Superseded by [`chat-reevaluation`](chat-reevaluation.md), 2026-11-09, which folds in Parts 1–2 · **Summary:** [ADR-0055](../../decisions/0055-trip-rationale-fields.md) D7, corrected. A rank's "of N"
 counts the candidates in the return it came in, not every candidate stored in its handoff session. Today a second return
 pasted under the same `GV-HANDOFF` token labels its top pick "#1 of 10". Each candidate now records its return's count
 when the return is stored. No schema change and no CloudKit work: sessions are local.

@@ -36,6 +36,7 @@
 		242EC6987A08C0DCEBF3BC64 /* GalavantPlaces in Frameworks */ = {isa = PBXBuildFile; productRef = 6527A596FFD56B45F77446D0 /* GalavantPlaces */; };
 		25A7842AF8875EEF8BFA2887 /* PrefersTabNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDA439EDEF5339154F3D8C08 /* PrefersTabNavigation.swift */; };
 		28CB0F1054F9EC0012E413AD /* CloudSyncKit in Frameworks */ = {isa = PBXBuildFile; productRef = BAB8971211A0C3E3E9C18A40 /* CloudSyncKit */; };
+		2B05CE91CEC4E7F8E30CC6BD /* RankMedal.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBC87684E71CD9712F789FFC /* RankMedal.swift */; };
 		2B0A50DCCAAD2AEC9304BEF5 /* IdeaDossierModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B9FED849BC102F6EA429B42 /* IdeaDossierModel.swift */; };
 		2BCD153BD1286735123E24B7 /* TripHeaderImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E5E2C9449BAC2E031A8745F /* TripHeaderImageView.swift */; };
 		31E7698A7F0335B2B8A738B6 /* TripPlanningStaySheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD6CFE9865ECF5709A038E9C /* TripPlanningStaySheets.swift */; };
@@ -442,6 +443,7 @@
 		F800835C302F4215E837F4FF /* RecommendationCandidateCardPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationCandidateCardPresentation.swift; sourceTree = "<group>"; };
 		F84C0FF0F99E3606279BB42C /* RegionManagementSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegionManagementSettingsView.swift; sourceTree = "<group>"; };
 		F8D1F8D207FE25FE14CCFED7 /* IdeasListModel+Taxonomy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "IdeasListModel+Taxonomy.swift"; sourceTree = "<group>"; };
+		FBC87684E71CD9712F789FFC /* RankMedal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RankMedal.swift; sourceTree = "<group>"; };
 		FCB153EAAD14C2A632110033 /* RecommendationWorkspaceModel+Projection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RecommendationWorkspaceModel+Projection.swift"; sourceTree = "<group>"; };
 		FE3B27C919A28992FDEB2A3D /* SettingsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsModel.swift; sourceTree = "<group>"; };
 		FE86BAB449019EA409EB6C42 /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
@@ -697,6 +699,7 @@
 			children = (
 				3DD1C2B139D03095F082D99E /* CertaintyStyle.swift */,
 				EF388F1C56D173F7C5F3079C /* Icon.swift */,
+				FBC87684E71CD9712F789FFC /* RankMedal.swift */,
 				371FEFD498525E0EA4709909 /* StackedForm.swift */,
 			);
 			path = Design;
@@ -1154,6 +1157,7 @@
 				A3E2170E96CDF9C7D76B89E6 /* PlanningRow.swift in Sources */,
 				9C3779832B3D8728517D947A /* PoolMapView.swift in Sources */,
 				25A7842AF8875EEF8BFA2887 /* PrefersTabNavigation.swift in Sources */,
+				2B05CE91CEC4E7F8E30CC6BD /* RankMedal.swift in Sources */,
 				C5B25151A67A54B469E8438F /* RecommendationCandidateCardPresentation.swift in Sources */,
 				C35DFF6146C22E149BA1D6AD /* RecommendationCandidateStrip.swift in Sources */,
 				682F837EE6170533F9F8A535 /* RecommendationHandoffSheet.swift in Sources */,

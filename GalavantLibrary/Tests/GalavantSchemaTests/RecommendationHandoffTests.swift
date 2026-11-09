@@ -12,7 +12,7 @@ import Testing
 struct RecommendationHandoffTests {
   @Dependency(\.defaultDatabase) var database
 
-  @Test func recommendationResolutionDetectsCollisionAndActionAppliesBothChoices() async throws {
+  @Test func recommendationResolutionAutomaticallyFoldsDuplicateAndKeepsPlacement() async throws {
     let result = try await database.write { db -> (TripIdea.ID, TripIdea.ID, ResolveReconcile.Collision) in
       let trip = try Trip.create(name: "South Tyrol", in: db)
       let party = try TravelParty.ensureDefault(in: db)
@@ -26,13 +26,21 @@ struct RecommendationHandoffTests {
         ))
       }.execute(db)
       let existing = try TripIdea.pull(ideaID: placeID, into: trip.id, status: .shortlisted, in: db)
-      try TripIdea.find(existing.id).update { $0.inlineNote = #bind("Keep this note") }.execute(db)
+      try TripIdea.find(existing.id).update {
+        $0.inlineNote = #bind("Keep this note")
+        $0.rationaleWhy = #bind("The old evaluation")
+        $0.rationalePriority = #bind(2)
+        $0.rationalePriorityOutOf = #bind(5)
+      }.execute(db)
       let duplicate = TripIdea(
         id: UUID(),
         tripID: trip.id,
         ideaID: nil,
         inlineTitle: "Lumiere Brasserie",
         inlineNote: "Try the tasting menu.",
+        rationaleWhy: "The new evaluation",
+        rationalePriority: 1,
+        rationalePriorityOutOf: 4,
         status: .considering
       )
       try TripIdea.insert { TripIdea.Draft(duplicate) }.execute(db)
@@ -44,17 +52,20 @@ struct RecommendationHandoffTests {
         ).ideaCapture(),
         in: db
       ))
+      #expect(resolution.collision != nil)
+      try resolution.collision?.action.apply(in: db)
       return (existing.id, duplicate.id, try #require(resolution.collision))
     }
 
-    try await database.write { db in
-      try result.2.action(for: .keepBoth).apply(in: db)
-      #expect(try TripIdea.where { $0.id.eq(result.0) || $0.id.eq(result.1) }.fetchAll(db).count == 2)
-      try result.2.action(for: .merge).apply(in: db)
+    try await database.read { db in
       let fetched = try TripIdea.find(result.0).fetchOne(db)
       let remaining = try #require(fetched)
       #expect(try TripIdea.find(result.1).fetchOne(db) == nil)
       #expect(remaining.inlineNote == "Keep this note\n\nTry the tasting menu.")
+      #expect(remaining.rationaleWhy == "The new evaluation")
+      #expect(remaining.rationalePriority == 1)
+      #expect(remaining.rationalePriorityOutOf == 4)
+      #expect(remaining.status == .shortlisted)
     }
   }
 
@@ -479,7 +490,7 @@ struct RecommendationHandoffTests {
     #expect(updated.inlineNote == nil)
   }
 
-  @Test func matchingCandidateFillsAnEmptyPriorityPairAndKeepsAnExistingPair() async throws {
+  @Test func matchingCandidateSupersedesAnExistingPriorityPair() async throws {
     let rows = try await database.write { db -> (TripIdea, TripIdea) in
       let trip = try Trip.create(name: "Denmark", in: db)
       let candidate = TripCandidate(name: "Museum", priority: 2)
@@ -496,8 +507,8 @@ struct RecommendationHandoffTests {
 
     #expect(rows.0.rationalePriority == 2)
     #expect(rows.0.rationalePriorityOutOf == 7)
-    #expect(rows.1.rationalePriority == 2)
-    #expect(rows.1.rationalePriorityOutOf == 7)
+    #expect(rows.1.rationalePriority == 1)
+    #expect(rows.1.rationalePriorityOutOf == 9)
   }
 
   @Test func bookAheadSeedsOnlyANewCandidateMarkedTrue() async throws {
@@ -578,11 +589,167 @@ struct RecommendationHandoffTests {
     ])
 
     expectNoDifference(merge.addedCandidates, [newCandidate])
-    expectNoDifference(try session.recommendationCandidates(), [original, newCandidate])
+    #expect(merge.updatedCandidates.map(\.id) == [original.id])
+    #expect(try session.recommendationCandidates().map(\.id) == [original.id, newCandidate.id])
     expectNoDifference(
       session.candidateLinks.first(where: { $0.candidateID == original.id })?.tripIdeaID,
       linkedStopID
     )
+  }
+
+  @Test func rankedRereturnUpdatesRepeatsAndUnranksPlacesLeftOut() throws {
+    let stored = [
+      TripCandidate(id: UUID(-30), name: "One", why: "Old one", priority: 1, priorityOutOf: 5),
+      TripCandidate(id: UUID(-31), name: "Two", priority: 2, priorityOutOf: 5),
+      TripCandidate(id: UUID(-32), name: "Three", priority: 3, priorityOutOf: 5),
+      TripCandidate(id: UUID(-33), name: "Four", priority: 4, priorityOutOf: 5),
+      TripCandidate(id: UUID(-34), name: "Five", priority: 5, priorityOutOf: 5),
+    ]
+    let merge = RecommendationCandidateSet.merging(existing: stored, incoming: [
+      TripCandidate(name: "ONE", why: "New one", priority: 3),
+      TripCandidate(name: "Two", why: "New two", priority: 1),
+      TripCandidate(name: "Three", why: "New three", priority: 2),
+      TripCandidate(name: "Six", why: "New six", priority: 4),
+    ])
+
+    #expect(merge.addedCandidates.map(\.name) == ["Six"])
+    #expect(merge.updatedCandidates.map(\.id) == stored.prefix(3).map(\.id))
+    #expect(merge.unrankedCandidates.map(\.name) == ["Four", "Five"])
+    #expect(merge.candidates.prefix(3).map(\.priority) == [3, 1, 2])
+    #expect(merge.candidates.prefix(3).allSatisfy { $0.priorityOutOf == 4 })
+    #expect(merge.candidates.prefix(3).map(\.why) == ["New one", "New two", "New three"])
+    #expect(merge.candidates[3].priority == nil)
+    #expect(merge.candidates[3].priorityOutOf == nil)
+    #expect(merge.candidates.last?.priorityOutOf == 4)
+  }
+
+  @Test func unrankedRereturnUpdatesTextAndKeepsTheOldRankPair() {
+    let stored = [TripCandidate(id: UUID(-35), name: "One", why: "Old", priority: 2, priorityOutOf: 5)]
+    let merge = RecommendationCandidateSet.merging(
+      existing: stored,
+      incoming: [TripCandidate(name: "One", why: "New")]
+    )
+
+    #expect(merge.updatedCandidates.first?.why == "New")
+    #expect(merge.candidates.first?.priority == 2)
+    #expect(merge.candidates.first?.priorityOutOf == 5)
+    #expect(merge.unrankedCandidates.isEmpty)
+  }
+
+  @Test func candidatePriorityOutOfUsesReturnStampAndLegacySessionCount() throws {
+    let stamped = TripCandidate(id: UUID(-36), name: "One", priority: 1, priorityOutOf: 4)
+    let unstamped = TripCandidate(id: UUID(-37), name: "Two", priority: 2)
+    var session = HandoffSession(
+      sourceType: "trip", sourceID: UUID(), taskType: RecommendationHandoffTask.candidatePlaces,
+      exportedPrompt: "Prompt"
+    )
+    try session.storeRecommendationCandidates([stamped, unstamped])
+    #expect(try session.recommendationCandidates().first?.priorityOutOf == 2)
+    try session.replaceRecommendationCandidate(stamped)
+
+    #expect(try session.priorityOutOf(for: stamped.id) == 4)
+    #expect(try session.priorityOutOf(for: unstamped.id) == 2)
+  }
+
+  @Test func candidatePriorityOutOfRoundTripsAndOldPayloadsDecodeUnstamped() throws {
+    let candidate = TripCandidate(name: "Cafe", priority: 1, priorityOutOf: 4)
+    let encoded = try JSONEncoder().encode(candidate)
+    let decoded = try JSONDecoder().decode(TripCandidate.self, from: encoded)
+    #expect(decoded == candidate)
+    let oldPayload = Data(#"{"name":"Cafe","priority":1}"#.utf8)
+    #expect(try JSONDecoder().decode(TripCandidate.self, from: oldPayload).priorityOutOf == nil)
+  }
+
+  @Test func supersededRationaleReplacesTextAsAUnitAndLeavesTheStopNoteAlone() {
+    let existing = TripRationale(
+      visit: "Old visit", why: "Old why", fit: "Old fit", priority: 2, priorityOutOf: 5,
+      note: "My note"
+    )
+    let newText = existing.superseded(by: TripRationale(
+      visit: "New visit", why: nil, fit: "New fit", note: nil
+    ))
+    #expect(newText == TripRationale(
+      visit: "New visit", why: nil, fit: "New fit", priority: 2, priorityOutOf: 5, note: "My note"
+    ))
+    let newRank = existing.superseded(by: TripRationale(
+      visit: nil, why: nil, fit: nil, priority: 1, priorityOutOf: 4, note: nil
+    ))
+    #expect(newRank.priority == 1)
+    #expect(newRank.priorityOutOf == 4)
+    #expect(newRank.visit == "Old visit")
+    #expect(newRank.note == "My note")
+  }
+
+  @Test func reevaluationChangesOnlyLiveRowsRationaleAndClearsOmittedRanks() async throws {
+    let rows = try await database.write { db -> (TripIdea, TripIdea, TripIdea) in
+      let trip = try Trip.create(name: "Denmark", in: db)
+      let ringID = UUID()
+      let updated = TripIdea(
+        id: UUID(), tripID: trip.id, ideaID: nil, inlineTitle: "Cafe",
+        inlineNote: "My stop note", rationaleVisit: "Old visit", rationaleWhy: "Old why",
+        rationaleFit: "Old fit", rationalePriority: 1, rationalePriorityOutOf: 2,
+        status: .scheduled, shortlistRank: 7, dayRank: 3.5, alternativeGroupID: ringID,
+        isActive: false, dayNumber: 3, dayPart: .lunch
+      )
+      let dropped = TripIdea(
+        id: UUID(), tripID: trip.id, ideaID: nil, inlineTitle: "Bistro",
+        rationalePriority: 2, rationalePriorityOutOf: 2, status: .shortlisted, shortlistRank: 8
+      )
+      let declined = TripIdea(
+        id: UUID(), tripID: trip.id, ideaID: nil, inlineTitle: "Pub",
+        rationalePriority: 3, rationalePriorityOutOf: 3, status: .declined
+      )
+      for row in [updated, dropped, declined] {
+        try TripIdea.insert { TripIdea.Draft(row) }.execute(db)
+      }
+
+      let original = [
+        TripCandidate(id: UUID(-41), name: "Cafe", why: "Old why", priority: 1, priorityOutOf: 3),
+        TripCandidate(id: UUID(-42), name: "Bistro", priority: 2, priorityOutOf: 3),
+        TripCandidate(id: UUID(-43), name: "Pub", priority: 3, priorityOutOf: 3),
+      ]
+      let incoming = [TripCandidate(name: "Cafe", why: "New why", priority: 1)]
+      let merge = RecommendationCandidateSet.merging(existing: original, incoming: incoming)
+      let links = [
+        HandoffCandidateLink(candidateID: original[0].id, tripIdeaID: updated.id),
+        HandoffCandidateLink(candidateID: original[1].id, tripIdeaID: dropped.id),
+        HandoffCandidateLink(candidateID: original[2].id, tripIdeaID: declined.id),
+      ]
+      try RecommendationCandidateSet.applyReevaluation(merge, links: links, in: db)
+      return (
+        try #require(try TripIdea.find(updated.id).fetchOne(db)),
+        try #require(try TripIdea.find(dropped.id).fetchOne(db)),
+        try #require(try TripIdea.find(declined.id).fetchOne(db))
+      )
+    }
+
+    #expect(rows.0.rationaleVisit == nil)
+    #expect(rows.0.rationaleWhy == "New why")
+    #expect(rows.0.rationaleFit == nil)
+    #expect(rows.0.rationalePriority == 1)
+    #expect(rows.0.rationalePriorityOutOf == 1)
+    #expect(rows.0.inlineNote == "My stop note")
+    #expect(rows.0.status == .scheduled)
+    #expect(rows.0.dayNumber == 3)
+    #expect(rows.0.dayPart == .lunch)
+    #expect(rows.0.alternativeGroupID != nil)
+    #expect(rows.0.isActive == false)
+    #expect(rows.0.shortlistRank == 7)
+    #expect(rows.1.rationalePriority == nil)
+    #expect(rows.1.rationalePriorityOutOf == nil)
+    #expect(rows.1.status == .shortlisted)
+    #expect(rows.2.rationalePriority == 3)
+    #expect(rows.2.rationalePriorityOutOf == 3)
+  }
+
+  @Test func chatRankMedalHasTheRightTiersAndAccessibleNames() {
+    #expect(ChatRankMedal.tier(priority: 1, priorityOutOf: 5) == .gold)
+    #expect(ChatRankMedal.tier(priority: 2, priorityOutOf: 5) == .silver)
+    #expect(ChatRankMedal.tier(priority: 3, priorityOutOf: 5) == .bronze)
+    #expect(ChatRankMedal.tier(priority: 4, priorityOutOf: 5) == nil)
+    #expect(ChatRankMedal.tier(priority: 1, priorityOutOf: 1) == nil)
+    #expect(ChatRankMedal.accessibilityLabel(priority: 1, priorityOutOf: nil) == "Chat's first choice")
+    #expect(ChatRankMedal.accessibilityLabel(priority: 2, priorityOutOf: 5) == "Chat's second choice of 5")
   }
 
   @Test func committingAcrossSessionsLinksTheExistingLiveRowInsteadOfInserting() async throws {

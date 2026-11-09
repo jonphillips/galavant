@@ -114,7 +114,12 @@ struct TripIdeasView: View {
       if !considering.isEmpty {
         Section("Consider") {
           ForEach(considering) { resolved in
-            PlanningRow(content: resolved.content, note: resolved.entry.inlineNote, subtitle: .category) {
+            PlanningRow(
+              content: resolved.content, note: resolved.entry.inlineNote,
+              chatPriority: resolved.entry.rationalePriority,
+              chatPriorityOutOf: resolved.entry.rationalePriorityOutOf,
+              subtitle: .category
+            ) {
               // Empty star = considering; tap moves it into Schedule.
               starButton(filled: false) {
                 model.setStatus(.shortlisted, for: resolved.id)

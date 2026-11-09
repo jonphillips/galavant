@@ -27,22 +27,14 @@ public enum BrowserTargetDerivation {
   }
 }
 
-/// Determines whether resolving a candidate created a second trip row for one
-/// pool idea. The caller owns the write and asks the human whether to merge or
-/// retain both rows (ADR-0037 OQ5).
+/// Determines how resolution folds duplicate trip rows for one pool idea.
 public struct ResolveReconcile: Equatable, Sendable {
-  public enum Choice: Equatable, Sendable {
-    case merge
-    case keepBoth
-  }
-
   public enum Action: Equatable, Sendable {
     case merge(
       existingID: TripIdea.ID, duplicateID: TripIdea.ID, rationaleVisit: String?,
       rationaleWhy: String?, rationaleFit: String?, rationalePriority: Int?,
       rationalePriorityOutOf: Int?, inlineNote: String?
     )
-    case keepBoth
 
     /// Apply the user's decision in the caller's transaction.
     public func apply(in db: Database) throws {
@@ -75,19 +67,14 @@ public struct ResolveReconcile: Equatable, Sendable {
     public let mergedRationalePriority: Int?
     public let mergedRationalePriorityOutOf: Int?
 
-    public func action(for choice: Choice) -> Action {
-      switch choice {
-      case .merge:
-        .merge(
-          existingID: existingID, duplicateID: duplicateID,
-          rationaleVisit: mergedRationaleVisit, rationaleWhy: mergedRationaleWhy,
-          rationaleFit: mergedRationaleFit,
-          rationalePriority: mergedRationalePriority,
-          rationalePriorityOutOf: mergedRationalePriorityOutOf,
-          inlineNote: mergedInlineNote)
-      case .keepBoth:
-        .keepBoth
-      }
+    public var action: Action {
+      .merge(
+        existingID: existingID, duplicateID: duplicateID,
+        rationaleVisit: mergedRationaleVisit, rationaleWhy: mergedRationaleWhy,
+        rationaleFit: mergedRationaleFit,
+        rationalePriority: mergedRationalePriority,
+        rationalePriorityOutOf: mergedRationalePriorityOutOf,
+        inlineNote: mergedInlineNote)
     }
   }
 
@@ -123,12 +110,11 @@ public struct ResolveReconcile: Equatable, Sendable {
         duplicateID: candidate.id,
         existingStatus: $0.status,
         mergedInlineNote: Self.mergedNote(existing: $0.inlineNote, duplicate: candidate.inlineNote),
-        mergedRationaleVisit: Self.mergedNote(existing: $0.rationaleVisit, duplicate: candidate.rationaleVisit),
-        mergedRationaleWhy: Self.mergedNote(existing: $0.rationaleWhy, duplicate: candidate.rationaleWhy),
-        mergedRationaleFit: Self.mergedNote(existing: $0.rationaleFit, duplicate: candidate.rationaleFit),
-        mergedRationalePriority: $0.rationalePriority ?? candidate.rationalePriority,
-        mergedRationalePriorityOutOf: $0.rationalePriority == nil
-          ? candidate.rationalePriorityOutOf : $0.rationalePriorityOutOf
+        mergedRationaleVisit: $0.rationale.superseded(by: candidate.rationale).visit,
+        mergedRationaleWhy: $0.rationale.superseded(by: candidate.rationale).why,
+        mergedRationaleFit: $0.rationale.superseded(by: candidate.rationale).fit,
+        mergedRationalePriority: $0.rationale.superseded(by: candidate.rationale).priority,
+        mergedRationalePriorityOutOf: $0.rationale.superseded(by: candidate.rationale).priorityOutOf
       )
     }
   }
@@ -190,13 +176,11 @@ public enum RecommendationResolution {
     guard try TripIdea.attachResolvedIdea(captureResolution.ideaID, to: candidateStopID, in: db) != nil
     else { return nil }
     let tripIdeas = try TripIdea.where { $0.tripID.eq(candidate.tripID) }.fetchAll(db)
-    return Result(
-      capture: captureResolution,
-      collision: ResolveReconcile(
-        tripIdeas: tripIdeas,
-        resolvedIdeaID: captureResolution.ideaID,
-        candidateID: candidateStopID
-      ).collision
-    )
+    let collision = ResolveReconcile(
+      tripIdeas: tripIdeas,
+      resolvedIdeaID: captureResolution.ideaID,
+      candidateID: candidateStopID
+    ).collision
+    return Result(capture: captureResolution, collision: collision)
   }
 }
