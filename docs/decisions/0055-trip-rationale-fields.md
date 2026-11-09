@@ -5,7 +5,9 @@
 rationale note). Reads into the dossier from [ADR-0053](0053-taste-record-and-region-guide.md).*
 
 *Amended 2026-11-08: **D7** keeps Chat's `priority` too, after Jon noticed it was missing from the dossier. Effort:
-[`trip-rationale-priority`](../efforts/archive/trip-rationale-priority.md).*
+[`trip-rationale-priority`](../efforts/archive/trip-rationale-priority.md).
+Its brief counted "of N" across the whole session, not per return;
+[`rationale-priority-per-return`](../efforts/rationale-priority-per-return.md) corrects it.*
 
 Summary: When Chat recommends a place, its `visit`, `why` and `fit` are kept as three labeled fields on the trip stop
 (`TripIdea`), not packed into one note. The dossier shows them as "On this trip" wherever it knows the trip, including the
