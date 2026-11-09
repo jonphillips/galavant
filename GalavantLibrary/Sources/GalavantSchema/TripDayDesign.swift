@@ -27,9 +27,15 @@ public struct TripDayDesign: Identifiable, Equatable, Sendable {
 
   public static func rows(
     trip: Trip, dayRegions: [TripDayRegion], dayTimeZones: [TripDayTimeZone],
-    dayNotes: [TripDayNote], stays: [ResolvedStay], stops: [ResolvedStop], now: Date
+    dayNotes: [TripDayNote], stays: [ResolvedStay], stops: [TripIdea],
+    ideas: [Idea], now: Date
   ) -> [TripDayDesign] {
     guard trip.lengthInDays > 0 else { return [] }
+    let ideasByID = Dictionary(ideas.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    let locks = locks(trip: trip, stops: stops, now: now) { stop in
+      if let title = stop.inlineTitle { return title }
+      return stop.ideaID.flatMap { ideasByID[$0]?.name }
+    }
     return (1...trip.lengthInDays).map { day in
       let nightStay = day < trip.lengthInDays
         ? stays.filter { $0.stay.nights.contains(day) }
@@ -44,19 +50,34 @@ public struct TripDayDesign: Identifiable, Equatable, Sendable {
         }?.timeZoneIdentifier,
         summary: dayNotes.first { $0.tripID == trip.id && $0.dayNumber == day }?.note,
         stayTitle: nightStay?.content.title,
-        lock: lock(for: day, trip: trip, stops: stops, now: now))
+        lock: locks[day])
     }
   }
 
-  private static func lock(for day: Int, trip: Trip, stops: [ResolvedStop], now: Date) -> DayLock? {
-    if let stop = stops
-      .filter({ $0.entry.dayNumber == day })
-      .sorted(by: { $0.content.title < $1.content.title })
-      .first(where: { $0.entry.pinnedDate != nil || $0.entry.bookingStatus == .booked }) {
-      return .booking(title: stop.content.title)
+  public static func locks(
+    trip: Trip,
+    stops: [TripIdea],
+    now: Date,
+    bookingTitle: (TripIdea) throws -> String?
+  ) rethrows -> [Int: DayLock] {
+    guard trip.lengthInDays > 0 else { return [:] }
+    let entriesByDay = Dictionary(grouping: stops.filter {
+      $0.tripID == trip.id && (1...trip.lengthInDays).contains($0.dayNumber ?? 0)
+    }) { $0.dayNumber! }
+    var locks: [Int: DayLock] = [:]
+    for day in 1...trip.lengthInDays {
+      let booking = entriesByDay[day]?
+        .filter { $0.pinnedDate != nil || $0.bookingStatus == .booked }
+        .sorted { $0.id.uuidString < $1.id.uuidString }
+        .first
+      if let booking {
+        locks[day] = .booking(title: try bookingTitle(booking) ?? "Unknown stop")
+      } else if let date = trip.date(forDay: day),
+        Calendar.current.startOfDay(for: date) < Calendar.current.startOfDay(for: now) {
+        locks[day] = .past
+      }
     }
-    guard let date = trip.date(forDay: day) else { return nil }
-    return Calendar.current.startOfDay(for: date) < Calendar.current.startOfDay(for: now) ? .past : nil
+    return locks
   }
 
   public var lockCaption: String? {

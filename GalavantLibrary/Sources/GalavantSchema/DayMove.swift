@@ -64,40 +64,18 @@ extension Trip {
     in db: Database
   ) throws {
     guard move.from != move.to else { return }
-    guard let trip = try Trip.find(tripID).fetchOne(db) else { throw TripError.creationFailed }
+    guard let trip = try Trip.find(tripID).fetchOne(db) else { return }
+    guard trip.lengthInDays > 0 else { return }
     guard (1...trip.lengthInDays).contains(move.from),
       (1...trip.lengthInDays).contains(move.to)
     else { return }
 
     let stops = try TripIdea.where { $0.tripID.eq(tripID) }.fetchAll(db)
-    let ideas = try Idea.all.fetchAll(db)
-    let stopsByDay = Dictionary(grouping: stops.compactMap { stop -> (Int, ResolvedStop)? in
-      guard let day = stop.dayNumber else { return nil }
-      let content: StopContent
-      if let ideaID = stop.ideaID, let idea = ideas.first(where: { $0.id == ideaID }) {
-        content = .idea(idea)
-      } else if let title = stop.inlineTitle {
-        content = .freeform(title: title, note: stop.inlineNote, coordinate: nil)
-      } else {
-        content = .freeform(title: "Unknown stop", note: nil, coordinate: nil)
-      }
-      return (day, ResolvedStop(entry: stop, content: content))
-    }, by: \.0)
-    let resolvedStops = stopsByDay.values.flatMap { $0.map(\.1) }
-    let dayRegions = try TripDayRegion.where { $0.tripID.eq(tripID) }.fetchAll(db)
-    let dayTimeZones = try TripDayTimeZone.where { $0.tripID.eq(tripID) }.fetchAll(db)
-    let dayNotes = try TripDayNote.where { $0.tripID.eq(tripID) }.fetchAll(db)
-    let designs = TripDayDesign.rows(
-      trip: trip,
-      dayRegions: dayRegions,
-      dayTimeZones: dayTimeZones,
-      dayNotes: dayNotes,
-      stays: [],
-      stops: resolvedStops,
-      now: now)
-    let locks = Dictionary(uniqueKeysWithValues: designs.compactMap { design in
-      design.lock.map { (design.day, $0) }
-    })
+    let locks = try TripDayDesign.locks(trip: trip, stops: stops, now: now) { stop in
+      if let title = stop.inlineTitle { return title }
+      guard let ideaID = stop.ideaID else { return nil }
+      return try Idea.find(ideaID).fetchOne(db)?.name
+    }
     if let refusal = move.validate(locks: locks, dayLabel: { day in
       guard let date = trip.date(forDay: day) else { return "Day \(day)" }
       return date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
@@ -106,6 +84,9 @@ extension Trip {
     }
 
     let mapping = move.mapping()
+    let dayRegions = try TripDayRegion.where { $0.tripID.eq(tripID) }.fetchAll(db)
+    let dayTimeZones = try TripDayTimeZone.where { $0.tripID.eq(tripID) }.fetchAll(db)
+    let dayNotes = try TripDayNote.where { $0.tripID.eq(tripID) }.fetchAll(db)
     for stop in stops where mapping[stop.dayNumber ?? 0] != nil {
       guard let oldDay = stop.dayNumber, let newDay = mapping[oldDay] else { continue }
       try TripIdea.find(stop.id).update { $0.dayNumber = #bind(newDay) }.execute(db)

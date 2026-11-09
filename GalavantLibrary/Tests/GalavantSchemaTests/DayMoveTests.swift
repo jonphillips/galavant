@@ -34,17 +34,28 @@ import Testing
   func bookingsLockDays() {
     let trip = Trip(id: UUID(), name: "France", certaintyStage: .dated,
       startDate: date(2027, 7, 14), lengthInDays: 3)
-    let pinned = stop(day: 1, title: "Dinner", pinnedDate: date(2027, 7, 14))
-    let booked = stop(day: 2, title: "Museum", bookingStatus: .booked)
-    var skippedBooking = stop(day: 3, title: "Train", bookingStatus: .booked)
-    skippedBooking.entry.skippedAt = date(2027, 7, 1)
+    let pinned = stop(tripID: trip.id, day: 1, title: "Dinner", pinnedDate: date(2027, 7, 14))
+    let booked = stop(tripID: trip.id, day: 2, title: "Museum", bookingStatus: .booked)
+    var skippedBooking = stop(tripID: trip.id, day: 3, title: "Train", bookingStatus: .booked)
+    skippedBooking.skippedAt = date(2027, 7, 1)
     let rows = TripDayDesign.rows(
       trip: trip, dayRegions: [], dayTimeZones: [], dayNotes: [], stays: [],
-      stops: [pinned, booked, skippedBooking], now: date(2027, 7, 14))
+      stops: [pinned, booked, skippedBooking], ideas: [], now: date(2027, 7, 14))
 
     #expect(rows.map(\.lock) == [
       .booking(title: "Dinner"), .booking(title: "Museum"), .booking(title: "Train")
     ])
+  }
+
+  @Test("A non-scheduled stop with a day locks that day in the row projection")
+  func nonScheduledBookingLocksItsDay() {
+    let trip = Trip(id: UUID(), name: "France", lengthInDays: 3)
+    var alternative = stop(tripID: trip.id, day: 2, title: "Booked alternative", bookingStatus: .booked)
+    alternative.status = .considering
+    let rows = TripDayDesign.rows(
+      trip: trip, dayRegions: [], dayTimeZones: [], dayNotes: [], stays: [],
+      stops: [alternative], ideas: [], now: date(2027, 7, 14))
+    #expect(rows[1].lock == .booking(title: "Booked alternative"))
   }
 
   @Test("Past days lock only when the trip is dated")
@@ -53,13 +64,13 @@ import Testing
     let dated = Trip(id: UUID(), name: "France", certaintyStage: .dated,
       startDate: start, lengthInDays: 3)
     let datedRows = TripDayDesign.rows(
-      trip: dated, dayRegions: [], dayTimeZones: [], dayNotes: [], stays: [], stops: [],
+      trip: dated, dayRegions: [], dayTimeZones: [], dayNotes: [], stays: [], stops: [], ideas: [],
       now: date(2027, 7, 12))
     #expect(datedRows.map(\.lock) == [.past, .past, nil])
 
     let undated = Trip(id: UUID(), name: "Someday", lengthInDays: 3)
     let undatedRows = TripDayDesign.rows(
-      trip: undated, dayRegions: [], dayTimeZones: [], dayNotes: [], stays: [], stops: [],
+      trip: undated, dayRegions: [], dayTimeZones: [], dayNotes: [], stays: [], stops: [], ideas: [],
       now: date(2027, 7, 12))
     #expect(undatedRows.map(\.lock) == [nil, nil, nil])
   }
@@ -71,6 +82,7 @@ struct TripMoveDayDatabaseTests {
 
   @Test("Moving a day carries stops and design rows, regenerates derived ids, and leaves stays alone")
   func moveCarriesDayData() async throws {
+    let zonesByDay = [1: "Europe/Paris", 2: "Europe/London", 3: "Europe/Rome", 4: "Europe/Madrid"]
     let result = try await database.write { db -> (
       Trip.ID, [TripIdea], [TripDayNote], [TripDayTimeZone], [TripDayRegion], TripStay, [Int: UUID]
     ) in
@@ -85,7 +97,7 @@ struct TripMoveDayDatabaseTests {
         try TripIdea.insert { TripIdea.Draft(stop) }.execute(db)
         stops.append(stop)
         try TripDayNote.set("Summary \(day)", forTrip: trip.id, day: day, in: db)
-        try TripDayTimeZone.set("Europe/Paris", forTrip: trip.id, day: day, in: db)
+        try TripDayTimeZone.set(zonesByDay[day]!, forTrip: trip.id, day: day, in: db)
         assignments.append(TripDayRegion(
           id: UUID(), tripID: trip.id, dayNumber: day, regionID: UUID()))
       }
@@ -116,8 +128,9 @@ struct TripMoveDayDatabaseTests {
       1: "Summary 2", 2: "Summary 3", 3: "Summary 1", 4: "Summary 4"
     ])
     #expect(notes.allSatisfy { $0.id == TripDayNote.id(tripID: tripID, day: $0.dayNumber) })
-    #expect(Dictionary(uniqueKeysWithValues: zones.map { ($0.dayNumber, $0.timeZoneIdentifier!) }) == [
-      1: "Europe/Paris", 2: "Europe/Paris", 3: "Europe/Paris", 4: "Europe/Paris"
+    let actualZones = Dictionary(uniqueKeysWithValues: zones.map { ($0.dayNumber, $0.timeZoneIdentifier!) })
+    #expect(actualZones == [
+      1: "Europe/London", 2: "Europe/Rome", 3: "Europe/Paris", 4: "Europe/Madrid"
     ])
     let zoneIDsMatch = zones.allSatisfy { zone in
       zone.id == TripDayTimeZone(
@@ -133,12 +146,14 @@ struct TripMoveDayDatabaseTests {
     #expect(stay.checkInDay == 1)
     #expect(stay.checkOutDay == 3)
 
-    let restored = try await database.write { db -> ([TripIdea], [TripDayNote], [TripDayRegion]) in
+    let restored = try await database.write {
+      db -> ([TripIdea], [TripDayNote], [TripDayRegion], [TripDayTimeZone]) in
       try Trip.moveDay(DayMove(from: 3, to: 1), tripID: tripID, now: date(2027, 1, 1), in: db)
       return (
         try TripIdea.where { $0.tripID.eq(tripID) }.fetchAll(db),
         try TripDayNote.where { $0.tripID.eq(tripID) }.fetchAll(db),
-        try TripDayRegion.where { $0.tripID.eq(tripID) }.fetchAll(db))
+        try TripDayRegion.where { $0.tripID.eq(tripID) }.fetchAll(db),
+        try TripDayTimeZone.where { $0.tripID.eq(tripID) }.fetchAll(db))
     }
     let restoredStops = Dictionary(uniqueKeysWithValues: restored.0.map { ($0.inlineTitle!, $0.dayNumber!) })
     #expect(restoredStops == ["Stop 1": 1, "Stop 2": 2, "Stop 3": 3, "Stop 4": 4])
@@ -148,27 +163,33 @@ struct TripMoveDayDatabaseTests {
     ])
     let restoredRegions = Dictionary(uniqueKeysWithValues: restored.2.map { ($0.dayNumber, $0.regionID) })
     #expect(restoredRegions == originalRegions)
+    let restoredZones = Dictionary(uniqueKeysWithValues: restored.3.map { ($0.dayNumber, $0.timeZoneIdentifier!) })
+    #expect(restoredZones == zonesByDay)
   }
 
   @Test("A lock added before the write refuses the move without changing any rows")
   func lockRefusesWithoutChanges() async throws {
-    let result = try await database.write { db -> (Trip.ID, [TripIdea], [TripDayNote]) in
+    let result = try await database.write { db -> (Trip.ID, [TripIdea], [TripDayNote], DayLock?) in
       let trip = try Trip.create(name: "France", lengthInDays: 3, in: db)
       var first = TripIdea.freeform(id: UUID(), tripID: trip.id, title: "One")
       first.apply(.day(1))
       var booked = TripIdea.freeform(id: UUID(), tripID: trip.id, title: "Reservation")
       booked.apply(.day(2))
       booked.bookingStatus = .booked
+      booked.status = .considering
       try TripIdea.insert { TripIdea.Draft(first) }.execute(db)
       try TripIdea.insert { TripIdea.Draft(booked) }.execute(db)
       try TripDayNote.set("First", forTrip: trip.id, day: 1, in: db)
       try TripDayNote.set("Second", forTrip: trip.id, day: 2, in: db)
-      return (trip.id,
-        try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db),
-        try TripDayNote.where { $0.tripID.eq(trip.id) }.fetchAll(db))
+      let stops = try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db)
+      let rowLock = TripDayDesign.rows(
+        trip: trip, dayRegions: [], dayTimeZones: [], dayNotes: [], stays: [],
+        stops: stops, ideas: [], now: date(2027, 1, 1))[1].lock
+      return (trip.id, stops, try TripDayNote.where { $0.tripID.eq(trip.id) }.fetchAll(db), rowLock)
     }
     let originalStops = result.1
     let originalNotes = result.2
+    #expect(result.3 == .booking(title: "Reservation"))
     await #expect(throws: DayMoveRefusal.locked(day: 2, label: "Day 2", .booking(title: "Reservation"))) {
       try await database.write { db in
         try Trip.moveDay(DayMove(from: 1, to: 3), tripID: result.0, now: date(2027, 1, 1), in: db)
@@ -186,13 +207,14 @@ struct TripMoveDayDatabaseTests {
 }
 
 private func stop(
-  day: Int, title: String, pinnedDate: Date? = nil, bookingStatus: BookingStatus? = nil
-) -> ResolvedStop {
-  var entry = TripIdea.freeform(id: UUID(), tripID: UUID(), title: title)
+  tripID: Trip.ID, day: Int, title: String,
+  pinnedDate: Date? = nil, bookingStatus: BookingStatus? = nil
+) -> TripIdea {
+  var entry = TripIdea.freeform(id: UUID(), tripID: tripID, title: title)
   entry.apply(.day(day))
   entry.pinnedDate = pinnedDate
   entry.bookingStatus = bookingStatus
-  return ResolvedStop(entry: entry, content: .freeform(title: title, note: nil, coordinate: nil))
+  return entry
 }
 
 private func date(_ year: Int, _ month: Int, _ day: Int) -> Date {

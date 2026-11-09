@@ -132,7 +132,7 @@ struct TripSketchSheet: View {
     return TripDayDesign.rows(
       trip: trip, dayRegions: model.allTripDayRegions, dayTimeZones: model.allTripDayTimeZones,
       dayNotes: model.allTripDayNotes, stays: model.plan.stays,
-      stops: model.plan.scheduled, now: model.now)
+      stops: model.allTripIdeas, ideas: model.ideas, now: model.now)
   }
 
   private func dayRow(_ day: TripDayDesign) -> some View {
@@ -269,7 +269,7 @@ private struct DayDesignDragPayload: Codable, Identifiable, Transferable {
   let id: Int
 
   static var transferRepresentation: some TransferRepresentation {
-    CodableRepresentation(contentType: .plainText)
+    CodableRepresentation(contentType: .json)
   }
 }
 
