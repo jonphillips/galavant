@@ -153,10 +153,16 @@ struct RegionGuideModelTests {
     let partyID = UUID()
     let region = MapRegion(id: UUID(), name: "Val Serena", centerLatitude: 45, centerLongitude: 9,
       latitudeDelta: 2, longitudeDelta: 2, travelPartyID: partyID)
-    let trip = Trip(id: UUID(), name: "Italy", lengthInDays: 2, travelPartyID: partyID)
+    let trip = Trip(
+      id: UUID(), name: "Italy",
+      startDate: Calendar(identifier: .gregorian).date(from: DateComponents(year: 2026, month: 11, day: 9)),
+      lengthInDays: 2, travelPartyID: partyID)
     let first = Idea(id: UUID(), name: "First", kind: .food, travelPartyID: partyID)
     let second = Idea(id: UUID(), name: "Second", kind: .food, travelPartyID: partyID)
     let candidate = Idea(id: UUID(), name: "Lunch", kind: .food, travelPartyID: partyID)
+    var closedDraft = Idea(id: UUID(), name: "Closed lunch", kind: .food, travelPartyID: partyID)
+    closedDraft.structuredHours = WeeklyHours(days: Array(repeating: .closed, count: 7)).encoded()
+    let closedCandidate = closedDraft
     let groupID = UUID()
     var firstDraft = TripIdea(id: UUID(), tripID: trip.id, ideaID: first.id, status: .scheduled,
       alternativeGroupID: groupID, isActive: true)
@@ -171,7 +177,9 @@ struct RegionGuideModelTests {
       try TravelParty.insert { TravelParty.Draft(TravelParty(id: partyID, name: "Test")) }.execute(db)
       try MapRegion.insert { MapRegion.Draft(region) }.execute(db)
       try Trip.insert { Trip.Draft(trip) }.execute(db)
-      try Idea.insert { [Idea.Draft(first), Idea.Draft(second), Idea.Draft(candidate)] }.execute(db)
+      try Idea.insert {
+        [Idea.Draft(first), Idea.Draft(second), Idea.Draft(candidate), Idea.Draft(closedCandidate)]
+      }.execute(db)
       try TripAlternativeGroup.insert {
         TripAlternativeGroup.Draft(TripAlternativeGroup(id: groupID, tripID: trip.id, label: "Dinner"))
       }.execute(db)
@@ -193,6 +201,10 @@ struct RegionGuideModelTests {
     #expect(menu.sections[0][0].action == .schedule(day: 1, .lunch))
     model.slotTapped(day: 1, meal: .lunch)
     #expect(model.focusedSlot?.isFilled == false)
+    let focusedLunch = try #require(model.focusedSlot)
+    let slotRows = model.slotRows(for: [candidate, closedCandidate], focusedSlot: focusedLunch, lens: model.tripLens)
+    #expect(slotRows[candidate.id]?.action == .schedule(day: 1, .lunch))
+    #expect(slotRows[closedCandidate.id]?.action == nil)
     let lunchAction = try #require(menu.row(day: 1, meal: .lunch)?.action)
     #expect(model.addToTrip(lunchAction, ideaID: candidate.id))
     try await model.$tripIdeas.load()
