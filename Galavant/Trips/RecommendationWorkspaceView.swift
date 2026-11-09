@@ -39,21 +39,6 @@ struct RecommendationWorkspaceView: View {
         RecommendationWorkspaceCompactLayout(model: model) { dismiss() }
       }
     }
-    .alert(
-      "Already on your trip",
-      isPresented: Binding(
-        get: { model.pendingReconcile != nil },
-        set: { if !$0 { model.pendingReconcile = nil } }
-      )
-    ) {
-      Button("Merge") { model.resolveReconcileChoice(.merge) }
-        .keyboardShortcut(.defaultAction)
-      Button("Keep Both", role: .cancel) { model.resolveReconcileChoice(.keepBoth) }
-    } message: {
-      if let collision = model.pendingReconcile {
-        Text("This place is already \(collision.existingStatus.label.lowercased()) in this trip. Merge the two rationales, or keep both rows?")
-      }
-    }
     .overlay(alignment: .top) {
       if let status = model.workspaceStatus {
         RecommendationWorkspaceFlash(status: status)

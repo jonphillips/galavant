@@ -42,7 +42,6 @@ final class RecommendationWorkspaceModel {
   var activeCandidateID: TripIdea.ID?
   var choiceCandidateIDs: Set<TripIdea.ID> = []
   var resolveResults: [Place] = []
-  var pendingReconcile: ResolveReconcile.Collision?
   var handoffCandidates: [TripCandidate] = []
   var candidateLinks: [HandoffCandidateLink] = []
   private(set) var candidateAnchors: [TripIdea.ID: RecommendationWorkspaceProjection.Coordinate] = [:]
@@ -68,7 +67,6 @@ final class RecommendationWorkspaceModel {
   func candidateTapped(_ candidate: RecommendationWorkspaceCandidate) {
     activeCandidateID = candidate.id
     resolveResults = []
-    pendingReconcile = nil
   }
 
   /// Add a candidate the AI didn't supply. It enters the set exactly like a pulled
@@ -318,33 +316,31 @@ final class RecommendationWorkspaceModel {
 
   func resolveResultTapped(_ place: Place) {
     guard let activeCandidate else { return }
-    withErrorReporting {
-      pendingReconcile = try database.write { db in
+    let nextCandidateID = nextCandidateAfterProcessing(activeCandidate.id)
+    let result: (collision: ResolveReconcile.Collision?, confirmed: Bool)? = withErrorReporting {
+      try database.write { db -> (collision: ResolveReconcile.Collision?, confirmed: Bool) in
         guard let resolution = try GalavantSchema.RecommendationResolution.confirm(
           candidateStopID: activeCandidate.id,
           capture: place.ideaCapture(),
           in: db
-        ) else { return nil }
+        ) else { return (nil, false) }
         if resolution.capture.isNew { mintedIdeaIDs.insert(resolution.capture.ideaID) }
-        return resolution.collision
+        if let collision = resolution.collision {
+          try collision.action.apply(in: db)
+        }
+        return (resolution.collision, true)
       }
-      resolveResults = []
     }
-  }
-
-  func resolveReconcileChoice(_ choice: ResolveReconcile.Choice) {
-    guard let collision = pendingReconcile else { return }
-    let action = collision.action(for: choice)
-    let nextCandidateID = nextCandidateAfterProcessing(collision.duplicateID)
-    withErrorReporting {
-      try database.write { db in
-        try action.apply(in: db)
-      }
-      pendingReconcile = nil
-      if case .merge = action {
-        choiceCandidateIDs.remove(collision.duplicateID)
-        activeCandidateID = nextCandidateID
-      }
+    guard let result, result.confirmed else { return }
+    resolveResults = []
+    if let collision = result.collision {
+      choiceCandidateIDs.remove(collision.duplicateID)
+      workspaceStatus = RecommendationWorkspaceStatus(
+        candidateID: activeCandidate.id,
+        message: "Already on this trip — updated Chat's notes.",
+        kind: .success
+      )
+      activeCandidateID = nextCandidateID
     }
   }
 

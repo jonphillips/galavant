@@ -1,4 +1,5 @@
 import Foundation
+import GalavantAI
 import SQLiteData
 
 /// The stable identity of an LLM-proposed place within one recommendation set.
@@ -31,26 +32,111 @@ public enum RecommendationCandidateSet {
   public struct Merge: Equatable, Sendable {
     public let candidates: [TripCandidate]
     public let addedCandidates: [TripCandidate]
+    public let updatedCandidates: [TripCandidate]
+    public let unrankedCandidates: [TripCandidate]
   }
 
   public static func merging(
     existing: [TripCandidate],
     incoming: [TripCandidate]
   ) -> Merge {
-    var identities = Set(existing.compactMap(RecommendationCandidateIdentity.init(candidate:)))
+    var seenIncoming = Set<RecommendationCandidateIdentity>()
+    let uniqueIncoming = incoming.filter { candidate in
+      guard let identity = RecommendationCandidateIdentity(candidate: candidate) else { return true }
+      return seenIncoming.insert(identity).inserted
+    }
+    let rankedCount = uniqueIncoming.filter { $0.priority != nil }.count
+    let hasRanking = rankedCount > 0
+    var candidates = existing
     var addedCandidates: [TripCandidate] = []
+    var updatedCandidates: [TripCandidate] = []
+    let stampedIncoming = uniqueIncoming.map { candidate -> TripCandidate in
+      var candidate = candidate
+      candidate.priorityOutOf = candidate.priority == nil ? nil : rankedCount
+      return candidate
+    }
 
-    for candidate in incoming {
+    for candidate in stampedIncoming {
       guard let identity = RecommendationCandidateIdentity(candidate: candidate) else {
         addedCandidates.append(candidate)
         continue
       }
-      if identities.insert(identity).inserted {
+      if let existingIndex = candidates.firstIndex(where: {
+        RecommendationCandidateIdentity(candidate: $0) == identity
+      }) {
+        var updated = candidate
+        updated = TripCandidate(
+          id: candidates[existingIndex].id, name: updated.name, locality: updated.locality,
+          searchHint: updated.searchHint, why: updated.why, fit: updated.fit, kind: updated.kind,
+          visit: updated.visit,
+          priority: hasRanking ? updated.priority : candidates[existingIndex].priority,
+          priorityOutOf: hasRanking ? updated.priorityOutOf : candidates[existingIndex].priorityOutOf,
+          dayRef: updated.dayRef, placementAfter: updated.placementAfter, bookAhead: updated.bookAhead
+        )
+        candidates[existingIndex] = updated
+        updatedCandidates.append(updated)
+      } else {
         addedCandidates.append(candidate)
       }
     }
 
-    return Merge(candidates: existing + addedCandidates, addedCandidates: addedCandidates)
+    let incomingIdentities = Set(stampedIncoming.compactMap(RecommendationCandidateIdentity.init(candidate:)))
+    var unrankedCandidates: [TripCandidate] = []
+    if hasRanking, !updatedCandidates.isEmpty {
+      for index in candidates.indices where candidates[index].priority != nil {
+        guard let identity = RecommendationCandidateIdentity(candidate: candidates[index]),
+          !incomingIdentities.contains(identity)
+        else { continue }
+        var candidate = candidates[index]
+        candidate.priority = nil
+        candidate.priorityOutOf = nil
+        candidates[index] = candidate
+        unrankedCandidates.append(candidate)
+      }
+    }
+
+    candidates.append(contentsOf: addedCandidates)
+    return Merge(
+      candidates: candidates, addedCandidates: addedCandidates,
+      updatedCandidates: updatedCandidates, unrankedCandidates: unrankedCandidates
+    )
+  }
+
+  public static func priorityOutOf(for candidateID: TripCandidate.ID, in candidates: [TripCandidate]) -> Int? {
+    guard let candidate = candidates.first(where: { $0.id == candidateID }), candidate.priority != nil else { return nil }
+    return candidate.priorityOutOf ?? candidates.filter { $0.priority != nil }.count
+  }
+
+  public static func applyReevaluation(
+    _ merge: Merge, links: [HandoffCandidateLink], in db: Database
+  ) throws {
+    let linkByCandidate = Dictionary(uniqueKeysWithValues: links.map { ($0.candidateID, $0.tripIdeaID) })
+    let updatedByID = Dictionary(
+      merge.updatedCandidates.map { ($0.id, $0) },
+      uniquingKeysWith: { first, _ in first }
+    )
+    let unrankedIDs = Set(merge.unrankedCandidates.map(\.id))
+    for (candidateID, candidate) in updatedByID {
+      guard let stopID = linkByCandidate[candidateID] ?? nil,
+        let stop = try TripIdea.find(stopID).fetchOne(db), isReevaluationLive(stop.status)
+      else { continue }
+      try TripIdea.find(stopID).update {
+        $0.rationaleVisit = #bind(candidate.visit)
+        $0.rationaleWhy = #bind(candidate.why)
+        $0.rationaleFit = #bind(candidate.fit)
+        $0.rationalePriority = #bind(candidate.priority)
+        $0.rationalePriorityOutOf = #bind(candidate.priorityOutOf)
+      }.execute(db)
+    }
+    for candidateID in unrankedIDs {
+      guard let stopID = linkByCandidate[candidateID] ?? nil,
+        let stop = try TripIdea.find(stopID).fetchOne(db), isReevaluationLive(stop.status)
+      else { continue }
+      try TripIdea.find(stopID).update {
+        $0.rationalePriority = #bind(nil as Int?)
+        $0.rationalePriorityOutOf = #bind(nil as Int?)
+      }.execute(db)
+    }
   }
 
   /// Finds the deterministic live trip row that a reviewed candidate should link
@@ -84,6 +170,13 @@ public enum RecommendationCandidateSet {
     switch status {
     case .considering, .shortlisted, .scheduled, .declined: true
     case .done, .skipped: false
+    }
+  }
+
+  private static func isReevaluationLive(_ status: TripIdeaStatus) -> Bool {
+    switch status {
+    case .considering, .shortlisted, .scheduled: true
+    case .declined, .done, .skipped: false
     }
   }
 }

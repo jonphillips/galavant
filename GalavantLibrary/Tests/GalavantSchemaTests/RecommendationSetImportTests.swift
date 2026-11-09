@@ -58,6 +58,47 @@ struct RecommendationSetImportTests {
     }
   }
 
+  @Test func rankedRereturnUpdatesLinkedTripRowsAndClearsDroppedRanks() throws {
+    try database.write { db in
+      let trip = try Trip.create(name: "Denmark", in: db)
+      let session = HandoffSession(
+        sourceType: "trip", sourceID: trip.id, taskType: "candidatePlaces", exportedPrompt: ""
+      )
+      let ranks: [Int] = [1, 2, 3, 4, 5]
+      let first = try RecommendationSetImport.apply(
+        candidates: ranks.map { rank -> TripCandidate in
+          TripCandidate(name: "Place \(rank)", why: "Old \(rank)", priority: rank)
+        }, note: nil, into: trip.id, session: session, now: .now, in: db
+      )
+      let second = try RecommendationSetImport.apply(
+        candidates: [
+          TripCandidate(name: "Place 1", why: "Revised 1", priority: 2),
+          TripCandidate(name: "Place 2", why: "Revised 2", priority: 1),
+          TripCandidate(name: "Place 3", why: "Revised 3", priority: 3),
+          TripCandidate(name: "Place 6", why: "New six", priority: 4),
+        ], note: nil, into: trip.id, session: first.session, now: .now, in: db
+      )
+
+      let rows = try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db)
+      #expect(second.session.candidateLinks.count == 6)
+      #expect(rows.compactMap(\.inlineTitle).sorted() == ["Place 1", "Place 2", "Place 3", "Place 4", "Place 5", "Place 6"])
+      #expect(rows.count == 6)
+      let updated = ["Place 1": (2, "Revised 1"), "Place 2": (1, "Revised 2"),
+        "Place 3": (3, "Revised 3"), "Place 6": (4, "New six")]
+      for (name, values) in updated {
+        let row = try #require(rows.first { $0.inlineTitle == name })
+        #expect(row.rationaleWhy == values.1)
+        #expect(row.rationalePriority == values.0)
+        #expect(row.rationalePriorityOutOf == 4)
+      }
+      for name in ["Place 4", "Place 5"] {
+        let row = try #require(rows.first { $0.inlineTitle == name })
+        #expect(row.rationalePriority == nil)
+        #expect(row.rationalePriorityOutOf == nil)
+      }
+    }
+  }
+
   @Test func candidatesWithoutPriorityKeepBothPriorityFieldsNil() throws {
     try database.write { db in
       let trip = try Trip.create(name: "Denmark", in: db)

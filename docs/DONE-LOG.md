@@ -3,12 +3,18 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-09 — Re-evaluate with Chat and medals (`effort/chat-reevaluation`)
+
+- **Result:** A newer Chat return now replaces the trip's rationale and per-return ranking on matching places. Resolve collisions fold automatically, and the top three show accessible medals while the choice is open.
+- **Verification:** scripts/check-drift.sh passed: SwiftLint, GalavantLibrary and GalavantMCP package tests, and GalavantUITests build-for-testing. Headless GalavantTests passed with 73 tests.
+- **Owed:** chat-reevaluation's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-09 — Plan: re-evaluate with Chat; medals (`plan/chat-reevaluation`)
 
 - **Result:** ADR-0055 gains D8 (a newer return from Chat replaces its earlier evaluation, and a re-rank within one
   conversation replaces that conversation's ranking) and D9 (gold, silver and bronze for Chat's top three where the
   choice is open). ADR-0037 OQ5 is amended so that Keep Both is retired. New brief
-  [`chat-reevaluation`](efforts/chat-reevaluation.md). It supersedes
+  [`chat-reevaluation`](efforts/archive/chat-reevaluation.md). It supersedes
   [`rationale-priority-per-return`](efforts/archive/rationale-priority-per-return.md), which was never dispatched,
   because its "a repeat keeps its first stamp" rule went the opposite way.
 - **Why:** Jon's dogfooding, 2026-11-09. He re-ranked with Chat and restaged. Merge kept the old rank and stacked the

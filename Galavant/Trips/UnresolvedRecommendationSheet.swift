@@ -5,6 +5,7 @@ import SwiftUI
 struct UnresolvedRecommendationSheet: View {
   let model: TripPlanningModel
   let stopID: TripIdea.ID
+  @Environment(\.dismiss) private var dismiss
 
   @State private var isSearching = false
 
@@ -38,10 +39,26 @@ struct UnresolvedRecommendationSheet: View {
               Label("Remove", systemImage: "trash")
             }
           }
+        } else if let notice = model.recommendationResolveNotice {
+          Section {
+            Text(notice)
+              .font(.subheadline)
+          }
         }
       }
       .navigationTitle("Recommendation")
       .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        if stop == nil, model.recommendationResolveNotice != nil {
+          ToolbarItem(placement: .confirmationAction) {
+            Button("Done") {
+              model.recommendationResolveNotice = nil
+              model.destination = nil
+              dismiss()
+            }
+          }
+        }
+      }
       .overlay(alignment: .top) {
         if isSearching {
           MapPlaceSearchOverlay(
@@ -51,27 +68,12 @@ struct UnresolvedRecommendationSheet: View {
             seedQuery: stop?.inlineTitle
           ) { place in
             model.recommendationPlaceSelected(stopID: stopID, place: place)
+            isSearching = false
           }
           .padding(.top, 8)
         }
       }
-      .alert(
-        "Already on your trip",
-        isPresented: Binding(
-          get: { model.pendingRecommendationReconcile != nil },
-          set: { if !$0 { model.pendingRecommendationReconcile = nil } }
-        )
-      ) {
-        Button("Merge") { model.recommendationReconcileChoice(.merge) }
-          .keyboardShortcut(.defaultAction)
-        Button("Keep Both", role: .cancel) {
-          model.recommendationReconcileChoice(.keepBoth)
-        }
-      } message: {
-        if let collision = model.pendingRecommendationReconcile {
-          Text("This place is already \(collision.existingStatus.label.lowercased()) in this trip. Merge the two rationales, or keep both rows?")
-        }
-      }
+      .onDisappear { model.recommendationResolveNotice = nil }
     }
   }
 }

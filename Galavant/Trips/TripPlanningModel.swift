@@ -63,7 +63,7 @@ final class TripPlanningModel {
   var recommendationHandoffError: String?
   /// Captures the paste warning, surrounding Chat note, and one-time save state.
   var recommendationHandoffPaste = RecommendationHandoffPaste()
-  var pendingRecommendationReconcile: ResolveReconcile.Collision?
+  var recommendationResolveNotice: String?
   var calendarLocalState: CalendarReconciliationLocalState
 
   /// The idea shown in the floating stop detail (nil = no detail). Driven by ID

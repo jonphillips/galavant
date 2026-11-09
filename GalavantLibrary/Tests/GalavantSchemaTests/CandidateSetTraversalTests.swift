@@ -116,14 +116,14 @@ import Testing
     #expect(collision?.existingID == existing.id)
     #expect(collision?.duplicateID == candidate.id)
     #expect(collision?.mergedInlineNote == "Already on the shortlist.\n\nA useful rainy-day alternative.")
-    #expect(collision?.mergedRationaleWhy == "A good fit.\n\nWorks in the rain.")
+    #expect(collision?.mergedRationaleWhy == "Works in the rain.")
     #expect(
-      collision?.action(for: .merge)
+      collision?.action
         == .merge(
           existingID: existing.id,
           duplicateID: candidate.id,
           rationaleVisit: nil,
-          rationaleWhy: "A good fit.\n\nWorks in the rain.",
+          rationaleWhy: "Works in the rain.",
           rationaleFit: nil,
           rationalePriority: nil,
           rationalePriorityOutOf: nil,
@@ -132,7 +132,7 @@ import Testing
     )
   }
 
-  @Test func resolveReconcileKeepsTheExistingPriorityPairOrTakesTheDuplicatePair() {
+  @Test func resolveReconcileUsesTheNewerPriorityWhenPresent() {
     let tripID = UUID()
     let ideaID = UUID()
     let existing = TripIdea(
@@ -146,8 +146,8 @@ import Testing
       tripIdeas: [candidate, existing], resolvedIdeaID: ideaID, candidateID: candidate.id
     ).collision
 
-    #expect(collision?.mergedRationalePriority == 4)
-    #expect(collision?.mergedRationalePriorityOutOf == 5)
+    #expect(collision?.mergedRationalePriority == 2)
+    #expect(collision?.mergedRationalePriorityOutOf == 3)
 
     let emptyExisting = TripIdea(id: UUID(), tripID: tripID, ideaID: ideaID, status: .shortlisted)
     let second = ResolveReconcile(
@@ -157,7 +157,7 @@ import Testing
     #expect(second?.mergedRationalePriorityOutOf == 3)
   }
 
-  @Test func resolveReconcileRepresentsKeepingBothRows() {
+  @Test func resolveReconcileAlwaysFoldsDuplicateRows() {
     let tripID = UUID()
     let ideaID = UUID()
     let existing = TripIdea(id: UUID(), tripID: tripID, ideaID: ideaID, status: .scheduled)
@@ -167,7 +167,16 @@ import Testing
       tripIdeas: [existing, candidate], resolvedIdeaID: ideaID, candidateID: candidate.id
     ).collision
 
-    #expect(collision?.action(for: .keepBoth) == .keepBoth)
+    #expect(collision?.action == .merge(
+      existingID: existing.id,
+      duplicateID: candidate.id,
+      rationaleVisit: nil,
+      rationaleWhy: nil,
+      rationaleFit: nil,
+      rationalePriority: nil,
+      rationalePriorityOutOf: nil,
+      inlineNote: nil
+    ))
   }
 
   @Test func ruledOutIdeaMatchesRePastedRecommendation() {

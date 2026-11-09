@@ -32,6 +32,8 @@ struct PlanningRow<Trailing: View>: View {
   /// the itinerary's `TripIdea.inlineNote`, a real-time nudge for why the stop is
   /// here. Only the itinerary passes it; the pool/shortlist rows leave it nil.
   var note: String?
+  var chatPriority: Int? = nil
+  var chatPriorityOutOf: Int? = nil
   var subtitle: Subtitle = .region
   /// The leading glyph — the kind icon by default; the day itinerary passes a
   /// `.sequence` to mirror the map pins.
@@ -42,6 +44,8 @@ struct PlanningRow<Trailing: View>: View {
     content: StopContent,
     title: String? = nil,
     note: String? = nil,
+    chatPriority: Int? = nil,
+    chatPriorityOutOf: Int? = nil,
     subtitle: Subtitle = .region,
     marker: PlanningRowMarker = .kind,
     @ViewBuilder trailing: () -> Trailing
@@ -49,6 +53,8 @@ struct PlanningRow<Trailing: View>: View {
     self.content = content
     self.title = title
     self.note = note
+    self.chatPriority = chatPriority
+    self.chatPriorityOutOf = chatPriorityOutOf
     self.subtitle = subtitle
     self.marker = marker
     self.trailing = trailing()
@@ -72,7 +78,10 @@ struct PlanningRow<Trailing: View>: View {
     HStack(alignment: .top, spacing: 12) {
       leadingMarker
       VStack(alignment: .leading, spacing: 2) {
-        Text(title ?? content.title)
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+          Text(title ?? content.title)
+          RankMedal(priority: chatPriority, priorityOutOf: chatPriorityOutOf)
+        }
         if let note, !note.isEmpty {
           Text(note)
             .font(.footnote)
@@ -282,6 +291,10 @@ struct AlternativeSlotDisclosure: View {
                 : AnyShapeStyle(.secondary))
           Text(member.content.title)
             .foregroundStyle(.primary)
+          RankMedal(
+            priority: member.entry.rationalePriority,
+            priorityOutOf: member.entry.rationalePriorityOutOf
+          )
           Spacer()
           if member.id == ring.activeMember.id {
             Icon.checkmark.image

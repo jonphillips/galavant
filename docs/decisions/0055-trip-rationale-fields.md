@@ -8,11 +8,11 @@ rationale note). Reads into the dossier from [ADR-0053](0053-taste-record-and-re
 [`trip-rationale-priority`](../efforts/archive/trip-rationale-priority.md).
 Its brief counted "of N" across the whole session, not per return;
 [`rationale-priority-per-return`](../efforts/archive/rationale-priority-per-return.md) corrected it, and
-[`chat-reevaluation`](../efforts/chat-reevaluation.md) folds that fix in.*
+[`chat-reevaluation`](../efforts/archive/chat-reevaluation.md) folds that fix in.*
 
 *Amended 2026-11-09: **D8** makes a newer return from Chat replace its earlier evaluation of a place on the trip, and
 **D9** gives Chat's top three medals. This came from Jon re-ranking with Chat and restaging. Effort:
-[`chat-reevaluation`](../efforts/chat-reevaluation.md), which folds in the per-return fix. D8 replaces D6 for the
+[`chat-reevaluation`](../efforts/archive/chat-reevaluation.md), which folds in the per-return fix. D8 replaces D6 for the
 rationale fields.*
 
 Summary: When Chat recommends a place, its `visit`, `why` and `fit` are kept as three labeled fields on the trip stop

@@ -166,6 +166,7 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
   public var kind: String?
   public var visit: String?
   public var priority: Int?
+  public var priorityOutOf: Int?
   public var dayRef: String?
   public var placementAfter: String?
   public var bookAhead: Bool?
@@ -180,6 +181,7 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
     kind: String? = nil,
     visit: String? = nil,
     priority: Int? = nil,
+    priorityOutOf: Int? = nil,
     dayRef: String? = nil,
     placementAfter: String? = nil,
     bookAhead: Bool? = nil
@@ -193,6 +195,7 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
     self.kind = kind?.nonEmpty
     self.visit = visit?.nonEmpty
     self.priority = priority
+    self.priorityOutOf = priorityOutOf
     self.dayRef = dayRef?.nonEmpty
     self.placementAfter = placementAfter?.nonEmpty
     self.bookAhead = bookAhead
@@ -208,6 +211,7 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
 
   enum CodingKeys: String, CodingKey {
     case id, name, locality, searchHint = "search_hint", why, fit, kind, visit, priority
+    case priorityOutOf = "galavant_priority_out_of"
     case dayRef = "day_ref"
     case placementAfter = "placement_after"
     case bookAhead = "book_ahead"
@@ -225,6 +229,7 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
       kind: try values.decodeIfPresent(String.self, forKey: .kind),
       visit: try values.decodeIfPresent(String.self, forKey: .visit),
       priority: try values.decodeIfPresent(Int.self, forKey: .priority),
+      priorityOutOf: try values.decodeIfPresent(Int.self, forKey: .priorityOutOf),
       dayRef: try values.decodeIfPresent(String.self, forKey: .dayRef),
       placementAfter: try values.decodeIfPresent(String.self, forKey: .placementAfter),
       bookAhead: Self.decodeBookAhead(from: values, forKey: .bookAhead)
@@ -242,6 +247,7 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
     try values.encodeIfPresent(kind, forKey: .kind)
     try values.encodeIfPresent(visit, forKey: .visit)
     try values.encodeIfPresent(priority, forKey: .priority)
+    try values.encodeIfPresent(priorityOutOf, forKey: .priorityOutOf)
     try values.encodeIfPresent(dayRef, forKey: .dayRef)
     try values.encodeIfPresent(placementAfter, forKey: .placementAfter)
     try values.encodeIfPresent(bookAhead, forKey: .bookAhead)
@@ -298,25 +304,25 @@ extension TripIdea {
     if let existing = RecommendationCandidateSet.liveTripIdea(
       matching: candidate, in: context.tripIdeas, ideasByID: context.ideasByID
     ) {
-      var didUpdateRationale = false
-      let fillsTextRationale = existing.rationaleVisit == nil || existing.rationaleWhy == nil || existing.rationaleFit == nil
-      let fillsPriority = existing.rationalePriority == nil && candidate.priority != nil
-      if fillsTextRationale || fillsPriority {
+      let rationale = existing.rationale.superseded(by: TripRationale(
+        visit: candidate.visit, why: candidate.why, fit: candidate.fit,
+        priority: candidate.priority, priorityOutOf: candidate.priority == nil ? nil : priorityOutOf,
+        note: existing.inlineNote
+      ))
+      let didUpdateRationale = rationale != existing.rationale
+      if didUpdateRationale || candidate.rationale != nil {
         try TripIdea.find(existing.id).update {
-          if existing.rationaleVisit == nil, let visit = candidate.visit { $0.rationaleVisit = #bind(visit) }
-          if existing.rationaleWhy == nil, let why = candidate.why { $0.rationaleWhy = #bind(why) }
-          if existing.rationaleFit == nil, let fit = candidate.fit { $0.rationaleFit = #bind(fit) }
-          if existing.rationalePriority == nil, let priority = candidate.priority {
-            $0.rationalePriority = #bind(priority)
-            $0.rationalePriorityOutOf = #bind(priorityOutOf)
-          }
+          $0.rationaleVisit = #bind(rationale.visit)
+          $0.rationaleWhy = #bind(rationale.why)
+          $0.rationaleFit = #bind(rationale.fit)
+          $0.rationalePriority = #bind(rationale.priority)
+          $0.rationalePriorityOutOf = #bind(rationale.priorityOutOf)
           if let oldRationale = candidate.rationale?.trimmingCharacters(in: .whitespacesAndNewlines),
             existing.inlineNote?.trimmingCharacters(in: .whitespacesAndNewlines) == oldRationale
           {
             $0.inlineNote = #bind(nil as String?)
           }
         }.execute(db)
-        didUpdateRationale = true
       }
       if existing.bookingStatus == nil, candidate.bookAhead == true {
         try TripIdea.find(existing.id).update { $0.bookingStatus = #bind(BookingStatus.toBook) }.execute(db)
@@ -429,6 +435,10 @@ extension HandoffSession {
     )
     try setRecommendationCandidates(merge.candidates)
     return merge
+  }
+
+  public func priorityOutOf(for candidateID: TripCandidate.ID) throws -> Int? {
+    RecommendationCandidateSet.priorityOutOf(for: candidateID, in: try recommendationCandidates())
   }
 
   /// Adds a human-entered candidate without applying the LLM re-paste merge rule.

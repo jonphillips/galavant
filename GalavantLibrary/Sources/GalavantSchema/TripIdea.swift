@@ -251,6 +251,52 @@ public struct TripRationale: Equatable, Sendable {
     guard let priority else { return nil }
     return priorityOutOf.map { "#\(priority) of \($0)" } ?? "#\(priority)"
   }
+
+  public func superseded(by incoming: TripRationale) -> TripRationale {
+    let hasIncomingText = incoming.visit != nil || incoming.why != nil || incoming.fit != nil
+    let hasIncomingPriority = incoming.priority != nil
+    return TripRationale(
+      visit: hasIncomingText ? incoming.visit : visit,
+      why: hasIncomingText ? incoming.why : why,
+      fit: hasIncomingText ? incoming.fit : fit,
+      priority: hasIncomingPriority ? incoming.priority : priority,
+      priorityOutOf: hasIncomingPriority ? incoming.priorityOutOf : priorityOutOf,
+      note: note
+    )
+  }
+}
+
+public enum ChatRankMedal {
+  public enum Tier: Hashable, Sendable {
+    case gold
+    case silver
+    case bronze
+  }
+
+  public static func tier(priority: Int?, priorityOutOf: Int?) -> Tier? {
+    guard priorityOutOf != 1 else { return nil }
+    switch priority {
+    case 1: return .gold
+    case 2: return .silver
+    case 3: return .bronze
+    default: return nil
+    }
+  }
+
+  public static func accessibilityLabel(priority: Int?, priorityOutOf: Int?) -> String? {
+    guard tier(priority: priority, priorityOutOf: priorityOutOf) != nil, let priority else { return nil }
+    let ordinal: String
+    switch priority {
+    case 1: ordinal = "first"
+    case 2: ordinal = "second"
+    case 3: ordinal = "third"
+    default: return nil
+    }
+    if let priorityOutOf {
+      return "Chat's \(ordinal) choice of \(priorityOutOf)"
+    }
+    return "Chat's \(ordinal) choice"
+  }
 }
 
 public enum TripRationaleBackfill {

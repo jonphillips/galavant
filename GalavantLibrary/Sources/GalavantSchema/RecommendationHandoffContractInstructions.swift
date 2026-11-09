@@ -15,7 +15,7 @@ extension RecommendationHandoffContract {
 
     GV-CONTRACT: v2
 
-    Candidate JSON fields are optional: name, locality, search_hint, why, fit, kind, visit, priority, day_ref, placement_after, book_ahead. Use name for the place name, locality for its town or neighborhood, search_hint for an Apple Maps-style query, and why/fit for the trip-specific rationale. priority ranks this list: 1 is your first choice, 2 the next, and so on. Omit it if you can't rank. day_ref and placement_after are advisory only. book_ahead is true when the place needs a reservation or ticket bought in advance (timed entry, popular restaurant, show); omit it otherwise.
+    Candidate JSON fields are optional: name, locality, search_hint, why, fit, kind, visit, priority, day_ref, placement_after, book_ahead. Use name for the place name, locality for its town or neighborhood, search_hint for an Apple Maps-style query, and why/fit for the trip-specific rationale. priority ranks this list: 1 is your first choice, 2 the next, and so on. Omit it if you can't rank. To revise a ranking, return every place you still recommend in it, ranked together. When a ranked return repeats a place from earlier in this conversation, Galavant replaces the earlier ranking, and places you leave out lose their rank. day_ref and placement_after are advisory only. book_ahead is true when the place needs a reservation or ticket bought in advance (timed entry, popular restaurant, show); omit it otherwise.
 
     Return shape:
     GV-HANDOFF: <token from the brief>
