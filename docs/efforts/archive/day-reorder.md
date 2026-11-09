@@ -1,6 +1,6 @@
 # Effort — Drag days into a new order in Shape Trip
 
-**Status:** Ready · **Summary:** Slice 2 of [ADR-0054](../decisions/0054-day-design-in-shape-trip.md) (D4–D6). Shape
+**Status:** Done (2026-11-09) · **Summary:** Slice 2 of [ADR-0054](../../decisions/0054-day-design-in-shape-trip.md) (D4–D6). Shape
 Trip's day rows become `reorderable()`. Moving a day moves its scheduled stops, summary, region and time zone override,
 and the days between shift to fill the gap. Lodging stays with its nights. Days holding a booking, and days already past,
 are locked. No schema change.

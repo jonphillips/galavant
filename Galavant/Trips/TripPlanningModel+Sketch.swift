@@ -48,6 +48,22 @@ extension TripPlanningModel {
     }
   }
 
+  /// Move a day and its design facts in the schema transaction. A lock discovered
+  /// at write time is returned for the sheet's refusal alert.
+  func moveDay(_ move: DayMove) -> DayMoveRefusal? {
+    do {
+      try database.write { db in
+        try Trip.moveDay(move, tripID: tripID, now: now, in: db)
+      }
+      return nil
+    } catch let refusal as DayMoveRefusal {
+      return refusal
+    } catch {
+      withErrorReporting { throw error }
+      return nil
+    }
+  }
+
   /// "Add lodging for these nights" — seed the existing lodging editor to the span
   /// (check-in on its first day, check-out the morning after its last). Reuses the
   /// tested `StaySheet` write path; this only seeds the draft (Q2 of the design

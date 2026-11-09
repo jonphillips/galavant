@@ -25,7 +25,8 @@ import Testing
 
     let rows = TripDayDesign.rows(
       trip: trip, dayRegions: [region, orphanRegion, wrongTripRegion],
-      dayTimeZones: [zone, orphanZone], dayNotes: [note, orphanNote], stays: [stay])
+      dayTimeZones: [zone, orphanZone], dayNotes: [note, orphanNote], stays: [stay],
+      stops: [], ideas: [], now: start)
 
     #expect(rows.count == 3)
     #expect(rows[0].date == trip.date(forDay: 1))
@@ -41,7 +42,8 @@ import Testing
 
     let undated = Trip(id: UUID(), name: "Someday", lengthInDays: 1)
     let undatedRows = TripDayDesign.rows(
-      trip: undated, dayRegions: [], dayTimeZones: [], dayNotes: [], stays: [])
+      trip: undated, dayRegions: [], dayTimeZones: [], dayNotes: [], stays: [],
+      stops: [], ideas: [], now: start)
     #expect(undatedRows == [TripDayDesign(
       day: 1, date: nil, regionID: nil, timeZoneIdentifier: nil, summary: nil, stayTitle: nil)])
   }
