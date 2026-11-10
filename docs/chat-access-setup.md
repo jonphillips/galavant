@@ -29,14 +29,17 @@ A missing helper or `no health port recorded` from `status` means first-time set
 
 Do these in order. Step 5 is easy to miss, and the chat can't find any trip until it's done.
 
-1. **Install the helper.** The script is in jon-platform, not this repo:
+1. **Install the helper.** Run jon-platform's shared installer in this repo. It finds `GalavantMCP` and its
+   `galavant-mcp` product by itself:
 
    ```sh
-   ~/code/jon-platform/scripts/install-mcp-helper ~/code/galavant/galavant/GalavantMCP galavant-mcp
+   install-mcp-helper
    ```
 
    It ends by printing `/Users/jon/.local/bin/galavant-mcp`. Compiler warnings from `GalavantLibrary` above that line
-   are expected, and `swift-build: exit=0` means it worked.
+   are expected, and `swift-build: exit=0` means it worked. Until step 4 creates the tunnel, it also says no tunnel
+   runs the helper yet. If `install-mcp-helper` isn't found, link it once:
+   `ln -s ~/code/jon-platform/scripts/install-mcp-helper ~/code/bin/install-mcp-helper`.
 2. **Create the tunnel.** At platform.openai.com → Settings → Organization → **Tunnels**, create one named `galavant`.
    Link it to both the personal Platform organization and the ChatGPT account, then copy its `tunnel_…` ID.
 3. **Runtime key: usually skip.** One key serves every app's tunnel on a Mac. If Vinyl Fever or Yes Chef already
@@ -65,14 +68,9 @@ Do these in order. Step 5 is easy to miss, and the chat can't find any trip unti
 
 ## After updating the checkout
 
-Reinstall the helper (step 1), then restart the tunnel and refresh the plugin's tools:
-
-```sh
-~/code/jon-platform/scripts/mcp-tunnel uninstall-agent galavant
-~/code/jon-platform/scripts/mcp-tunnel install-agent galavant
-```
-
-In ChatGPT, use **Refresh** on the plugin's detail page. In Galavant, Settings → Chat Access → Refresh updates the
+Run `install-mcp-helper` in this repo again (step 1). The tunnel keeps one helper process running, so the installer
+also restarts the `galavant` tunnel and waits until it's ready. Then refresh the plugin's tools: in ChatGPT, use
+**Refresh** on the plugin's detail page. In Galavant, Settings → Chat Access → Refresh updates the
 export time and size.
 
 ## How a chat finds the trip
