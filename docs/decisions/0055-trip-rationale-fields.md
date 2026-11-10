@@ -17,7 +17,7 @@ rationale fields.*
 
 *Amended 2026-11-10: **D10** gives each ranked list a name from Chat, and **D11** carries the medals into the guide's trip
 lens. Both came from Jon deliberating in the guide with several ranked lists on one trip. Efforts:
-[`guide-deliberation`](../efforts/guide-deliberation.md) (D11, no schema), then
+[`guide-deliberation`](../efforts/archive/guide-deliberation.md) (D11, no schema), then
 [`rank-list-label`](../efforts/rank-list-label.md) (D10, one synced column).*
 
 Summary: When Chat recommends a place, its `visit`, `why` and `fit` are kept as three labeled fields on the trip stop

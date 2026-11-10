@@ -175,13 +175,25 @@ struct IdeasScreen: View {
   /// Apply a pending itinerary hand-off (ADR-0013): select the trip's capsule,
   /// pre-toggle the day's region, surface the map, then clear the request.
   private func applyIdeasScope() {
-    guard let scope = router.ideasScope else { return }
-    model.selectCapsule(scope.tripID)
-    if let regionID = scope.regionID {
-      model.selectedSubregionIDs = [regionID]
+    guard let request = router.ideasScope else { return }
+    switch request.handoff {
+    case let .browse(tripID, regionID):
+      applyBrowseScope(tripID: tripID, regionID: regionID)
+    case let .guide(tripID, regionID):
+      if let region = model.regions.first(where: { $0.id == regionID }) {
+        model.destination = .guide(RegionGuideScope(
+          region: region, category: .dining, preferredTripID: tripID))
+      } else {
+        applyBrowseScope(tripID: tripID, regionID: regionID)
+      }
     }
-    mode = .map
     router.ideasScope = nil
+  }
+
+  private func applyBrowseScope(tripID: Trip.ID, regionID: MapRegion.ID?) {
+    model.selectCapsule(tripID)
+    if let regionID { model.selectedSubregionIDs = [regionID] }
+    mode = .map
   }
 
   private var poolMap: some View {

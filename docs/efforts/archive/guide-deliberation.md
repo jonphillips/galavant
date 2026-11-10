@@ -1,14 +1,14 @@
 # Effort — Deliberate in the Guide: medals in the trip lens, a Guide button on each day, Michelin's full ladder
 
-**Status:** Ready · **Summary:** [ADR-0055](../decisions/0055-trip-rationale-fields.md) D11 and the 2026-11-10
-amendment to [ADR-0053](../decisions/0053-taste-record-and-region-guide.md) D8. With a trip lens on, guide cards wear
+**Status:** Ready · **Summary:** [ADR-0055](../../decisions/0055-trip-rationale-fields.md) D11 and the 2026-11-10
+amendment to [ADR-0053](../../decisions/0053-taste-record-and-region-guide.md) D8. With a trip lens on, guide cards wear
 Chat's gold, silver and bronze. Each itinerary day header with a region gets a small Guide button that opens the guide on
 that region with the lens on that trip. The hand-set Michelin rating gains Guide and Bib Gourmand, and is saved under the
 same source name as a captured one. **No schema change.**
 
 **Read first:** ADR-0055 D9 and D11; ADR-0053 D8; the archived
-[`chat-reevaluation`](archive/chat-reevaluation.md) brief, which added `RankMedal` and `ChatRankMedal`;
-[ADR-0013](../decisions/0013-ideas-screen-trip-shopping-surface.md) for the itinerary → Ideas hand-off this extends.
+[`chat-reevaluation`](chat-reevaluation.md) brief, which added `RankMedal` and `ChatRankMedal`;
+[ADR-0013](../../decisions/0013-ideas-screen-trip-shopping-surface.md) for the itinerary → Ideas hand-off this extends.
 
 ## Today
 

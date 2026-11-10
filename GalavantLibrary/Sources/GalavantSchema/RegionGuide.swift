@@ -169,10 +169,10 @@ private extension RegionGuide {
     let visibleCards = cards.filter { belongs($0, to: shelf) }
     let grouped = Dictionary(grouping: visibleCards) { card -> AccoladeKey in
       guard let accolade = card.accolade else { return .other }
-      return .accolade(source: accolade.sourceName, display: accolade.nativeDisplay)
+      return .accolade(source: accolade.canonicalSourceName, display: accolade.nativeDisplay)
     }
     let evaluations = Dictionary(grouping: visibleCards.compactMap(\.accolade)) {
-      AccoladeKey.accolade(source: $0.sourceName, display: $0.nativeDisplay)
+      AccoladeKey.accolade(source: $0.canonicalSourceName, display: $0.nativeDisplay)
     }.compactMapValues(\.first)
     return grouped.keys.sorted { keysPrecede($0, $1, evaluations: evaluations) }.map { key in
       let sectionCards = (grouped[key] ?? []).sorted {

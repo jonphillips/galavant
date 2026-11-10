@@ -101,6 +101,14 @@ extension IdeaEvaluation {
 extension IdeaEvaluation {
   // MARK: - Read-model helpers (pure, ADR-0015)
 
+  /// Source grouping key: the old hand-set Michelin label and captured label
+  /// refer to the same guide.
+  public var canonicalSourceName: String {
+    ["Michelin", "Michelin Guide"].contains { $0.caseInsensitiveCompare(sourceName) == .orderedSame }
+      ? "Michelin Guide"
+      : sourceName
+  }
+
   /// Evaluations for an idea from a pre-fetched array, with orphan-drop: if the
   /// idea's id is not in `knownIdeaIDs` the evaluation is excluded (the idea was
   /// deleted). Results are ordered most-recently-recorded first.

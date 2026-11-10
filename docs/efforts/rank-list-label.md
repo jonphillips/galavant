@@ -4,7 +4,7 @@
 each ranked return in a new optional `list` field. `TripIdea` gains `rationalePriorityList`, which is written and cleared
 together with the rank. The medal moves to the row's last line and is followed by the list's name, on trip rows, in the
 guide, in candidate cards and in the dossier. **Adds a synced column: a CloudKit deploy is owed before TestFlight.**
-Queued behind [`guide-deliberation`](guide-deliberation.md), whose `ChatRank` value it extends.
+Queued behind [`guide-deliberation`](archive/guide-deliberation.md), whose `ChatRank` value it extends.
 
 **Read first:** ADR-0055 D7–D11; the archived [`trip-rationale-priority`](archive/trip-rationale-priority.md) and
 [`chat-reevaluation`](archive/chat-reevaluation.md) briefs, which this follows step for step; jon-platform

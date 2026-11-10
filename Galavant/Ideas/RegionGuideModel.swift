@@ -111,6 +111,10 @@ final class RegionGuideModel {
       plan: plan, dayNotes: tripDayNotes, calendar: calendar)
   }
 
+  func openChoiceRanks(for lens: GuideTripLens) -> [Idea.ID: ChatRank] {
+    TripIdea.openChoiceRanks(entries: tripIdeas.filter { $0.tripID == lens.trip.id })
+  }
+
   var headerThumbnailByIdea: [Idea.ID: Data] {
     Dictionary(headerThumbs.map { ($0.ideaID, $0.thumbnail) }, uniquingKeysWith: { first, _ in first })
   }

@@ -907,7 +907,7 @@ extension TripIdea {
 
   /// This trip's "considering" maybe-pile — pulled but not yet committed. Pure.
   public static func considering(_ entries: [TripIdea]) -> [TripIdea] {
-    entries.filter { $0.status == .considering }
+    entries.filter(isConsidering)
   }
 
   /// Places ruled out for this trip, in title order. Pure; the idea lookup

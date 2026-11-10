@@ -128,7 +128,7 @@ let package = Package(
     ),
     .testTarget(
       name: "GalavantCaptureTests",
-      dependencies: ["GalavantCapture"]
+      dependencies: ["GalavantCapture", "GalavantSchema"]
     ),
     // Pure image processing: bytes → resized/compressed display + thumbnail.
     // ImageIO/CoreGraphics only — no SwiftUI, no CloudKit, no persistence

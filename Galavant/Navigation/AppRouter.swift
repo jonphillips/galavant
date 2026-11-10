@@ -4,14 +4,16 @@ import GalavantSchema
 import SQLiteData
 import SwiftUI
 
-/// A request to open the Ideas screen scoped to a trip, optionally pre-toggling a
-/// day's region — the itinerary "Browse ideas for this day" hand-off (ADR-0013, the
-/// redefined ADR-0012 slice B). `id` changes per request so the same scope can be
-/// re-sent and observed.
+enum IdeasHandoff: Equatable {
+  case browse(tripID: Trip.ID, regionID: MapRegion.ID?)
+  case guide(tripID: Trip.ID, regionID: MapRegion.ID)
+}
+
+/// A request to open the Ideas screen from the itinerary. `id` changes per request
+/// so the same hand-off can be re-sent and observed.
 struct IdeasScopeRequest: Equatable, Identifiable {
   let id = UUID()
-  var tripID: Trip.ID
-  var regionID: MapRegion.ID?
+  var handoff: IdeasHandoff
 }
 
 /// App-level navigation coordinator: which top-level screen is showing, plus any
@@ -62,10 +64,15 @@ final class AppRouter {
     return model
   }
 
-  /// Jump to the Ideas screen scoped to a trip, optionally pre-toggling a region —
-  /// the itinerary's browse-for-this-day hand-off.
+  /// Jump to the Ideas shopping surface scoped to a trip and optional day region.
   func browseIdeas(forTrip tripID: Trip.ID, regionID: MapRegion.ID?) {
-    ideasScope = IdeasScopeRequest(tripID: tripID, regionID: regionID)
+    ideasScope = IdeasScopeRequest(handoff: .browse(tripID: tripID, regionID: regionID))
+    selection = .ideas
+  }
+
+  /// Open a region's Guide with the trip selected as its preferred lens.
+  func openGuide(forTrip tripID: Trip.ID, regionID: MapRegion.ID) {
+    ideasScope = IdeasScopeRequest(handoff: .guide(tripID: tripID, regionID: regionID))
     selection = .ideas
   }
 }
