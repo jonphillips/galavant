@@ -1,6 +1,5 @@
-# Next Up — Name Chat's ranked lists: "① Soho Indian", "② Manchester hotels"
+# Next Up — nothing dispatched
 
-**Slices:** effort `rank-list-label`
-**Briefs:** [docs/efforts/rank-list-label.md](efforts/rank-list-label.md)
-**Done when:** per the brief
+Nothing dispatched.
+
 **Owed:** see [device-passes.md](device-passes.md)

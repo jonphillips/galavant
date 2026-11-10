@@ -54,7 +54,10 @@ struct RegionGuideCardRow: View {
                 .background(.thinMaterial, in: Capsule())
             }
             if let rank {
-              RankMedal(priority: rank.priority, priorityOutOf: rank.priorityOutOf)
+              RankMedal(priority: rank.priority, priorityOutOf: rank.priorityOutOf, listName: rank.list)
+              if let list = rank.list {
+                Text(list).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+              }
             }
           }
         }

@@ -12,6 +12,7 @@ public enum GalavantDatabaseMigrations {
     GalavantDatabaseMigrationRegistrationsC.register1(into: &migrator)
     GalavantDatabaseMigrationRegistrationsC.register2(into: &migrator)
     GalavantDatabaseMigrationRegistrationsC.register3(into: &migrator)
+    GalavantDatabaseMigrationRegistrationsC.register4(into: &migrator)
     return migrator
   }
 

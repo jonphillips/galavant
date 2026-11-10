@@ -67,15 +67,15 @@ struct RecommendationSetImportTests {
       let ranks: [Int] = [1, 2, 3, 4, 5]
       let first = try RecommendationSetImport.apply(
         candidates: ranks.map { rank -> TripCandidate in
-          TripCandidate(name: "Place \(rank)", why: "Old \(rank)", priority: rank)
+          TripCandidate(name: "Place \(rank)", why: "Old \(rank)", priority: rank, list: "Old ranking")
         }, note: nil, into: trip.id, session: session, now: .now, in: db
       )
       let second = try RecommendationSetImport.apply(
         candidates: [
-          TripCandidate(name: "Place 1", why: "Revised 1", priority: 2),
-          TripCandidate(name: "Place 2", why: "Revised 2", priority: 1),
-          TripCandidate(name: "Place 3", why: "Revised 3", priority: 3),
-          TripCandidate(name: "Place 6", why: "New six", priority: 4),
+          TripCandidate(name: "Place 1", why: "Revised 1", priority: 2, list: "New ranking"),
+          TripCandidate(name: "Place 2", why: "Revised 2", priority: 1, list: "New ranking"),
+          TripCandidate(name: "Place 3", why: "Revised 3", priority: 3, list: "New ranking"),
+          TripCandidate(name: "Place 6", why: "New six", priority: 4, list: "New ranking"),
         ], note: nil, into: trip.id, session: first.session, now: .now, in: db
       )
 
@@ -90,12 +90,51 @@ struct RecommendationSetImportTests {
         #expect(row.rationaleWhy == values.1)
         #expect(row.rationalePriority == values.0)
         #expect(row.rationalePriorityOutOf == 4)
+        #expect(row.rationalePriorityList == "New ranking")
       }
       for name in ["Place 4", "Place 5"] {
         let row = try #require(rows.first { $0.inlineTitle == name })
         #expect(row.rationalePriority == nil)
         #expect(row.rationalePriorityOutOf == nil)
+        #expect(row.rationalePriorityList == nil)
       }
+    }
+  }
+
+  @Test func choosesTheMostCommonListNameAndUsesDayScopeAsFallback() throws {
+    try database.write { db in
+      let trip = try Trip.create(name: "London", in: db)
+      let session = HandoffSession(
+        sourceType: "day", sourceID: trip.id, taskType: "candidatePlaces",
+        scopeKey: "3", exportedPrompt: "")
+      let candidates = [
+        TripCandidate(name: "One", priority: 1, list: "Soho Indian"),
+        TripCandidate(name: "Two", priority: 2, list: "Manchester hotels"),
+        TripCandidate(name: "Three", priority: 3, list: "Soho Indian"),
+      ]
+      _ = try RecommendationSetImport.apply(
+        candidates: candidates, note: nil, into: trip.id, session: session, now: .now, in: db)
+      let rows = try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db)
+      #expect(rows.allSatisfy { $0.rationalePriorityList == "Soho Indian" })
+
+      let daySession = HandoffSession(
+        sourceType: "day", sourceID: trip.id, taskType: "candidatePlaces",
+        scopeKey: "3", exportedPrompt: "")
+      _ = try RecommendationSetImport.apply(
+        candidates: [TripCandidate(name: "Four", priority: 1)], note: nil,
+        into: trip.id, session: daySession, now: .now, in: db)
+      let fallback = try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db)
+        .first { $0.inlineTitle == "Four" }
+      #expect(fallback?.rationalePriorityList == "Day 3")
+
+      let tripSession = HandoffSession(
+        sourceType: "trip", sourceID: trip.id, taskType: "candidatePlaces", exportedPrompt: "")
+      _ = try RecommendationSetImport.apply(
+        candidates: [TripCandidate(name: "Five", priority: 1)], note: nil,
+        into: trip.id, session: tripSession, now: .now, in: db)
+      let noFallback = try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db)
+        .first { $0.inlineTitle == "Five" }
+      #expect(noFallback?.rationalePriorityList == nil)
     }
   }
 

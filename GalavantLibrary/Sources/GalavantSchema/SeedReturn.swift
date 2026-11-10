@@ -174,7 +174,8 @@ public struct SeedReturn: Equatable, Sendable {
         name: object.string("name"), locality: object.string("locality"),
         searchHint: object.string("search_hint"), why: object.string("why"),
         fit: object.string("fit"), kind: object.string("kind"), visit: object.string("visit"),
-        priority: object.integer("priority"), dayRef: object.stringOrNumber("day_ref"),
+        priority: object.integer("priority"), list: object.string("list"),
+        dayRef: object.stringOrNumber("day_ref"),
         placementAfter: object.string("placement_after"), bookAhead: object.bool("book_ahead")
       )
       return SeedPlace(

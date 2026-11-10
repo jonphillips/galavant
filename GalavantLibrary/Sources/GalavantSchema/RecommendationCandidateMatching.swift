@@ -45,16 +45,11 @@ public enum RecommendationCandidateSet {
       guard let identity = RecommendationCandidateIdentity(candidate: candidate) else { return true }
       return seenIncoming.insert(identity).inserted
     }
-    let rankedCount = uniqueIncoming.filter { $0.priority != nil }.count
-    let hasRanking = rankedCount > 0
+    let hasRanking = uniqueIncoming.contains { $0.priority != nil }
     var candidates = existing
     var addedCandidates: [TripCandidate] = []
     var updatedCandidates: [TripCandidate] = []
-    let stampedIncoming = uniqueIncoming.map { candidate -> TripCandidate in
-      var candidate = candidate
-      candidate.priorityOutOf = candidate.priority == nil ? nil : rankedCount
-      return candidate
-    }
+    let stampedIncoming = Self.stamp(uniqueIncoming)
 
     for candidate in stampedIncoming {
       guard let identity = RecommendationCandidateIdentity(candidate: candidate) else {
@@ -71,6 +66,7 @@ public enum RecommendationCandidateSet {
           visit: updated.visit,
           priority: hasRanking ? updated.priority : candidates[existingIndex].priority,
           priorityOutOf: hasRanking ? updated.priorityOutOf : candidates[existingIndex].priorityOutOf,
+          list: hasRanking ? updated.list : candidates[existingIndex].list,
           dayRef: updated.dayRef, placementAfter: updated.placementAfter, bookAhead: updated.bookAhead
         )
         candidates[existingIndex] = updated
@@ -90,6 +86,7 @@ public enum RecommendationCandidateSet {
         var candidate = candidates[index]
         candidate.priority = nil
         candidate.priorityOutOf = nil
+        candidate.list = nil
         candidates[index] = candidate
         unrankedCandidates.append(candidate)
       }
@@ -100,6 +97,30 @@ public enum RecommendationCandidateSet {
       candidates: candidates, addedCandidates: addedCandidates,
       updatedCandidates: updatedCandidates, unrankedCandidates: unrankedCandidates
     )
+  }
+
+  private static func stamp(_ candidates: [TripCandidate]) -> [TripCandidate] {
+    let rankedCount = candidates.filter { $0.priority != nil }.count
+    let listName = mostCommonListName(in: candidates)
+    return candidates.map { candidate -> TripCandidate in
+      var candidate = candidate
+      candidate.priorityOutOf = candidate.priority == nil ? nil : rankedCount
+      candidate.list = candidate.priority == nil ? nil : listName
+      return candidate
+    }
+  }
+
+  static func mostCommonListName(in candidates: [TripCandidate]) -> String? {
+    let names = candidates.compactMap { candidate -> String? in
+      guard candidate.priority != nil else { return nil }
+      guard let name = candidate.list?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty else {
+        return nil
+      }
+      return name
+    }
+    guard let first = names.first else { return nil }
+    let counts = names.reduce(into: [String: Int]()) { $0[$1, default: 0] += 1 }
+    return names.first(where: { counts[$0] == counts.values.max() }) ?? first
   }
 
   public static func priorityOutOf(for candidateID: TripCandidate.ID, in candidates: [TripCandidate]) -> Int? {
@@ -126,6 +147,7 @@ public enum RecommendationCandidateSet {
         $0.rationaleFit = #bind(candidate.fit)
         $0.rationalePriority = #bind(candidate.priority)
         $0.rationalePriorityOutOf = #bind(candidate.priorityOutOf)
+        $0.rationalePriorityList = #bind(candidate.list)
       }.execute(db)
     }
     for candidateID in unrankedIDs {
@@ -135,6 +157,7 @@ public enum RecommendationCandidateSet {
       try TripIdea.find(stopID).update {
         $0.rationalePriority = #bind(nil as Int?)
         $0.rationalePriorityOutOf = #bind(nil as Int?)
+        $0.rationalePriorityList = #bind(nil as String?)
       }.execute(db)
     }
   }

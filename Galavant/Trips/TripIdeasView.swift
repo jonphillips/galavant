@@ -118,6 +118,7 @@ struct TripIdeasView: View {
               content: resolved.content, note: resolved.entry.inlineNote,
               chatPriority: resolved.entry.rationalePriority,
               chatPriorityOutOf: resolved.entry.rationalePriorityOutOf,
+              chatPriorityList: resolved.entry.rationalePriorityList,
               subtitle: .category
             ) {
               // Empty star = considering; tap moves it into Schedule.

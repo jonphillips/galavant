@@ -157,6 +157,8 @@ public enum RecommendationHandoffContract {
 /// One unresolved place proposed by an external LLM. It is a value for the review
 /// surface, not a database record: only a human tap creates a durable `TripIdea`.
 public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
+  private static let maximumListNameLength = 40
+
   public let id: UUID
   public var name: String?
   public var locality: String?
@@ -167,6 +169,7 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
   public var visit: String?
   public var priority: Int?
   public var priorityOutOf: Int?
+  public var list: String?
   public var dayRef: String?
   public var placementAfter: String?
   public var bookAhead: Bool?
@@ -182,6 +185,7 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
     visit: String? = nil,
     priority: Int? = nil,
     priorityOutOf: Int? = nil,
+    list: String? = nil,
     dayRef: String? = nil,
     placementAfter: String? = nil,
     bookAhead: Bool? = nil
@@ -196,6 +200,7 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
     self.visit = visit?.nonEmpty
     self.priority = priority
     self.priorityOutOf = priorityOutOf
+    self.list = Self.normalizedList(list)
     self.dayRef = dayRef?.nonEmpty
     self.placementAfter = placementAfter?.nonEmpty
     self.bookAhead = bookAhead
@@ -210,7 +215,7 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
   }
 
   enum CodingKeys: String, CodingKey {
-    case id, name, locality, searchHint = "search_hint", why, fit, kind, visit, priority
+    case id, name, locality, searchHint = "search_hint", why, fit, kind, visit, priority, list
     case priorityOutOf = "galavant_priority_out_of"
     case dayRef = "day_ref"
     case placementAfter = "placement_after"
@@ -230,6 +235,7 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
       visit: try values.decodeIfPresent(String.self, forKey: .visit),
       priority: try values.decodeIfPresent(Int.self, forKey: .priority),
       priorityOutOf: try values.decodeIfPresent(Int.self, forKey: .priorityOutOf),
+      list: try values.decodeIfPresent(String.self, forKey: .list),
       dayRef: try values.decodeIfPresent(String.self, forKey: .dayRef),
       placementAfter: try values.decodeIfPresent(String.self, forKey: .placementAfter),
       bookAhead: Self.decodeBookAhead(from: values, forKey: .bookAhead)
@@ -248,6 +254,7 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
     try values.encodeIfPresent(visit, forKey: .visit)
     try values.encodeIfPresent(priority, forKey: .priority)
     try values.encodeIfPresent(priorityOutOf, forKey: .priorityOutOf)
+    try values.encodeIfPresent(list, forKey: .list)
     try values.encodeIfPresent(dayRef, forKey: .dayRef)
     try values.encodeIfPresent(placementAfter, forKey: .placementAfter)
     try values.encodeIfPresent(bookAhead, forKey: .bookAhead)
@@ -263,6 +270,13 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
     case "false", "no": false
     default: nil
     }
+  }
+
+  private static func normalizedList(_ value: String?) -> String? {
+    let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard let trimmed, !trimmed.isEmpty else { return nil }
+    return String(trimmed.prefix(maximumListNameLength))
+      .trimmingCharacters(in: .whitespacesAndNewlines)
   }
 
   /// Decode recommendation candidates while retaining any useful reply text.
@@ -307,6 +321,7 @@ extension TripIdea {
       let rationale = existing.rationale.superseded(by: TripRationale(
         visit: candidate.visit, why: candidate.why, fit: candidate.fit,
         priority: candidate.priority, priorityOutOf: candidate.priority == nil ? nil : priorityOutOf,
+        priorityList: candidate.priority == nil ? nil : candidate.list,
         note: existing.inlineNote
       ))
       let didUpdateRationale = rationale != existing.rationale
@@ -317,6 +332,7 @@ extension TripIdea {
           $0.rationaleFit = #bind(rationale.fit)
           $0.rationalePriority = #bind(rationale.priority)
           $0.rationalePriorityOutOf = #bind(rationale.priorityOutOf)
+          $0.rationalePriorityList = #bind(rationale.priorityList)
           if let oldRationale = candidate.rationale?.trimmingCharacters(in: .whitespacesAndNewlines),
             existing.inlineNote?.trimmingCharacters(in: .whitespacesAndNewlines) == oldRationale
           {
@@ -342,6 +358,7 @@ extension TripIdea {
       rationaleFit: candidate.fit,
       rationalePriority: candidate.priority,
       rationalePriorityOutOf: candidate.priority == nil ? nil : priorityOutOf,
+      rationalePriorityList: candidate.priority == nil ? nil : candidate.list,
       status: .considering,
       shortlistRank: candidate.priority ?? 0,
       bookingStatus: candidate.bookAhead == true ? .toBook : nil
