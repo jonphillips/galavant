@@ -15,6 +15,11 @@ Its brief counted "of N" across the whole session, not per return;
 [`chat-reevaluation`](../efforts/archive/chat-reevaluation.md), which folds in the per-return fix. D8 replaces D6 for the
 rationale fields.*
 
+*Amended 2026-11-10: **D10** gives each ranked list a name from Chat, and **D11** carries the medals into the guide's trip
+lens. Both came from Jon deliberating in the guide with several ranked lists on one trip. Efforts:
+[`guide-deliberation`](../efforts/guide-deliberation.md) (D11, no schema), then
+[`rank-list-label`](../efforts/rank-list-label.md) (D10, one synced column).*
+
 Summary: When Chat recommends a place, its `visit`, `why` and `fit` are kept as three labeled fields on the trip stop
 (`TripIdea`), not packed into one note. The dossier shows them as "On this trip" wherever it knows the trip, including the
 guide, above Taste Notes. Taste Notes move to the bottom of the dossier until the place has been visited, then to the top.
@@ -99,6 +104,25 @@ with the numeral, on Considering rows, alternatives options and candidate cards.
 the itinerary or the map, because there the decision is Jon's. A one-place return earns no medal. Medals don't sort.
 Two lists in one conversation can each have a gold. That's honest, because each was its own ranking.
 
+**D10. A rank carries the name of its list** (amendment, 2026-11-10). After a few rounds with Chat, a trip's Ideas list is
+full of 1s, 2s and 3s from different lists, and nothing says which list a number belongs to. So Chat names each ranked
+return in two to four words ("Soho Indian", "Manchester hotels"), through a new optional candidate field, `list`, with the
+same value on every candidate in the return. Galavant keeps it beside the rank in a third synced column,
+`TripIdea.rationalePriorityList`. The three columns are written and cleared together, so D8's re-rank renames the list as
+well as reordering it, and a place left out loses its name with its rank. If Chat leaves `list` out, a day-scoped handoff
+falls back to "Day 3". Any other scope gets no name. Ranks kept before D10 stay unnamed until Chat ranks them again. The
+medal moves from beside the place's name to the row's last line, followed by the list's name ("Food · ① Soho Indian").
+That line has room for it, and the title line doesn't. The contract stays `GV-CONTRACT: v2`, because the field is
+optional.
+
+**D11. Medals follow the choice into the guide** (amendment, 2026-11-10). D9 put medals where the choice is still open.
+In practice that is the guide as much as the trip, because the guide is where Jon weighs one place against another.
+When the guide shows a trip lens (ADR-0053 D8), a card wears the medal of that trip's open-choice rank for the place: a
+Considering stop or an option in an alternatives ring, the same places D9 names. If the trip has more than one such stop
+for the place, the best rank wins. With D10, the list's name comes with the medal. There are still no medals on the map or
+on filled slots, and medals still don't sort. Without a lens, the guide shows no medals, because a rank only means
+something within one trip.
+
 ## Consequences
 
 - **Owed before TestFlight:** import the three fields with `cktool` and deploy the schema to Production, as for any added
@@ -106,3 +130,5 @@ Two lists in one conversation can each have a gold. That's honest, because each 
 - The migration is appended as a new registration. Registered migrations stay frozen.
 - Recommendation cards in Evaluate already show Why, Fit and Time. They now match what's saved.
 - D7 adds two more synced columns, so the same `cktool` import and Production deploy are owed for that slice.
+- D10 adds a third, `rationalePriorityList`, with the same `cktool` import and Production deploy owed for that slice.
+  D11 adds no schema.
