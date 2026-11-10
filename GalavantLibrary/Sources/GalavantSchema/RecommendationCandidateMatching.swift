@@ -38,7 +38,8 @@ public enum RecommendationCandidateSet {
 
   public static func merging(
     existing: [TripCandidate],
-    incoming: [TripCandidate]
+    incoming: [TripCandidate],
+    fallbackListName: String? = nil
   ) -> Merge {
     var seenIncoming = Set<RecommendationCandidateIdentity>()
     let uniqueIncoming = incoming.filter { candidate in
@@ -49,7 +50,7 @@ public enum RecommendationCandidateSet {
     var candidates = existing
     var addedCandidates: [TripCandidate] = []
     var updatedCandidates: [TripCandidate] = []
-    let stampedIncoming = Self.stamp(uniqueIncoming)
+    let stampedIncoming = Self.stamp(uniqueIncoming, fallbackListName: fallbackListName)
 
     for candidate in stampedIncoming {
       guard let identity = RecommendationCandidateIdentity(candidate: candidate) else {
@@ -99,9 +100,9 @@ public enum RecommendationCandidateSet {
     )
   }
 
-  private static func stamp(_ candidates: [TripCandidate]) -> [TripCandidate] {
+  private static func stamp(_ candidates: [TripCandidate], fallbackListName: String?) -> [TripCandidate] {
     let rankedCount = candidates.filter { $0.priority != nil }.count
-    let listName = mostCommonListName(in: candidates)
+    let listName = mostCommonListName(in: candidates) ?? fallbackListName
     return candidates.map { candidate -> TripCandidate in
       var candidate = candidate
       candidate.priorityOutOf = candidate.priority == nil ? nil : rankedCount
@@ -111,16 +112,10 @@ public enum RecommendationCandidateSet {
   }
 
   static func mostCommonListName(in candidates: [TripCandidate]) -> String? {
-    let names = candidates.compactMap { candidate -> String? in
-      guard candidate.priority != nil else { return nil }
-      guard let name = candidate.list?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty else {
-        return nil
-      }
-      return name
-    }
-    guard let first = names.first else { return nil }
+    let names = candidates.filter { $0.priority != nil }.compactMap(\.list)
     let counts = names.reduce(into: [String: Int]()) { $0[$1, default: 0] += 1 }
-    return names.first(where: { counts[$0] == counts.values.max() }) ?? first
+    guard let highestCount = counts.values.max() else { return nil }
+    return names.first(where: { counts[$0] == highestCount })
   }
 
   public static func priorityOutOf(for candidateID: TripCandidate.ID, in candidates: [TripCandidate]) -> Int? {

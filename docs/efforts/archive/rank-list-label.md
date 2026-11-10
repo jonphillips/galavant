@@ -1,6 +1,6 @@
 # Effort — Name Chat's ranked lists: "① Soho Indian", "② Manchester hotels"
 
-**Status:** Ready · **Summary:** [ADR-0055](../../decisions/0055-trip-rationale-fields.md) D10. The contract asks Chat to name
+**Status:** Done→done-log (2026-11-10) · **Summary:** [ADR-0055](../../decisions/0055-trip-rationale-fields.md) D10. The contract asks Chat to name
 each ranked return in a new optional `list` field. `TripIdea` gains `rationalePriorityList`, which is written and cleared
 together with the rank. The medal moves to the row's last line and is followed by the list's name, on trip rows, in the
 guide, in candidate cards and in the dossier. **Adds a synced column: a CloudKit deploy is owed before TestFlight.**

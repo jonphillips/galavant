@@ -76,8 +76,15 @@ struct RecommendationCandidateCardPresentation<BottomContent: View>: View {
               priorityOutOf: candidate.candidate.priorityOutOf,
               listName: candidate.candidate.list
             )
-            if let list = candidate.candidate.list {
-              Text(list).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            if ChatRankMedal.tier(
+              priority: candidate.candidate.priority,
+              priorityOutOf: candidate.candidate.priorityOutOf
+            ) != nil, let list = candidate.candidate.list {
+              Text(list)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .accessibilityHidden(true)
             }
           }
           statusLabel
@@ -124,8 +131,15 @@ struct RecommendationCandidateCardPresentation<BottomContent: View>: View {
                 priorityOutOf: candidate.candidate.priorityOutOf,
                 listName: candidate.candidate.list
               )
-              if let list = candidate.candidate.list {
-                Text(list).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+              if ChatRankMedal.tier(
+                priority: candidate.candidate.priority,
+                priorityOutOf: candidate.candidate.priorityOutOf
+              ) != nil, let list = candidate.candidate.list {
+                Text(list)
+                  .font(.caption)
+                  .foregroundStyle(.secondary)
+                  .lineLimit(1)
+                  .accessibilityHidden(true)
               }
             }
           }
@@ -178,8 +192,15 @@ struct RecommendationCandidateCardPresentation<BottomContent: View>: View {
               priorityOutOf: candidate.candidate.priorityOutOf,
               listName: candidate.candidate.list
             )
-            if let list = candidate.candidate.list {
-              Text(list).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            if ChatRankMedal.tier(
+              priority: candidate.candidate.priority,
+              priorityOutOf: candidate.candidate.priorityOutOf
+            ) != nil, let list = candidate.candidate.list {
+              Text(list)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .accessibilityHidden(true)
             }
           }
         }

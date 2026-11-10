@@ -24,9 +24,6 @@ public enum RecommendationSetImport {
   ) throws {
     var candidate = candidate
     if candidate.name == nil { candidate.name = candidate.suggestedTitle }
-    if candidate.priority != nil, candidate.list == nil {
-      candidate.list = Self.dayFallback(for: session)
-    }
     var updatedSession = session
     try updatedSession.replaceRecommendationCandidate(candidate)
     let priorityOutOf = try updatedSession.priorityOutOf(for: candidate.id)
@@ -43,20 +40,12 @@ public enum RecommendationSetImport {
     session suppliedSession: HandoffSession, now: Date, in db: Database
   ) throws -> Result {
     var session = suppliedSession
-    let scopeFallback = Self.dayFallback(for: session)
     let normalizedCandidates = candidates.map { candidate in
       var candidate = candidate
       if candidate.name == nil { candidate.name = candidate.suggestedTitle }
       return candidate
     }
-    let commonListName = RecommendationCandidateSet.mostCommonListName(in: normalizedCandidates)
-    let fallbackListName = commonListName ?? scopeFallback
-    let normalized = normalizedCandidates.map { candidate in
-      var candidate = candidate
-      candidate.list = candidate.priority == nil ? nil : fallbackListName
-      return candidate
-    }
-    let merge = try session.storeRecommendationCandidates(normalized)
+    let merge = try session.storeRecommendationCandidates(normalizedCandidates)
     try RecommendationCandidateSet.applyReevaluation(merge, links: session.candidateLinks, in: db)
     let linked = Set(session.candidateLinks.filter { $0.tripIdeaID != nil }.map(\.candidateID))
     for candidate in try session.recommendationCandidates() where !linked.contains(candidate.id) {
@@ -77,10 +66,4 @@ public enum RecommendationSetImport {
     return Result(session: session, remainingCount: remaining)
   }
 
-  private static func dayFallback(for session: HandoffSession) -> String? {
-    guard let scope = try? RecommendationHandoffScope(
-      sourceType: session.sourceType, scopeKey: session.scopeKey
-    ), case let .day(day) = scope else { return nil }
-    return "Day \(day)"
-  }
 }

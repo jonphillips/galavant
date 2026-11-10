@@ -77,6 +77,10 @@ struct PlanningRow<Trailing: View>: View {
     }
   }
 
+  private var showsChatMedal: Bool {
+    ChatRankMedal.tier(priority: chatPriority, priorityOutOf: chatPriorityOutOf) != nil
+  }
+
   var body: some View {
     HStack(alignment: .top, spacing: 12) {
       leadingMarker
@@ -89,24 +93,27 @@ struct PlanningRow<Trailing: View>: View {
             .foregroundStyle(.secondary)
             .lineLimit(3)
         }
-        if subtitleText != nil || chatPriority != nil {
+        if subtitleText != nil || showsChatMedal {
           HStack(alignment: .firstTextBaseline, spacing: 5) {
             if let subtitleText {
-              Text(subtitleText).lineLimit(1)
+              Text(subtitleText).lineLimit(showsChatMedal ? 1 : nil)
             }
-            if subtitleText != nil, chatPriority != nil {
+            if subtitleText != nil, showsChatMedal {
               Text("·").accessibilityHidden(true)
             }
-            RankMedal(
-              priority: chatPriority, priorityOutOf: chatPriorityOutOf,
-              listName: chatPriorityList
-            )
-            if let chatPriorityList {
-              Text(chatPriorityList)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                // Let the list name yield space before the category and medal.
-                .layoutPriority(-1)
+            if showsChatMedal {
+              RankMedal(
+                priority: chatPriority, priorityOutOf: chatPriorityOutOf,
+                listName: chatPriorityList
+              )
+              if let chatPriorityList {
+                Text(chatPriorityList)
+                  .lineLimit(1)
+                  .truncationMode(.tail)
+                  .accessibilityHidden(true)
+                  // Let the list name yield space before the category and medal.
+                  .layoutPriority(-1)
+              }
             }
           }
           .font(.subheadline)

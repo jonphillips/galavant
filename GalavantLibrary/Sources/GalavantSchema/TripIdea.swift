@@ -255,8 +255,12 @@ public struct TripRationale: Equatable, Sendable {
 
   public var priorityLabel: String? {
     guard let priority else { return nil }
-    let rank = priorityOutOf.map { "#\(priority) of \($0)" } ?? "#\(priority)"
-    return priorityList.map { "Chat's pick \(rank) · \($0)" } ?? "Chat's pick \(rank)"
+    return priorityOutOf.map { "#\(priority) of \($0)" } ?? "#\(priority)"
+  }
+
+  public var priorityListLabel: String? {
+    guard let priorityLabel else { return nil }
+    return priorityList.map { "\(priorityLabel) · \($0)" } ?? priorityLabel
   }
 
   public func superseded(by incoming: TripRationale) -> TripRationale {

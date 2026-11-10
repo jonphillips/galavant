@@ -447,8 +447,17 @@ extension HandoffSession {
   public mutating func storeRecommendationCandidates(
     _ incomingCandidates: [TripCandidate]
   ) throws -> RecommendationCandidateSet.Merge {
+    let fallbackListName: String? = if taskType == RecommendationHandoffTask.candidatePlaces,
+      let scope = try? RecommendationHandoffScope(sourceType: sourceType, scopeKey: scopeKey),
+      case let .day(day) = scope
+    {
+      "Day \(day)"
+    } else {
+      nil
+    }
     let merge = RecommendationCandidateSet.merging(
-      existing: try recommendationCandidates(), incoming: incomingCandidates
+      existing: try recommendationCandidates(), incoming: incomingCandidates,
+      fallbackListName: fallbackListName
     )
     try setRecommendationCandidates(merge.candidates)
     return merge

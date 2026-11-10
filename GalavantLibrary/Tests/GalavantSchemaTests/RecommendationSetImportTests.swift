@@ -101,7 +101,7 @@ struct RecommendationSetImportTests {
     }
   }
 
-  @Test func choosesTheMostCommonListNameAndUsesDayScopeAsFallback() throws {
+  @Test func choosesTheMostCommonListNameFromTheReturn() throws {
     try database.write { db in
       let trip = try Trip.create(name: "London", in: db)
       let session = HandoffSession(
@@ -117,16 +117,6 @@ struct RecommendationSetImportTests {
       let rows = try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db)
       #expect(rows.allSatisfy { $0.rationalePriorityList == "Soho Indian" })
 
-      let daySession = HandoffSession(
-        sourceType: "day", sourceID: trip.id, taskType: "candidatePlaces",
-        scopeKey: "3", exportedPrompt: "")
-      _ = try RecommendationSetImport.apply(
-        candidates: [TripCandidate(name: "Four", priority: 1)], note: nil,
-        into: trip.id, session: daySession, now: .now, in: db)
-      let fallback = try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db)
-        .first { $0.inlineTitle == "Four" }
-      #expect(fallback?.rationalePriorityList == "Day 3")
-
       let tripSession = HandoffSession(
         sourceType: "trip", sourceID: trip.id, taskType: "candidatePlaces", exportedPrompt: "")
       _ = try RecommendationSetImport.apply(
@@ -135,6 +125,35 @@ struct RecommendationSetImportTests {
       let noFallback = try TripIdea.where { $0.tripID.eq(trip.id) }.fetchAll(db)
         .first { $0.inlineTitle == "Five" }
       #expect(noFallback?.rationalePriorityList == nil)
+    }
+  }
+
+  @Test func dayScopedPasteKeepsItsFallbackNameWhenTheReturnIsReRanked() throws {
+    try database.write { db in
+      let trip = try Trip.create(name: "London", in: db)
+      var session = HandoffSession(
+        sourceType: "day", sourceID: trip.id, taskType: RecommendationHandoffTask.candidatePlaces,
+        scopeKey: "3", exportedPrompt: "")
+      _ = try session.storeRecommendationCandidates([
+        TripCandidate(name: "Lunch", priority: 1),
+      ])
+      let initialCandidate = try #require(try session.recommendationCandidates().first)
+      #expect(initialCandidate.list == "Day 3")
+      let stop = try TripIdea.commit(
+        candidate: initialCandidate, into: trip.id,
+        priorityOutOf: try session.priorityOutOf(for: initialCandidate.id), in: db)
+      session.link(candidateID: initialCandidate.id, to: stop.id)
+
+      let merge = try session.storeRecommendationCandidates([
+        TripCandidate(name: "Lunch", priority: 2),
+      ])
+      try RecommendationCandidateSet.applyReevaluation(merge, links: session.candidateLinks, in: db)
+
+      let updated = try #require(try TripIdea.find(stop.id).fetchOne(db))
+      #expect(updated.rationalePriority == 2)
+      #expect(updated.rationalePriorityOutOf == 1)
+      #expect(updated.rationalePriorityList == "Day 3")
+      #expect(try session.recommendationCandidates().first?.list == "Day 3")
     }
   }
 

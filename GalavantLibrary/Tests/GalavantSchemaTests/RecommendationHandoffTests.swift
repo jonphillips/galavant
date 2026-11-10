@@ -726,6 +726,15 @@ struct RecommendationHandoffTests {
     #expect(newRank.note == "My note")
   }
 
+  @Test func rationaleLabelsKeepTheListNameOutOfTheGenericRankBadge() {
+    let rationale = TripRationale(
+      visit: nil, why: nil, fit: nil, priority: 2, priorityOutOf: 5,
+      priorityList: "Soho Indian", note: nil)
+
+    #expect(rationale.priorityLabel == "#2 of 5")
+    #expect(rationale.priorityListLabel == "#2 of 5 · Soho Indian")
+  }
+
   @Test func reevaluationChangesOnlyLiveRowsRationaleAndClearsOmittedRanks() async throws {
     let rows = try await database.write { db -> (TripIdea, TripIdea, TripIdea) in
       let trip = try Trip.create(name: "Denmark", in: db)
