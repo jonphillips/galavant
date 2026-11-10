@@ -23,12 +23,14 @@ import Testing
     display: String = "★★",
     number: Double? = 2,
     kind: EvaluationKind = .stars,
-    staleness: EvaluationStaleness = .current
+    staleness: EvaluationStaleness = .current,
+    confidence: EvaluationConfidence = .official,
+    valueText: String? = nil
   ) -> IdeaEvaluation {
     IdeaEvaluation(
       id: UUID(), travelPartyID: partyID, ideaID: idea.id, sourceName: source, kind: kind,
-      nativeValueText: display, nativeValueNumber: number, nativeDisplay: display,
-      recordedAt: Date(timeIntervalSince1970: 1), confidence: .official, staleness: staleness
+      nativeValueText: valueText ?? display, nativeValueNumber: number, nativeDisplay: display,
+      recordedAt: Date(timeIntervalSince1970: 1), confidence: confidence, staleness: staleness
     )
   }
 
@@ -98,6 +100,30 @@ import Testing
       "Michelin Guide · ★", "Harper · 96/100", "Other places",
     ])
     #expect(built.sections.last?.cards.map(\.idea.id) == [stale.id])
+  }
+
+  @Test func manualAndCapturedMichelinShareCanonicalSectionInLadderOrder() {
+    let manualTwo = idea("Manual two")
+    let capturedTwo = idea("Captured two")
+    let three = idea("Three")
+    let bib = idea("Bib")
+    let recommended = idea("Recommended")
+    let built = guide(
+      [manualTwo, capturedTwo, three, bib, recommended],
+      evaluations: [
+        evaluation(for: manualTwo, source: "Michelin", display: "★★", number: 2, confidence: .manual,
+          valueText: "2 stars"),
+        evaluation(for: capturedTwo, display: "★★", number: 2),
+        evaluation(for: three, display: "★★★", number: 3),
+        evaluation(for: bib, display: "Bib Gourmand", number: nil, kind: .badge),
+        evaluation(for: recommended, display: "Recommended", number: nil, kind: .recommendation),
+      ])
+
+    #expect(built.sections.map(\.title) == [
+      "Michelin Guide · ★★★", "Michelin Guide · ★★", "Michelin Guide · Bib Gourmand",
+      "Michelin Guide · Recommended",
+    ])
+    #expect(built.sections[1].cards.map(\.idea.id).count == 2)
   }
 
   @Test func matchesSortFirstAndNotesAreNewestWithCount() {

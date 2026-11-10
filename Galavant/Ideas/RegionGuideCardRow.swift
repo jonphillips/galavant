@@ -7,6 +7,7 @@ struct RegionGuideCardRow: View {
   let headerThumbnail: Data?
   let plannerNames: [Planner.ID: String]
   let badge: String?
+  let rank: ChatRank?
   let isFocused: Bool
   let onTap: () -> Void
   var putInTitle: String? = nil
@@ -46,9 +47,16 @@ struct RegionGuideCardRow: View {
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
-        if let badge {
-          Text(badge).font(.caption2.weight(.medium)).padding(.horizontal, 7).padding(.vertical, 3)
-            .background(.thinMaterial, in: Capsule())
+        if badge != nil || rank != nil {
+          HStack(spacing: 6) {
+            if let badge {
+              Text(badge).font(.caption2.weight(.medium)).padding(.horizontal, 7).padding(.vertical, 3)
+                .background(.thinMaterial, in: Capsule())
+            }
+            if let rank {
+              RankMedal(priority: rank.priority, priorityOutOf: rank.priorityOutOf)
+            }
+          }
         }
       }
     }

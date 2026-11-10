@@ -12,7 +12,7 @@ are added to the slices. Mockup: [`region-guide-trip-lens.html`](../mockups/regi
 
 *Amended 2026-11-10: D8 gains a way in from the trip. Each itinerary day header with a region gets a small Guide
 button that opens the guide on that region, with the trip lens on that trip. Effort:
-[`guide-deliberation`](../efforts/guide-deliberation.md). Chat's medals now show in the lens too
+[`guide-deliberation`](../efforts/archive/guide-deliberation.md). Chat's medals now show in the lens too
 ([ADR-0055](0055-trip-rationale-fields.md) D11).*
 
 Summary: Galavant owns the evidence of what Jon and Wendy like and why, for restaurants, hotels, and anywhere else,

@@ -63,7 +63,7 @@ final class IdeaFormModel {
   /// or keys (stays), the glyph chosen by the idea's kind. Bound to the form's
   /// rating picker; persisted as a `.manual` `IdeaEvaluation` on save. Loaded from
   /// any existing manual rating so the picker reflects what's set.
-  var manualRating: Int = 0
+  var manualRating: MichelinDistinction = .none
 
   init(draft: Idea.Draft) {
     self.draft = draft
@@ -183,12 +183,17 @@ final class IdeaFormModel {
   /// Stars for restaurants. A saved rating is stamped `.manual` so it never reads
   /// as fetched, but is otherwise a first-class `IdeaEvaluation` (ADR-0015).
   var ratingIsForStay: Bool { draft.kind == .stay }
-  var ratingUnitLabel: String { ratingIsForStay ? "Keys" : "Stars" }
-  /// The glyph a single rating unit renders as, for the picker + the stored display.
-  var ratingUnitGlyph: String { ratingIsForStay ? "🗝" : "★" }
-  /// The picker's label for `count` units (e.g. "★★★", "🗝🗝", "None").
-  func ratingDisplay(_ count: Int) -> String {
-    count <= 0 ? "None" : String(repeating: ratingUnitGlyph, count: count)
+  var ratingChoices: [MichelinDistinction] { MichelinDistinction.choices(isStay: ratingIsForStay) }
+
+  func ratingKindChanged(to kind: IdeaKind?) {
+    switch manualRating {
+    case let .stars(count), let .keys(count):
+      manualRating = kind == .stay ? .keys(count) : .stars(count)
+    case .bibGourmand where kind == .stay:
+      manualRating = .none
+    default:
+      break
+    }
   }
 
   /// Whether the manual-rating affordance applies — a saved idea (it writes by id
@@ -202,8 +207,7 @@ final class IdeaFormModel {
         try IdeaEvaluation.where { $0.ideaID.eq(id) }.fetchAll(db)
       }
       // Reflect an existing hand-set rating; ignore fetched/official ones here.
-      let manual = existing.first { $0.confidence == .manual && $0.kind == .stars }
-      manualRating = manual.flatMap { $0.nativeValueNumber.map { Int($0) } } ?? 0
+      manualRating = existing.lazy.compactMap(MichelinDistinction.init(evaluation:)).first ?? .none
     }
   }
 
@@ -212,27 +216,32 @@ final class IdeaFormModel {
   /// Called from the save button once the idea has an id + owning party.
   func applyManualRating(ideaID: Idea.ID) async {
     let rating = manualRating
-    let glyph = ratingUnitGlyph
     await withErrorReporting {
       try await database.write { db in
         guard let idea = try Idea.find(ideaID).fetchOne(db), let partyID = idea.travelPartyID
         else { return }
         let priorManual = try IdeaEvaluation.where { $0.ideaID.eq(ideaID) }
           .fetchAll(db)
-          .filter { $0.confidence == .manual && $0.kind == .stars }
+          .filter { evaluation in
+            evaluation.confidence == .manual
+              && ["Michelin", MichelinDistinction.sourceName].contains {
+                $0.caseInsensitiveCompare(evaluation.sourceName) == .orderedSame
+              }
+              && [.stars, .badge, .recommendation].contains(evaluation.kind)
+          }
         for evaluation in priorManual {
           try IdeaEvaluation.remove(evaluationID: evaluation.id, in: db)
         }
-        guard rating > 0 else { return }  // "None" clears the rating
+        guard let fields = rating.evaluationFields else { return }  // None clears the rating
         try IdeaEvaluation.create(
           travelPartyID: partyID,
           ideaID: ideaID,
-          sourceName: "Michelin",
-          kind: .stars,
-          nativeValueText: "\(rating)",
-          nativeDisplay: String(repeating: glyph, count: rating),
-          nativeValueNumber: Double(rating),
-          nativeValueMax: 3,
+          sourceName: MichelinDistinction.sourceName,
+          kind: fields.kind,
+          nativeValueText: fields.text,
+          nativeDisplay: fields.display,
+          nativeValueNumber: fields.number,
+          nativeValueMax: fields.maximum,
           confidence: .manual,
           staleness: .current,
           in: db

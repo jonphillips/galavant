@@ -1,4 +1,5 @@
 import Foundation
+import GalavantSchema
 import Testing
 
 @testable import GalavantCapture
@@ -27,6 +28,7 @@ import Testing
 
   @Test("A Michelin three-star page yields a faithful ★★★ evaluation")
   func michelinThreeStars() {
+    #expect(MichelinDistinction.sourceName == GuideHosts.michelin.name)
     let page = PageParser.parse(
       html: Self.michelinThreeStar,
       sourceURL: URL(string: "https://guide.michelin.com/dk/en/restaurant/geranium")

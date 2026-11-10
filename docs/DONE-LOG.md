@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-10 — Guide deliberation: trip ranks, day Guide button, Michelin ladder (`effort/guide-deliberation`)
+
+- **Result:** Guide trip-lens cards show open-choice Chat medals; itinerary day headers open their region Guide; the manual Michelin picker stores Guide, Bib Gourmand, stars, and keys as recognizable evaluations.
+- **Verification:** scripts/check-drift.sh passed; headless GalavantTests passed with 73 tests.
+- **Owed:** guide-deliberation's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-09 — Re-evaluate with Chat and medals (`effort/chat-reevaluation`)
 
 - **Result:** A newer Chat return now replaces the trip's rationale and per-return ranking on matching places. Resolve collisions fold automatically, and the top three show accessible medals while the choice is open.

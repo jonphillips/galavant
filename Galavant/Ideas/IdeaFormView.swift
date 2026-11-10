@@ -223,6 +223,9 @@ struct IdeaFormView: View {
       }
       .task { await model.task() }
     }
+    .onChange(of: model.draft.kind) { _, kind in
+      model.ratingKindChanged(to: kind)
+    }
   }
 }
 
@@ -296,13 +299,13 @@ extension IdeaFormView {
   /// saved as a `.manual` evaluation that shows on the idea row.
   @ViewBuilder private var ratingSection: some View {
     Section {
-      Picker("Michelin \(model.ratingUnitLabel)", selection: $model.manualRating) {
-        ForEach(0...3, id: \.self) { count in
-          Text(model.ratingDisplay(count)).tag(count)
+      Picker("Michelin", selection: $model.manualRating) {
+        ForEach(model.ratingChoices, id: \.self) { distinction in
+          Text(distinction.label).tag(distinction)
         }
       }
     } header: {
-      Text("Michelin \(model.ratingUnitLabel)")
+      Text("Michelin")
     } footer: {
       Text("Set by hand when the guide rating can't be fetched — it shows on the idea row.")
     }

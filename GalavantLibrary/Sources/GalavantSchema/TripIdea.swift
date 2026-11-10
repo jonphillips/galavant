@@ -299,6 +299,43 @@ public enum ChatRankMedal {
   }
 }
 
+/// A Chat rank attached to an open choice in one trip's planning context.
+public struct ChatRank: Equatable, Sendable {
+  public var priority: Int
+  public var priorityOutOf: Int?
+
+  public init(priority: Int, priorityOutOf: Int?) {
+    self.priority = priority
+    self.priorityOutOf = priorityOutOf
+  }
+}
+
+extension TripIdea {
+  /// The places still under consideration. Kept as the one predicate used by
+  /// both the trip plan and other projections of the same maybe-pile.
+  public static func isConsidering(_ entry: TripIdea) -> Bool {
+    entry.status == .considering
+  }
+
+  /// Best medal-eligible rank for each idea among this trip's open choices.
+  /// A stop is open while considering, or while it belongs to an alternatives ring.
+  public static func openChoiceRanks(entries: [TripIdea]) -> [Idea.ID: ChatRank] {
+    entries.reduce(into: [:]) { ranks, entry in
+      guard let ideaID = entry.ideaID,
+            isConsidering(entry) || entry.alternativeGroupID != nil,
+            ChatRankMedal.tier(
+              priority: entry.rationalePriority,
+              priorityOutOf: entry.rationalePriorityOutOf) != nil,
+            let priority = entry.rationalePriority
+      else { return }
+
+      let rank = ChatRank(priority: priority, priorityOutOf: entry.rationalePriorityOutOf)
+      if let existing = ranks[ideaID], existing.priority <= rank.priority { return }
+      ranks[ideaID] = rank
+    }
+  }
+}
+
 public enum TripRationaleBackfill {
   /// Return the rationale to write, or nil when history cannot safely reconstruct it.
   public static func update(
