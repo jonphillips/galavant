@@ -10,6 +10,11 @@ accepted. Picks up [ADR-0036](0036-recommendation-handoff.md) D7 (learnings).*
 *Amended 2026-11-08 after Jon's first use of the S3 guide: **D8** gives the guide an optional trip lens, and S3.1–S3.3
 are added to the slices. Mockup: [`region-guide-trip-lens.html`](../mockups/region-guide-trip-lens.html).*
 
+*Amended 2026-11-10: D8 gains a way in from the trip. Each itinerary day header with a region gets a small Guide
+button that opens the guide on that region, with the trip lens on that trip. Effort:
+[`guide-deliberation`](../efforts/guide-deliberation.md). Chat's medals now show in the lens too
+([ADR-0055](0055-trip-rationale-fields.md) D11).*
+
 Summary: Galavant owns the evidence of what Jon and Wendy like and why, for restaurants, hotels, and anywhere else,
 in their own words. The chat assistant does the interpreting. Recommendations are kept as answers to a question, next
 to what actually happened. A region guide over `Idea` becomes the place to browse and read all of this, without a Dining
@@ -160,6 +165,9 @@ answer, and neither was a third view of the trip for deliberating. The guide get
   "deliberation" entity.
 - **No schema.** Hotels can be shown night by night, and an open night can take a stay. Keeping several *candidate* hotels for
   the same nights has nowhere to live, because rings exist only on `TripIdea` and a `TripStay` is one commitment. That's OQ5.
+- **The trip can open the guide** (2026-11-10). Each itinerary day header with a region has a small Guide button. It opens
+  the guide on that day's region, in Dining, with the lens on that trip. The Trips section keeps the trip open, so one tap
+  on Trips goes back. A day with no region has no button.
 - **It's still not the recommendation workspace** (D6). That workspace is an inbox bound to one trip. The guide is reached
   without a trip, and it only shows a trip when the region has one.
 
