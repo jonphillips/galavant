@@ -28,6 +28,7 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
   public var rationaleFit: String?
   public var rationalePriority: Int?
   public var rationalePriorityOutOf: Int?
+  public var rationalePriorityList: String?
   /// Optional coordinates for a freeform stop. Both values are populated together
   /// by the custom-stop editor; a partial pair remains unlocated in the read model.
   public var inlineLatitude: Double?
@@ -91,6 +92,7 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
     rationaleFit: String? = nil,
     rationalePriority: Int? = nil,
     rationalePriorityOutOf: Int? = nil,
+    rationalePriorityList: String? = nil,
     inlineLatitude: Double? = nil,
     inlineLongitude: Double? = nil,
     calendarNotes: String? = nil,
@@ -121,6 +123,7 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
     self.rationaleFit = rationaleFit
     self.rationalePriority = rationalePriority
     self.rationalePriorityOutOf = rationalePriorityOutOf
+    self.rationalePriorityList = rationalePriorityList
     self.inlineLatitude = inlineLatitude
     self.inlineLongitude = inlineLongitude
     self.calendarNotes = calendarNotes
@@ -180,7 +183,8 @@ extension TripIdea {
   public var rationale: TripRationale {
     TripRationale(
       visit: rationaleVisit, why: rationaleWhy, fit: rationaleFit,
-      priority: rationalePriority, priorityOutOf: rationalePriorityOutOf, note: inlineNote)
+      priority: rationalePriority, priorityOutOf: rationalePriorityOutOf,
+      priorityList: rationalePriorityList, note: inlineNote)
   }
 
   /// This stop's day-relative placement as a domain value, rebuilt from columns.
@@ -228,28 +232,35 @@ public struct TripRationale: Equatable, Sendable {
   public var fit: String?
   public var priority: Int?
   public var priorityOutOf: Int?
+  public var priorityList: String?
   public var note: String?
 
   public init(
     visit: String?, why: String?, fit: String?, priority: Int? = nil,
-    priorityOutOf: Int? = nil, note: String?
+    priorityOutOf: Int? = nil, priorityList: String? = nil, note: String?
   ) {
     self.visit = visit
     self.why = why
     self.fit = fit
     self.priority = priority
     self.priorityOutOf = priorityOutOf
+    self.priorityList = priorityList
     self.note = note
   }
 
   public var isEmpty: Bool {
-    priority == nil && priorityOutOf == nil
+    priority == nil && priorityOutOf == nil && priorityList == nil
       && [visit, why, fit, note].allSatisfy { $0?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true }
   }
 
   public var priorityLabel: String? {
     guard let priority else { return nil }
     return priorityOutOf.map { "#\(priority) of \($0)" } ?? "#\(priority)"
+  }
+
+  public var priorityListLabel: String? {
+    guard let priorityLabel else { return nil }
+    return priorityList.map { "\(priorityLabel) · \($0)" } ?? priorityLabel
   }
 
   public func superseded(by incoming: TripRationale) -> TripRationale {
@@ -261,8 +272,18 @@ public struct TripRationale: Equatable, Sendable {
       fit: hasIncomingText ? incoming.fit : fit,
       priority: hasIncomingPriority ? incoming.priority : priority,
       priorityOutOf: hasIncomingPriority ? incoming.priorityOutOf : priorityOutOf,
+      priorityList: hasIncomingPriority ? incoming.priorityList : priorityList,
       note: note
     )
+  }
+
+  public func mergedForDuplicate(with other: TripRationale) -> TripRationale {
+    let rank = priority != nil ? self : other
+    let text = superseded(by: other)
+    return TripRationale(
+      visit: text.visit, why: text.why, fit: text.fit,
+      priority: rank.priority, priorityOutOf: rank.priorityOutOf,
+      priorityList: rank.priorityList, note: text.note)
   }
 }
 
@@ -303,10 +324,12 @@ public enum ChatRankMedal {
 public struct ChatRank: Equatable, Sendable {
   public var priority: Int
   public var priorityOutOf: Int?
+  public var list: String?
 
-  public init(priority: Int, priorityOutOf: Int?) {
+  public init(priority: Int, priorityOutOf: Int?, list: String? = nil) {
     self.priority = priority
     self.priorityOutOf = priorityOutOf
+    self.list = list
   }
 }
 
@@ -329,7 +352,9 @@ extension TripIdea {
             let priority = entry.rationalePriority
       else { return }
 
-      let rank = ChatRank(priority: priority, priorityOutOf: entry.rationalePriorityOutOf)
+      let rank = ChatRank(
+        priority: priority, priorityOutOf: entry.rationalePriorityOutOf,
+        list: entry.rationalePriorityList)
       if let existing = ranks[ideaID], existing.priority <= rank.priority { return }
       ranks[ideaID] = rank
     }
@@ -361,16 +386,26 @@ public enum TripRationaleBackfill {
 
     var priority = stop.rationalePriority
     var savedPriorityOutOf = stop.rationalePriorityOutOf
+    var savedPriorityList = stop.rationalePriorityList
     if priority == nil, let candidatePriority = candidate.priority {
       priority = candidatePriority
       savedPriorityOutOf = priorityOutOf
+      savedPriorityList = candidate.list
+      didUpdate = true
+    } else if priority == candidate.priority,
+      priority != nil,
+      savedPriorityOutOf == priorityOutOf,
+      savedPriorityList == nil,
+      let candidateList = candidate.list
+    {
+      savedPriorityList = candidateList
       didUpdate = true
     }
 
     guard didUpdate else { return nil }
     return TripRationale(
       visit: visit, why: why, fit: fit, priority: priority,
-      priorityOutOf: savedPriorityOutOf, note: note)
+      priorityOutOf: savedPriorityOutOf, priorityList: savedPriorityList, note: note)
   }
 }
 

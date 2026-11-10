@@ -34,6 +34,7 @@ struct PlanningRow<Trailing: View>: View {
   var note: String?
   var chatPriority: Int? = nil
   var chatPriorityOutOf: Int? = nil
+  var chatPriorityList: String? = nil
   var subtitle: Subtitle = .region
   /// The leading glyph — the kind icon by default; the day itinerary passes a
   /// `.sequence` to mirror the map pins.
@@ -46,6 +47,7 @@ struct PlanningRow<Trailing: View>: View {
     note: String? = nil,
     chatPriority: Int? = nil,
     chatPriorityOutOf: Int? = nil,
+    chatPriorityList: String? = nil,
     subtitle: Subtitle = .region,
     marker: PlanningRowMarker = .kind,
     @ViewBuilder trailing: () -> Trailing
@@ -55,6 +57,7 @@ struct PlanningRow<Trailing: View>: View {
     self.note = note
     self.chatPriority = chatPriority
     self.chatPriorityOutOf = chatPriorityOutOf
+    self.chatPriorityList = chatPriorityList
     self.subtitle = subtitle
     self.marker = marker
     self.trailing = trailing()
@@ -74,14 +77,15 @@ struct PlanningRow<Trailing: View>: View {
     }
   }
 
+  private var showsChatMedal: Bool {
+    ChatRankMedal.tier(priority: chatPriority, priorityOutOf: chatPriorityOutOf) != nil
+  }
+
   var body: some View {
     HStack(alignment: .top, spacing: 12) {
       leadingMarker
       VStack(alignment: .leading, spacing: 2) {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-          Text(title ?? content.title)
-          RankMedal(priority: chatPriority, priorityOutOf: chatPriorityOutOf)
-        }
+        Text(title ?? content.title)
         if let note, !note.isEmpty {
           Text(note)
             .font(.footnote)
@@ -89,8 +93,31 @@ struct PlanningRow<Trailing: View>: View {
             .foregroundStyle(.secondary)
             .lineLimit(3)
         }
-        if let subtitleText {
-          Text(subtitleText).font(.subheadline).foregroundStyle(.secondary)
+        if subtitleText != nil || showsChatMedal {
+          HStack(alignment: .firstTextBaseline, spacing: 5) {
+            if let subtitleText {
+              Text(subtitleText).lineLimit(showsChatMedal ? 1 : nil)
+            }
+            if subtitleText != nil, showsChatMedal {
+              Text("·").accessibilityHidden(true)
+            }
+            if showsChatMedal {
+              RankMedal(
+                priority: chatPriority, priorityOutOf: chatPriorityOutOf,
+                listName: chatPriorityList
+              )
+              if let chatPriorityList {
+                Text(chatPriorityList)
+                  .lineLimit(1)
+                  .truncationMode(.tail)
+                  .accessibilityHidden(true)
+                  // Let the list name yield space before the category and medal.
+                  .layoutPriority(-1)
+              }
+            }
+          }
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
         }
       }
       Spacer()
@@ -293,7 +320,8 @@ struct AlternativeSlotDisclosure: View {
             .foregroundStyle(.primary)
           RankMedal(
             priority: member.entry.rationalePriority,
-            priorityOutOf: member.entry.rationalePriorityOutOf
+            priorityOutOf: member.entry.rationalePriorityOutOf,
+            listName: member.entry.rationalePriorityList
           )
           Spacer()
           if member.id == ring.activeMember.id {

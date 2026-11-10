@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-10 — Name Chat ranked lists (`effort/rank-list-label`)
+
+- **Result:** Added list names to ranked handoff returns, persisted them beside each trip stop rank, and displayed them in considering rows, guide cards, candidate cards, and the trip dossier. Added the nullable synced tripIdeas.rationalePriorityList column.
+- **Verification:** scripts/check-drift.sh passed: SwiftLint, 746 GalavantLibrary tests, 11 GalavantMCP tests, and the GalavantUITests build. Headless GalavantTests passed: 74 tests.
+- **Owed:** rank-list-label's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-10 — Guide deliberation: trip ranks, day Guide button, Michelin ladder (`effort/guide-deliberation`)
 
 - **Result:** Guide trip-lens cards show open-choice Chat medals; itinerary day headers open their region Guide; the manual Michelin picker stores Guide, Bib Gourmand, stars, and keys as recognizable evaluations.

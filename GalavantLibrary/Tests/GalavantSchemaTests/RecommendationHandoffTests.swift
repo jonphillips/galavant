@@ -31,6 +31,7 @@ struct RecommendationHandoffTests {
         $0.rationaleWhy = #bind("The old evaluation")
         $0.rationalePriority = #bind(2)
         $0.rationalePriorityOutOf = #bind(5)
+        $0.rationalePriorityList = #bind("Earlier list")
       }.execute(db)
       let duplicate = TripIdea(
         id: UUID(),
@@ -41,6 +42,7 @@ struct RecommendationHandoffTests {
         rationaleWhy: "The new evaluation",
         rationalePriority: 1,
         rationalePriorityOutOf: 4,
+        rationalePriorityList: "Newer list",
         status: .considering
       )
       try TripIdea.insert { TripIdea.Draft(duplicate) }.execute(db)
@@ -63,8 +65,9 @@ struct RecommendationHandoffTests {
       #expect(try TripIdea.find(result.1).fetchOne(db) == nil)
       #expect(remaining.inlineNote == "Keep this note\n\nTry the tasting menu.")
       #expect(remaining.rationaleWhy == "The new evaluation")
-      #expect(remaining.rationalePriority == 1)
-      #expect(remaining.rationalePriorityOutOf == 4)
+      #expect(remaining.rationalePriority == 2)
+      #expect(remaining.rationalePriorityOutOf == 5)
+      #expect(remaining.rationalePriorityList == "Earlier list")
       #expect(remaining.status == .shortlisted)
     }
   }
@@ -413,6 +416,19 @@ struct RecommendationHandoffTests {
     #expect(RecommendationHandoffContract.projectInstructions.contains(
       "priority ranks this list: 1 is your first choice, 2 the next, and so on. Omit it if you can't rank."))
     #expect(RecommendationHandoffContract.projectInstructions.contains("\"priority\":1"))
+    #expect(RecommendationHandoffContract.projectInstructions.contains("\"list\":\"Soho Indian\""))
+    #expect(RecommendationHandoffContract.projectInstructions.contains("When you rank, also give list:"))
+  }
+
+  @Test func candidateListNamesAreTrimmedCappedAndOptional() throws {
+    let trimmed = try #require(TripCandidate.decodeReturn(
+      #"[{"name":"Cafe","priority":1,"list":"  Soho Indian  "}]"#).candidates.only)
+    #expect(trimmed.list == "Soho Indian")
+    let capped = try #require(TripCandidate.decodeReturn(
+      #"[{"priority":1,"list":"12345678901234567890123456789012345678901"}]"#).candidates.only)
+    #expect(capped.list?.count == 40)
+    let empty = try #require(TripCandidate.decodeReturn(#"[{"priority":1,"list":"  "}]"#).candidates.only)
+    #expect(empty.list == nil)
   }
 
   @Test func malformedReturnFailsLoudly() {
@@ -708,6 +724,15 @@ struct RecommendationHandoffTests {
     #expect(newRank.priorityOutOf == 4)
     #expect(newRank.visit == "Old visit")
     #expect(newRank.note == "My note")
+  }
+
+  @Test func rationaleLabelsKeepTheListNameOutOfTheGenericRankBadge() {
+    let rationale = TripRationale(
+      visit: nil, why: nil, fit: nil, priority: 2, priorityOutOf: 5,
+      priorityList: "Soho Indian", note: nil)
+
+    #expect(rationale.priorityLabel == "#2 of 5")
+    #expect(rationale.priorityListLabel == "#2 of 5 · Soho Indian")
   }
 
   @Test func reevaluationChangesOnlyLiveRowsRationaleAndClearsOmittedRanks() async throws {

@@ -32,6 +32,7 @@ final class TripRationaleBackfillModel {
               $0.rationaleFit = #bind(rationale.fit)
               $0.rationalePriority = #bind(rationale.priority)
               $0.rationalePriorityOutOf = #bind(rationale.priorityOutOf)
+              $0.rationalePriorityList = #bind(rationale.priorityList)
               $0.inlineNote = #bind(rationale.note)
             }.execute(db)
           }

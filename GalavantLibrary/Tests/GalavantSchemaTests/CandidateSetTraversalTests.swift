@@ -127,27 +127,31 @@ import Testing
           rationaleFit: nil,
           rationalePriority: nil,
           rationalePriorityOutOf: nil,
+          rationalePriorityList: nil,
           inlineNote: "Already on the shortlist.\n\nA useful rainy-day alternative."
         )
     )
   }
 
-  @Test func resolveReconcileUsesTheNewerPriorityWhenPresent() {
+  @Test func resolveReconcileKeepsTheExistingRankTripleWhenPresent() {
     let tripID = UUID()
     let ideaID = UUID()
     let existing = TripIdea(
       id: UUID(), tripID: tripID, ideaID: ideaID,
-      rationalePriority: 4, rationalePriorityOutOf: 5, status: .shortlisted)
+      rationalePriority: 4, rationalePriorityOutOf: 5,
+      rationalePriorityList: "Existing list", status: .shortlisted)
     let candidate = TripIdea(
       id: UUID(), tripID: tripID, ideaID: ideaID,
-      rationalePriority: 2, rationalePriorityOutOf: 3, status: .considering)
+      rationalePriority: 2, rationalePriorityOutOf: 3,
+      rationalePriorityList: "Candidate list", status: .considering)
 
     let collision = ResolveReconcile(
       tripIdeas: [candidate, existing], resolvedIdeaID: ideaID, candidateID: candidate.id
     ).collision
 
-    #expect(collision?.mergedRationalePriority == 2)
-    #expect(collision?.mergedRationalePriorityOutOf == 3)
+    #expect(collision?.mergedRationalePriority == 4)
+    #expect(collision?.mergedRationalePriorityOutOf == 5)
+    #expect(collision?.mergedRationalePriorityList == "Existing list")
 
     let emptyExisting = TripIdea(id: UUID(), tripID: tripID, ideaID: ideaID, status: .shortlisted)
     let second = ResolveReconcile(
@@ -155,6 +159,7 @@ import Testing
     ).collision
     #expect(second?.mergedRationalePriority == 2)
     #expect(second?.mergedRationalePriorityOutOf == 3)
+    #expect(second?.mergedRationalePriorityList == "Candidate list")
   }
 
   @Test func resolveReconcileAlwaysFoldsDuplicateRows() {
@@ -175,6 +180,7 @@ import Testing
       rationaleFit: nil,
       rationalePriority: nil,
       rationalePriorityOutOf: nil,
+      rationalePriorityList: nil,
       inlineNote: nil
     ))
   }

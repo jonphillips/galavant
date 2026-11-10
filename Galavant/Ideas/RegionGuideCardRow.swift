@@ -13,6 +13,13 @@ struct RegionGuideCardRow: View {
   var putInTitle: String? = nil
   var onPutHere: (() -> Void)? = nil
 
+  private var medalRank: ChatRank? {
+    guard let rank,
+      ChatRankMedal.tier(priority: rank.priority, priorityOutOf: rank.priorityOutOf) != nil
+    else { return nil }
+    return rank
+  }
+
   var body: some View {
     Button(action: onTap) {
       VStack(alignment: .leading, spacing: 6) {
@@ -47,14 +54,21 @@ struct RegionGuideCardRow: View {
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
-        if badge != nil || rank != nil {
+        if badge != nil || medalRank != nil {
           HStack(spacing: 6) {
             if let badge {
               Text(badge).font(.caption2.weight(.medium)).padding(.horizontal, 7).padding(.vertical, 3)
                 .background(.thinMaterial, in: Capsule())
             }
-            if let rank {
-              RankMedal(priority: rank.priority, priorityOutOf: rank.priorityOutOf)
+            if let rank = medalRank {
+              RankMedal(priority: rank.priority, priorityOutOf: rank.priorityOutOf, listName: rank.list)
+              if let list = rank.list {
+                Text(list)
+                  .font(.caption)
+                  .foregroundStyle(.secondary)
+                  .lineLimit(1)
+                  .accessibilityHidden(true)
+              }
             }
           }
         }

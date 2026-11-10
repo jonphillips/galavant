@@ -36,6 +36,7 @@
 		242EC6987A08C0DCEBF3BC64 /* GalavantPlaces in Frameworks */ = {isa = PBXBuildFile; productRef = 6527A596FFD56B45F77446D0 /* GalavantPlaces */; };
 		25A7842AF8875EEF8BFA2887 /* PrefersTabNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDA439EDEF5339154F3D8C08 /* PrefersTabNavigation.swift */; };
 		28CB0F1054F9EC0012E413AD /* CloudSyncKit in Frameworks */ = {isa = PBXBuildFile; productRef = BAB8971211A0C3E3E9C18A40 /* CloudSyncKit */; };
+		296966282208AEA80390525C /* RecommendationCandidateDraftTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84F1882645A7EA2FFC4CAC5C /* RecommendationCandidateDraftTests.swift */; };
 		2B05CE91CEC4E7F8E30CC6BD /* RankMedal.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBC87684E71CD9712F789FFC /* RankMedal.swift */; };
 		2B0A50DCCAAD2AEC9304BEF5 /* IdeaDossierModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B9FED849BC102F6EA429B42 /* IdeaDossierModel.swift */; };
 		2BCD153BD1286735123E24B7 /* TripHeaderImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E5E2C9449BAC2E031A8745F /* TripHeaderImageView.swift */; };
@@ -345,6 +346,7 @@
 		8238F43F540641D1FD4267BA /* TripPlanningModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripPlanningModel.swift; sourceTree = "<group>"; };
 		82AECABDADDBF8957A5816F8 /* AppScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppScreen.swift; sourceTree = "<group>"; };
 		8453BC047713AAB64309D1B1 /* PlannerManagementModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlannerManagementModel.swift; sourceTree = "<group>"; };
+		84F1882645A7EA2FFC4CAC5C /* RecommendationCandidateDraftTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationCandidateDraftTests.swift; sourceTree = "<group>"; };
 		8885060D462E6E53320A2831 /* ShareSeedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSeedTests.swift; sourceTree = "<group>"; };
 		88A1527B989E973CDFDDABEA /* ChatInboxModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatInboxModelTests.swift; sourceTree = "<group>"; };
 		891C5DF7F4A25741DE3421FD /* StructuredHoursEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StructuredHoursEditor.swift; sourceTree = "<group>"; };
@@ -684,6 +686,7 @@
 				A9D24B12616C1A9DBE754336 /* IdeaDossierModelTests.swift */,
 				DFDD20F3FC13F6B974FF8181 /* IdeasListDeleteTests.swift */,
 				F751F213140FE74EA9BCE772 /* IdeasQuickFilterTests.swift */,
+				84F1882645A7EA2FFC4CAC5C /* RecommendationCandidateDraftTests.swift */,
 				E103847A8844A2A7ADF7497B /* RegionGuideModelTests.swift */,
 				A51A42BD25391EA9C555B1FB /* RouteIdeasSnapshotTests.swift */,
 				C552773D568B292127E75164 /* SettingsModelTests.swift */,
@@ -1080,6 +1083,7 @@
 				910E380C15F15BBD9FBC81E3 /* IdeaDossierModelTests.swift in Sources */,
 				8E5F270D961669BB1431CDAD /* IdeasListDeleteTests.swift in Sources */,
 				50EEE42D97D8F60341A052BC /* IdeasQuickFilterTests.swift in Sources */,
+				296966282208AEA80390525C /* RecommendationCandidateDraftTests.swift in Sources */,
 				E1D19BD846DA4EB913EA8F22 /* RegionGuideModelTests.swift in Sources */,
 				7B45A630AEDE97844D8A9C4E /* RouteIdeasSnapshotTests.swift in Sources */,
 				7AF08E862BDDF4E09803A79E /* SettingsModelTests.swift in Sources */,

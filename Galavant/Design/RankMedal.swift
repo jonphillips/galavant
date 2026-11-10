@@ -4,6 +4,7 @@ import SwiftUI
 struct RankMedal: View {
   let priority: Int?
   let priorityOutOf: Int?
+  var listName: String? = nil
 
   private var tier: ChatRankMedal.Tier? {
     ChatRankMedal.tier(priority: priority, priorityOutOf: priorityOutOf)
@@ -37,7 +38,7 @@ struct RankMedal: View {
         .frame(width: 18, height: 18)
         .background(tint, in: Circle())
         .overlay { Circle().strokeBorder(.white.opacity(0.35), lineWidth: 0.75) }
-        .accessibilityLabel(label)
+        .accessibilityLabel(listName.map { "\(label), \($0)" } ?? label)
         .accessibilityAddTraits(.isStaticText)
     }
   }

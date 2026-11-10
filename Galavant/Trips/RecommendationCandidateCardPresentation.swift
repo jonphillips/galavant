@@ -73,8 +73,19 @@ struct RecommendationCandidateCardPresentation<BottomContent: View>: View {
               .lineLimit(2)
             RankMedal(
               priority: candidate.candidate.priority,
-              priorityOutOf: candidate.candidate.priorityOutOf
+              priorityOutOf: candidate.candidate.priorityOutOf,
+              listName: candidate.candidate.list
             )
+            if ChatRankMedal.tier(
+              priority: candidate.candidate.priority,
+              priorityOutOf: candidate.candidate.priorityOutOf
+            ) != nil, let list = candidate.candidate.list {
+              Text(list)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .accessibilityHidden(true)
+            }
           }
           statusLabel
           if let why = candidate.candidate.why {
@@ -117,8 +128,19 @@ struct RecommendationCandidateCardPresentation<BottomContent: View>: View {
                 .contentShape(Rectangle())
               RankMedal(
                 priority: candidate.candidate.priority,
-                priorityOutOf: candidate.candidate.priorityOutOf
+                priorityOutOf: candidate.candidate.priorityOutOf,
+                listName: candidate.candidate.list
               )
+              if ChatRankMedal.tier(
+                priority: candidate.candidate.priority,
+                priorityOutOf: candidate.candidate.priorityOutOf
+              ) != nil, let list = candidate.candidate.list {
+                Text(list)
+                  .font(.caption)
+                  .foregroundStyle(.secondary)
+                  .lineLimit(1)
+                  .accessibilityHidden(true)
+              }
             }
           }
           .buttonStyle(.plain)
@@ -167,8 +189,19 @@ struct RecommendationCandidateCardPresentation<BottomContent: View>: View {
               .contentShape(Rectangle())
             RankMedal(
               priority: candidate.candidate.priority,
-              priorityOutOf: candidate.candidate.priorityOutOf
+              priorityOutOf: candidate.candidate.priorityOutOf,
+              listName: candidate.candidate.list
             )
+            if ChatRankMedal.tier(
+              priority: candidate.candidate.priority,
+              priorityOutOf: candidate.candidate.priorityOutOf
+            ) != nil, let list = candidate.candidate.list {
+              Text(list)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .accessibilityHidden(true)
+            }
           }
         }
         .buttonStyle(.plain)

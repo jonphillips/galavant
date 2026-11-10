@@ -40,12 +40,12 @@ public enum RecommendationSetImport {
     session suppliedSession: HandoffSession, now: Date, in db: Database
   ) throws -> Result {
     var session = suppliedSession
-    let normalized = candidates.map { candidate in
+    let normalizedCandidates = candidates.map { candidate in
       var candidate = candidate
       if candidate.name == nil { candidate.name = candidate.suggestedTitle }
       return candidate
     }
-    let merge = try session.storeRecommendationCandidates(normalized)
+    let merge = try session.storeRecommendationCandidates(normalizedCandidates)
     try RecommendationCandidateSet.applyReevaluation(merge, links: session.candidateLinks, in: db)
     let linked = Set(session.candidateLinks.filter { $0.tripIdeaID != nil }.map(\.candidateID))
     for candidate in try session.recommendationCandidates() where !linked.contains(candidate.id) {
@@ -65,4 +65,5 @@ public enum RecommendationSetImport {
     }.count
     return Result(session: session, remainingCount: remaining)
   }
+
 }

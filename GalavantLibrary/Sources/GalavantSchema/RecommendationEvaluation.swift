@@ -33,14 +33,14 @@ public struct ResolveReconcile: Equatable, Sendable {
     case merge(
       existingID: TripIdea.ID, duplicateID: TripIdea.ID, rationaleVisit: String?,
       rationaleWhy: String?, rationaleFit: String?, rationalePriority: Int?,
-      rationalePriorityOutOf: Int?, inlineNote: String?
+      rationalePriorityOutOf: Int?, rationalePriorityList: String?, inlineNote: String?
     )
 
     /// Apply the user's decision in the caller's transaction.
     public func apply(in db: Database) throws {
       guard case let .merge(
         existingID, duplicateID, rationaleVisit, rationaleWhy, rationaleFit,
-        rationalePriority, rationalePriorityOutOf, inlineNote
+        rationalePriority, rationalePriorityOutOf, rationalePriorityList, inlineNote
       ) = self else { return }
       try TripIdea.find(existingID)
         .update {
@@ -49,6 +49,7 @@ public struct ResolveReconcile: Equatable, Sendable {
           $0.rationaleFit = #bind(rationaleFit)
           $0.rationalePriority = #bind(rationalePriority)
           $0.rationalePriorityOutOf = #bind(rationalePriorityOutOf)
+          $0.rationalePriorityList = #bind(rationalePriorityList)
           $0.inlineNote = #bind(inlineNote)
         }
         .execute(db)
@@ -66,6 +67,7 @@ public struct ResolveReconcile: Equatable, Sendable {
     public let mergedRationaleFit: String?
     public let mergedRationalePriority: Int?
     public let mergedRationalePriorityOutOf: Int?
+    public let mergedRationalePriorityList: String?
 
     public var action: Action {
       .merge(
@@ -74,6 +76,7 @@ public struct ResolveReconcile: Equatable, Sendable {
         rationaleFit: mergedRationaleFit,
         rationalePriority: mergedRationalePriority,
         rationalePriorityOutOf: mergedRationalePriorityOutOf,
+        rationalePriorityList: mergedRationalePriorityList,
         inlineNote: mergedInlineNote)
     }
   }
@@ -106,7 +109,7 @@ public struct ResolveReconcile: Equatable, Sendable {
 
     let resolvingRationale = candidate.rationale
     collision = existing.map { existing in
-      let rationale = existing.rationale.superseded(by: resolvingRationale)
+      let rationale = existing.rationale.mergedForDuplicate(with: resolvingRationale)
       return Collision(
         existingID: existing.id,
         duplicateID: candidate.id,
@@ -116,7 +119,8 @@ public struct ResolveReconcile: Equatable, Sendable {
         mergedRationaleWhy: rationale.why,
         mergedRationaleFit: rationale.fit,
         mergedRationalePriority: rationale.priority,
-        mergedRationalePriorityOutOf: rationale.priorityOutOf
+        mergedRationalePriorityOutOf: rationale.priorityOutOf,
+        mergedRationalePriorityList: rationale.priorityList
       )
     }
   }

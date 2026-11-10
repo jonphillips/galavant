@@ -109,7 +109,7 @@ struct DatabaseBackupTests {
     let oldStore = try DatabaseQueue(path: oldStoreURL.path)
     let migrator = GalavantDatabaseMigrations.makeMigrator()
     try migrator.migrate(oldStore)
-    let previousMigrations = Array(migrator.migrations.suffix(4))
+    let previousMigrations = Array(migrator.migrations.suffix(5))
     let existingTripID = UUID()
     let existingTripIdeaID = UUID()
     try await oldStore.write { db in
@@ -126,6 +126,7 @@ struct DatabaseBackupTests {
       try db.execute(sql: "ALTER TABLE tripIdeas DROP COLUMN rationaleFit")
       try db.execute(sql: "ALTER TABLE tripIdeas DROP COLUMN rationalePriority")
       try db.execute(sql: "ALTER TABLE tripIdeas DROP COLUMN rationalePriorityOutOf")
+      try db.execute(sql: "ALTER TABLE tripIdeas DROP COLUMN rationalePriorityList")
       for migration in previousMigrations {
         try db.execute(
           sql: "DELETE FROM grdb_migrations WHERE identifier = ?",
@@ -143,7 +144,7 @@ struct DatabaseBackupTests {
     try source.close()
     let snapshotDatabase = try DatabaseQueue(path: snapshot.fileURL.path)
     try await snapshotDatabase.write { db in
-      try db.execute(sql: "PRAGMA user_version = \(configuration.declaredSchemaVersion - 2)")
+      try db.execute(sql: "PRAGMA user_version = \(configuration.declaredSchemaVersion - 3)")
     }
     try snapshotDatabase.close()
 
@@ -165,6 +166,7 @@ struct DatabaseBackupTests {
     }
     #expect(existingTripIdea?.rationalePriority == nil)
     #expect(existingTripIdea?.rationalePriorityOutOf == nil)
+    #expect(existingTripIdea?.rationalePriorityList == nil)
     let hasTripDocuments = try await migrated.read { db in
       try Bool.fetchOne(
         db,

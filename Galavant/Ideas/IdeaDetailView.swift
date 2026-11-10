@@ -159,7 +159,7 @@ struct IdeaDetailView: View {
   @ViewBuilder private var tripRationaleSection: some View {
     if let tripRationale, !tripRationale.isEmpty {
       Section("On this trip") {
-        rationaleRow("Chat’s pick", tripRationale.priorityLabel)
+        rationaleRow("Chat’s pick", tripRationale.priorityListLabel)
         rationaleRow("Visit", tripRationale.visit)
         rationaleRow("Why", tripRationale.why)
         rationaleRow("Fit", tripRationale.fit)

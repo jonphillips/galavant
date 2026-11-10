@@ -77,4 +77,22 @@ import Testing
     #expect(TripRationaleBackfill.update(
       for: stop, from: TripCandidate(priority: 2), priorityOutOf: 5) == nil)
   }
+
+  @Test func backfillKeepsRankTripleTogetherAndOnlyAddsStoredListNames() throws {
+    let savedList = TripRationaleBackfill.update(
+      for: TripIdea(
+        id: UUID(), tripID: UUID(), ideaID: nil,
+        rationalePriority: 2, rationalePriorityOutOf: 5),
+      from: TripCandidate(priority: 2, list: "Soho Indian"), priorityOutOf: 5)
+    #expect(savedList?.priority == 2)
+    #expect(savedList?.priorityOutOf == 5)
+    #expect(savedList?.priorityList == "Soho Indian")
+
+    let legacyRank = TripRationaleBackfill.update(
+      for: TripIdea(id: UUID(), tripID: UUID(), ideaID: nil),
+      from: TripCandidate(priority: 2), priorityOutOf: 5)
+    #expect(legacyRank?.priority == 2)
+    #expect(legacyRank?.priorityOutOf == 5)
+    #expect(legacyRank?.priorityList == nil)
+  }
 }
