@@ -7,6 +7,14 @@ retired `CURRENT_HANDOFF.md` and `ROADMAP.md`'s open items.
 
 ## Candidates
 
+- **Siri AI tool intents — wait for the release, not the beta** (Jon and the architect, 2026-11-16). Apple's
+  Siri AI developer preview ([news](https://developer.apple.com/news/?id=gdk2umrf),
+  [docs](https://developer.apple.com/documentation/appintents/bringing-custom-actions-and-content-to-siri)) lets
+  Siri call an App Intent marked `@AppIntent(.tool)` from natural speech, across apps. It's 27.3-beta only, and
+  only for dev-signed and internal-TestFlight builds. Revisit when Siri AI ships to customers and App Store
+  submission opens (spring 2027). Galavant has no App Intents today, so nothing here is cheap. The natural first
+  tool mirrors the `create_idea` MCP tool: "add that ramen place to Galavant ideas." It needs a new intent and a
+  write path. Before building it, check that both Jon and his wife are internal testers, or that it has shipped publicly.
 - **Galavant's own accent.** Galavant and Cockpit's chrome both read as system blue, so the family
   doesn't look deliberate (2026-10-31 review). Picking Galavant's accent belongs to its foundation slice
   (jon-platform `ui-and-platforms.md` § Visual craft), not to a polish effort. Jon's call.
