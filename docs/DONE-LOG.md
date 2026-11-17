@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-17 — Show one of Chat's named lists in the guide, in rank order (`effort/guide-list-filter`)
+
+- **Result:** Added a region and category scoped picker for Chat's named ranked lists. Selected lists order guide cards, filter the map, and combine with shelf and open-slot filters.
+- **Verification:** scripts/check-drift.sh passed, including 747 GalavantLibrary tests and 151 GalavantMCP tests plus the UI-test build; headless GalavantTests passed with 75 tests in 17 suites.
+- **Owed:** guide-list-filter's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-10 — Name Chat ranked lists (`effort/rank-list-label`)
 
 - **Result:** Added list names to ranked handoff returns, persisted them beside each trip stop rank, and displayed them in considering rows, guide cards, candidate cards, and the trip dossier. Added the nullable synced tripIdeas.rationalePriorityList column.

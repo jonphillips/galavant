@@ -22,9 +22,12 @@ struct RegionGuideScreen: View {
     let tripLens = model.tripLens
     let openChoiceRanks = tripLens.map { model.openChoiceRanks(for: $0) } ?? [:]
     let sourceGuide = model.guide
+    let availableLists = tripLens.map { model.availableLists(for: $0, guide: sourceGuide) } ?? []
+    let selectedList = model.selectedList(from: availableLists)
+    let selectedListRanks = model.selectedListRanks(for: selectedList)
     let focusedSlot = tripLens.flatMap { model.focusedSlot(in: $0, guide: sourceGuide) }
-    let guide = model.visibleGuide(sourceGuide, focusedSlot: focusedSlot)
-    let mapGuide = model.mapGuide(sourceGuide, focusedSlot: focusedSlot)
+    let guide = model.visibleGuide(sourceGuide, focusedSlot: focusedSlot, selectedList: selectedList)
+    let mapGuide = model.mapGuide(sourceGuide, focusedSlot: focusedSlot, selectedList: selectedList)
     let slotRows = model.slotRows(
       for: sourceGuide?.sections.flatMap(\.cards).map(\.idea) ?? [],
       focusedSlot: focusedSlot,
@@ -41,7 +44,8 @@ struct RegionGuideScreen: View {
           onClose: closeDossier,
           column: {
             guideList(guide, tripLens: tripLens, focusedSlot: focusedSlot, slotRows: slotRows,
-              headerThumbnails: headerThumbnails, plannerNames: plannerNames, openChoiceRanks: openChoiceRanks)
+              headerThumbnails: headerThumbnails, plannerNames: plannerNames, openChoiceRanks: openChoiceRanks,
+              availableLists: availableLists, selectedList: selectedList, selectedListRanks: selectedListRanks)
           },
           map: { poolMap(mapGuide) },
           dossierAccessory: { dossierAccessory(ideaID: model.dossierID, tripLens: tripLens, focusedSlot: focusedSlot) }
@@ -51,7 +55,8 @@ struct RegionGuideScreen: View {
           switch mode {
           case .list:
             guideList(guide, tripLens: tripLens, focusedSlot: focusedSlot, slotRows: slotRows,
-              headerThumbnails: headerThumbnails, plannerNames: plannerNames, openChoiceRanks: openChoiceRanks)
+              headerThumbnails: headerThumbnails, plannerNames: plannerNames, openChoiceRanks: openChoiceRanks,
+              availableLists: availableLists, selectedList: selectedList, selectedListRanks: selectedListRanks)
           case .map: poolMap(mapGuide)
           }
         }
@@ -218,7 +223,10 @@ struct RegionGuideScreen: View {
     slotRows: [Idea.ID: GuideSlotMenu.Row],
     headerThumbnails: [Idea.ID: Data],
     plannerNames: [Planner.ID: String],
-    openChoiceRanks: [Idea.ID: ChatRank]
+    openChoiceRanks: [Idea.ID: ChatRank],
+    availableLists: [TripIdea.RankedList],
+    selectedList: TripIdea.RankedList?,
+    selectedListRanks: [Idea.ID: TripIdea.RankedList.Member]
   ) -> some View {
     if model.sortedRegions.isEmpty {
       ContentUnavailableView(
@@ -256,20 +264,20 @@ struct RegionGuideScreen: View {
             }
           }
         }
-        if focusedSlot?.isFilled != true, let guide, guide.sections.isEmpty {
-          let notForMeCount = guide.counts[.notForMe, default: 0]
-          ContentUnavailableView("Nothing in \(model.shelf.label)", systemImage: Icon.ideas.systemName,
-            description: Text("\(notForMeCount) \(notForMeCount == 1 ? "place is" : "places are") on Not for Me."))
-        } else if focusedSlot?.isFilled != true, let guide {
-          ForEach(guide.sections) { section in
-            Section(section.title) {
-              ForEach(section.cards) { card in
-                guideCard(card, tripLens: tripLens, slotRow: slotRows[card.idea.id],
-                  thumbnails: headerThumbnails, plannerNames: plannerNames,
-                  rank: tripLens == nil ? nil : openChoiceRanks[card.idea.id])
-              }
+        if focusedSlot?.isFilled != true, let guide {
+          RegionGuideSections(
+            guide: guide,
+            lists: availableLists,
+            selectedList: selectedList,
+            shelfLabel: model.shelf.label,
+            onSelectList: { model.selectedListName = $0 },
+            row: { card in
+              guideCard(card, tripLens: tripLens, slotRow: slotRows[card.idea.id],
+                thumbnails: headerThumbnails, plannerNames: plannerNames,
+                rank: selectedList == nil ? openChoiceRanks[card.idea.id] : nil,
+                listRank: selectedListRanks[card.idea.id])
             }
-          }
+          )
         }
       }
     }
@@ -281,11 +289,12 @@ struct RegionGuideScreen: View {
     slotRow: GuideSlotMenu.Row?,
     thumbnails: [Idea.ID: Data],
     plannerNames: [Planner.ID: String],
-    rank: ChatRank?
+    rank: ChatRank?,
+    listRank: TripIdea.RankedList.Member?
   ) -> some View {
     return RegionGuideCardRow(
       card: card, headerThumbnail: thumbnails[card.idea.id], plannerNames: plannerNames,
-      badge: tripLens?.badgeLabel(for: card.idea.id), rank: rank,
+      badge: tripLens?.badgeLabel(for: card.idea.id), rank: rank, listRank: listRank,
       isFocused: focusedIdeaID == card.idea.id,
       onTap: {
         focusedIdeaID = card.idea.id

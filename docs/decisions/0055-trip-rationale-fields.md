@@ -22,7 +22,7 @@ lens. Both came from Jon deliberating in the guide with several ranked lists on 
 
 *Amended 2026-11-17: **D12** lets the guide show one named list on its own, in rank order. It came from Jon staging a
 ranked Dim Sum list and wanting to see just those places in the London guide. Effort:
-[`guide-list-filter`](../efforts/guide-list-filter.md) (no schema).*
+[`guide-list-filter`](../efforts/archive/guide-list-filter.md) (no schema).*
 
 Summary: When Chat recommends a place, its `visit`, `why` and `fit` are kept as three labeled fields on the trip stop
 (`TripIdea`), not packed into one note. The dossier shows them as "On this trip" wherever it knows the trip, including the

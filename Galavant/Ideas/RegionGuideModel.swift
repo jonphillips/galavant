@@ -39,12 +39,16 @@ final class RegionGuideModel {
 
   var region: MapRegion?
   var category: GuideCategory = .dining {
-    didSet { focusedSlotKey = nil }
+    didSet {
+      focusedSlotKey = nil
+      selectedListName = nil
+    }
   }
   var shelf: GuideShelf = .all
   private var initialScopeApplied = false
   private var initialPreferredTripID: Trip.ID?
   var chosenTripID: Trip.ID?
+  var selectedListName: String?
   private var focusedSlotKey: FocusedSlotKey?
   var successfulAddCount = 0
   var destination: Destination?
@@ -82,14 +86,53 @@ final class RegionGuideModel {
       candidateIdeaIDs: candidateIdeaIDs)
   }
 
-  func visibleGuide(_ guide: RegionGuide?, focusedSlot: GuideSlotFocus?) -> RegionGuide? {
-    guard let guide, let focusedSlot, case .open = focusedSlot.content else { return guide }
-    return guide.filtered(to: Set(focusedSlot.ideaIDs))
+  func visibleGuide(
+    _ guide: RegionGuide?, focusedSlot: GuideSlotFocus?, selectedList: TripIdea.RankedList?
+  ) -> RegionGuide? {
+    guard let guide else { return nil }
+    var ideaIDs = Set(guide.sections.flatMap(\.cards).map(\.idea.id))
+    if let focusedSlot, case .open = focusedSlot.content { ideaIDs.formIntersection(focusedSlot.ideaIDs) }
+    guard let selectedList else {
+      guard let focusedSlot, case .open = focusedSlot.content else { return guide }
+      return guide.filtered(to: ideaIDs)
+    }
+    return guide.ordered(as: selectedList.members.map(\.ideaID).filter(ideaIDs.contains), title: selectedList.name)
   }
 
-  func mapGuide(_ guide: RegionGuide?, focusedSlot: GuideSlotFocus?) -> RegionGuide? {
-    guard let guide, let focusedSlot else { return guide }
-    return guide.filtered(to: Set(focusedSlot.ideaIDs))
+  func mapGuide(
+    _ guide: RegionGuide?, focusedSlot: GuideSlotFocus?, selectedList: TripIdea.RankedList?
+  ) -> RegionGuide? {
+    guard let guide else { return nil }
+    var ideaIDs = Set(guide.sections.flatMap(\.cards).map(\.idea.id))
+    if let focusedSlot { ideaIDs.formIntersection(focusedSlot.ideaIDs) }
+    if focusedSlot?.isFilled == true { return guide.filtered(to: ideaIDs) }
+    guard let selectedList else {
+      return focusedSlot == nil ? guide : guide.filtered(to: ideaIDs)
+    }
+    return guide.ordered(as: selectedList.members.map(\.ideaID).filter(ideaIDs.contains), title: selectedList.name)
+  }
+
+  func availableLists(for lens: GuideTripLens, guide: RegionGuide?) -> [TripIdea.RankedList] {
+    guard guide != nil, let region else { return [] }
+    let allGuide = RegionGuide(
+      region: region, category: category, shelf: .all, ideas: ideas,
+      evaluations: evaluations, interests: interests, planners: planners, notes: notes)
+    let guideIDs = Set(allGuide.sections.flatMap(\.cards).map(\.idea.id))
+    return TripIdea.rankedLists(entries: tripIdeas.filter { $0.tripID == lens.trip.id })
+      .compactMap { list in
+        let members = list.members.filter { guideIDs.contains($0.ideaID) }
+        guard !members.isEmpty else { return nil }
+        return TripIdea.RankedList(name: list.name, members: members)
+      }
+  }
+
+  func selectedList(from lists: [TripIdea.RankedList]) -> TripIdea.RankedList? {
+    guard let selectedListName else { return nil }
+    return lists.first { $0.name == selectedListName }
+  }
+
+  func selectedListRanks(for list: TripIdea.RankedList?) -> [Idea.ID: TripIdea.RankedList.Member] {
+    Dictionary(list?.members.map { ($0.ideaID, $0) } ?? [], uniquingKeysWith: { first, _ in first })
   }
 
   var tripLens: GuideTripLens? {
@@ -151,12 +194,14 @@ final class RegionGuideModel {
   func selectRegion(_ region: MapRegion?) {
     self.region = region
     chosenTripID = nil
+    selectedListName = nil
     focusedSlotKey = nil
     $lastRegionID.withLock { $0 = region?.id.uuidString ?? "" }
   }
 
   func tripSelected(_ tripID: Trip.ID) {
     chosenTripID = tripID
+    selectedListName = nil
     focusedSlotKey = nil
   }
 
@@ -271,5 +316,17 @@ private extension RegionGuide {
       return RegionGuide.Section(title: section.title, cards: cards, id: section.id)
     }
     return RegionGuide(sections: sections, counts: counts)
+  }
+
+  func ordered(as ideaIDs: [Idea.ID], title: String) -> RegionGuide {
+    let cardsByID = Dictionary(
+      sections.flatMap(\.cards).map { ($0.idea.id, $0) },
+      uniquingKeysWith: { first, _ in first }
+    )
+    let cards = ideaIDs.compactMap { cardsByID[$0] }
+    return RegionGuide(
+      sections: cards.isEmpty ? [] : [RegionGuide.Section(title: title, cards: cards, id: "list")],
+      counts: counts
+    )
   }
 }
