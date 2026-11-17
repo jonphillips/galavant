@@ -20,6 +20,10 @@ lens. Both came from Jon deliberating in the guide with several ranked lists on 
 [`guide-deliberation`](../efforts/archive/guide-deliberation.md) (D11, no schema), then
 [`rank-list-label`](../efforts/archive/rank-list-label.md) (D10, one synced column).*
 
+*Amended 2026-11-17: **D12** lets the guide show one named list on its own, in rank order. It came from Jon staging a
+ranked Dim Sum list and wanting to see just those places in the London guide. Effort:
+[`guide-list-filter`](../efforts/guide-list-filter.md) (no schema).*
+
 Summary: When Chat recommends a place, its `visit`, `why` and `fit` are kept as three labeled fields on the trip stop
 (`TripIdea`), not packed into one note. The dossier shows them as "On this trip" wherever it knows the trip, including the
 guide, above Taste Notes. Taste Notes move to the bottom of the dossier until the place has been visited, then to the top.
@@ -123,6 +127,16 @@ for the place, the best rank wins. With D10, the list's name comes with the meda
 on filled slots, and medals still don't sort. Without a lens, the guide shows no medals, because a rank only means
 something within one trip.
 
+**D12. The guide can show one named list in rank order** (amendment, 2026-11-17). With D10's names in place, Jon wants
+to pick a list ("Dim Sum") in the guide and see only its places, ranked, with the map following. When the guide shows a
+trip lens, a list picker offers each D10 name that the trip's stops carry for places in this region and category. Picking
+one narrows the cards and the map to the places in that list, as one section titled with the list's name, in Chat's
+order. This is the one place a rank sorts, because Jon asked for the ranking itself. Everywhere else, medals still don't
+sort. The list includes every stop with that name, open or already placed, so Jon sees the whole ranking. Medals stay
+where D9 and D11 put them: an open choice in the top three wears one. Every other place in the list shows its rank as a
+plain number. Unnamed ranks (from before D10, or from a return with no `list`) aren't offered. There are still no medals on
+the map. Without a lens there's no picker. No schema change.
+
 ## Consequences
 
 - **Owed before TestFlight:** import the three fields with `cktool` and deploy the schema to Production, as for any added
@@ -131,4 +145,4 @@ something within one trip.
 - Recommendation cards in Evaluate already show Why, Fit and Time. They now match what's saved.
 - D7 adds two more synced columns, so the same `cktool` import and Production deploy are owed for that slice.
 - D10 adds a third, `rationalePriorityList`, with the same `cktool` import and Production deploy owed for that slice.
-  D11 adds no schema.
+  D11 and D12 add no schema.
