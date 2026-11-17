@@ -334,6 +334,32 @@ public struct ChatRank: Equatable, Sendable {
 }
 
 extension TripIdea {
+  public struct RankedList: Equatable, Sendable, Identifiable {
+    public struct Member: Equatable, Sendable, Identifiable {
+      public var ideaID: Idea.ID
+      public var priority: Int
+      public var priorityOutOf: Int?
+      public var isOpenChoice: Bool
+      public var id: Idea.ID { ideaID }
+
+      public init(ideaID: Idea.ID, priority: Int, priorityOutOf: Int?, isOpenChoice: Bool) {
+        self.ideaID = ideaID
+        self.priority = priority
+        self.priorityOutOf = priorityOutOf
+        self.isOpenChoice = isOpenChoice
+      }
+    }
+
+    public var name: String
+    public var members: [Member]
+    public var id: String { name }
+
+    public init(name: String, members: [Member]) {
+      self.name = name
+      self.members = members
+    }
+  }
+
   /// The places still under consideration. Kept as the one predicate used by
   /// both the trip plan and other projections of the same maybe-pile.
   public static func isConsidering(_ entry: TripIdea) -> Bool {
@@ -357,6 +383,44 @@ extension TripIdea {
         list: entry.rationalePriorityList)
       if let existing = ranks[ideaID], existing.priority <= rank.priority { return }
       ranks[ideaID] = rank
+    }
+  }
+
+  /// Named rankings from all stops, including places already scheduled.
+  public static func rankedLists(entries: [TripIdea]) -> [RankedList] {
+    let grouped = Dictionary(grouping: entries.compactMap { entry -> (String, RankedList.Member)? in
+      guard let ideaID = entry.ideaID,
+            let priority = entry.rationalePriority,
+            let name = entry.rationalePriorityList
+      else { return nil }
+      return (name, RankedList.Member(
+        ideaID: ideaID,
+        priority: priority,
+        priorityOutOf: entry.rationalePriorityOutOf,
+        isOpenChoice: isConsidering(entry) || entry.alternativeGroupID != nil
+      ))
+    }, by: \.0)
+
+    return grouped.map { name, namedEntries in
+      let membersByIdea = Dictionary(grouping: namedEntries.map(\.1), by: \.ideaID)
+      let members = membersByIdea.map { ideaID, candidates -> RankedList.Member in
+        let best = candidates.min {
+          if $0.priority != $1.priority { return $0.priority < $1.priority }
+          return ($0.priorityOutOf ?? Int.max) < ($1.priorityOutOf ?? Int.max)
+        }!
+        return RankedList.Member(
+          ideaID: ideaID,
+          priority: best.priority,
+          priorityOutOf: best.priorityOutOf,
+          isOpenChoice: candidates.contains(where: \.isOpenChoice)
+        )
+      }.sorted {
+        if $0.priority != $1.priority { return $0.priority < $1.priority }
+        return $0.ideaID.uuidString < $1.ideaID.uuidString
+      }
+      return RankedList(name: name, members: members)
+    }.sorted {
+      $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
     }
   }
 }

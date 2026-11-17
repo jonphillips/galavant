@@ -8,6 +8,7 @@ struct RegionGuideCardRow: View {
   let plannerNames: [Planner.ID: String]
   let badge: String?
   let rank: ChatRank?
+  var listRank: TripIdea.RankedList.Member? = nil
   let isFocused: Bool
   let onTap: () -> Void
   var putInTitle: String? = nil
@@ -54,13 +55,27 @@ struct RegionGuideCardRow: View {
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
-        if badge != nil || medalRank != nil {
+        if badge != nil || medalRank != nil || listRank != nil {
           HStack(spacing: 6) {
             if let badge {
               Text(badge).font(.caption2.weight(.medium)).padding(.horizontal, 7).padding(.vertical, 3)
                 .background(.thinMaterial, in: Capsule())
             }
-            if let rank = medalRank {
+            if let listRank {
+              if listRank.isOpenChoice,
+                ChatRankMedal.tier(priority: listRank.priority, priorityOutOf: listRank.priorityOutOf) != nil
+              {
+                RankMedal(priority: listRank.priority, priorityOutOf: listRank.priorityOutOf)
+              } else {
+                Text(listRank.priority.formatted())
+                  .font(.caption2.weight(.bold))
+                  .monospacedDigit()
+                  .frame(width: 18, height: 18)
+                  .overlay { Circle().strokeBorder(.secondary, lineWidth: 1) }
+                  .accessibilityLabel("Chat's \(Self.ordinal(listRank.priority)) choice")
+                  .accessibilityAddTraits(.isStaticText)
+              }
+            } else if let rank = medalRank {
               RankMedal(priority: rank.priority, priorityOutOf: rank.priorityOutOf, listName: rank.list)
               if let list = rank.list {
                 Text(list)
@@ -90,6 +105,21 @@ struct RegionGuideCardRow: View {
         Button(putInTitle, systemImage: "calendar.badge.plus", action: onPutHere)
       }
     }
+  }
+
+  private static func ordinal(_ value: Int) -> String {
+    let suffix: String
+    switch value % 100 {
+    case 11...13: suffix = "th"
+    default:
+      switch value % 10 {
+      case 1: suffix = "st"
+      case 2: suffix = "nd"
+      case 3: suffix = "rd"
+      default: suffix = "th"
+      }
+    }
+    return "\(value)\(suffix)"
   }
 
   private func noteText(_ note: TasteNote, lines: Int) -> some View {

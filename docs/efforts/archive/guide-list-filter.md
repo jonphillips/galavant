@@ -1,12 +1,12 @@
 # Effort — Show one of Chat's named lists in the guide, in rank order
 
-**Status:** Dispatched · **Summary:** [ADR-0055](../decisions/0055-trip-rationale-fields.md) D12. When the region guide has a
+**Status:** Dispatched · **Summary:** [ADR-0055](../../decisions/0055-trip-rationale-fields.md) D12. When the region guide has a
 trip lens, a list picker on the cards' header offers each named ranked list ("Dim Sum", "Soho Indian") that the trip's
 stops carry here. Picking one narrows the cards and the map to that list's places, as one section in Chat's order. Ranks
 4 and below show a plain number. **No schema change, so no CloudKit deploy.**
 
-**Read first:** ADR-0055 D9–D12; the archived [`guide-deliberation`](archive/guide-deliberation.md) and
-[`rank-list-label`](archive/rank-list-label.md) briefs, which built the medals and names this filters by.
+**Read first:** ADR-0055 D9–D12; the archived [`guide-deliberation`](guide-deliberation.md) and
+[`rank-list-label`](rank-list-label.md) briefs, which built the medals and names this filters by.
 
 ## Today
 
