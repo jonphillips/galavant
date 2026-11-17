@@ -144,6 +144,8 @@ struct RegionGuideModelTests {
       travelPartyID: partyID)
     let outside = Idea(id: UUID(), name: "Manchester Hotel", kind: .stay, latitude: 53.5, longitude: -2.2,
       travelPartyID: partyID)
+    let slotStop = Idea(id: UUID(), name: "Existing Dinner", kind: .food, latitude: 51.5, longitude: -0.1,
+      travelPartyID: partyID)
     let firstEntry = TripIdea(
       id: UUID(), tripID: trip.id, ideaID: first.id, rationalePriority: 2,
       rationalePriorityOutOf: 4, rationalePriorityList: "Dim Sum")
@@ -153,6 +155,9 @@ struct RegionGuideModelTests {
     let outsideEntry = TripIdea(
       id: UUID(), tripID: trip.id, ideaID: outside.id, rationalePriority: 1,
       rationalePriorityOutOf: 2, rationalePriorityList: "Manchester Hotels")
+    var slotStopDraft = TripIdea(id: UUID(), tripID: trip.id, ideaID: slotStop.id, status: .scheduled)
+    slotStopDraft.apply(.daypart(1, .dinner))
+    let slotStopEntry = slotStopDraft
     let dayRegion = TripDayRegion(id: UUID(), tripID: trip.id, dayNumber: 1, regionID: region.id)
     let jon = Planner(id: UUID(), displayName: "Jon", travelPartyID: partyID)
     let firstInterest = IdeaInterest(id: UUID(), ideaID: first.id, plannerID: jon.id, level: .wantToDo)
@@ -162,10 +167,14 @@ struct RegionGuideModelTests {
       try MapRegion.insert { MapRegion.Draft(region) }.execute(db)
       try Trip.insert { Trip.Draft(trip) }.execute(db)
       try TripDayRegion.insert { TripDayRegion.Draft(dayRegion) }.execute(db)
-      try Idea.insert { [Idea.Draft(first), Idea.Draft(second), Idea.Draft(outside)] }.execute(db)
+      try Idea.insert { [Idea.Draft(first), Idea.Draft(second), Idea.Draft(outside), Idea.Draft(slotStop)] }
+        .execute(db)
       try Planner.insert { Planner.Draft(jon) }.execute(db)
       try IdeaInterest.insert { IdeaInterest.Draft(firstInterest) }.execute(db)
-      try TripIdea.insert { [TripIdea.Draft(firstEntry), TripIdea.Draft(secondEntry), TripIdea.Draft(outsideEntry)] }
+      try TripIdea.insert {
+        [TripIdea.Draft(firstEntry), TripIdea.Draft(secondEntry), TripIdea.Draft(outsideEntry),
+          TripIdea.Draft(slotStopEntry)]
+      }
         .execute(db)
     }
 
@@ -173,7 +182,11 @@ struct RegionGuideModelTests {
     model.task(scope: RegionGuideScope(region: region, category: .dining, preferredTripID: trip.id))
     try await model.$trips.load()
     try await model.$tripIdeas.load()
+    try await model.$tripStays.load()
     try await model.$tripDayRegions.load()
+    try await model.$tripDayNotes.load()
+    try await model.$calendarConstraints.load()
+    try await model.$alternativeGroups.load()
     try await model.$ideas.load()
     try await model.$regions.load()
     try await model.$interests.load()
@@ -187,15 +200,29 @@ struct RegionGuideModelTests {
     #expect(lists.first?.members.map(\.ideaID) == [second.id, first.id])
 
     model.selectedListName = "Dim Sum"
-    let selectedGuide = model.visibleGuide(model.guide, focusedSlot: nil)
+    let selectedList = model.selectedList(from: lists)
+    let selectedGuide = model.visibleGuide(model.guide, focusedSlot: nil, selectedList: selectedList)
     #expect(selectedGuide?.sections.map(\.title) == ["Dim Sum"])
     #expect(selectedGuide?.sections.flatMap(\.cards).map(\.idea.id) == [second.id, first.id])
-    #expect(model.mapGuide(model.guide, focusedSlot: nil)?.sections.flatMap(\.cards).map(\.idea.id)
+    #expect(model.mapGuide(model.guide, focusedSlot: nil, selectedList: selectedList)?.sections.flatMap(\.cards).map(\.idea.id)
       == [second.id, first.id])
+
+    model.slotTapped(day: 1, meal: .dinner)
+    let filledSlot = try #require(model.focusedSlot)
+    #expect(filledSlot.isFilled)
+    #expect(model.mapGuide(model.guide, focusedSlot: filledSlot, selectedList: selectedList)?
+      .sections.flatMap(\.cards).map(\.idea.id) == [slotStop.id])
+    model.clearSlotFocus()
+
+    model.shelf = .noted
+    let emptyListGuide = model.visibleGuide(model.guide, focusedSlot: nil, selectedList: selectedList)
+    #expect(emptyListGuide?.sections.isEmpty == true)
+    #expect(model.selectedList(from: lists)?.name == "Dim Sum")
 
     model.shelf = .wantToGo
     #expect(model.availableLists(for: lens, guide: model.guide).first?.members.count == 2)
-    #expect(model.visibleGuide(model.guide, focusedSlot: nil)?.sections.flatMap(\.cards).map(\.idea.id) == [first.id])
+    #expect(model.visibleGuide(model.guide, focusedSlot: nil, selectedList: selectedList)?
+      .sections.flatMap(\.cards).map(\.idea.id) == [first.id])
 
     model.shelf = .all
     model.selectedListName = "Dim Sum"
@@ -204,9 +231,10 @@ struct RegionGuideModelTests {
         .update { $0.rationalePriorityList = #bind("Renamed Dim Sum") }.execute(db)
     }
     try await model.$tripIdeas.load()
-    #expect(model.selectedList == nil)
+    let renamedLists = model.availableLists(for: lens, guide: model.guide)
+    #expect(model.selectedList(from: renamedLists) == nil)
     #expect(model.selectedListName == "Dim Sum")
-    #expect(model.visibleGuide(model.guide, focusedSlot: nil) == model.guide)
+    #expect(model.visibleGuide(model.guide, focusedSlot: nil, selectedList: nil) == model.guide)
 
     model.tripSelected(trip.id)
     #expect(model.selectedListName == nil)

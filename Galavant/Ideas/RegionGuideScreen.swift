@@ -23,10 +23,11 @@ struct RegionGuideScreen: View {
     let openChoiceRanks = tripLens.map { model.openChoiceRanks(for: $0) } ?? [:]
     let sourceGuide = model.guide
     let availableLists = tripLens.map { model.availableLists(for: $0, guide: sourceGuide) } ?? []
-    let selectedListRanks = model.selectedListRanks
+    let selectedList = model.selectedList(from: availableLists)
+    let selectedListRanks = model.selectedListRanks(for: selectedList)
     let focusedSlot = tripLens.flatMap { model.focusedSlot(in: $0, guide: sourceGuide) }
-    let guide = model.visibleGuide(sourceGuide, focusedSlot: focusedSlot)
-    let mapGuide = model.mapGuide(sourceGuide, focusedSlot: focusedSlot)
+    let guide = model.visibleGuide(sourceGuide, focusedSlot: focusedSlot, selectedList: selectedList)
+    let mapGuide = model.mapGuide(sourceGuide, focusedSlot: focusedSlot, selectedList: selectedList)
     let slotRows = model.slotRows(
       for: sourceGuide?.sections.flatMap(\.cards).map(\.idea) ?? [],
       focusedSlot: focusedSlot,
@@ -44,7 +45,7 @@ struct RegionGuideScreen: View {
           column: {
             guideList(guide, tripLens: tripLens, focusedSlot: focusedSlot, slotRows: slotRows,
               headerThumbnails: headerThumbnails, plannerNames: plannerNames, openChoiceRanks: openChoiceRanks,
-              availableLists: availableLists, selectedListRanks: selectedListRanks)
+              availableLists: availableLists, selectedList: selectedList, selectedListRanks: selectedListRanks)
           },
           map: { poolMap(mapGuide) },
           dossierAccessory: { dossierAccessory(ideaID: model.dossierID, tripLens: tripLens, focusedSlot: focusedSlot) }
@@ -55,7 +56,7 @@ struct RegionGuideScreen: View {
           case .list:
             guideList(guide, tripLens: tripLens, focusedSlot: focusedSlot, slotRows: slotRows,
               headerThumbnails: headerThumbnails, plannerNames: plannerNames, openChoiceRanks: openChoiceRanks,
-              availableLists: availableLists, selectedListRanks: selectedListRanks)
+              availableLists: availableLists, selectedList: selectedList, selectedListRanks: selectedListRanks)
           case .map: poolMap(mapGuide)
           }
         }
@@ -224,6 +225,7 @@ struct RegionGuideScreen: View {
     plannerNames: [Planner.ID: String],
     openChoiceRanks: [Idea.ID: ChatRank],
     availableLists: [TripIdea.RankedList],
+    selectedList: TripIdea.RankedList?,
     selectedListRanks: [Idea.ID: TripIdea.RankedList.Member]
   ) -> some View {
     if model.sortedRegions.isEmpty {
@@ -262,25 +264,20 @@ struct RegionGuideScreen: View {
             }
           }
         }
-        if focusedSlot?.isFilled != true, let guide, guide.sections.isEmpty {
-          let notForMeCount = guide.counts[.notForMe, default: 0]
-          ContentUnavailableView("Nothing in \(model.shelf.label)", systemImage: Icon.ideas.systemName,
-            description: Text("\(notForMeCount) \(notForMeCount == 1 ? "place is" : "places are") on Not for Me."))
-        } else if focusedSlot?.isFilled != true, let guide {
-          ForEach(guide.sections) { section in
-            RegionGuideCardSection(
-              section: section,
-              lists: section.id == guide.sections.first?.id ? availableLists : [],
-              selectedListName: model.selectedList?.name,
-              onSelectList: { model.selectedListName = $0 },
-              row: { card in
-                guideCard(card, tripLens: tripLens, slotRow: slotRows[card.idea.id],
-                  thumbnails: headerThumbnails, plannerNames: plannerNames,
-                  rank: model.selectedList == nil && tripLens != nil ? openChoiceRanks[card.idea.id] : nil,
-                  listRank: selectedListRanks[card.idea.id])
-              }
-            )
-          }
+        if focusedSlot?.isFilled != true, let guide {
+          RegionGuideSections(
+            guide: guide,
+            lists: availableLists,
+            selectedList: selectedList,
+            shelfLabel: model.shelf.label,
+            onSelectList: { model.selectedListName = $0 },
+            row: { card in
+              guideCard(card, tripLens: tripLens, slotRow: slotRows[card.idea.id],
+                thumbnails: headerThumbnails, plannerNames: plannerNames,
+                rank: selectedList == nil ? openChoiceRanks[card.idea.id] : nil,
+                listRank: selectedListRanks[card.idea.id])
+            }
+          )
         }
       }
     }
@@ -357,68 +354,5 @@ struct RegionGuideScreen: View {
   private func closeDossier() {
     focusedIdeaID = nil
     model.closeDossier()
-  }
-}
-
-private struct RegionGuideCardSection<Row: View>: View {
-  let section: RegionGuide.Section
-  let lists: [TripIdea.RankedList]
-  let selectedListName: String?
-  let onSelectList: (String?) -> Void
-  let row: (RegionGuide.Card) -> Row
-
-  var body: some View {
-    Section {
-      ForEach(section.cards) { card in row(card) }
-    } header: {
-      RegionGuideListHeader(
-        title: section.title, lists: lists,
-        selectedListName: selectedListName, onSelectList: onSelectList)
-    }
-  }
-}
-
-private struct RegionGuideListHeader: View {
-  let title: String
-  let lists: [TripIdea.RankedList]
-  let selectedListName: String?
-  let onSelectList: (String?) -> Void
-
-  var body: some View {
-    HStack {
-      Text(title)
-      Spacer()
-      if !lists.isEmpty {
-        Menu {
-          Button {
-            onSelectList(nil)
-          } label: {
-            if selectedListName == nil {
-              Label("All places", systemImage: "checkmark")
-            } else {
-              Text("All places")
-            }
-          }
-          Divider()
-          ForEach(lists) { list in
-            Button {
-              onSelectList(list.name)
-            } label: {
-              if selectedListName == list.name {
-                Label("\(list.name) · \(list.members.count)", systemImage: "checkmark")
-              } else {
-                Text("\(list.name) · \(list.members.count)")
-              }
-            }
-          }
-        } label: {
-          HStack(spacing: 4) {
-            Text(selectedListName ?? "All places")
-            Image(systemName: "chevron.up.chevron.down").font(.caption2)
-          }
-        }
-        .accessibilityLabel("Named list")
-      }
-    }
   }
 }

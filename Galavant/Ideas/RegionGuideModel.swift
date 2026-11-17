@@ -86,7 +86,9 @@ final class RegionGuideModel {
       candidateIdeaIDs: candidateIdeaIDs)
   }
 
-  func visibleGuide(_ guide: RegionGuide?, focusedSlot: GuideSlotFocus?) -> RegionGuide? {
+  func visibleGuide(
+    _ guide: RegionGuide?, focusedSlot: GuideSlotFocus?, selectedList: TripIdea.RankedList?
+  ) -> RegionGuide? {
     guard let guide else { return nil }
     var ideaIDs = Set(guide.sections.flatMap(\.cards).map(\.idea.id))
     if let focusedSlot, case .open = focusedSlot.content { ideaIDs.formIntersection(focusedSlot.ideaIDs) }
@@ -97,10 +99,13 @@ final class RegionGuideModel {
     return guide.ordered(as: selectedList.members.map(\.ideaID).filter(ideaIDs.contains), title: selectedList.name)
   }
 
-  func mapGuide(_ guide: RegionGuide?, focusedSlot: GuideSlotFocus?) -> RegionGuide? {
+  func mapGuide(
+    _ guide: RegionGuide?, focusedSlot: GuideSlotFocus?, selectedList: TripIdea.RankedList?
+  ) -> RegionGuide? {
     guard let guide else { return nil }
     var ideaIDs = Set(guide.sections.flatMap(\.cards).map(\.idea.id))
     if let focusedSlot { ideaIDs.formIntersection(focusedSlot.ideaIDs) }
+    if focusedSlot?.isFilled == true { return guide.filtered(to: ideaIDs) }
     guard let selectedList else {
       return focusedSlot == nil ? guide : guide.filtered(to: ideaIDs)
     }
@@ -121,13 +126,13 @@ final class RegionGuideModel {
       }
   }
 
-  var selectedList: TripIdea.RankedList? {
-    guard let selectedListName, let tripLens else { return nil }
-    return availableLists(for: tripLens, guide: guide).first { $0.name == selectedListName }
+  func selectedList(from lists: [TripIdea.RankedList]) -> TripIdea.RankedList? {
+    guard let selectedListName else { return nil }
+    return lists.first { $0.name == selectedListName }
   }
 
-  var selectedListRanks: [Idea.ID: TripIdea.RankedList.Member] {
-    Dictionary(selectedList?.members.map { ($0.ideaID, $0) } ?? [], uniquingKeysWith: { first, _ in first })
+  func selectedListRanks(for list: TripIdea.RankedList?) -> [Idea.ID: TripIdea.RankedList.Member] {
+    Dictionary(list?.members.map { ($0.ideaID, $0) } ?? [], uniquingKeysWith: { first, _ in first })
   }
 
   var tripLens: GuideTripLens? {
