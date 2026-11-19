@@ -116,7 +116,21 @@ broken: render the itinerary as `ScrollView`/`LazyVStack` instead of `List`. See
   children; only manifests on a genuine offline race); (2) `Planner.create`
   planner-level dedup — merging two *populated* parties repoints blindly and can leave
   duplicate planners/tags (extreme edge; merge-with-dup beats data loss). Adjacent to
-  planner-identity above.
+  planner-identity above. (3) **The survivor depends on local state** (found in Bright Lights' S2
+  review, bright-lights PR #6, 2026-11-18).
+  - **The problem.** `ensureDefault` picks the first party that has content. Whether a party has
+    content depends on how much each device has synced, so it isn't a total order (jon-platform law 3).
+    Suppose a device holds a peer's party but not yet its children, for example mid-fetch. It can keep
+    its own party while the other device keeps the peer's. Each then deletes the party the other kept,
+    and the cascade can take that device's children with it. The window is narrow, but the cost is data
+    loss.
+  - **Why dropping the probe isn't the fix.** It's what keeps an empty first-run stray from beating
+    the real party, because `TravelParty` has no `createdAt` to order by. The party carrying the
+    `CKShare` must also never lose.
+  - **A candidate rule:** the shared root first, then a stable order (add `createdAt`, which is a
+    Production schema change), with the content probe gone.
+  - **Before choosing:** write a seeded-duplicate test that reproduces the partial-sync state. Bright
+    Lights faces the same question at its M2 sharing slice (bright-lights `docs/open-questions.md`).
 
 ## Superseded framing — provenance, see the ADRs (do not build from these)
 
