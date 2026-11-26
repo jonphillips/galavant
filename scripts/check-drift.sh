@@ -32,6 +32,10 @@ fi
 qr="${JON_PLATFORM:-$HOME/code/jon-platform}/scripts/quiet-run"
 [[ -x "$qr" ]] || qr=""
 
+# The Xcode project is generated, not committed (jon-platform docs/ios/drift-control.md), so
+# build it from project.yml before anything reads the scheme or runs xcodebuild.
+xcodegen generate --quiet
+
 # Same gate as .githooks/pre-commit and ci.yml's lint job.
 $qr swiftlint lint --strict
 
@@ -60,8 +64,8 @@ else
   # Assert the target is still WIRED before building it. A build that compiles
   # nothing exits 0, so build status alone cannot tell "the tests pass the
   # compiler" apart from "the tests are no longer in this scheme" — and the
-  # second is the state that rots unnoticed. Both inputs are checked in, so this
-  # costs nothing. Zero hits is a failure, not a pass: a check that reports the
+  # second is the state that rots unnoticed. Both inputs are on disk (the scheme
+  # was just generated from project.yml), so this costs nothing. Zero hits is a failure, not a pass: a check that reports the
   # wrong thing when it finds nothing is worse than no check.
   scheme_file="Galavant.xcodeproj/xcshareddata/xcschemes/${app_scheme}.xcscheme"
   if [[ ! -f "$scheme_file" ]]; then
@@ -100,6 +104,7 @@ EOF
     -scheme "$app_scheme" \
     -destination "$app_destination" \
     -skipMacroValidation \
+    -onlyUsePackageVersionsFromResolvedFile \
     CODE_SIGNING_ALLOWED=NO
   build_status=$?
   set -e
