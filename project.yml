@@ -18,15 +18,15 @@ packages:
   GalavantLibrary:
     path: GalavantLibrary
   WebExtractorKit:
-    path: ../../jon-platform/packages/WebExtractorKit
+    path: ../jon-platform/packages/WebExtractorKit
   LLMClientKit:
-    path: ../../jon-platform/packages/LLMClientKit
+    path: ../jon-platform/packages/LLMClientKit
   LLMHandoffKit:
-    path: ../../jon-platform/packages/LLMHandoffKit
+    path: ../jon-platform/packages/LLMHandoffKit
   CloudSyncKit:
-    path: ../../jon-platform/packages/CloudSyncKit
+    path: ../jon-platform/packages/CloudSyncKit
   ChatAccessKit:
-    path: ../../jon-platform/packages/ChatAccessKit
+    path: ../jon-platform/packages/ChatAccessKit
   sqlite-data:
     url: https://github.com/pointfreeco/sqlite-data
     from: 1.0.0

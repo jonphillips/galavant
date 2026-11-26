@@ -3,12 +3,12 @@
 *Status: **accepted** — 2026-10-06, ratified by Jon merging #154. S1 shipped in #157 and passed on device
 2026-10-07. S2 is [`docs/PROD-CUTOVER.md`](../PROD-CUTOVER.md). (Drafted by the architect from a design
 conversation with Jon.) Adopts jon-platform
-[ADR-0006](../../../../jon-platform/docs/adr/0006-lift-backup-restore-into-cloud-sync-kit.md) (backup and
+[ADR-0006](../../../jon-platform/docs/adr/0006-lift-backup-restore-into-cloud-sync-kit.md) (backup and
 restore lifted from Yes Chef into `CloudSyncKit`, with an owner-only restore guard). Rides ADR-0001 (CloudKit via SQLiteData), ADR-0003 (one shared travel
 party), ADR-0005 (TestFlight distribution), ADR-0009 (images are in-database BLOBs), and ADR-0028 (share
 extension and the persisted sync switch). Prior art: Yes Chef
-[ADR-0030](../../../../cooking/yes-chef/docs/decisions/ADR-0030-local-backup-and-restore.md) and
-[ADR-0056](../../../../cooking/yes-chef/docs/decisions/ADR-0056-move-to-production-and-data-carry.md).*
+[ADR-0030](../../../yes-chef/docs/decisions/ADR-0030-local-backup-and-restore.md) and
+[ADR-0056](../../../yes-chef/docs/decisions/ADR-0056-move-to-production-and-data-carry.md).*
 
 ## Context
 

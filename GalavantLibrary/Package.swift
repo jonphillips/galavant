@@ -20,21 +20,21 @@ let package = Package(
     .package(url: "https://github.com/scinfu/SwiftSoup", from: "2.7.0"),
     // The app-agnostic in-app browser, lifted out to jon-platform as a shared
     // package (jon-platform ADR-0002); consumed by local path.
-    .package(path: "../../../jon-platform/packages/WebExtractorKit"),
+    .package(path: "../../jon-platform/packages/WebExtractorKit"),
     // The app-agnostic model-access boundary, lifted out to jon-platform as a
     // shared package; consumed by local path.
-    .package(path: "../../../jon-platform/packages/LLMClientKit"),
+    .package(path: "../../jon-platform/packages/LLMClientKit"),
     // The app-agnostic external-LLM handoff spine (device-local session, token
     // routing, contract-marker guard, session store), lifted out of GalavantAI to
     // jon-platform as a shared package (ADR-0036 "the lift"); consumed by local path.
     // Galavant owns the source/task meaning (GalavantSchema/RecommendationHandoff.swift);
     // this package treats them as opaque tokens.
-    .package(path: "../../../jon-platform/packages/LLMHandoffKit"),
+    .package(path: "../../jon-platform/packages/LLMHandoffKit"),
     // The app-agnostic CloudKit sync-control surface (gate, start, redrain, pending
     // poll, SyncHealth reducer), lifted to jon-platform per ADR-0003; consumed by
     // local path. GalavantCloudSync is now a thin facade over it.
-    .package(path: "../../../jon-platform/packages/CloudSyncKit"),
-    .package(path: "../../../jon-platform/packages/ChatAccessKit"),
+    .package(path: "../../jon-platform/packages/CloudSyncKit"),
+    .package(path: "../../jon-platform/packages/ChatAccessKit"),
     // Declared even though no source here writes `import GRDB`: sqlite-data's
     // `Internal/Exports.swift` `@_exported`-re-exports `Database`,
     // `DatabaseWriter`, `Configuration` and `DatabaseMigrator`, and

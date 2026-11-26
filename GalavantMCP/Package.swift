@@ -7,9 +7,9 @@ let package = Package(
   products: [.executable(name: "galavant-mcp", targets: ["GalavantMCP"])],
   dependencies: [
     .package(path: "../GalavantLibrary"),
-    .package(path: "../../../jon-platform/packages/ChatAccessKit"),
-    .package(path: "../../../jon-platform/packages/MCPServerKit"),
-    .package(path: "../../../jon-platform/packages/LLMHandoffKit"),
+    .package(path: "../../jon-platform/packages/ChatAccessKit"),
+    .package(path: "../../jon-platform/packages/MCPServerKit"),
+    .package(path: "../../jon-platform/packages/LLMHandoffKit"),
   ],
   targets: [
     .target(name: "GalavantMCPServer", dependencies: [

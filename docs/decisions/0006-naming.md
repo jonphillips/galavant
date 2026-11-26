@@ -37,7 +37,7 @@ may justify a separate entity.
 
 ## No version suffixes in the namespace
 
-The product is **Galavant**, full stop. Repo dir (`~/code/galavant/galavant`),
+The product is **Galavant**, full stop. Repo dir (`~/code/galavant`),
 Xcode project, app/target/scheme names, SPM package, module names, bundle ID,
 app group, and CloudKit container are all plain `galavant`/`Galavant` — never
 `V3`, `3`, or any rewrite marker. "V1/V2/V3" exists only in docs as history
