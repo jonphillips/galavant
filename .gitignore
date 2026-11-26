@@ -1,20 +1,46 @@
+# House .gitignore for an app repo. Decisions: jon-platform docs/ios/drift-control.md § The .gitignore.
+# Copy it to the app's root, replace Galavant with the XcodeGen project name, list the generated
+# plists and entitlements, and put anything else in the last section.
+
+# macOS
 .DS_Store
+
+# Xcode per-user state
 xcuserdata/
 *.xcuserstate
-.build/
-DerivedData/
 
-# Machine-local build credentials. Copy the tracked example, then add the real
-# value locally; the app target reads it through its Info.plist build setting.
+# Build output. /build/ holds whatever jon-platform scripts write, such as testflight's archives,
+# exports and notes in build/testflight/.
+.build/
+.swiftpm/
+DerivedData/
+/build/
+
+# Generated from project.yml by XcodeGen. Only the project-level Swift package pins are tracked.
+# A local package's own Package.resolved (for example GalavantLibrary/Package.resolved) stays tracked.
+Galavant.xcodeproj/*
+!Galavant.xcodeproj/project.xcworkspace/
+Galavant.xcodeproj/project.xcworkspace/*
+!Galavant.xcodeproj/project.xcworkspace/xcshareddata/
+Galavant.xcodeproj/project.xcworkspace/xcshareddata/*
+!Galavant.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+Galavant.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/*
+!Galavant.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+
+# Also generated: every Info.plist and .entitlements whose contents project.yml declares under
+# `properties:`. List each one here, for example:
+# Galavant/Info.plist
+# Galavant/Galavant.entitlements
+
+# Machine-local build credentials. The tracked Config/Secrets.example.xcconfig shows the keys.
 Config/Secrets.xcconfig
 
-# Machine-local Claude Code overrides (permissions, sim UUIDs, abs paths).
-# The shared SessionStart hook lives in the committed .claude/settings.json.
+# Machine-local Claude Code state. The shared .claude/settings.json and skills stay tracked.
 .claude/settings.local.json
 .claude/jon-platform
-
-# Background-agent worktrees (isolated checkouts, never committed)
 .claude/worktrees/
 
-# Local TestFlight archives, exports, recovery state, and generated notes.
-build/testflight/
+# Agent scratch: throwaway probe scripts and output, never committed.
+/scratch/
+
+# App-specific
