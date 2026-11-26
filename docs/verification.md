@@ -47,6 +47,9 @@ hid a failing test.)
 - With `git config core.hooksPath .githooks` set, the hooks regenerate after checkout, merge and
   rebase. A worktree with hooks disabled runs `xcodegen generate` itself before building, and
   `scripts/check-drift.sh` always does.
+- A fresh clone can't generate until `Config/Secrets.xcconfig` exists: `project.yml` names it as the
+  app target's config file, and XcodeGen stops on a missing one. Copy
+  `Config/Secrets.xcconfig.example` to it first (an empty key builds; Unsplash photos stay off).
 - Every SPM product a target imports must be declared in that target's `dependencies:`, or the next
   regenerate drops the link and the build fails with `Undefined symbols`.
 - A new file in `GalavantTests/` needs a regenerate. Otherwise the run reports *passed* having executed
