@@ -22,6 +22,7 @@ jobs:
     uses: jonphillips/ci-workflows/.github/workflows/ios-ci.yml@main
     with:
       package-path: GalavantLibrary
+      platform-relative-root: "../.."   # flat clone (~/code/galavant), jon-platform beside it
       test-runner: macos-26   # package floor is the macOS 26 SDK; the hosted image builds it today
       min-swift: "6.4"        # Swift 6.3 (current macos-26 runner) HANGS for hours compiling
                               # GalavantSchema; 6.4 builds it in ~42s. Skip green until runners ship 6.4.

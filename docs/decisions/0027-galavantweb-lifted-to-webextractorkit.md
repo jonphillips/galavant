@@ -42,4 +42,4 @@ its source of truth moved out of this repo.
 - Editing the browser now means editing `WebExtractorKit` in jon-platform; both apps
   pick it up by local path.
 - A sibling jon-platform checkout is now required to build galavant
-  (`../../jon-platform`).
+  (`../jon-platform`).
