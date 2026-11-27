@@ -259,6 +259,10 @@ struct BookingEditorMappingTests {
     #expect(model.dayTimeZone(forDay: 1) == bookingTokyo)
     #expect(model.dayTimeZone(forDay: 2) == TimeZone(identifier: "America/New_York"))
     #expect(model.dayTimeZone(forDay: 3) == losAngeles)
+    // The day header and zone menu show only a hand-set zone.
+    #expect(model.dayTimeZoneOverride(forDay: 1) == nil)
+    #expect(model.dayTimeZoneOverride(forDay: 2) == TimeZone(identifier: "America/New_York"))
+    #expect(model.dayTimeZoneOverride(forDay: 3) == nil)
   }
 }
 

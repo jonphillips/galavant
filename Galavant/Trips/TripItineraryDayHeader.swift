@@ -19,7 +19,7 @@ struct SectionHeader: View {
                   .font(.subheadline)
                   .foregroundStyle(.secondary)
               }
-              if let zone = model.dayTimeZone(forDay: day) {
+              if let zone = model.dayTimeZoneOverride(forDay: day) {
                 let date = model.trip?.date(forDay: day) ?? .now
                 Text("· \(zone.abbreviation(for: date) ?? zone.identifier)")
                   .font(.subheadline)
@@ -61,7 +61,7 @@ struct DayTimeZoneMenu: View {
   var defaultZone: TimeZone?
 
   var body: some View {
-    let assigned = model.dayTimeZone(forDay: day)
+    let assigned = model.dayTimeZoneOverride(forDay: day)
     let defaultAbbreviation = defaultZone?.abbreviation(for: model.trip?.date(forDay: day) ?? .now)
       ?? defaultZone?.identifier
     return Menu {

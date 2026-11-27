@@ -10,8 +10,18 @@ struct TripDayTimeZoneRefreshKey: Equatable {
 }
 
 extension TripPlanningModel {
+  /// The day's resolved zone (override, then day region, then trip centroid): the meal's
+  /// zone for booking openings (ADR-0056 D1).
   func dayTimeZone(forDay day: Int) -> TimeZone? {
     resolvedDayTimeZones[day]
+  }
+
+  /// Only the zone set by hand on this day. The day header's label and the day's zone
+  /// menu show the override, not the inherited zone, so a day with none reads "Trip default".
+  func dayTimeZoneOverride(forDay day: Int) -> TimeZone? {
+    allTripDayTimeZones.first {
+      $0.tripID == tripID && $0.dayNumber == day
+    }.flatMap { $0.timeZoneIdentifier.flatMap(TimeZone.init(identifier:)) }
   }
 
   var dayTimeZoneRefreshKey: TripDayTimeZoneRefreshKey {
