@@ -1,96 +1,38 @@
-# Coding style — the Point-Free Way, without TCA
+# Coding style — Galavant's examples
 
-*The house style. New code pattern-matches this; once M0 lands, the Idea feature
-is the living exemplar and beats anything written here.*
+The style is jon-platform's [`docs/ios/swift-style.md`](../../jon-platform/docs/ios/swift-style.md),
+and the rules live there. This file keeps only Galavant's examples and the V1 habits each rule
+retires. Section numbers match that doc, so a `STYLE.md §N` citation in code or an ADR means
+`swift-style.md §N`.
 
 ## 1. Value types by default
 
-Domain models are structs. `@Table struct Idea` — SQLiteData was chosen partly
-because its records are plain structs (this is the anti-SwiftData decision:
-no `@Model` classes, no reference-semantics object graph).
-
-Classes appear only where a framework demands reference semantics:
-- `@Observable final class` feature models (the observation boundary)
-- Framework wrappers that are inherently reference-y (WKWebView store)
-
-Nothing else. If a class exists for any other reason, it's a code smell.
+`@Table struct Idea`. The only classes are `@Observable` feature models and framework wrappers such
+as the WKWebView store.
 
 ## 2. Functional core, observable shell
 
-Domain logic is pure functions on value types: schedule math, itinerary
-derivation, match scoring, filtering, token generation. No I/O, no globals, no
-clock access inside them — inputs in, value out.
-
-- House exemplar of the good pattern: V1's `PlaceSearchStrategy` (pure static
-  functions: tokenize, score, rank — trivially testable).
-- Feature models orchestrate: hold state, call the pure core, run effects
-  through dependencies.
-
-### Thin views (per pfw-observable-models)
-
-Views stay thin: bindings + delegating to a feature model. **Non-trivial
-save/load/reconcile logic — anything touching `database.write`/`read`,
-`TravelParty.ensure`, `findOrCreate`, multi-step persistence — lives in an
-`@Observable` model, never in a `View`.** Methods are named after the user
-action (`saveButtonTapped`), so the model reads like the UI.
-
-Exception: a *simple* draft form may write a one-line `upsert` directly in the
-view — that's the documented pfw-sqlite-data drafts pattern. But the moment it
-grows domain logic (tag reconciliation, association management, derived
-records), extract a model. `IdeaFormModel` is the cautionary tale: it started
-as a one-line upsert and accreted party resolution + tag diffing before being
-pulled out.
-
-Heuristic when reviewing: a view doing `database.write`/`read` is the smell to
-hunt. A large view that only *composes* (toolbars, menus, sheets) is fine —
-size alone isn't the problem; logic-in-the-view is.
+- The pure core here is schedule math, itinerary derivation, match scoring, filtering, and token
+  generation. V1's `PlaceSearchStrategy` (tokenize, score, rank) is the model.
+- `IdeaFormModel` shows why logic leaves the view. It started as a one-line `upsert` in a draft
+  form, picked up party resolution and tag diffing there, and then had to be pulled out.
 
 ## 3. Make impossible states unrepresentable
 
-Enums with associated values over flag combinations. The bar is the `Schedule`
-facade — `unscheduled / day / daypart(DayPart) / timed` (calendar dates derived
-from the trip's start, never stored) — which collapses five interacting V1 fields
-(`dateSelected`, `scheduled`, `timeGranularity`, `approximatedDayNumber`,
-`daypart`) into one value. (M3c refined V2's original `unknown / approximated /
-timed / exact`, dropping `.exact`.) When two booleans can describe a state
-that can't happen, reach for an enum. CasePaths where ergonomics demand.
-
-Navigation state is the same principle: one optional `Destination` enum per
-feature model (swift-navigation), not N boolean `isShowingX` flags
-(V1's sheet-manager zoo is the anti-pattern).
+- The `Schedule` value, `unscheduled / day / daypart(DayPart) / timed`, replaces five interacting V1
+  fields (`dateSelected`, `scheduled`, `timeGranularity`, `approximatedDayNumber`, `daypart`).
+  Calendar dates are derived from the trip's start, never stored. M3c dropped V2's `.exact`.
+- V1's sheet-manager zoo is the anti-pattern for one `Destination` enum per feature model.
 
 ## 4. Dependencies, not singletons
 
-`@Dependency` (swift-dependencies) for clock, date, UUID, database, network,
-location. **No `AppCurrent` / `UniverseCurrent` globals this time** — V1's
-World-pattern global service graph is explicitly retired. Tests override
-dependencies; nothing reaches out to shared mutable state.
+V1's `AppCurrent` / `UniverseCurrent` World-pattern globals are retired. Location is a dependency
+(`LocationClient`, ADR-0046).
 
 ## 5. Errors are values; issues are reported
 
-- Throw/Result for expected failures; no silent `catch { print(...) }`
-  (a V1 habit to break — see `case .failure: print("Could not store boards")`).
-- `reportIssue` / `withErrorReporting` (IssueReporting) for
-  should-never-happen states — loud in DEBUG and tests, quiet in release.
-
-## 6. Testing
-
-- swift-testing (`@Test`, `#expect`) + CustomDump (`expectNoDifference`) for
-  value assertions.
-- Determinism via controlled dependencies (clock/UUID/date), not sleeps.
-- The pure functional core gets the densest coverage; feature models get
-  behavioral tests; snapshot tests where UI regressions hurt.
-
-## 7. Concurrency
-
-- async/await + structured concurrency throughout. `DispatchQueue` and
-  `asyncAfter` are banned (V1 habit).
-- Feature models are `@MainActor`.
-- The swift-concurrency-pro skill reviews concurrency-heavy changes.
+V1's `case .failure: print("Could not store boards")` is the habit to break.
 
 ## 8. Mechanics
 
-- 2-space indentation (house style since V1).
-- Naming per ADR-0006; spell-check anything that lands in the schema.
-- Reusable, app-agnostic code goes in the local SPM package with its own tests.
-- Dependencies stay minimal; every package needs a reason (ADR-0002).
+Naming follows ADR-0006, and dependencies need a reason per ADR-0002.
