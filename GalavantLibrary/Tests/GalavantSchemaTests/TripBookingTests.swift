@@ -118,6 +118,53 @@ struct TripBookingTests {
     #expect(result.toBook.map(\.title) == ["Current stay"])
   }
 
+  @Test func rollupSplitsOpeningSectionsAndSortsFutureOpeningsFirst() {
+    let now = Date(timeIntervalSince1970: 100)
+    let food = Idea(id: UUID(), name: "Dinner", kind: .food)
+    let walk = Idea(id: UUID(), name: "Walk", kind: .sight)
+    let needsDate = stop(food, .scheduled, .day(3), status: .toBook)
+    var later = stop(food, .scheduled, .day(1), status: .toBook)
+    later.bookingOpensAt = Date(timeIntervalSince1970: 120)
+    var soonerLater = stop(food, .scheduled, .day(4), status: .toBook)
+    soonerLater.bookingOpensAt = Date(timeIntervalSince1970: 110)
+    var sameMomentEarlierDay = stop(food, .scheduled, .day(1), status: .toBook)
+    sameMomentEarlierDay.bookingOpensAt = Date(timeIntervalSince1970: 110)
+    var open = stop(food, .scheduled, .day(2), status: .toBook)
+    open.bookingOpensAt = Date(timeIntervalSince1970: 90)
+    let untracked = stop(walk, .scheduled, .day(4), status: .toBook)
+    let undecided = stop(food, .scheduled, .day(5))
+    let plan = TripPlan(
+      entries: [needsDate, later, soonerLater, sameMomentEarlierDay, open, untracked, undecided],
+      ideasByID: [food.id: food, walk.id: walk],
+      lengthInDays: 5)
+
+    let result = TripBookingRollup(plan: plan, currentDay: nil, now: now)
+    #expect(result.needsDateCount == 1)
+    #expect(result.needsDate.map(\.row) == [.stop(needsDate.id)])
+    #expect(result.opensLater.map(\.row) == [
+      .stop(sameMomentEarlierDay.id), .stop(soonerLater.id), .stop(later.id),
+    ])
+    #expect(result.openNow.map(\.row) == [.stop(open.id), .stop(untracked.id)])
+    #expect(!result.needsDate.contains { $0.row == .stop(undecided.id) })
+  }
+
+  @Test func openingMovesFromLaterToNowAsTheClockPassesIt() {
+    let opensAt = Date(timeIntervalSince1970: 120)
+    let food = Idea(id: UUID(), name: "Dinner", kind: .food)
+    var entry = stop(food, .scheduled, .day(1), status: .toBook)
+    entry.bookingOpensAt = opensAt
+    let plan = TripPlan(entries: [entry], ideasByID: [food.id: food], lengthInDays: 1)
+
+    let before = TripBookingRollup(
+      plan: plan, currentDay: nil, now: opensAt.addingTimeInterval(-1))
+    let after = TripBookingRollup(
+      plan: plan, currentDay: nil, now: opensAt)
+
+    #expect(before.opensLater.map(\.row) == [.stop(entry.id)])
+    #expect(after.openNow.map(\.row) == [.stop(entry.id)])
+    #expect(after.opensLater.isEmpty)
+  }
+
   @Test func bookingColumnsRoundTripAndPinDetailsAreIndependent() async throws {
     let values = try await database.write { db -> (TripIdea, TripStay) in
       let trip = try Trip.create(name: "Booking", certainty: .dated(start: Date()), in: db)
@@ -128,6 +175,8 @@ struct TripBookingTests {
       try TripIdea.setBookingDetails(
         confirmationNumber: "CONF-2", bookingURL: "https://stop.example", partySize: 2,
         stopID: idea, in: db)
+      let opening = Date(timeIntervalSince1970: 1_800_000_100)
+      try TripIdea.setBookingOpensAt(opening, stopID: idea, in: db)
       try TripIdea.setPinnedReservation(
         ReservationPin(date: Date(timeIntervalSince1970: 1_800_000_000)), stopID: idea, in: db)
       try TripIdea.setPinnedReservation(nil, stopID: idea, in: db)
@@ -143,6 +192,7 @@ struct TripBookingTests {
     #expect(values.0.bookingURL == "https://stop.example")
     #expect(values.0.partySize == 2)
     #expect(values.0.bookingStatus == .notNeeded)
+    #expect(values.0.bookingOpensAt == Date(timeIntervalSince1970: 1_800_000_100))
     #expect(values.1.bookingStatus == .booked)
     #expect(values.1.confirmationNumber == "HOTEL-8")
     #expect(values.1.bookingURL == "https://hotel.example")

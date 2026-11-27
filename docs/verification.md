@@ -24,7 +24,7 @@ full gate once before marking a PR ready.
 
 ```bash
 ~/code/jon-platform/scripts/quiet-run xcodebuild test-without-building -scheme Galavant \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:GalavantTests \
+  -destination 'platform=iOS Simulator,name=iPhone 18 Pro' -only-testing:GalavantTests \
   -onlyUsePackageVersionsFromResolvedFile CODE_SIGNING_ALLOWED=NO
 ```
 

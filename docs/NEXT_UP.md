@@ -1,6 +1,6 @@
-# Next Up — Booking opens: a date on to-book stops, and a count of restaurants missing one
+# Next Up — Booking reminders on Jon's devices
 
-**Slices:** effort `booking-opens` · S1
+**Slices:** effort `booking-opens` · S2
 **Briefs:** [docs/efforts/booking-opens.md](efforts/booking-opens.md)
-**Done when:** per the brief (S1). Adds the synced column `tripIdeas.bookingOpensAt`: import it with `cktool` and deploy the Production schema before the TestFlight build.
+**Done when:** per the brief (S2). No schema change.
 **Owed:** see [device-passes.md](device-passes.md)

@@ -73,8 +73,7 @@ struct TripDetailContent: View {
   private var presentationSheets: some View {
     TripDetailPresentationHost(
       model: model,
-      reconciliationModel: reconciliationModel,
-      bookingRollup: bookingRollup
+      reconciliationModel: reconciliationModel
     ) {
       editorSheets
     }
@@ -213,7 +212,6 @@ struct TripDetailContent: View {
 private struct TripDetailPresentationHost<Content: View>: View {
   let model: TripPlanningModel
   let reconciliationModel: CalendarReconciliationModel
-  let bookingRollup: TripBookingRollup
   @ViewBuilder let content: Content
 
   var body: some View {
@@ -234,7 +232,7 @@ private struct TripDetailPresentationHost<Content: View>: View {
         ),
         onDismiss: model.bookingSheetDismissed
       ) {
-        ToBookSheet(model: model, rollup: bookingRollup)
+        ToBookSheet(model: model, plan: model.plan, currentDay: model.liveDay)
       }
       .sheet(
         isPresented: Binding(

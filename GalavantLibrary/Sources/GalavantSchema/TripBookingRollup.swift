@@ -16,6 +16,7 @@ public struct TripBookingItem: Equatable, Sendable {
   public let bookingURL: String?
   public let confirmationNumber: String?
   public let booking: ResolvedBooking
+  public let opening: BookingOpening?
 
   public init(
     row: TripBookingRow,
@@ -25,7 +26,8 @@ public struct TripBookingItem: Equatable, Sendable {
     time: String?,
     bookingURL: String?,
     confirmationNumber: String?,
-    booking: ResolvedBooking
+    booking: ResolvedBooking,
+    opening: BookingOpening?
   ) {
     self.row = row
     self.title = title
@@ -35,6 +37,7 @@ public struct TripBookingItem: Equatable, Sendable {
     self.bookingURL = bookingURL
     self.confirmationNumber = confirmationNumber
     self.booking = booking
+    self.opening = opening
   }
 }
 
@@ -46,13 +49,20 @@ public struct TripBookingRollup: Equatable, Sendable {
   /// Every scheduled stop and stay's resolved booking, including rows that the
   /// actionable sections omit because they are past, complete, or skipped.
   public let items: [TripBookingItem]
+  public let openNow: [TripBookingItem]
+  public let opensLater: [TripBookingItem]
+  public let needsDate: [TripBookingItem]
   public var toBookCount: Int { toBook.count }
+  public var needsDateCount: Int { needsDate.count }
 
-  public init(plan: TripPlan, currentDay: Int?) {
+  public init(plan: TripPlan, currentDay: Int?, now: Date = .now) {
     var toBook: [TripBookingItem] = []
     var decide: [TripBookingItem] = []
     var booked: [TripBookingItem] = []
     var items: [TripBookingItem] = []
+    var openNow: [TripBookingItem] = []
+    var opensLater: [TripBookingItem] = []
+    var needsDate: [TripBookingItem] = []
 
     for stop in plan.scheduled {
       let entry = stop.entry
@@ -65,11 +75,14 @@ public struct TripBookingRollup: Equatable, Sendable {
         time: entry.schedule.bookingTime,
         bookingURL: Self.effectiveURL(rowURL: entry.bookingURL, ideaURL: stop.idea?.url),
         confirmationNumber: entry.confirmationNumber,
-        booking: booking)
+        booking: booking,
+        opening: BookingOpening.classify(
+          resolved: booking, kind: stop.idea?.kind, opensAt: entry.bookingOpensAt, now: now))
       items.append(item)
       guard entry.completedAt == nil, entry.skippedAt == nil else { continue }
       if let currentDay, let day = entry.dayNumber, day < currentDay { continue }
       Self.append(item, to: &toBook, decide: &decide, booked: &booked)
+      Self.appendOpening(item, to: &openNow, opensLater: &opensLater, needsDate: &needsDate)
     }
 
     for stay in plan.stays {
@@ -82,18 +95,45 @@ public struct TripBookingRollup: Equatable, Sendable {
         time: row.plannedCheckInTime ?? row.checkInTime,
         bookingURL: Self.effectiveURL(rowURL: row.bookingURL, ideaURL: stay.idea?.url),
         confirmationNumber: row.confirmationNumber,
-        booking: row.resolvedBooking)
+        booking: row.resolvedBooking,
+        opening: BookingOpening.classify(
+          resolved: row.resolvedBooking, kind: nil, opensAt: nil, now: now))
       items.append(item)
       // A stay remains actionable while it has a night remaining; on check-out day
       // it leaves the to-book, decide, and booked sections.
       guard currentDay.map({ row.checkOutDay > $0 }) ?? true else { continue }
       Self.append(item, to: &toBook, decide: &decide, booked: &booked)
+      Self.appendOpening(item, to: &openNow, opensLater: &opensLater, needsDate: &needsDate)
     }
 
     self.toBook = Self.sorted(toBook)
     self.decide = Self.sorted(decide)
     self.booked = Self.sorted(booked)
     self.items = items
+    self.openNow = Self.sorted(openNow)
+    self.opensLater = opensLater.sorted { lhs, rhs in
+      guard case let .opensLater(left) = lhs.opening,
+        case let .opensLater(right) = rhs.opening
+      else { return false }
+      if left != right { return left < right }
+      return Self.precedesByDay(lhs, rhs)
+    }
+    self.needsDate = Self.sorted(needsDate)
+  }
+
+  private static func appendOpening(
+    _ item: TripBookingItem,
+    to openNow: inout [TripBookingItem],
+    opensLater: inout [TripBookingItem],
+    needsDate: inout [TripBookingItem]
+  ) {
+    switch item.opening {
+    case .openNow: openNow.append(item)
+    case .opensLater: opensLater.append(item)
+    case .needsDate: needsDate.append(item)
+    case .notTracked: openNow.append(item)
+    case .none: break
+    }
   }
 
   private static func append(
@@ -111,12 +151,14 @@ public struct TripBookingRollup: Equatable, Sendable {
   }
 
   private static func sorted(_ items: [TripBookingItem]) -> [TripBookingItem] {
-    items.sorted { lhs, rhs in
-      guard let leftDay = lhs.day else { return rhs.day == nil && lhs.sortTime < rhs.sortTime }
-      guard let rightDay = rhs.day else { return true }
-      if leftDay != rightDay { return leftDay < rightDay }
-      return lhs.sortTime < rhs.sortTime
-    }
+    items.sorted(by: precedesByDay)
+  }
+
+  private static func precedesByDay(_ lhs: TripBookingItem, _ rhs: TripBookingItem) -> Bool {
+    guard let leftDay = lhs.day else { return rhs.day == nil && lhs.sortTime < rhs.sortTime }
+    guard let rightDay = rhs.day else { return true }
+    if leftDay != rightDay { return leftDay < rightDay }
+    return lhs.sortTime < rhs.sortTime
   }
 
   private static func effectiveURL(rowURL: String?, ideaURL: String?) -> String? {

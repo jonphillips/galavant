@@ -103,7 +103,7 @@ struct TripPlanningView: View {
         // they're one tap away; Start Day / Reconcile appear when they apply.
         if bookingRollup.toBookCount > 0 {
           Button { model.destination = .booking } label: {
-            Icon.bookingToBook.label("\(bookingRollup.toBookCount) to book")
+            Icon.bookingToBook.label(bookingPillLabel(bookingRollup))
           }
           .buttonStyle(.bordered)
         } else if !bookingRollup.booked.isEmpty || !bookingRollup.decide.isEmpty {
@@ -181,6 +181,9 @@ struct TripPlanningView: View {
       if !usesColumn { showDetailSheet = true }
       await model.fetchMissingETAs()
     }
+    .task(id: model.dayTimeZoneRefreshKey) {
+      await model.refreshDayTimeZones()
+    }
     .onChange(of: plan.allLegs) { _, _ in
       Task { await model.fetchMissingETAs() }
     }
@@ -188,6 +191,11 @@ struct TripPlanningView: View {
     .onChange(of: model.canvasSelectedStopID) { _, id in
       handleCanvasSelection(id)
     }
+  }
+
+  private func bookingPillLabel(_ rollup: TripBookingRollup) -> LocalizedStringKey {
+    if rollup.needsDateCount == 0 { return "\(rollup.toBookCount) to book" }
+    return "\(rollup.toBookCount) to book · \(rollup.needsDateCount) need a date"
   }
 
   /// Nudge the iPhone sheet up from its peek when a selection surfaces the

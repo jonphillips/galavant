@@ -801,6 +801,12 @@ extension TripIdea {
     try TripIdea.find(stopID).update { $0.bookingStatus = #bind(status) }.execute(db)
   }
 
+  public static func setBookingOpensAt(
+    _ date: Date?, stopID: TripIdea.ID, in db: Database
+  ) throws {
+    try TripIdea.find(stopID).update { $0.bookingOpensAt = #bind(date) }.execute(db)
+  }
+
   /// Re-derive `dayNumber` for every pinned stop on `tripID` after its `startDate`
   /// changes (docs/trip-time-model.md §4) — called from `Trip.update`. A pinned
   /// stop's `pinnedDate` never moves; only the day-relative `dayNumber` it implies

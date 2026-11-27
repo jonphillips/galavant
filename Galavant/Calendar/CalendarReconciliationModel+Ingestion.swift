@@ -149,15 +149,11 @@ extension CalendarReconciliationModel {
       let ids = try TripRegion.regionIDs(forTrip: trip.id, in: db)
       return try MapRegion.where { $0.id.in(ids) }.fetchAll(db)
     }) ?? []
-    if let box = MapRegion.boundingBox(of: regions) {
-      return await placeMatcher.timeZone(
-        latitude: box.centerLatitude, longitude: box.centerLongitude)
-    }
-    let coordinates = plan?.scheduledStopCoordinates ?? []
-    guard !coordinates.isEmpty else { return nil }
-    let latitude = coordinates.map(\.latitude).reduce(0, +) / Double(coordinates.count)
-    let longitude = coordinates.map(\.longitude).reduce(0, +) / Double(coordinates.count)
-    return await placeMatcher.timeZone(latitude: latitude, longitude: longitude)
+    guard let coordinate = TripDayTimeZoneResolution.centroidCoordinate(
+      regions: regions, fallbackCoordinates: plan?.scheduledStopCoordinates ?? [])
+    else { return nil }
+    return await placeMatcher.timeZone(
+      latitude: coordinate.latitude, longitude: coordinate.longitude)
   }
 
   func dayTimeZones(for trip: Trip, centroid: TimeZone?) async -> [DayNumber: TimeZone] {
@@ -176,31 +172,19 @@ extension CalendarReconciliationModel {
     }) ?? (overrides: [], assignments: [], regions: [])
 
     let regionsByID = Dictionary(facts.regions.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-    let overridesByDay = Dictionary(
-      facts.overrides.compactMap { row in
-        row.timeZoneIdentifier.map { (row.dayNumber, $0) }
-      }, uniquingKeysWith: { first, _ in first })
-    var result: [DayNumber: TimeZone] = [:]
-    for assignment in facts.assignments {
-      let regionZone: TimeZone?
-      if let region = regionsByID[assignment.regionID] {
-        regionZone = await placeMatcher.timeZone(
-          latitude: region.centerLatitude, longitude: region.centerLongitude)
-      } else {
-        regionZone = nil
-      }
-      let override = overridesByDay[assignment.dayNumber].flatMap(TimeZone.init(identifier:))
-      if let resolved = CalendarTripTimeZoneResolver.resolve(
-        dayOverride: override, dayRegion: regionZone, tripCentroid: centroid) {
-        result[assignment.dayNumber] = resolved
-      }
-    }
-    for (day, identifier) in overridesByDay where result[day] == nil {
-      if let timeZone = TimeZone(identifier: identifier) {
-        result[day] = timeZone
-      }
-    }
-    return result
+    let days = trip.lengthInDays > 0
+      ? Array(1...trip.lengthInDays)
+      : Array(Set(facts.assignments.map(\.dayNumber) + facts.overrides.map(\.dayNumber))).sorted()
+    let matcher = placeMatcher
+    return await TripDayTimeZoneResolution.resolve(
+      days: days,
+      assignments: facts.assignments,
+      overrides: facts.overrides,
+      regionsByID: regionsByID,
+      tripCentroid: centroid,
+      timeZoneAt: { latitude, longitude in
+        await matcher.timeZone(latitude: latitude, longitude: longitude)
+      })
   }
 
   func scope(for trip: Trip, calendar: Calendar) -> CalendarTripScope? {

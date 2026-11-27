@@ -79,6 +79,20 @@ struct BookingFields: View {
     .pickerStyle(.segmented)
     .disabled(booking.source == .evidence)
 
+    if booking.status == .toBook, draft.tracksOpening {
+      Toggle("Booking opens", isOn: $draft.hasOpeningDate)
+      if draft.hasOpeningDate {
+        DatePicker("Date and time", selection: $draft.openingDate)
+          .environment(\.timeZone, draft.openingTimeZone)
+        if let label = BookingOpeningFormat.zoneLabel(
+          moment: draft.openingDate, timeZone: draft.openingTimeZone, deviceTimeZone: .current)
+        {
+          Text(label).foregroundStyle(.secondary)
+        }
+        Button("Already open") { draft.alreadyOpenButtonTapped() }
+      }
+    }
+
     if booking.status == .booked {
       TextField("Confirmation number", text: $draft.confirmationNumber)
     }

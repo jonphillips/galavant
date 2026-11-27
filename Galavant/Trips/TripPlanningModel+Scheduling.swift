@@ -102,6 +102,10 @@ extension TripPlanningModel {
           partySize: details.partySize,
           stopID: draft.stopID,
           in: db)
+        if draft.booking.openingWasChanged {
+          try TripIdea.setBookingOpensAt(
+            draft.booking.bookingOpeningDate, stopID: draft.stopID, in: db)
+        }
       }
     }
     destination = nil
@@ -214,12 +218,6 @@ extension TripPlanningModel {
   func regionChipTapped() {
     guard let trip else { return }
     destination = .editTripRegions(Trip.Draft(trip))
-  }
-
-  func dayTimeZone(forDay day: Int) -> TimeZone? {
-    allTripDayTimeZones.first {
-      $0.tripID == tripID && $0.dayNumber == day
-    }.flatMap { $0.timeZoneIdentifier.flatMap(TimeZone.init(identifier:)) }
   }
 
   func setDayTimeZone(_ identifier: String?, forDay day: Int) {

@@ -114,43 +114,21 @@ struct AddIdeasSheet: View {
   }
 }
 
-/// The trip's actionable booking review. Its rows are the one-pass rollup passed
-/// down by `TripPlanningView`; it never resolves booking status itself.
+/// The trip's actionable booking review. Its timed rollup refreshes while the sheet
+/// is open; it never resolves booking status itself.
 struct ToBookSheet: View {
   @Environment(\.dismiss) private var dismiss
   @Environment(\.openURL) private var openURL
   let model: TripPlanningModel
-  let rollup: TripBookingRollup
+  let plan: TripPlan
+  let currentDay: Int?
   @State private var showsBooked = false
 
   var body: some View {
     NavigationStack {
-      List {
-        if !rollup.toBook.isEmpty {
-          Section("To Book") {
-            ForEach(rollup.toBook, id: \.row) { item in
-              toBookRow(item)
-            }
-          }
-        }
-
-        if !rollup.decide.isEmpty {
-          Section("Decide") {
-            ForEach(rollup.decide, id: \.row) { item in
-              decideRow(item)
-            }
-          }
-        }
-
-        if !rollup.booked.isEmpty {
-          Section {
-            DisclosureGroup("Booked", isExpanded: $showsBooked) {
-              ForEach(rollup.booked, id: \.row) { item in
-                bookedRow(item)
-              }
-            }
-          }
-        }
+      TimelineView(.everyMinute) { context in
+        let rollup = TripBookingRollup(plan: plan, currentDay: currentDay, now: context.date)
+        bookingList(rollup)
       }
       .navigationTitle("To Book")
       .navigationBarTitleDisplayMode(.inline)
@@ -161,6 +139,52 @@ struct ToBookSheet: View {
       }
     }
     .presentationDetents([.medium, .large])
+  }
+
+  private func bookingList(_ rollup: TripBookingRollup) -> some View {
+    List {
+      if !rollup.openNow.isEmpty {
+        Section("Open now") {
+          ForEach(rollup.openNow, id: \.row) { item in
+            toBookRow(item)
+          }
+        }
+      }
+
+      if !rollup.opensLater.isEmpty {
+        Section("Opens later") {
+          ForEach(rollup.opensLater, id: \.row) { item in
+            opensLaterRow(item)
+          }
+        }
+      }
+
+      if !rollup.needsDate.isEmpty {
+        Section("Needs an opening date") {
+          ForEach(rollup.needsDate, id: \.row) { item in
+            needsDateRow(item)
+          }
+        }
+      }
+
+      if !rollup.decide.isEmpty {
+        Section("Decide") {
+          ForEach(rollup.decide, id: \.row) { item in
+            decideRow(item)
+          }
+        }
+      }
+
+      if !rollup.booked.isEmpty {
+        Section {
+          DisclosureGroup("Booked", isExpanded: $showsBooked) {
+            ForEach(rollup.booked, id: \.row) { item in
+              bookedRow(item)
+            }
+          }
+        }
+      }
+    }
   }
 
   private func toBookRow(_ item: TripBookingItem) -> some View {
@@ -196,6 +220,45 @@ struct ToBookSheet: View {
       .font(.subheadline)
     }
     .padding(.vertical, 2)
+  }
+
+  private func opensLaterRow(_ item: TripBookingItem) -> some View {
+    VStack(alignment: .leading, spacing: 8) {
+      itemTitle(item)
+      if case let .opensLater(moment) = item.opening {
+        let opens = BookingOpeningFormat.string(
+          moment: moment, timeZone: timeZone(for: item), deviceTimeZone: .current)
+        Text("Opens \(opens)")
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+      }
+      HStack {
+        if let url = bookingURL(item.bookingURL) {
+          Button("Book") { openURL(url) }
+        }
+        Button("Mark booked") { model.setBookingStatus(.booked, for: item.row) }
+          .buttonStyle(.borderedProminent)
+      }
+      .font(.subheadline)
+    }
+    .padding(.vertical, 2)
+  }
+
+  private func needsDateRow(_ item: TripBookingItem) -> some View {
+    VStack(alignment: .leading, spacing: 8) {
+      itemTitle(item)
+      Button("Add date") { model.editBookingItem(item) }
+        .buttonStyle(.bordered)
+    }
+    .padding(.vertical, 2)
+  }
+
+  private func timeZone(for item: TripBookingItem) -> TimeZone {
+    guard case let .stop(id) = item.row,
+      let stop = model.plan.scheduled.first(where: { $0.id == id }),
+      let day = stop.entry.dayNumber
+    else { return .current }
+    return model.dayTimeZone(forDay: day) ?? .current
   }
 
   private func bookedRow(_ item: TripBookingItem) -> some View {
