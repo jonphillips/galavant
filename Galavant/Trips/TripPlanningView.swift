@@ -190,7 +190,7 @@ struct TripPlanningView: View {
     }
   }
 
-  private func bookingPillLabel(_ rollup: TripBookingRollup) -> String {
+  private func bookingPillLabel(_ rollup: TripBookingRollup) -> LocalizedStringKey {
     if rollup.needsDateCount == 0 { return "\(rollup.toBookCount) to book" }
     return "\(rollup.toBookCount) to book · \(rollup.needsDateCount) need a date"
   }

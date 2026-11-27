@@ -47,7 +47,7 @@ $qr swift test --package-path GalavantMCP
 # ---------------------------------------------------------------------------
 
 app_scheme="Galavant"
-app_destination="platform=iOS Simulator,name=iPhone 17 Pro"
+app_destination="platform=iOS Simulator,name=iPhone 18 Pro"
 test_bundle="GalavantUITests"
 
 if [[ -n "${GALAVANT_SKIP_TEST_BUILD:-}" ]]; then

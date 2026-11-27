@@ -218,8 +218,9 @@ struct ToBookSheet: View {
     VStack(alignment: .leading, spacing: 8) {
       itemTitle(item)
       if case let .opensLater(moment) = item.opening {
-        Text("Opens \(BookingOpeningFormat.string(
-          moment: moment, timeZone: timeZone(for: item), deviceTimeZone: .current))")
+        let opens = BookingOpeningFormat.string(
+          moment: moment, timeZone: timeZone(for: item), deviceTimeZone: .current)
+        Text("Opens \(opens)")
           .font(.subheadline)
           .foregroundStyle(.secondary)
       }

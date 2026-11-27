@@ -84,10 +84,10 @@ struct BookingFields: View {
       if draft.hasOpeningDate {
         DatePicker("Date and time", selection: $draft.openingDate)
           .environment(\.timeZone, draft.openingTimeZone)
-        if draft.openingTimeZone.identifier != TimeZone.current.identifier,
-          let abbreviation = draft.openingTimeZone.abbreviation()
+        if let label = BookingOpeningFormat.zoneLabel(
+          moment: draft.openingDate, timeZone: draft.openingTimeZone, deviceTimeZone: .current)
         {
-          Text(abbreviation).foregroundStyle(.secondary)
+          Text(label).foregroundStyle(.secondary)
         }
         Button("Already open") { draft.alreadyOpenButtonTapped() }
       }

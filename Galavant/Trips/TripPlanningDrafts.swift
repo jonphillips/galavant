@@ -122,6 +122,9 @@ struct BookingFieldsDraft {
   var hasOpeningDate = false
   var openingDate = Date.now
   var openingTimeZone = TimeZone.current
+  /// The opening the editor was loaded with. Save writes the field only when it changed,
+  /// so an untouched row never overwrites a peer's newer value (per-field sync).
+  private(set) var loadedOpeningDate: Date?
   var confirmationNumber = ""
   var bookingURL = ""
   var partySize = ""
@@ -132,6 +135,7 @@ struct BookingFieldsDraft {
     inferredStatus: BookingStatus? = .notNeeded,
     isPinned: Bool = false,
     date: Date = .now,
+    now: Date = .now,
     tracksOpening: Bool = false,
     openingDate: Date? = nil,
     openingTimeZone: TimeZone = .current,
@@ -146,7 +150,9 @@ struct BookingFieldsDraft {
     self.date = date
     self.tracksOpening = tracksOpening
     self.hasOpeningDate = openingDate != nil
-    self.openingDate = openingDate ?? .now
+    self.loadedOpeningDate = openingDate
+    self.openingDate = openingDate
+      ?? Self.defaultOpeningDate(after: now, in: openingTimeZone)
     self.openingTimeZone = openingTimeZone
     self.confirmationNumber = confirmationNumber
     self.bookingURL = bookingURL
@@ -193,6 +199,21 @@ struct BookingFieldsDraft {
   var bookingOpeningDate: Date? {
     guard tracksOpening, hasOpeningDate else { return nil }
     return openingDate
+  }
+
+  var openingWasChanged: Bool {
+    bookingOpeningDate != loadedOpeningDate
+  }
+
+  /// The picker's starting value when no opening is stored: tomorrow at 10:00 in the
+  /// opening's zone. A future moment, so turning the row on and saving without picking
+  /// keeps the stop in Opens later. Only Already open records a past moment (ADR-0056 D1).
+  static func defaultOpeningDate(after now: Date, in timeZone: TimeZone) -> Date {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = timeZone
+    let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now))
+      ?? now
+    return calendar.date(bySettingHour: 10, minute: 0, second: 0, of: tomorrow) ?? tomorrow
   }
 
   mutating func alreadyOpenButtonTapped(now: Date = .now) {

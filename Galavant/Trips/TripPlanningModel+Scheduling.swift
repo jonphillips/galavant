@@ -102,8 +102,10 @@ extension TripPlanningModel {
           partySize: details.partySize,
           stopID: draft.stopID,
           in: db)
-        try TripIdea.setBookingOpensAt(
-          draft.booking.bookingOpeningDate, stopID: draft.stopID, in: db)
+        if draft.booking.openingWasChanged {
+          try TripIdea.setBookingOpensAt(
+            draft.booking.bookingOpeningDate, stopID: draft.stopID, in: db)
+        }
       }
     }
     destination = nil
