@@ -118,6 +118,10 @@ struct BookingFieldsDraft {
   var statusWasChanged = false
   var isPinned = false
   var date = Date.now
+  var tracksOpening = false
+  var hasOpeningDate = false
+  var openingDate = Date.now
+  var openingTimeZone = TimeZone.current
   var confirmationNumber = ""
   var bookingURL = ""
   var partySize = ""
@@ -128,6 +132,9 @@ struct BookingFieldsDraft {
     inferredStatus: BookingStatus? = .notNeeded,
     isPinned: Bool = false,
     date: Date = .now,
+    tracksOpening: Bool = false,
+    openingDate: Date? = nil,
+    openingTimeZone: TimeZone = .current,
     confirmationNumber: String = "",
     bookingURL: String = "",
     partySize: String = ""
@@ -137,6 +144,10 @@ struct BookingFieldsDraft {
     self.inferredStatus = inferredStatus
     self.isPinned = isPinned
     self.date = date
+    self.tracksOpening = tracksOpening
+    self.hasOpeningDate = openingDate != nil
+    self.openingDate = openingDate ?? .now
+    self.openingTimeZone = openingTimeZone
     self.confirmationNumber = confirmationNumber
     self.bookingURL = bookingURL
     self.partySize = partySize
@@ -177,6 +188,16 @@ struct BookingFieldsDraft {
   var reservationPin: ReservationPin? {
     guard includesPin, isPinned else { return nil }
     return ReservationPin(date: date)
+  }
+
+  var bookingOpeningDate: Date? {
+    guard tracksOpening, hasOpeningDate else { return nil }
+    return openingDate
+  }
+
+  mutating func alreadyOpenButtonTapped(now: Date = .now) {
+    hasOpeningDate = true
+    openingDate = now
   }
 
   var bookingDetails: BookingDetails {

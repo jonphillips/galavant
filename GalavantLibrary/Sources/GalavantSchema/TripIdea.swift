@@ -68,6 +68,7 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
   /// `startDate` to re-derive against) until the trip becomes dated.
   public var pinnedDate: Date?
   public var bookingStatus: BookingStatus? = nil
+  public var bookingOpensAt: Date?
   /// Booking metadata for a pinned reservation — free-form, never parsed.
   public var confirmationNumber: String?
   public var bookingURL: String?
@@ -107,6 +108,7 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
     endTime: String? = nil,
     pinnedDate: Date? = nil,
     bookingStatus: BookingStatus? = nil,
+    bookingOpensAt: Date? = nil,
     confirmationNumber: String? = nil,
     bookingURL: String? = nil,
     partySize: Int? = nil,
@@ -138,6 +140,7 @@ public struct TripIdea: Identifiable, Equatable, Sendable {
     self.endTime = endTime
     self.pinnedDate = pinnedDate
     self.bookingStatus = bookingStatus
+    self.bookingOpensAt = bookingOpensAt
     self.confirmationNumber = confirmationNumber
     self.bookingURL = bookingURL
     self.partySize = partySize

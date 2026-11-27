@@ -12,6 +12,9 @@ extension TripPlanningModel {
       date: stop.entry.pinnedDate
         ?? stop.entry.schedule.dayNumber.flatMap { trip?.date(forDay: $0) }
         ?? date(),
+      tracksOpening: stop.idea != nil,
+      openingDate: stop.entry.bookingOpensAt,
+      openingTimeZone: stop.entry.dayNumber.flatMap { dayTimeZone(forDay: $0) } ?? .current,
       confirmationNumber: stop.entry.confirmationNumber ?? "",
       bookingURL: stop.entry.bookingURL ?? "",
       partySize: stop.entry.partySize.map(String.init) ?? "")

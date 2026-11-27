@@ -109,7 +109,7 @@ struct DatabaseBackupTests {
     let oldStore = try DatabaseQueue(path: oldStoreURL.path)
     let migrator = GalavantDatabaseMigrations.makeMigrator()
     try migrator.migrate(oldStore)
-    let previousMigrations = Array(migrator.migrations.suffix(5))
+    let previousMigrations = Array(migrator.migrations.suffix(6))
     let existingTripID = UUID()
     let existingTripIdeaID = UUID()
     try await oldStore.write { db in
@@ -127,6 +127,7 @@ struct DatabaseBackupTests {
       try db.execute(sql: "ALTER TABLE tripIdeas DROP COLUMN rationalePriority")
       try db.execute(sql: "ALTER TABLE tripIdeas DROP COLUMN rationalePriorityOutOf")
       try db.execute(sql: "ALTER TABLE tripIdeas DROP COLUMN rationalePriorityList")
+      try db.execute(sql: "ALTER TABLE tripIdeas DROP COLUMN bookingOpensAt")
       for migration in previousMigrations {
         try db.execute(
           sql: "DELETE FROM grdb_migrations WHERE identifier = ?",

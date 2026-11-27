@@ -313,6 +313,7 @@ tripDocuments sqlitedata_icloud_userModificationTime_tripID
 tripDocuments title
 tripDocuments tripID
 tripIdeas alternativeGroupID
+tripIdeas bookingOpensAt
 tripIdeas bookingStatus
 tripIdeas bookingURL
 tripIdeas calendarNotes
@@ -341,6 +342,7 @@ tripIdeas shortlistRank
 tripIdeas skippedAt
 tripIdeas sqlitedata_icloud_userModificationTime
 tripIdeas sqlitedata_icloud_userModificationTime_alternativeGroupID
+tripIdeas sqlitedata_icloud_userModificationTime_bookingOpensAt
 tripIdeas sqlitedata_icloud_userModificationTime_bookingStatus
 tripIdeas sqlitedata_icloud_userModificationTime_bookingURL
 tripIdeas sqlitedata_icloud_userModificationTime_calendarNotes

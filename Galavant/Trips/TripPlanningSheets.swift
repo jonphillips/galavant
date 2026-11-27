@@ -126,10 +126,26 @@ struct ToBookSheet: View {
   var body: some View {
     NavigationStack {
       List {
-        if !rollup.toBook.isEmpty {
-          Section("To Book") {
-            ForEach(rollup.toBook, id: \.row) { item in
+        if !rollup.openNow.isEmpty {
+          Section("Open now") {
+            ForEach(rollup.openNow, id: \.row) { item in
               toBookRow(item)
+            }
+          }
+        }
+
+        if !rollup.opensLater.isEmpty {
+          Section("Opens later") {
+            ForEach(rollup.opensLater, id: \.row) { item in
+              opensLaterRow(item)
+            }
+          }
+        }
+
+        if !rollup.needsDate.isEmpty {
+          Section("Needs an opening date") {
+            ForEach(rollup.needsDate, id: \.row) { item in
+              needsDateRow(item)
             }
           }
         }
@@ -196,6 +212,44 @@ struct ToBookSheet: View {
       .font(.subheadline)
     }
     .padding(.vertical, 2)
+  }
+
+  private func opensLaterRow(_ item: TripBookingItem) -> some View {
+    VStack(alignment: .leading, spacing: 8) {
+      itemTitle(item)
+      if case let .opensLater(moment) = item.opening {
+        Text("Opens \(BookingOpeningFormat.string(
+          moment: moment, timeZone: timeZone(for: item), deviceTimeZone: .current))")
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+      }
+      HStack {
+        if let url = bookingURL(item.bookingURL) {
+          Button("Book") { openURL(url) }
+        }
+        Button("Mark booked") { model.setBookingStatus(.booked, for: item.row) }
+          .buttonStyle(.borderedProminent)
+      }
+      .font(.subheadline)
+    }
+    .padding(.vertical, 2)
+  }
+
+  private func needsDateRow(_ item: TripBookingItem) -> some View {
+    VStack(alignment: .leading, spacing: 8) {
+      itemTitle(item)
+      Button("Add date") { model.editBookingItem(item) }
+        .buttonStyle(.bordered)
+    }
+    .padding(.vertical, 2)
+  }
+
+  private func timeZone(for item: TripBookingItem) -> TimeZone {
+    guard case let .stop(id) = item.row,
+      let stop = model.plan.scheduled.first(where: { $0.id == id }),
+      let day = stop.entry.dayNumber
+    else { return .current }
+    return model.dayTimeZone(forDay: day) ?? .current
   }
 
   private func bookedRow(_ item: TripBookingItem) -> some View {
