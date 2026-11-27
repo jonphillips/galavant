@@ -65,3 +65,4 @@ at creation). See `docs/README.md` (the atlas) and `jon-platform/docs/agent-work
 | [0053](0053-taste-record-and-region-guide.md) | Galavant keeps the taste record, and a region guide is where it's read |
 | [0054](0054-day-design-in-shape-trip.md) | A trip's days are designed in Shape Trip, and the itinerary only shows them |
 | [0055](0055-trip-rationale-fields.md) | Chat's visit, why and fit are kept as three fields on the trip stop |
+| [0056](0056-booking-opens.md) | When booking opens — a date on the stop, a reminder on Jon's phone, a scout on the mini |

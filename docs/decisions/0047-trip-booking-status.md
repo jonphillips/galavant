@@ -1,6 +1,6 @@
 # ADR-0047: Booking status is a trip-level fact — not needed, to book, booked
 
-*Status: **accepted** — 2026-09-28; Slices 1–3 implemented in PRs #136–#138. Dogfood 2026-09-28: "I want a
+*Status: **accepted** — 2026-09-28; Slices 1–3 implemented in PRs #136–#138. Extended by [ADR-0056](0056-booking-opens.md) (when booking opens). Dogfood 2026-09-28: "I want a
 better sense of what is Bookable and what has been Booked or, even more importantly, not."
 Gives every trip stop and stay a three-state booking status. You set it by hand; when you
 haven't, it is guessed from the kind of place, and evidence of a real booking wins over
