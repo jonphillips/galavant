@@ -148,6 +148,23 @@ struct TripBookingTests {
     #expect(!result.needsDate.contains { $0.row == .stop(undecided.id) })
   }
 
+  @Test func openingMovesFromLaterToNowAsTheClockPassesIt() {
+    let opensAt = Date(timeIntervalSince1970: 120)
+    let food = Idea(id: UUID(), name: "Dinner", kind: .food)
+    var entry = stop(food, .scheduled, .day(1), status: .toBook)
+    entry.bookingOpensAt = opensAt
+    let plan = TripPlan(entries: [entry], ideasByID: [food.id: food], lengthInDays: 1)
+
+    let before = TripBookingRollup(
+      plan: plan, currentDay: nil, now: opensAt.addingTimeInterval(-1))
+    let after = TripBookingRollup(
+      plan: plan, currentDay: nil, now: opensAt)
+
+    #expect(before.opensLater.map(\.row) == [.stop(entry.id)])
+    #expect(after.openNow.map(\.row) == [.stop(entry.id)])
+    #expect(after.opensLater.isEmpty)
+  }
+
   @Test func bookingColumnsRoundTripAndPinDetailsAreIndependent() async throws {
     let values = try await database.write { db -> (TripIdea, TripStay) in
       let trip = try Trip.create(name: "Booking", certainty: .dated(start: Date()), in: db)

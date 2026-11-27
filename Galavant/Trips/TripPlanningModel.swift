@@ -28,6 +28,7 @@ final class TripPlanningModel {
   @ObservationIgnored @Dependency(\.defaultDatabase) var database
   @ObservationIgnored @Dependency(\.recentTripStore) var recentTripStore
   @ObservationIgnored @Dependency(\.directionsClient) var directionsClient
+  @ObservationIgnored @Dependency(\.placeMatcher) var placeMatcher
   @ObservationIgnored @Dependency(\.calendarReconciliationHistoryStore) var calendarHistoryStore
   @ObservationIgnored @Dependency(\.handoffSessionStore) var handoffSessionStore
   @ObservationIgnored @Dependency(\.date) var date
@@ -64,6 +65,7 @@ final class TripPlanningModel {
   /// Captures the paste warning, surrounding Chat note, and one-time save state.
   var recommendationHandoffPaste = RecommendationHandoffPaste()
   var recommendationResolveNotice: String?
+  var resolvedDayTimeZones: [DayNumber: TimeZone] = [:]
   var calendarLocalState: CalendarReconciliationLocalState
 
   /// The idea shown in the floating stop detail (nil = no detail). Driven by ID

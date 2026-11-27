@@ -220,12 +220,6 @@ extension TripPlanningModel {
     destination = .editTripRegions(Trip.Draft(trip))
   }
 
-  func dayTimeZone(forDay day: Int) -> TimeZone? {
-    allTripDayTimeZones.first {
-      $0.tripID == tripID && $0.dayNumber == day
-    }.flatMap { $0.timeZoneIdentifier.flatMap(TimeZone.init(identifier:)) }
-  }
-
   func setDayTimeZone(_ identifier: String?, forDay day: Int) {
     let tripID = tripID
     withErrorReporting {

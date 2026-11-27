@@ -181,6 +181,9 @@ struct TripPlanningView: View {
       if !usesColumn { showDetailSheet = true }
       await model.fetchMissingETAs()
     }
+    .task(id: model.dayTimeZoneRefreshKey) {
+      await model.refreshDayTimeZones()
+    }
     .onChange(of: plan.allLegs) { _, _ in
       Task { await model.fetchMissingETAs() }
     }

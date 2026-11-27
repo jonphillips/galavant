@@ -1,6 +1,7 @@
 import Dependencies
 import DependenciesTestSupport
 import Foundation
+import GalavantPlaces
 import GalavantSchema
 import SQLiteData
 import Testing
@@ -207,6 +208,57 @@ struct BookingEditorMappingTests {
     try await model(for: tripID).saveStop(draft)
 
     #expect(try await stop(stopID).bookingOpensAt == bookingOpening.addingTimeInterval(3600))
+  }
+
+  @Test(.dependencies { $0.date = .constant(bookingOpening) })
+  @MainActor
+  func openingEditorAndSheetUseResolvedDayZone() async throws {
+    let tripID = try await makeTrip()
+    let tokyoID = UUID()
+    let losAngelesID = UUID()
+    let tokyoRegion = MapRegion(
+      id: tokyoID, name: "Tokyo", centerLatitude: 35.68, centerLongitude: 139.69,
+      latitudeDelta: 1, longitudeDelta: 1)
+    let losAngelesRegion = MapRegion(
+      id: losAngelesID, name: "Los Angeles", centerLatitude: 34.05, centerLongitude: -118.24,
+      latitudeDelta: 1, longitudeDelta: 1)
+    let idea = Idea(id: UUID(), name: "Dinner", kind: .food)
+    let entry = TripIdea(
+      id: UUID(), tripID: tripID, ideaID: idea.id, status: .scheduled, dayNumber: 1)
+    try await database.write { db in
+      try MapRegion.insert { [MapRegion.Draft(tokyoRegion), MapRegion.Draft(losAngelesRegion)] }
+        .execute(db)
+      try Idea.insert { Idea.Draft(idea) }.execute(db)
+      try TripIdea.insert { TripIdea.Draft(entry) }.execute(db)
+      try TripRegion.setRegions([losAngelesID], forTrip: tripID, in: db)
+      try TripDayRegion.setRegion(tokyoID, forTrip: tripID, day: 1, in: db)
+      try TripDayRegion.setRegion(tokyoID, forTrip: tripID, day: 2, in: db)
+      try TripDayTimeZone.set("America/New_York", forTrip: tripID, day: 2, in: db)
+    }
+    let losAngeles = TimeZone(identifier: "America/Los_Angeles")!
+    let matcher = PlaceMatcher(
+      geocode: { _ in nil },
+      search: { _ in [] },
+      timeZone: { _, longitude in longitude > 0 ? bookingTokyo : losAngeles })
+    let model = withDependencies {
+      $0.placeMatcher = matcher
+    } operation: {
+      TripPlanningModel(tripID: tripID)
+    }
+    try await model.$trips.load()
+    try await model.$regions.load()
+    try await model.$ideas.load()
+    try await model.$allTripRegions.load()
+    try await model.$allTripDayRegions.load()
+    try await model.$allTripDayTimeZones.load()
+    try await model.$allTripIdeas.load()
+    await model.refreshDayTimeZones()
+
+    let draft = model.bookingFields(for: ResolvedStop(entry: entry, content: .idea(idea)))
+    #expect(draft.openingTimeZone == bookingTokyo)
+    #expect(model.dayTimeZone(forDay: 1) == bookingTokyo)
+    #expect(model.dayTimeZone(forDay: 2) == TimeZone(identifier: "America/New_York"))
+    #expect(model.dayTimeZone(forDay: 3) == losAngeles)
   }
 }
 
