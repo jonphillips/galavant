@@ -1,6 +1,5 @@
-# Next Up — Booking rules from Chat
+# Next Up — nothing dispatched
 
-**Slices:** effort `booking-opens` · S3
-**Briefs:** [docs/efforts/booking-opens.md](efforts/booking-opens.md)
-**Done when:** per the brief (S3). Add `ideas.bookingWindow`; deploy the Production schema before TestFlight.
+Nothing dispatched.
+
 **Owed:** see [device-passes.md](device-passes.md)

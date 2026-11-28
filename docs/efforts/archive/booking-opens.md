@@ -1,6 +1,6 @@
 # Effort — Booking opens: the date, the reminder, the scout
 
-**Status:** Dispatched · **Summary:** Implements [ADR-0056](../decisions/0056-booking-opens.md). A to-book trip stop
+**Status:** Dispatched · **Summary:** Implements [ADR-0056](../../decisions/0056-booking-opens.md). A to-book trip stop
 gets a **booking opens** moment. The To Book sheet splits into Open now / Opens later / Needs an opening date, and the
 header counts restaurants that need a date (S1). Jon's iPhone reminds him 30 minutes before booking opens (S2). Chat
 supplies each restaurant's booking rule in the handoff, the rule is stored on the pool idea, and the app suggests the
