@@ -12,6 +12,7 @@ struct AppContainer: View {
   @State private var bookingReminderModel = BookingReminderModel()
   @Environment(\.prefersTabNavigation) private var prefersTabNavigation
   @Environment(\.scenePhase) private var scenePhase
+  @Environment(AppDelegate.self) private var appDelegate
   /// Where this scene was, mirrored from the router so it survives iPadOS killing
   /// the app in the background — without it every relaunch lands on the Trips list.
   @SceneStorage("selection") private var storedSelection: AppScreen?
@@ -65,7 +66,9 @@ struct AppContainer: View {
         selection: storedSelection,
         openTripID: storedOpenTripID.flatMap(UUID.init(uuidString:))
       )
+      consumeBookingReminderTap()
     }
+    .onChange(of: appDelegate.pendingBookingTripID) { _, _ in consumeBookingReminderTap() }
     .onChange(of: router.selection) { _, selection in storedSelection = selection }
     .onChange(of: router.openTrip?.id) { _, id in storedOpenTripID = id?.uuidString }
     .onChange(of: scenePhase) { _, phase in
@@ -97,15 +100,17 @@ struct AppContainer: View {
       }
       pendingReconcile?.cancel()
     }
-    .onReceive(NotificationCenter.default.publisher(for: .bookingReminderTapped)) { notification in
-      guard let tripID = notification.userInfo?["tripID"] as? UUID else { return }
-      router.openBookingTrip(tripID)
-    }
     .task {
       await rationaleBackfillModel.run()
       await visitedRollupModel.run()
       await chatInbox.prepare()
     }
+  }
+
+  private func consumeBookingReminderTap() {
+    guard let tripID = appDelegate.pendingBookingTripID else { return }
+    appDelegate.pendingBookingTripID = nil
+    router.openBookingTrip(tripID)
   }
 
   /// ⌘1…⌘N jump straight to a section (⌘1 Trips, ⌘4 Evaluate, …) so flipping between

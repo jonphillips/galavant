@@ -28,6 +28,7 @@ final class BookingReminderModel {
   @ObservationIgnored @Dependency(\.placeMatcher) private var placeMatcher
   @ObservationIgnored @Dependency(\.date.now) private var now
   @ObservationIgnored @Shared(.appStorage("bookingRemindersEnabled")) var enabled = false
+  @ObservationIgnored @Shared(.appStorage("bookingRemindersNotifiedOpenings")) private var notifiedOpeningKeysRaw = "[]"
   @ObservationIgnored private var isReconciling = false
   @ObservationIgnored private var needsAnotherReconcile = false
   private(set) var permissionMessage: String?
@@ -62,9 +63,10 @@ final class BookingReminderModel {
   }
 
   private func reconcileOnce() async {
-    let pending = await client.pending().filter { $0.id.hasPrefix("booking-opens.") }
+    let identifiers = await client.pendingIdentifiers()
+    let pending = await client.pending()
     guard enabled else {
-      await client.remove(pending.map(\.id))
+      await client.remove(identifiers)
       return
     }
     do {
@@ -72,16 +74,43 @@ final class BookingReminderModel {
       let moment = now
       let matcher = placeMatcher
       let candidates = await Self.candidates(in: snapshot, now: moment, matcher: matcher)
-      let desired = BookingReminderPlan.desired(candidates: candidates, now: moment)
+      var notified = notifiedKeys()
+      notified = Set(notified.filter { $0.opensAt > moment })
+      $notifiedOpeningKeysRaw.withLock { $0 = Self.encoded(notified) }
+      let pendingKeys = Set(pending.map { BookingReminderKey(id: $0.id, opensAt: $0.opensAt) })
+      let alreadyScheduled = notified.subtracting(pendingKeys)
+      let desired = BookingReminderPlan.desired(
+        candidates: candidates, now: moment, notified: alreadyScheduled,
+        deviceTimeZone: .current, locale: .current)
       let changes = BookingReminderPlan.diff(desired: desired, pending: pending)
-      await client.remove(changes.remove)
+      let unparsed = Set(identifiers).subtracting(pending.map(\.id))
+      await client.remove(changes.remove + Array(unparsed))
       for reminder in changes.add {
-        do { try await client.add(reminder) }
+        do {
+          try await client.add(reminder)
+          notified.insert(BookingReminderKey(id: reminder.id, opensAt: reminder.opensAt))
+          $notifiedOpeningKeysRaw.withLock { $0 = Self.encoded(notified) }
+        }
         catch { reportIssue("Booking reminder could not be scheduled: \(error)") }
       }
     } catch {
       reportIssue("Booking reminders could not be reconciled: \(error)")
     }
+  }
+
+  private func notifiedKeys() -> Set<BookingReminderKey> {
+    guard let data = notifiedOpeningKeysRaw.data(using: .utf8),
+      let keys = try? JSONDecoder().decode([BookingReminderKey].self, from: data)
+    else { return [] }
+    return Set(keys)
+  }
+
+  private static func encoded(_ keys: Set<BookingReminderKey>) -> String {
+    guard let data = try? JSONEncoder().encode(keys.sorted {
+      if $0.id != $1.id { return $0.id < $1.id }
+      return $0.opensAt < $1.opensAt
+    }), let value = String(data: data, encoding: .utf8) else { return "[]" }
+    return value
   }
 
   private func loadSnapshot() async throws -> Snapshot {
@@ -100,29 +129,37 @@ final class BookingReminderModel {
     in snapshot: Snapshot, now: Date, matcher: PlaceMatcher
   ) async -> [BookingReminderCandidate] {
     var result: [BookingReminderCandidate] = []
+    let ideasByID = Dictionary(snapshot.ideas.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    let regionsByID = Dictionary(snapshot.regions.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     for trip in snapshot.trips {
       let plan = TripPlan(
         entries: snapshot.entries.filter { $0.tripID == trip.id },
-        ideasByID: Dictionary(snapshot.ideas.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }),
+        ideasByID: ideasByID,
         lengthInDays: trip.lengthInDays,
         tripStays: snapshot.stays.filter { $0.tripID == trip.id },
         dayRegions: snapshot.dayRegions.filter { $0.tripID == trip.id },
-        regionsByID: Dictionary(snapshot.regions.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }),
+        regionsByID: regionsByID,
         calendarConstraints: snapshot.constraints.filter { $0.tripID == trip.id },
         alternativeGroups: snapshot.groups.filter { $0.tripID == trip.id })
-      let zones = await dayZones(for: trip, plan: plan, snapshot: snapshot, matcher: matcher)
       let rollup = TripBookingRollup(
-        plan: plan, currentDay: Self.currentDay(for: trip, now: now, timeZone: zones[1] ?? .current), now: now)
-      result += rollup.opensLater.map { item in
+        plan: plan, currentDay: Self.currentDay(for: trip, now: now), now: now)
+      let futureItems = rollup.opensLater.filter { item in
+        guard case let .opensLater(opensAt) = item.opening else { return false }
+        return opensAt > now
+      }
+      guard !futureItems.isEmpty else { continue }
+      let zones = await TripDayTimeZoneResolution.resolve(
+        trip: trip, plan: plan,
+        tripRegions: {
+          let ids = Set(snapshot.tripRegions.filter { $0.tripID == trip.id }.map(\.regionID))
+          return snapshot.regions.filter { ids.contains($0.id) }
+        }(),
+        assignments: snapshot.dayRegions, overrides: snapshot.timeZones, regions: snapshot.regions,
+        timeZoneAt: { latitude, longitude in await matcher.timeZone(latitude: latitude, longitude: longitude) })
+      result += futureItems.map { item in
         let day = item.day
         let zone = day.flatMap { zones[$0] } ?? .current
-        let mealDate = trip.startDate.flatMap { start in
-          day.flatMap { day in
-            var calendar = Calendar(identifier: .gregorian)
-            calendar.timeZone = zone
-            return calendar.date(byAdding: .day, value: day - 1, to: start)
-          }
-        }
+        let mealDate = trip.startDate.flatMap { start in day.flatMap { TodayProjection.startOfTripDay($0, tripStartDate: start) } }
         return BookingReminderCandidate(
           item: item, tripID: trip.id, tripName: trip.name,
           mealDate: mealDate, timeZone: zone)
@@ -131,36 +168,8 @@ final class BookingReminderModel {
     return result
   }
 
-  @concurrent private static func dayZones(
-    for trip: Trip, plan: TripPlan, snapshot: Snapshot, matcher: PlaceMatcher
-  ) async -> [Int: TimeZone] {
-    let assignments = snapshot.dayRegions.filter { $0.tripID == trip.id }
-    let tripRegionIDs = Set(snapshot.tripRegions.filter { $0.tripID == trip.id }.map(\.regionID))
-    let assignedIDs = Set(assignments.map(\.regionID))
-    let tripRegions = snapshot.regions.filter { tripRegionIDs.contains($0.id) }
-    let regions = Dictionary(
-      snapshot.regions.filter { tripRegionIDs.contains($0.id) || assignedIDs.contains($0.id) }
-        .map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-    let center = TripDayTimeZoneResolution.centroidCoordinate(
-      regions: tripRegions, fallbackCoordinates: plan.scheduledStopCoordinates)
-    let centerZone: TimeZone? = if let center {
-      await matcher.timeZone(latitude: center.latitude, longitude: center.longitude)
-    } else { nil }
-    return await TripDayTimeZoneResolution.resolve(
-      days: trip.lengthInDays > 0 ? Array(1...trip.lengthInDays) : [], assignments: assignments,
-      overrides: snapshot.timeZones.filter { $0.tripID == trip.id }, regionsByID: regions,
-      tripCentroid: centerZone,
-      timeZoneAt: { latitude, longitude in
-        await matcher.timeZone(latitude: latitude, longitude: longitude)
-      })
-  }
-
-  nonisolated private static func currentDay(for trip: Trip, now: Date, timeZone: TimeZone) -> Int? {
+  nonisolated private static func currentDay(for trip: Trip, now: Date) -> Int? {
     guard let startDate = trip.startDate else { return nil }
-    var calendar = Calendar(identifier: .gregorian)
-    calendar.timeZone = timeZone
-    let start = calendar.startOfDay(for: startDate)
-    let today = calendar.startOfDay(for: now)
-    return calendar.dateComponents([.day], from: start, to: today).day.map { $0 + 1 }
+    return TodayProjection.tripDay(containing: now, tripStartDate: startDate, lengthInDays: trip.lengthInDays)
   }
 }

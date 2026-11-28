@@ -19,14 +19,21 @@ public struct BookingReminderCandidate: Sendable {
 
 public struct BookingReminder: Equatable, Sendable, Identifiable {
   public let id: String
+  public let opensAt: Date
   public let fireAt: Date
+  public let deliverImmediately: Bool
   public let title: String
   public let body: String
   public let tripID: Trip.ID
 
-  public init(id: String, fireAt: Date, title: String, body: String, tripID: Trip.ID) {
+  public init(
+    id: String, opensAt: Date, fireAt: Date, deliverImmediately: Bool,
+    title: String, body: String, tripID: Trip.ID
+  ) {
     self.id = id
+    self.opensAt = opensAt
     self.fireAt = fireAt
+    self.deliverImmediately = deliverImmediately
     self.title = title
     self.body = body
     self.tripID = tripID
@@ -35,7 +42,8 @@ public struct BookingReminder: Equatable, Sendable, Identifiable {
 
 public enum BookingReminderPlan {
   public static func desired(
-    candidates: [BookingReminderCandidate], now: Date, lead: Duration = .seconds(1_800), limit: Int = 50
+    candidates: [BookingReminderCandidate], now: Date, lead: Duration = .seconds(1_800), limit: Int = 50,
+    notified: Set<BookingReminderKey> = [], deviceTimeZone: TimeZone, locale: Locale
   ) -> [BookingReminder] {
     guard limit > 0 else { return [] }
     let reminders = candidates.compactMap { candidate -> BookingReminder? in
@@ -46,17 +54,21 @@ public enum BookingReminderPlan {
 
       let leadComponents = lead.components
       let leadSeconds = Double(leadComponents.seconds) + Double(leadComponents.attoseconds) / 1e18
-      let fireAt = max(opensAt.addingTimeInterval(-leadSeconds), now)
+      let rawFireAt = max(opensAt.addingTimeInterval(-leadSeconds), now)
+      let fireAt = Date(timeIntervalSince1970: floor(rawFireAt.timeIntervalSince1970))
+      let key = BookingReminderKey(id: "booking-opens.\(stopID.uuidString)", opensAt: opensAt)
+      guard fireAt > now || !notified.contains(key) else { return nil }
       let opening = BookingOpeningFormat.timeString(
-        moment: opensAt, timeZone: candidate.timeZone, deviceTimeZone: .current)
-      let meal = candidate.mealDate.map { BookingOpeningFormat.mealDate($0, timeZone: candidate.timeZone) }
-      let timing = fireAt == now ? "soon" : "in 30 min"
+        moment: opensAt, timeZone: candidate.timeZone, deviceTimeZone: deviceTimeZone, locale: locale)
+      let meal = candidate.mealDate.map { BookingOpeningFormat.mealDate($0, timeZone: deviceTimeZone, locale: locale) }
+      let timing = fireAt <= now ? "soon" : "in \(Int(leadSeconds / 60)) min"
       let title = "Booking opens \(timing) · \(candidate.item.title)"
       let body = [meal.map { "Dinner \($0)" }, "opens \(opening)", candidate.tripName]
         .compactMap { $0 }
         .joined(separator: " · ")
       return BookingReminder(
-        id: "booking-opens.\(stopID.uuidString)", fireAt: fireAt, title: title, body: body,
+        id: key.id, opensAt: opensAt, fireAt: fireAt, deliverImmediately: rawFireAt <= now,
+        title: title, body: body,
         tripID: candidate.tripID)
     }
     return reminders.sorted {
@@ -79,5 +91,15 @@ public enum BookingReminderPlan {
       return $0.id < $1.id
     }
     return (add, remove)
+  }
+}
+
+public struct BookingReminderKey: Codable, Hashable, Sendable {
+  public let id: String
+  public let opensAt: Date
+
+  public init(id: String, opensAt: Date) {
+    self.id = id
+    self.opensAt = opensAt
   }
 }

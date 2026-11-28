@@ -1,6 +1,7 @@
 import Foundation
 
-/// The shared wording for opening moments across the app and local reminders.
+/// The one formatter for a booking opening (ADR-0056 D2), so the To Book sheet, the stop
+/// editor and S2's notification text all say the same thing.
 public enum BookingOpeningFormat {
   public static func string(
     moment: Date, timeZone: TimeZone, deviceTimeZone: TimeZone, locale: Locale = .current

@@ -156,35 +156,28 @@ extension CalendarReconciliationModel {
       latitude: coordinate.latitude, longitude: coordinate.longitude)
   }
 
-  func dayTimeZones(for trip: Trip, centroid: TimeZone?) async -> [DayNumber: TimeZone] {
+  func dayTimeZones(for trip: Trip, plan: TripPlan, centroid: TimeZone?) async -> [DayNumber: TimeZone] {
     let facts = (try? await database.read { db -> (
-      overrides: [TripDayTimeZone], assignments: [TripDayRegion], regions: [MapRegion]
+      overrides: [TripDayTimeZone], assignments: [TripDayRegion], tripRegions: [MapRegion], regions: [MapRegion]
     ) in
       let assignments = try TripDayRegion.where { $0.tripID.eq(trip.id) }.fetchAll(db)
-      let regionIDs = assignments.map(\.regionID)
+      let tripRegionIDs = try TripRegion.regionIDs(forTrip: trip.id, in: db)
+      let regionIDs = Set(assignments.map(\.regionID) + tripRegionIDs)
       let regions = regionIDs.isEmpty
         ? []
-        : try MapRegion.where { $0.id.in(regionIDs) }.fetchAll(db)
+        : try MapRegion.where { $0.id.in(Array(regionIDs)) }.fetchAll(db)
       return (
         overrides: try TripDayTimeZone.where { $0.tripID.eq(trip.id) }.fetchAll(db),
         assignments: assignments,
+        tripRegions: try MapRegion.where { $0.id.in(tripRegionIDs) }.fetchAll(db),
         regions: regions)
-    }) ?? (overrides: [], assignments: [], regions: [])
+    }) ?? (overrides: [], assignments: [], tripRegions: [], regions: [])
 
-    let regionsByID = Dictionary(facts.regions.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-    let days = trip.lengthInDays > 0
-      ? Array(1...trip.lengthInDays)
-      : Array(Set(facts.assignments.map(\.dayNumber) + facts.overrides.map(\.dayNumber))).sorted()
     let matcher = placeMatcher
     return await TripDayTimeZoneResolution.resolve(
-      days: days,
-      assignments: facts.assignments,
-      overrides: facts.overrides,
-      regionsByID: regionsByID,
-      tripCentroid: centroid,
-      timeZoneAt: { latitude, longitude in
-        await matcher.timeZone(latitude: latitude, longitude: longitude)
-      })
+      trip: trip, plan: plan, tripRegions: facts.tripRegions, assignments: facts.assignments,
+      overrides: facts.overrides, regions: facts.regions, tripCentroid: centroid,
+      timeZoneAt: { latitude, longitude in await matcher.timeZone(latitude: latitude, longitude: longitude) })
   }
 
   func scope(for trip: Trip, calendar: Calendar) -> CalendarTripScope? {

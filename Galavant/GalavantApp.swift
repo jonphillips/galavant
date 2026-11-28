@@ -2,6 +2,7 @@ import CloudKit
 import Dependencies
 import GalavantSchema
 import OSLog
+import Observation
 import SQLiteData
 import SwiftUI
 import Synchronization
@@ -64,13 +65,17 @@ struct GalavantApp: App {
     WindowGroup {
       AppContainer()
         .environment(appDelegate.chatExportModel)
+        .environment(appDelegate)
     }
   }
 }
 
+@Observable
+@MainActor
 final class AppDelegate: UIResponder, UIApplicationDelegate {
   private var suspensionController: DatabaseSuspensionController?
   private(set) var chatExportModel: ChatExportModel!
+  var pendingBookingTripID: Trip.ID?
 
   func application(
     _ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
@@ -111,18 +116,9 @@ extension AppDelegate: @preconcurrency UNUserNotificationCenterDelegate {
   ) {
     let tripID = (response.notification.request.content.userInfo["tripID"] as? String)
       .flatMap(UUID.init(uuidString:))
-    if let tripID {
-      Task { @MainActor in
-        NotificationCenter.default.post(
-          name: .bookingReminderTapped, object: nil, userInfo: ["tripID": tripID])
-      }
-    }
+    Task { @MainActor [weak self] in self?.pendingBookingTripID = tripID }
     completionHandler()
   }
-}
-
-extension Notification.Name {
-  static let bookingReminderTapped = Notification.Name("bookingReminderTapped")
 }
 
 final class SceneDelegate: UIResponder, UIWindowSceneDelegate {

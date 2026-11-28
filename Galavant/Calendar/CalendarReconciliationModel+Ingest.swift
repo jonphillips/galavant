@@ -33,7 +33,7 @@ extension CalendarReconciliationModel {
     let temporalContext = CalendarTripTemporalContext(
       scope: scope,
       assignmentTimeZone: regionTimeZone,
-      dayTimeZones: await dayTimeZones(for: trip, centroid: regionTimeZone))
+      dayTimeZones: await dayTimeZones(for: trip, plan: plan, centroid: regionTimeZone))
     let ingestedEvents = try await ingest(observedEvents, regionTimeZone: regionTimeZone)
     return IngestionCache(
       tripID: trip.id,

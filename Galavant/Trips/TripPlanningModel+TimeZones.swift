@@ -43,30 +43,11 @@ extension TripPlanningModel {
       return
     }
     let expectedKey = dayTimeZoneRefreshKey
-    let assignments = allTripDayRegions.filter { $0.tripID == tripID }
-    let overrides = allTripDayTimeZones.filter { $0.tripID == tripID }
-    let regionIDs = Set(assignments.map(\.regionID) + tripRegions.map(\.id))
-    let regionsByID = Dictionary(
-      regions.filter { regionIDs.contains($0.id) }.map { ($0.id, $0) },
-      uniquingKeysWith: { first, _ in first })
-    let coordinate = TripDayTimeZoneResolution.centroidCoordinate(
-      regions: tripRegions, fallbackCoordinates: plan.scheduledStopCoordinates)
     let matcher = placeMatcher
-    let centroid: TimeZone? = if let coordinate {
-      await matcher.timeZone(latitude: coordinate.latitude, longitude: coordinate.longitude)
-    } else {
-      nil
-    }
-    let days = trip.lengthInDays > 0 ? Array(1...trip.lengthInDays) : []
     let timeZones = await TripDayTimeZoneResolution.resolve(
-      days: days,
-      assignments: assignments,
-      overrides: overrides,
-      regionsByID: regionsByID,
-      tripCentroid: centroid,
-      timeZoneAt: { latitude, longitude in
-        await matcher.timeZone(latitude: latitude, longitude: longitude)
-      })
+      trip: trip, plan: plan, tripRegions: tripRegions, assignments: allTripDayRegions,
+      overrides: allTripDayTimeZones, regions: regions,
+      timeZoneAt: { latitude, longitude in await matcher.timeZone(latitude: latitude, longitude: longitude) })
     guard !Task.isCancelled, dayTimeZoneRefreshKey == expectedKey else { return }
     resolvedDayTimeZones = timeZones
   }
