@@ -1,7 +1,10 @@
+import Dependencies
+import DependenciesTestSupport
 import Foundation
 import GalavantSchema
 import Testing
 
+@Suite(.dependencies { $0.date = .constant(Date(timeIntervalSince1970: 1)) })
 struct SeedReturnTests {
   @Test func decodesTheDenmarkFixtureWithoutDroppingItsNarrativeOrDecisions() throws {
     let fixture = try #require(Bundle.module.url(forResource: "seed-denmark", withExtension: "txt"))

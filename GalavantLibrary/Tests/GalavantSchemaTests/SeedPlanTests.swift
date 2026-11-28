@@ -1,3 +1,4 @@
+import CustomDump
 import Dependencies
 import DependenciesTestSupport
 import Foundation
@@ -245,7 +246,7 @@ struct SeedPlanTests {
   @Test func mapConfirmationRunsThroughCaptureMergeInsideImport() async throws {
     try await database.write { db in
       let trip = try Trip.create(name: "Denmark", in: db)
-      let seed = try SeedReturn.decode("GV-SEED\n{\"places\":[{\"name\":\"Dyvig Badehotel\",\"verdict\":\"considering\",\"place_notes\":\"Ask about room size.\"}]}")
+      let seed = try SeedReturn.decode("GV-SEED\n{\"places\":[{\"name\":\"Dyvig Badehotel\",\"verdict\":\"considering\",\"place_notes\":\"Ask about room size.\",\"booking_window\":{\"kind\":\"days_ahead\",\"days\":30,\"release_time\":\"09:00\",\"time_zone\":\"Europe/Copenhagen\",\"source_url\":\"https://example.com\",\"quote\":\"Reservations open 30 days ahead.\"}}]}")
       var plan = SeedPlan.make(from: seed, trip: trip, context: SeedPlanContext(
         trip: trip, tripIdeas: [], ideasByID: [:], stays: [], tripRegions: [], partyRegions: []
       ))
@@ -266,6 +267,10 @@ struct SeedPlanTests {
       #expect(row.ideaID != nil)
       #expect(!(row.inlineNote?.contains("About the place:") ?? false))
       let ideaID = try #require(row.ideaID)
+      #expect(try Idea.find(ideaID).fetchOne(db)?.bookingWindowValue == BookingWindow(
+        rule: .daysAhead(30, releaseTime: LocalTime(hour: 9, minute: 0)),
+        timeZoneID: "Europe/Copenhagen", sourceURL: "https://example.com",
+        quote: "Reservations open 30 days ahead.", foundAt: date.now))
       #expect(try IdeaEvaluation.where { $0.ideaID.eq(ideaID) }.fetchCount(db) == 1)
       #expect(result.mapRowOutcomes == [SeedMapRowOutcome(
         rowID: plan.places[0].id, rowTitle: "Dyvig Badehotel", resolution: .resolved(ideaID)
@@ -384,6 +389,43 @@ struct SeedPlanTests {
       #expect(unchanged.shortlistRank == 4)
       #expect(unchanged.ideaID == idea.id)
     }
+  }
+
+  @Test func seedCommitWritesWindowsForNewAndAlreadyLinkedIdeas() async throws {
+    let oldWindow = BookingWindow(
+      rule: .daysAhead(30, releaseTime: nil), timeZoneID: "America/Denver",
+      sourceURL: "https://old.example.com", quote: "Thirty days", foundAt: date.now)
+    let newWindow = BookingWindow(
+      rule: .monthly(dayOfMonth: 1, monthsAhead: 1, releaseTime: LocalTime(hour: 9, minute: 0)),
+      timeZoneID: "Pacific/Kiritimati", sourceURL: "https://new.example.com", quote: "First of month",
+      foundAt: date.now)
+    let stored = try await database.write { db -> [BookingWindow?] in
+      let trip = try Trip.create(name: "Denmark", in: db)
+      let party = try TravelParty.ensureDefault(in: db)
+      let existingIdea = Idea(id: UUID(), name: "Existing stop", kind: .food, travelPartyID: party.id)
+      let newIdea = Idea(id: UUID(), name: "New stop", kind: .food, travelPartyID: party.id)
+      try Idea.insert { [existingIdea, newIdea].map(Idea.Draft.init) }.execute(db)
+      let existingStop = try TripIdea.pull(ideaID: existingIdea.id, into: trip.id, status: .shortlisted, in: db)
+      let seed = try SeedReturn.decode(#"GV-SEED {"places":[{"name":"Existing stop","verdict":"core","booking_window":{"kind":"days_ahead","days":30,"time_zone":"America/Denver","source_url":"https://old.example.com","quote":"Thirty days"}},{"name":"New stop","verdict":"core","booking_window":{"kind":"monthly","day_of_month":1,"months_ahead":1,"release_time":"09:00","time_zone":"Pacific/Kiritimati","source_url":"https://new.example.com","quote":"First of month"}}]}"#)
+      var plan = SeedPlan.make(from: seed, trip: trip, context: SeedPlanContext(
+        trip: trip, tripIdeas: [existingStop], ideasByID: [existingIdea.id: existingIdea],
+        stays: [], tripRegions: [], partyRegions: [], poolIdeas: [existingIdea, newIdea]
+      ))
+      let existingIndex = try #require(plan.places.firstIndex { $0.title == "Existing stop" })
+      plan.places[existingIndex].include = true
+      let newIndex = try #require(plan.places.firstIndex { $0.title == "New stop" })
+      plan.places[newIndex].matchConfirmed = true
+      plan.places[newIndex].confirmedIdeaID = newIdea.id
+      let session = HandoffSession(
+        sourceType: "trip", sourceID: trip.id, taskType: RecommendationHandoffTask.seedTrip,
+        scopeKey: nil, exportedPrompt: "")
+      _ = try SeedPlan.commit(plan, tripID: trip.id, session: session, now: date.now, in: db)
+      return [
+        try Idea.find(existingIdea.id).fetchOne(db)?.bookingWindowValue,
+        try Idea.find(newIdea.id).fetchOne(db)?.bookingWindowValue,
+      ]
+    }
+    expectNoDifference(stored, [oldWindow, newWindow])
   }
 
   @Test func unresolvedConfirmedMapRowKeepsPlaceNotesAndIsReported() async throws {

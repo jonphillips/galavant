@@ -136,7 +136,7 @@ struct IdeaDetailView: View {
     if let window = idea.bookingWindowValue {
       let zone = window.timeZoneID.flatMap(TimeZone.init(identifier:)) ?? .current
       Section("Booking") {
-        Text("Booking: \(BookingOpeningFormat.ruleString(window.rule, timeZone: zone)) · \(window.source.rawValue)")
+        Text("\(BookingOpeningFormat.ruleString(window.rule, timeZone: zone)) · From \(window.source.displayName)")
         if let url = URL(string: window.sourceURL) { BookingSourceButton(url: url) }
       }
     }

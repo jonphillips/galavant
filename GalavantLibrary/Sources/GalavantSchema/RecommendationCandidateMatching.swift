@@ -33,6 +33,7 @@ public enum RecommendationCandidateSet {
     public let candidates: [TripCandidate]
     public let addedCandidates: [TripCandidate]
     public let updatedCandidates: [TripCandidate]
+    public let bookingWindowUpdates: [TripCandidate]
     public let unrankedCandidates: [TripCandidate]
   }
 
@@ -50,6 +51,7 @@ public enum RecommendationCandidateSet {
     var candidates = existing
     var addedCandidates: [TripCandidate] = []
     var updatedCandidates: [TripCandidate] = []
+    var bookingWindowUpdates: [TripCandidate] = []
     let stampedIncoming = Self.stamp(uniqueIncoming, fallbackListName: fallbackListName)
 
     for candidate in stampedIncoming {
@@ -73,6 +75,7 @@ public enum RecommendationCandidateSet {
         )
         candidates[existingIndex] = updated
         updatedCandidates.append(updated)
+        if candidate.bookingWindow != nil { bookingWindowUpdates.append(updated) }
       } else {
         addedCandidates.append(candidate)
       }
@@ -97,7 +100,8 @@ public enum RecommendationCandidateSet {
     candidates.append(contentsOf: addedCandidates)
     return Merge(
       candidates: candidates, addedCandidates: addedCandidates,
-      updatedCandidates: updatedCandidates, unrankedCandidates: unrankedCandidates
+      updatedCandidates: updatedCandidates, bookingWindowUpdates: bookingWindowUpdates,
+      unrankedCandidates: unrankedCandidates
     )
   }
 
@@ -145,7 +149,9 @@ public enum RecommendationCandidateSet {
         $0.rationalePriorityOutOf = #bind(candidate.priorityOutOf)
         $0.rationalePriorityList = #bind(candidate.list)
       }.execute(db)
-      if let ideaID = stop.ideaID, let window = candidate.bookingWindow {
+      if let ideaID = stop.ideaID,
+        let window = merge.bookingWindowUpdates.first(where: { $0.id == candidateID })?.bookingWindow
+      {
         try Idea.setBookingWindow(window, ideaID: ideaID, in: db)
       }
     }

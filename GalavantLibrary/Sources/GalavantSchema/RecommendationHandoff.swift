@@ -1,3 +1,4 @@
+import Dependencies
 import Foundation
 import GalavantAI
 import SQLiteData
@@ -284,7 +285,8 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
     from values: KeyedDecodingContainer<CodingKeys>, forKey key: CodingKeys
   ) -> BookingWindow? {
     guard let handoff = try? values.decode(BookingWindowHandoff.self, forKey: key) else { return nil }
-    return handoff.bookingWindow(foundAt: .now)
+    @Dependency(\.date.now) var now
+    return handoff.bookingWindow(foundAt: now)
   }
 
   private static func normalizedList(_ value: String?) -> String? {

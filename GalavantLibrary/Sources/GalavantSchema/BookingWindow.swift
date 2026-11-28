@@ -160,7 +160,16 @@ public enum BookingWindowRule: Codable, Equatable, Sendable {
   }
 }
 
-public enum BookingWindowSource: String, Codable, Equatable, Sendable { case chat, scout }
+public enum BookingWindowSource: String, Codable, Equatable, Sendable {
+  case chat, scout
+
+  public var displayName: String {
+    switch self {
+    case .chat: "Chat"
+    case .scout: "Scout"
+    }
+  }
+}
 
 public struct BookingWindow: Codable, Equatable, Sendable {
   public var rule: BookingWindowRule
@@ -223,14 +232,17 @@ public struct BookingWindowHandoff: Codable, Equatable, Sendable {
   public var timeZone: String?
   public var sourceURL: String
   public var quote: String
+  public var source: BookingWindowSource?
+  public var foundAt: Date?
 
   enum CodingKeys: String, CodingKey {
-    case kind, days, date, quote
+    case kind, days, date, quote, source
     case dayOfMonth = "day_of_month"
     case monthsAhead = "months_ahead"
     case releaseTime = "release_time"
     case timeZone = "time_zone"
     case sourceURL = "source_url"
+    case foundAt = "found_at"
   }
 
   public init(from window: BookingWindow) {
@@ -247,6 +259,8 @@ public struct BookingWindowHandoff: Codable, Equatable, Sendable {
     timeZone = window.timeZoneID
     sourceURL = window.sourceURL
     quote = window.quote
+    source = window.source
+    foundAt = window.foundAt
   }
 
   public init(from decoder: any Decoder) throws {
@@ -260,9 +274,11 @@ public struct BookingWindowHandoff: Codable, Equatable, Sendable {
     timeZone = try values.decodeIfPresent(String.self, forKey: .timeZone)
     sourceURL = try values.decode(String.self, forKey: .sourceURL)
     quote = try values.decode(String.self, forKey: .quote)
+    source = try values.decodeIfPresent(BookingWindowSource.self, forKey: .source)
+    foundAt = try values.decodeIfPresent(Date.self, forKey: .foundAt)
   }
 
-  public func bookingWindow(foundAt: Date) -> BookingWindow? {
+  public func bookingWindow(foundAt fallbackFoundAt: @autoclosure () -> Date) -> BookingWindow? {
     var object: [String: Any] = ["kind": kind, "source_url": sourceURL, "quote": quote]
     if let days { object["days"] = days }
     if let dayOfMonth { object["day_of_month"] = dayOfMonth }
@@ -270,7 +286,9 @@ public struct BookingWindowHandoff: Codable, Equatable, Sendable {
     if let date { object["date"] = date }
     if let releaseTime { object["release_time"] = releaseTime }
     if let timeZone { object["time_zone"] = timeZone }
-    return BookingWindow.fromHandoff(object, now: foundAt)
+    guard var window = BookingWindow.fromHandoff(object, now: foundAt ?? fallbackFoundAt()) else { return nil }
+    window.source = source ?? .chat
+    return window
   }
 }
 

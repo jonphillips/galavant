@@ -8,7 +8,9 @@ extension Idea {
   }
 
   public static func setBookingWindow(_ window: BookingWindow?, ideaID: Idea.ID, in db: Database) throws {
-    guard try Idea.find(ideaID).fetchOne(db) != nil else { return }
+    guard let idea = try Idea.find(ideaID).fetchOne(db) else { return }
+    if idea.bookingWindow == nil, window == nil { return }
+    if let storedWindow = idea.bookingWindowValue, storedWindow == window { return }
     try Idea.find(ideaID).update { $0.bookingWindow = #bind(window?.encoded()) }.execute(db)
   }
 }
