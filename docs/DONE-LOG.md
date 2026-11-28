@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-28 — Backups say which build made them (`effort/backup-variant`)
+
+- **Result:** Galavant backup configurations now stamp the exporting build variant, so TestFlight Galavant rejects development backups while Galavant Dev remains distinguishable.
+- **Verification:** Ran against bcadafd (pushed to origin/effort/backup-variant). Passed: `scripts/check-drift.sh` (swiftlint lint --strict, 0 violations; swift test --package-path GalavantLibrary, one suite reporting 13 known issues; swift test --package-path GalavantMCP; xcodebuild build-for-testing and test-without-building -only-testing:GalavantTests on iPhone 18 Pro). Failed: none. GalavantUITests compiled and linked but were not run.
+- **Owed:** backup-variant's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-28 — Booking rules from Chat (`effort/booking-opens-s3`)
 
 - **Result:** Added the synced booking window fact, Chat handoff parsing, local opening calculations, and Use actions in the stop editor and To Book sheet. Booking sources and Visit notes are available from the booking surfaces.

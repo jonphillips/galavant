@@ -85,4 +85,4 @@ the container.
   its own dev variant.
   **Answered 2026-11-28: yes.** Yes Chef's ADR-0059 D6 added the marker to CloudSyncKit (jon-platform #102):
   a backup records its variant, and a production restore refuses a development one. Galavant adopts it in
-  [`backup-variant`](../efforts/backup-variant.md).
+  [`backup-variant`](../efforts/archive/backup-variant.md).
