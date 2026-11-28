@@ -25,7 +25,6 @@ struct DatabaseBackupTests {
     #expect(configuration.backupFilenamePrefix == "Galavant-Backup-")
     #expect(configuration.variant == .production)
 #endif
-    #expect(configuration.variant != nil)
     #expect(configuration.identifyingTableNames == ["travelParties", "ideas"])
     // The facade derives this version directly from the registered list, so it cannot drift.
     #expect(configuration.declaredSchemaVersion == GalavantDatabaseMigrations.makeMigrator().migrations.count)
