@@ -81,6 +81,19 @@ struct BookingFields: View {
 
     if booking.status == .toBook, draft.tracksOpening {
       Toggle("Booking opens", isOn: $draft.hasOpeningDate)
+      if !draft.hasOpeningDate, let rule = draft.suggestionRule {
+        VStack(alignment: .leading, spacing: 6) {
+          let zone = draft.bookingWindow?.timeZoneID.flatMap(TimeZone.init(identifier:)) ?? draft.openingTimeZone
+          Text("Chat: \(BookingOpeningFormat.ruleString(rule, timeZone: zone))")
+            .font(.subheadline).foregroundStyle(.secondary)
+          if let opening = draft.suggestedOpening {
+            Text("Opens \(BookingOpeningFormat.string(moment: opening, timeZone: zone, deviceTimeZone: .current))")
+              .font(.subheadline)
+            Button("Use") { draft.useSuggestedOpening() }.buttonStyle(.bordered)
+          }
+          if let url = draft.bookingWindow.flatMap({ URL(string: $0.sourceURL) }) { BookingSourceButton(url: url) }
+        }
+      }
       if draft.hasOpeningDate {
         DatePicker("Date and time", selection: $draft.openingDate)
           .environment(\.timeZone, draft.openingTimeZone)
@@ -90,6 +103,9 @@ struct BookingFields: View {
           Text(label).foregroundStyle(.secondary)
         }
         Button("Already open") { draft.alreadyOpenButtonTapped() }
+      }
+      if draft.bookingWindow == nil, let note = draft.visitNote, !note.isEmpty {
+        DisclosureGroup("Visit note") { Text(note).font(.subheadline).foregroundStyle(.secondary) }
       }
     }
 

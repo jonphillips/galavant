@@ -1,7 +1,7 @@
 # ADR-0056: When booking opens — a date on the stop, a reminder on Jon's phone, a scout on the mini
 
 *Status: **proposed** — 2026-11-27, ratified by Jon merging this ADR's PR. Effort:
-[`booking-opens`](../efforts/booking-opens.md). Extends [ADR-0047](0047-trip-booking-status.md) (booking status) with
+[`booking-opens`](../efforts/archive/booking-opens.md). Extends [ADR-0047](0047-trip-booking-status.md) (booking status) with
 the one fact it lacks: when a to-book stop *can* be booked. The scout follows [ADR-0052](0052-chat-access-over-mcp.md)
 (a macOS-only helper, transport through Jon's iCloud Drive) and jon-platform `docs/always-on-mac.md` § What runs on the
 mini. Holds ADR-0001 (no server), ADR-0003 (no ownership flags) and ADR-0004 (the model proposes, a human tap writes).

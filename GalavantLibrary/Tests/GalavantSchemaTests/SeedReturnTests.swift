@@ -1,7 +1,10 @@
+import Dependencies
+import DependenciesTestSupport
 import Foundation
 import GalavantSchema
 import Testing
 
+@Suite(.dependencies { $0.date = .constant(Date(timeIntervalSince1970: 1)) })
 struct SeedReturnTests {
   @Test func decodesTheDenmarkFixtureWithoutDroppingItsNarrativeOrDecisions() throws {
     let fixture = try #require(Bundle.module.url(forResource: "seed-denmark", withExtension: "txt"))
@@ -30,6 +33,16 @@ struct SeedReturnTests {
     #expect(seed.warnings.count == 1)
     #expect(seed.places.first?.candidate.dayRef == "4")
     #expect(seed.places.first?.verdict == .unrecognized("maybe"))
+  }
+
+  @Test func seedPlaceKeepsValidBookingWindowAndDropsMalformedOne() throws {
+    let seed = try SeedReturn.decode(#"""
+      GV-SEED
+      {"places":[{"name":"Good","booking_window":{"kind":"monthly","day_of_month":1,"months_ahead":1,"source_url":"https://example.com","quote":"The first"}},{"name":"Kept","booking_window":{"kind":"monthly","source_url":"https://example.com","quote":"bad"}}]}
+      """#)
+    #expect(seed.places[0].candidate.bookingWindow?.rule == .monthly(dayOfMonth: 1, monthsAhead: 1, releaseTime: nil))
+    #expect(seed.places[1].candidate.name == "Kept")
+    #expect(seed.places[1].candidate.bookingWindow == nil)
   }
 
   @Test func fallsBackToSummaryAndFailsLoudlyForIncompleteSeeds() throws {

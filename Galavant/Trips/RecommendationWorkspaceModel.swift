@@ -317,11 +317,14 @@ final class RecommendationWorkspaceModel {
   func resolveResultTapped(_ place: Place) {
     guard let activeCandidate else { return }
     let nextCandidateID = nextCandidateAfterProcessing(activeCandidate.id)
+    let bookingWindow = candidateLinks.first(where: { $0.tripIdeaID == activeCandidate.id })
+      .flatMap { link in handoffCandidates.first(where: { $0.id == link.candidateID })?.bookingWindow }
     let result: (collision: ResolveReconcile.Collision?, confirmed: Bool)? = withErrorReporting {
       try database.write { db -> (collision: ResolveReconcile.Collision?, confirmed: Bool) in
         guard let resolution = try GalavantSchema.RecommendationResolution.confirm(
           candidateStopID: activeCandidate.id,
           capture: place.ideaCapture(),
+          bookingWindow: bookingWindow,
           in: db
         ) else { return (nil, false) }
         if resolution.capture.isNew { mintedIdeaIDs.insert(resolution.capture.ideaID) }

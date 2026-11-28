@@ -1,3 +1,4 @@
+import Dependencies
 import Foundation
 import GalavantAI
 import SQLiteData
@@ -173,6 +174,7 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
   public var dayRef: String?
   public var placementAfter: String?
   public var bookAhead: Bool?
+  public var bookingWindow: BookingWindow?
 
   public init(
     id: UUID = UUID(),
@@ -188,7 +190,8 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
     list: String? = nil,
     dayRef: String? = nil,
     placementAfter: String? = nil,
-    bookAhead: Bool? = nil
+    bookAhead: Bool? = nil,
+    bookingWindow: BookingWindow? = nil
   ) {
     self.id = id
     self.name = name?.nonEmpty
@@ -204,6 +207,7 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
     self.dayRef = dayRef?.nonEmpty
     self.placementAfter = placementAfter?.nonEmpty
     self.bookAhead = bookAhead
+    self.bookingWindow = bookingWindow
   }
 
   public var rationale: String? {
@@ -220,6 +224,7 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
     case dayRef = "day_ref"
     case placementAfter = "placement_after"
     case bookAhead = "book_ahead"
+    case bookingWindow = "booking_window"
   }
 
   public init(from decoder: any Decoder) throws {
@@ -238,7 +243,8 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
       list: try values.decodeIfPresent(String.self, forKey: .list),
       dayRef: try values.decodeIfPresent(String.self, forKey: .dayRef),
       placementAfter: try values.decodeIfPresent(String.self, forKey: .placementAfter),
-      bookAhead: Self.decodeBookAhead(from: values, forKey: .bookAhead)
+      bookAhead: Self.decodeBookAhead(from: values, forKey: .bookAhead),
+      bookingWindow: Self.decodeBookingWindow(from: values, forKey: .bookingWindow)
     )
   }
 
@@ -258,6 +264,9 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
     try values.encodeIfPresent(dayRef, forKey: .dayRef)
     try values.encodeIfPresent(placementAfter, forKey: .placementAfter)
     try values.encodeIfPresent(bookAhead, forKey: .bookAhead)
+    if let window = bookingWindow {
+      try values.encode(BookingWindowHandoff(from: window), forKey: .bookingWindow)
+    }
   }
 
   private static func decodeBookAhead(
@@ -270,6 +279,14 @@ public struct TripCandidate: Codable, Equatable, Identifiable, Sendable {
     case "false", "no": false
     default: nil
     }
+  }
+
+  private static func decodeBookingWindow(
+    from values: KeyedDecodingContainer<CodingKeys>, forKey key: CodingKeys
+  ) -> BookingWindow? {
+    guard let handoff = try? values.decode(BookingWindowHandoff.self, forKey: key) else { return nil }
+    @Dependency(\.date.now) var now
+    return handoff.bookingWindow(foundAt: now)
   }
 
   private static func normalizedList(_ value: String?) -> String? {
@@ -340,6 +357,9 @@ extension TripIdea {
           }
         }.execute(db)
       }
+      if let ideaID = existing.ideaID, let window = candidate.bookingWindow {
+        try Idea.setBookingWindow(window, ideaID: ideaID, in: db)
+      }
       if existing.bookingStatus == nil, candidate.bookAhead == true {
         try TripIdea.find(existing.id).update { $0.bookingStatus = #bind(BookingStatus.toBook) }.execute(db)
         return try TripIdea.find(existing.id).fetchOne(db) ?? existing
@@ -376,12 +396,14 @@ extension TripIdea {
   public static func attachResolvedIdea(
     _ ideaID: Idea.ID,
     to candidateStopID: TripIdea.ID,
+    bookingWindow: BookingWindow? = nil,
     in db: Database
   ) throws -> TripIdea? {
     guard try TripIdea.find(candidateStopID).fetchOne(db) != nil else { return nil }
     try TripIdea.find(candidateStopID)
       .update { $0.ideaID = #bind(ideaID) }
       .execute(db)
+    if let bookingWindow { try Idea.setBookingWindow(bookingWindow, ideaID: ideaID, in: db) }
     return try TripIdea.find(candidateStopID).fetchOne(db)
   }
 

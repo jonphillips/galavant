@@ -1,3 +1,4 @@
+import Dependencies
 import Foundation
 
 public enum SeedVerdict: Equatable, Hashable, Sendable {
@@ -92,6 +93,7 @@ public struct SeedReturn: Equatable, Sendable {
   }
 
   public static func decode(_ text: String) throws -> SeedReturn {
+    @Dependency(\.date.now) var now
     let lines = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
     let marker = markerLine(in: lines)
     let tail = marker.map { lines[($0 + 1)...].joined(separator: "\n") } ?? text
@@ -116,7 +118,7 @@ public struct SeedReturn: Equatable, Sendable {
     let rawBases = try objectArray(root, key: "bases")
     let rawPlaces = try objectArray(root, key: "places")
     let (bases, baseWarnings) = decodeBases(rawBases, lengthDays: seedTrip.lengthDays)
-    let (places, placeWarnings) = decodePlaces(rawPlaces)
+    let (places, placeWarnings) = decodePlaces(rawPlaces, now: { now })
     let warnings = (marker == nil ? ["No GV-SEED line — imported the JSON anyway."] : []) + baseWarnings + placeWarnings
     guard !bases.isEmpty || !places.isEmpty else { throw SeedReturnDecodeError.emptySeed }
     return SeedReturn(narrative: finalNarrative, trip: seedTrip, bases: bases, places: places, warnings: warnings)
@@ -163,7 +165,7 @@ public struct SeedReturn: Equatable, Sendable {
     return (bases, warnings)
   }
 
-  private static func decodePlaces(_ rawPlaces: [Any]) -> ([SeedPlace], [String]) {
+  private static func decodePlaces(_ rawPlaces: [Any], now: () -> Date) -> ([SeedPlace], [String]) {
     var warnings: [String] = []
     let places = rawPlaces.enumerated().compactMap { index, rawObject -> SeedPlace? in
       guard let object = rawObject as? [String: Any] else {
@@ -176,7 +178,8 @@ public struct SeedReturn: Equatable, Sendable {
         fit: object.string("fit"), kind: object.string("kind"), visit: object.string("visit"),
         priority: object.integer("priority"), list: object.string("list"),
         dayRef: object.stringOrNumber("day_ref"),
-        placementAfter: object.string("placement_after"), bookAhead: object.bool("book_ahead")
+        placementAfter: object.string("placement_after"), bookAhead: object.bool("book_ahead"),
+        bookingWindow: (object["booking_window"] as? [String: Any]).flatMap { BookingWindow.fromHandoff($0, now: now()) }
       )
       return SeedPlace(
         candidate: candidate,

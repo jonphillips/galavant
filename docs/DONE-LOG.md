@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-28 — Booking rules from Chat (`effort/booking-opens-s3`)
+
+- **Result:** Added the synced booking window fact, Chat handoff parsing, local opening calculations, and Use actions in the stop editor and To Book sheet. Booking sources and Visit notes are available from the booking surfaces.
+- **Verification:** Ran against df90a24 (pushed to origin/effort/booking-opens-s3). Passed: xcodebuild test-without-building -scheme Galavant -destination platform=iOS Simulator,name=iPhone 18 Pro -only-testing:GalavantTests -onlyUsePackageVersionsFromResolvedFile CODE_SIGNING_ALLOWED=NO; xcodebuild build-for-testing -scheme Galavant -destination platform=iOS Simulator,name=iPhone 18 Pro -skipMacroValidation -onlyUsePackageVersionsFromResolvedFile CODE_SIGNING_ALLOWED=NO; swift test --package-path GalavantMCP; swift test --package-path GalavantLibrary; swiftlint lint --strict. Failed: none. 764 GalavantLibrary tests and 11 GalavantMCP tests passed; 86 headless GalavantTests passed; GalavantUITests compiled and linked.
+- **Owed:** booking-opens S3's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-27 — Booking reminders on Jon’s devices (`effort/booking-opens-s2`)
 
 - **Result:** Added a device-local, off-by-default booking reminder setting with a pure planner, nearest-50 cap, 30-minute lead, and change-based reconciliation. Reconciliation follows trip-day time zones and notification taps open the trip’s To Book sheet.

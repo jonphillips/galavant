@@ -124,10 +124,21 @@ struct IdeaDetailView: View {
       }
       tripContextSections(dossier.idea)
       gallerySection(dossier)
+      bookingWindowSection(dossier.idea)
       hoursSections(dossier.idea)
       locationAndReferenceSections(dossier.idea)
       tagsAndNotesSections(dossier)
       if dossier.notesPlacement == .bottom { notesSection(dossier) }
+    }
+  }
+
+  @ViewBuilder private func bookingWindowSection(_ idea: Idea) -> some View {
+    if let window = idea.bookingWindowValue {
+      let zone = window.timeZoneID.flatMap(TimeZone.init(identifier:)) ?? .current
+      Section("Booking") {
+        Text("\(BookingOpeningFormat.ruleString(window.rule, timeZone: zone)) · From \(window.source.displayName)")
+        if let url = URL(string: window.sourceURL) { BookingSourceButton(url: url) }
+      }
     }
   }
 

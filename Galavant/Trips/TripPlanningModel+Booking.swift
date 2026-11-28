@@ -16,9 +16,43 @@ extension TripPlanningModel {
       tracksOpening: stop.idea != nil,
       openingDate: stop.entry.bookingOpensAt,
       openingTimeZone: stop.entry.dayNumber.flatMap { dayTimeZone(forDay: $0) } ?? .current,
+      bookingWindow: stop.idea?.bookingWindowValue,
+      suggestion: bookingSuggestion(for: stop, now: date()),
+      visitNote: stop.entry.rationaleVisit,
       confirmationNumber: stop.entry.confirmationNumber ?? "",
       bookingURL: stop.entry.bookingURL ?? "",
       partySize: stop.entry.partySize.map(String.init) ?? "")
+  }
+
+  func bookingSuggestion(for item: TripBookingItem, now: Date) -> BookingSuggestion? {
+    guard case let .stop(id) = item.row,
+      let stop = plan.scheduled.first(where: { $0.id == id })
+    else { return nil }
+    return bookingSuggestion(for: stop, now: now)
+  }
+
+  private func bookingSuggestion(for stop: ResolvedStop, now: Date) -> BookingSuggestion? {
+    let day = stop.entry.dayNumber
+    let zone = day.flatMap { dayTimeZone(forDay: $0) } ?? .current
+    let date = day.flatMap { trip?.date(forDay: $0) }.map { LocalDate(date: $0, in: zone) }
+    let mealTime: LocalTime? = {
+      guard case let .timed(_, start, _) = stop.entry.schedule else { return nil }
+      return LocalTime(iso8601: start)
+    }()
+    return BookingSuggestion.make(
+      status: stop.entry.resolvedBooking(idea: stop.idea).status, kind: stop.idea?.kind,
+      hasOpeningDate: stop.entry.bookingOpensAt != nil, mealDate: date, mealTime: mealTime,
+      dayTimeZone: zone, window: stop.idea?.bookingWindowValue, now: now)
+  }
+
+  func useBookingSuggestion(for item: TripBookingItem, now: Date) {
+    guard case let .stop(id) = item.row,
+      let stop = plan.scheduled.first(where: { $0.id == id }),
+      let suggestion = bookingSuggestion(for: stop, now: now), let opensAt = suggestion.opensAt
+    else { return }
+    withErrorReporting {
+      try database.write { db in try TripIdea.setBookingOpensAt(opensAt, stopID: id, in: db) }
+    }
   }
 
   func bookingFields(for stay: TripStay) -> BookingFieldsDraft {

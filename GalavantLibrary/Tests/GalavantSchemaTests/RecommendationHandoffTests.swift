@@ -8,7 +8,10 @@ import GalavantSchema
 import SQLiteData
 import Testing
 
-@Suite(.dependencies { try $0.bootstrapDatabase() })
+@Suite(.dependencies {
+  try $0.bootstrapDatabase()
+  $0.date = .constant(Date(timeIntervalSince1970: 1))
+})
 struct RecommendationHandoffTests {
   @Dependency(\.defaultDatabase) var database
 
@@ -404,6 +407,70 @@ struct RecommendationHandoffTests {
       let candidate = try #require(TripCandidate.decodeReturn("[\(object)]").candidates.only)
       #expect(candidate.bookAhead == expected)
     }
+  }
+
+  @Test func bookingWindowKindsDecodeAndMalformedWindowDoesNotDropCandidate() throws {
+    let cases = [
+      #"{"kind":"days_ahead","days":30,"release_time":"09:00","time_zone":"America/Denver","source_url":"https://example.com","quote":"30 days"}"#,
+      #"{"kind":"monthly","day_of_month":1,"months_ahead":2,"source_url":"https://example.com","quote":"First of month"}"#,
+      #"{"kind":"fixed_date","date":"2027-02-01","release_time":"10:00","source_url":"https://example.com","quote":"Feb 1"}"#,
+      #"{"kind":"any_time","source_url":"https://example.com","quote":"Book now"}"#,
+    ]
+    for (index, value) in cases.enumerated() {
+      let candidate = try #require(TripCandidate.decodeReturn("[{\"name\":\"Place \(index)\",\"booking_window\":\(value)}]").candidates.only)
+      #expect(candidate.bookingWindow?.source == .chat)
+      #expect(candidate.bookingWindow?.sourceURL == "https://example.com")
+      #expect(candidate.bookingWindow?.foundAt == Date(timeIntervalSince1970: 1))
+    }
+    let malformed = try #require(TripCandidate.decodeReturn(
+      #"[{"name":"Kept place","booking_window":{"kind":"days_ahead","source_url":"https://example.com","quote":"x"}}]"#
+    ).candidates.only)
+    #expect(malformed.name == "Kept place")
+    #expect(malformed.bookingWindow == nil)
+    let absent = try #require(TripCandidate.decodeReturn(#"[{"name":"Old reply"}]"#).candidates.only)
+    #expect(absent.bookingWindow == nil)
+  }
+
+  @Test func storedCandidateRoundTripPreservesBookingWindowProvenance() throws {
+    let window = BookingWindow(
+      rule: .daysAhead(30, releaseTime: LocalTime(hour: 9, minute: 0)), timeZoneID: "Pacific/Kiritimati",
+      sourceURL: "https://example.com", quote: "Thirty days", source: .scout,
+      foundAt: Date(timeIntervalSince1970: 1_798_790_400))
+    let candidate = TripCandidate(id: UUID(-801), name: "Sweet Basil", bookingWindow: window)
+    let data = try JSONEncoder().encode(candidate)
+    let decoded = try JSONDecoder().decode(TripCandidate.self, from: data)
+    expectNoDifference(decoded, candidate)
+  }
+
+  @Test func reevaluationWritesPresentBookingWindowToLinkedIdeaAndAbsentKeepsIt() async throws {
+    let window = BookingWindow(
+      rule: .daysAhead(30, releaseTime: nil), timeZoneID: "America/Denver",
+      sourceURL: "https://example.com", quote: "Thirty days", foundAt: Date(timeIntervalSince1970: 1))
+    let newerWindow = BookingWindow(
+      rule: .daysAhead(60, releaseTime: nil), timeZoneID: "America/Denver",
+      sourceURL: "https://newer.example.com", quote: "Sixty days", source: .scout,
+      foundAt: Date(timeIntervalSince1970: 2))
+    let storedWindow = try await database.write { db -> BookingWindow? in
+      let trip = try Trip.create(name: "Vail", in: db)
+      let party = try TravelParty.ensureDefault(in: db)
+      let idea = Idea(id: UUID(), name: "Sweet Basil", kind: .food, travelPartyID: party.id)
+      try Idea.insert { Idea.Draft(idea) }.execute(db)
+      let stop = TripIdea(id: UUID(), tripID: trip.id, ideaID: idea.id, status: .scheduled)
+      try TripIdea.insert { TripIdea.Draft(stop) }.execute(db)
+      let prior = TripCandidate(id: UUID(-80), name: "Sweet Basil")
+      let merge = RecommendationCandidateSet.merging(existing: [prior], incoming: [
+        TripCandidate(name: "Sweet Basil", bookingWindow: window)
+      ])
+      try RecommendationCandidateSet.applyReevaluation(
+        merge, links: [HandoffCandidateLink(candidateID: prior.id, tripIdeaID: stop.id)], in: db)
+      try Idea.setBookingWindow(newerWindow, ideaID: idea.id, in: db)
+      let later = RecommendationCandidateSet.merging(
+        existing: merge.candidates, incoming: [TripCandidate(name: "Sweet Basil")])
+      try RecommendationCandidateSet.applyReevaluation(
+        later, links: [HandoffCandidateLink(candidateID: prior.id, tripIdeaID: stop.id)], in: db)
+      return try Idea.find(idea.id).fetchOne(db)?.bookingWindowValue
+    }
+    expectNoDifference(storedWindow, newerWindow)
   }
 
   @Test func projectInstructionsDocumentTheAdditiveBookAheadHint() {
@@ -808,7 +875,10 @@ struct RecommendationHandoffTests {
   }
 
   @Test func committingAcrossSessionsLinksTheExistingLiveRowInsteadOfInserting() async throws {
-    let result = try await database.write { db -> (TripIdea.ID, HandoffCandidateLink?, Int) in
+    let window = BookingWindow(
+      rule: .daysAhead(14, releaseTime: LocalTime(hour: 9, minute: 0)), timeZoneID: "UTC",
+      sourceURL: "https://example.com", quote: "Two weeks", foundAt: Date(timeIntervalSince1970: 10))
+    let result = try await database.write { db -> (TripIdea.ID, HandoffCandidateLink?, Int, BookingWindow?) in
       let trip = try Trip.create(name: "South Tyrol", in: db)
       let party = try TravelParty.ensureDefault(in: db)
       let resolvedIdea = Idea(
@@ -826,7 +896,8 @@ struct RecommendationHandoffTests {
       )
       _ = try TripIdea.attachResolvedIdea(resolvedIdea.id, to: original.id, in: db)
       firstSession.link(candidateID: firstCandidate.id, to: original.id)
-      let returningCandidate = TripCandidate(name: "lumiere brasserie", locality: "BOLZANO")
+      let returningCandidate = TripCandidate(
+        name: "lumiere brasserie", locality: "BOLZANO", bookingWindow: window)
       var returningSession = HandoffSession(
         sourceType: "trip", sourceID: trip.id,
         taskType: RecommendationHandoffTask.candidatePlaces, exportedPrompt: "Prompt"
@@ -837,11 +908,29 @@ struct RecommendationHandoffTests {
       )
       returningSession.link(candidateID: returningCandidate.id, to: committed.id)
       let count = try TripIdea.where { $0.tripID.eq(trip.id) }.fetchCount(db)
-      return (original.id, returningSession.candidateLinks.only, count)
+      return (original.id, returningSession.candidateLinks.only, count,
+        try Idea.find(resolvedIdea.id).fetchOne(db)?.bookingWindowValue)
     }
 
     expectNoDifference(result.1?.tripIdeaID, result.0)
     expectNoDifference(result.2, 1)
+    expectNoDifference(result.3, window)
+  }
+
+  @Test func recommendationConfirmationStoresBookingWindowOnResolvedIdea() async throws {
+    let window = BookingWindow(
+      rule: .monthly(dayOfMonth: 1, monthsAhead: 2, releaseTime: nil), timeZoneID: "UTC",
+      sourceURL: "https://example.com", quote: "First of month", foundAt: Date(timeIntervalSince1970: 10))
+    let storedWindow = try await database.write { db -> BookingWindow? in
+      let trip = try Trip.create(name: "South Tyrol", in: db)
+      let stop = try TripIdea.commit(candidate: TripCandidate(name: "Lumiere"), into: trip.id, in: db)
+      let resolution = try #require(try RecommendationResolution.confirm(
+        candidateStopID: stop.id,
+        capture: Place(id: UUID(), name: "Lumiere", latitude: 46.5, longitude: 11.3).ideaCapture(),
+        bookingWindow: window, in: db))
+      return try Idea.find(resolution.capture.ideaID).fetchOne(db)?.bookingWindowValue
+    }
+    expectNoDifference(storedWindow, window)
   }
 
   @Test func terminalRowsDoNotSuppressANewCandidate() async throws {
