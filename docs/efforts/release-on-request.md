@@ -72,6 +72,6 @@ this brief, and advances `NEXT_UP.md`.
   The shortcut shows `Started galavant`, and an iMessage reports a released build. That proves the
   request path, the Keychain from launchd, and the message.
 
-**Notes.** This needs jon-platform #195 (ADR-0012) merged; if it isn't, stop and ask. Shared code.
+**Notes.** ADR-0012 merged in jon-platform #195. Shared code.
 Don't change `scripts/testflight` or the daily renewal's behavior. The renewal's own Fit Happens gate
 may run at the same install; the two gates are independent.
