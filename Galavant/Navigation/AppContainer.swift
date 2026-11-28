@@ -9,6 +9,7 @@ struct AppContainer: View {
   @State private var browserModel = BrowserScreenModel()
   @State private var visitedRollupModel = VisitedRollupModel()
   @State private var rationaleBackfillModel = TripRationaleBackfillModel()
+  @State private var bookingReminderModel = BookingReminderModel()
   @Environment(\.prefersTabNavigation) private var prefersTabNavigation
   @Environment(\.scenePhase) private var scenePhase
   /// Where this scene was, mirrored from the router so it survives iPadOS killing
@@ -58,6 +59,7 @@ struct AppContainer: View {
     .environment(chatInbox)
     .environment(router)
     .environment(browserModel)
+    .environment(bookingReminderModel)
     .onAppear {
       router.restore(
         selection: storedSelection,
@@ -77,7 +79,27 @@ struct AppContainer: View {
         _ = await GalavantCloudSync.redrainPendingRecordZoneChangesIfManuallyEnabled()
         await visitedRollupModel.run()
         await chatInbox.prepare()
+        await bookingReminderModel.reconcile()
       }
+    }
+    .task {
+      await bookingReminderModel.reconcile()
+    }
+    .task {
+      var pendingReconcile: Task<Void, Never>?
+      for await _ in DatabaseChange.notifications {
+        pendingReconcile?.cancel()
+        pendingReconcile = Task {
+          try? await Task.sleep(for: .milliseconds(400))
+          guard !Task.isCancelled else { return }
+          await bookingReminderModel.reconcile()
+        }
+      }
+      pendingReconcile?.cancel()
+    }
+    .onReceive(NotificationCenter.default.publisher(for: .bookingReminderTapped)) { notification in
+      guard let tripID = notification.userInfo?["tripID"] as? UUID else { return }
+      router.openBookingTrip(tripID)
     }
     .task {
       await rationaleBackfillModel.run()

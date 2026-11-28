@@ -5,6 +5,7 @@ import OSLog
 import SQLiteData
 import SwiftUI
 import Synchronization
+import UserNotifications
 
 @main
 struct GalavantApp: App {
@@ -76,6 +77,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
   ) -> Bool {
     suspensionController = DatabaseSuspensionController(application: application)
     chatExportModel = ChatExportModel(application: application)
+    UNUserNotificationCenter.current().delegate = self
     return true
   }
 
@@ -91,6 +93,36 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
     configuration.delegateClass = SceneDelegate.self
     return configuration
   }
+}
+
+extension AppDelegate: @preconcurrency UNUserNotificationCenterDelegate {
+  func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    willPresent notification: UNNotification,
+    withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+  ) {
+    completionHandler([.banner, .sound])
+  }
+
+  func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    didReceive response: UNNotificationResponse,
+    withCompletionHandler completionHandler: @escaping () -> Void
+  ) {
+    let tripID = (response.notification.request.content.userInfo["tripID"] as? String)
+      .flatMap(UUID.init(uuidString:))
+    if let tripID {
+      Task { @MainActor in
+        NotificationCenter.default.post(
+          name: .bookingReminderTapped, object: nil, userInfo: ["tripID": tripID])
+      }
+    }
+    completionHandler()
+  }
+}
+
+extension Notification.Name {
+  static let bookingReminderTapped = Notification.Name("bookingReminderTapped")
 }
 
 final class SceneDelegate: UIResponder, UIWindowSceneDelegate {

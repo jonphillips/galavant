@@ -3,6 +3,12 @@
 History, newest first. The PR that completes a dispatch adds its entry naming its branch
 (jon-platform ADR-0005 D5). No dispatch reads this file.
 
+## 2026-11-27 — Booking reminders on Jon’s devices (`effort/booking-opens-s2`)
+
+- **Result:** Added a device-local, off-by-default booking reminder setting with a pure planner, nearest-50 cap, 30-minute lead, and change-based reconciliation. Reconciliation follows trip-day time zones and notification taps open the trip’s To Book sheet.
+- **Verification:** check-drift.sh passed: SwiftLint, GalavantLibrary 755 tests, GalavantMCP 151 tests, and generated app test-target build. Headless GalavantTests passed: 85 tests.
+- **Owed:** booking-opens S2's device gate, in [device-passes.md](device-passes.md).
+
 ## 2026-11-27 — Booking opens S1 — the date (`booking-opens-s1`)
 
 - **Result:** Adds a synced booking opening moment to trip stops, destination-zone editing and display, opening classification and To Book groups, and a header count for restaurants without an opening date. The To Book sheet refreshes its groups as opening times pass.

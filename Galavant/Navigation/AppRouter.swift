@@ -75,4 +75,13 @@ final class AppRouter {
     ideasScope = IdeasScopeRequest(handoff: .guide(tripID: tripID, regionID: regionID))
     selection = .ideas
   }
+
+  func openBookingTrip(_ tripID: Trip.ID) {
+    guard let trip = (withErrorReporting {
+      try database.read { db in try Trip.find(tripID).fetchOne(db) }
+    } ?? nil) else { return }
+    selection = .trips
+    openTrip = trip
+    planningModel(for: trip).destination = .booking
+  }
 }
