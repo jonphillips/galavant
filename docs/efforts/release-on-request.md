@@ -1,14 +1,14 @@
 # Effort — One-tap release from the iPad
 
 Status: Ready
-Summary: `testflight-renew request <app>` drops a request file over SSH, and a second LaunchAgent on the mini releases the app from its logged-in session, where the Keychain is unlocked, then reports by iMessage (jon-platform ADR-0011).
+Summary: `testflight-renew request <app>` drops a request file over SSH, and a second LaunchAgent on the mini releases the app from its logged-in session, where the Keychain is unlocked, then reports by iMessage (jon-platform ADR-0012).
 
 ## Why
 
 Jon wants a home-screen button that ships Galavant's `main` to TestFlight. Running `testflight` from a
 Shortcuts SSH action fails, because an SSH session sees the login Keychain as locked and `asc` can't
 read its credentials (2026-11-28). The design is jon-platform
-[ADR-0011](https://github.com/jonphillips/jon-platform/blob/main/docs/adr/0011-release-on-request.md),
+[ADR-0012](https://github.com/jonphillips/jon-platform/blob/main/docs/adr/0012-release-on-request.md),
 and this brief builds it. Galavant hosts the dispatch because it's the first app with a button; the
 script serves every app with a `testflight.conf`.
 
@@ -56,7 +56,7 @@ the lock, `notify`).
   - `docs/ios/testflight.md` § Renewal: a "One-tap release" paragraph with the Shortcuts action
     (Run Script Over SSH, SSH key, script
     `~/code/jon-platform/scripts/testflight-renew request <app>`).
-  - Mark ADR-0011 accepted and implemented in its status line and in `docs/adr/README.md`.
+  - Mark ADR-0012 accepted and implemented in its status line and in `docs/adr/README.md`.
 
 **S2 — The app's records.** The companion PR here has no code. Closeout (ADR-0005 D16) adds the
 `DONE-LOG.md` entry naming both branches and the jon-platform PR, appends the gate below, archives
@@ -72,6 +72,6 @@ this brief, and advances `NEXT_UP.md`.
   The shortcut shows `Started galavant`, and an iMessage reports a released build. That proves the
   request path, the Keychain from launchd, and the message.
 
-**Notes.** This needs jon-platform #195 (ADR-0011) merged; if it isn't, stop and ask. Shared code.
+**Notes.** This needs jon-platform #195 (ADR-0012) merged; if it isn't, stop and ask. Shared code.
 Don't change `scripts/testflight` or the daily renewal's behavior. The renewal's own Fit Happens gate
 may run at the same install; the two gates are independent.
