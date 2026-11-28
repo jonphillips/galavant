@@ -71,6 +71,17 @@ import Testing
     #expect(parts.hour == 9)
     #expect(parts.minute == 0)
 
+    let dayZoneWindow = BookingWindow(
+      rule: .daysAhead(30, releaseTime: LocalTime(hour: 9, minute: 0)), timeZoneID: nil,
+      sourceURL: "https://example.com", quote: "Thirty days", foundAt: Date(timeIntervalSince1970: 1))
+    let dayZoneSuggestion = try #require(BookingSuggestion.make(
+      status: .toBook, kind: .food, hasOpeningDate: false, mealDate: mealDate,
+      mealTime: nil, dayTimeZone: dayZone, window: dayZoneWindow, now: Date(timeIntervalSince1970: 0)))
+    let dayZoneOpening = try #require(dayZoneSuggestion.opensAt)
+    let dayZoneParts = Calendar(identifier: .gregorian).dateComponents(in: dayZone, from: dayZoneOpening)
+    #expect(dayZoneParts.hour == 9)
+    #expect(dayZoneParts.minute == 0)
+
     let ruleOnly = try #require(BookingSuggestion.make(
       status: .toBook, kind: .food, hasOpeningDate: false, mealDate: nil,
       mealTime: nil, dayTimeZone: dayZone, window: window, now: Date(timeIntervalSince1970: 0)))
