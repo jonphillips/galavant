@@ -2,9 +2,11 @@ import CloudKit
 import Dependencies
 import GalavantSchema
 import OSLog
+import Observation
 import SQLiteData
 import SwiftUI
 import Synchronization
+import UserNotifications
 
 @main
 struct GalavantApp: App {
@@ -63,19 +65,24 @@ struct GalavantApp: App {
     WindowGroup {
       AppContainer()
         .environment(appDelegate.chatExportModel)
+        .environment(appDelegate)
     }
   }
 }
 
+@Observable
+@MainActor
 final class AppDelegate: UIResponder, UIApplicationDelegate {
   private var suspensionController: DatabaseSuspensionController?
   private(set) var chatExportModel: ChatExportModel!
+  var pendingBookingTripID: Trip.ID?
 
   func application(
     _ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
     suspensionController = DatabaseSuspensionController(application: application)
     chatExportModel = ChatExportModel(application: application)
+    UNUserNotificationCenter.current().delegate = self
     return true
   }
 
@@ -90,6 +97,27 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
     )
     configuration.delegateClass = SceneDelegate.self
     return configuration
+  }
+}
+
+extension AppDelegate: @preconcurrency UNUserNotificationCenterDelegate {
+  func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    willPresent notification: UNNotification,
+    withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+  ) {
+    completionHandler([.banner, .sound])
+  }
+
+  func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    didReceive response: UNNotificationResponse,
+    withCompletionHandler completionHandler: @escaping () -> Void
+  ) {
+    let tripID = (response.notification.request.content.userInfo["tripID"] as? String)
+      .flatMap(UUID.init(uuidString:))
+    Task { @MainActor [weak self] in self?.pendingBookingTripID = tripID }
+    completionHandler()
   }
 }
 

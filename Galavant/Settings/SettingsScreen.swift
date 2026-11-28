@@ -40,6 +40,7 @@ struct SettingsScreen: View {
   @Environment(\.scenePhase) private var scenePhase
   @Environment(ChatInboxModel.self) private var chatInbox
   @Environment(ChatExportModel.self) private var chatExport
+  @Environment(BookingReminderModel.self) private var bookingReminders
 
   var body: some View {
     Form {
@@ -73,6 +74,19 @@ struct SettingsScreen: View {
           Text("Off on this device. Turning it off keeps the existing export.")
           .font(.caption)
           .foregroundStyle(.secondary)
+        }
+      }
+
+      Section("Booking reminders") {
+        Toggle("Booking reminders on this device", isOn: Binding(
+          get: { bookingReminders.enabled },
+          set: { value in Task { await bookingReminders.setEnabled(value) } }
+        ))
+        if let message = bookingReminders.permissionMessage {
+          Text(message).font(.caption).foregroundStyle(.secondary)
+        } else {
+          Text("Remind this device 30 minutes before a restaurant's booking opens.")
+            .font(.caption).foregroundStyle(.secondary)
         }
       }
 

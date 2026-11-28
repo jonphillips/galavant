@@ -2,6 +2,37 @@ import Foundation
 import GalavantSchema
 
 enum TripDayTimeZoneResolution {
+  static func resolve(
+    trip: Trip,
+    plan: TripPlan,
+    tripRegions: [MapRegion],
+    assignments: [TripDayRegion],
+    overrides: [TripDayTimeZone],
+    regions: [MapRegion],
+    tripCentroid: TimeZone? = nil,
+    timeZoneAt: @escaping @Sendable (Double, Double) async -> TimeZone?
+  ) async -> [DayNumber: TimeZone] {
+    let relevantAssignments = assignments.filter { $0.tripID == trip.id }
+    let relevantOverrides = overrides.filter { $0.tripID == trip.id }
+    let regionIDs = Set(relevantAssignments.map(\.regionID) + tripRegions.map(\.id))
+    let regionsByID = Dictionary(
+      regions.filter { regionIDs.contains($0.id) }.map { ($0.id, $0) },
+      uniquingKeysWith: { first, _ in first })
+    let coordinate = centroidCoordinate(
+      regions: tripRegions, fallbackCoordinates: plan.scheduledStopCoordinates)
+    let centroid: TimeZone? = if let tripCentroid {
+      tripCentroid
+    } else if let coordinate {
+      await timeZoneAt(coordinate.latitude, coordinate.longitude)
+    } else { nil }
+    let days = trip.lengthInDays > 0
+      ? Array(1...trip.lengthInDays)
+      : Array(Set(relevantAssignments.map(\.dayNumber) + relevantOverrides.map(\.dayNumber))).sorted()
+    return await resolve(
+      days: days, assignments: relevantAssignments, overrides: relevantOverrides,
+      regionsByID: regionsByID, tripCentroid: centroid, timeZoneAt: timeZoneAt)
+  }
+
   static func centroidCoordinate(
     regions: [MapRegion], fallbackCoordinates: [TripCoordinate]
   ) -> TripCoordinate? {

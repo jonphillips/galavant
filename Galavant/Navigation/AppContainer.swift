@@ -9,8 +9,10 @@ struct AppContainer: View {
   @State private var browserModel = BrowserScreenModel()
   @State private var visitedRollupModel = VisitedRollupModel()
   @State private var rationaleBackfillModel = TripRationaleBackfillModel()
+  @State private var bookingReminderModel = BookingReminderModel()
   @Environment(\.prefersTabNavigation) private var prefersTabNavigation
   @Environment(\.scenePhase) private var scenePhase
+  @Environment(AppDelegate.self) private var appDelegate
   /// Where this scene was, mirrored from the router so it survives iPadOS killing
   /// the app in the background — without it every relaunch lands on the Trips list.
   @SceneStorage("selection") private var storedSelection: AppScreen?
@@ -58,12 +60,15 @@ struct AppContainer: View {
     .environment(chatInbox)
     .environment(router)
     .environment(browserModel)
+    .environment(bookingReminderModel)
     .onAppear {
       router.restore(
         selection: storedSelection,
         openTripID: storedOpenTripID.flatMap(UUID.init(uuidString:))
       )
+      consumeBookingReminderTap()
     }
+    .onChange(of: appDelegate.pendingBookingTripID) { _, _ in consumeBookingReminderTap() }
     .onChange(of: router.selection) { _, selection in storedSelection = selection }
     .onChange(of: router.openTrip?.id) { _, id in storedOpenTripID = id?.uuidString }
     .onChange(of: scenePhase) { _, phase in
@@ -77,13 +82,35 @@ struct AppContainer: View {
         _ = await GalavantCloudSync.redrainPendingRecordZoneChangesIfManuallyEnabled()
         await visitedRollupModel.run()
         await chatInbox.prepare()
+        await bookingReminderModel.reconcile()
       }
+    }
+    .task {
+      await bookingReminderModel.reconcile()
+    }
+    .task {
+      var pendingReconcile: Task<Void, Never>?
+      for await _ in DatabaseChange.notifications {
+        pendingReconcile?.cancel()
+        pendingReconcile = Task {
+          try? await Task.sleep(for: .milliseconds(400))
+          guard !Task.isCancelled else { return }
+          await bookingReminderModel.reconcile()
+        }
+      }
+      pendingReconcile?.cancel()
     }
     .task {
       await rationaleBackfillModel.run()
       await visitedRollupModel.run()
       await chatInbox.prepare()
     }
+  }
+
+  private func consumeBookingReminderTap() {
+    guard let tripID = appDelegate.pendingBookingTripID else { return }
+    appDelegate.pendingBookingTripID = nil
+    router.openBookingTrip(tripID)
   }
 
   /// ⌘1…⌘N jump straight to a section (⌘1 Trips, ⌘4 Evaluate, …) so flipping between
