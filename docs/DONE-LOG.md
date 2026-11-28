@@ -7,7 +7,7 @@ History, newest first. The PR that completes a dispatch adds its entry naming it
 
 - **Result:** Adds a synced booking opening moment to trip stops, destination-zone editing and display, opening classification and To Book groups, and a header count for restaurants without an opening date. The To Book sheet refreshes its groups as opening times pass.
 - **Verification:** scripts/check-drift.sh passed: SwiftLint, package tests (751, 151, 5, 17, 38 and 11 tests), and the GalavantUITests build. The headless app-target run passed with 85 tests in 17 suites.
-- **Owed:** booking-opens S1's device gate, in [device-passes.md](device-passes.md).
+- **Device pass:** passed 2026-11-27 on Jon's iPad, TestFlight 0.2.0 (558), after the Production deploy of `tripIdeas.bookingOpensAt`. Sweet Basil (Vail, Feb 9), set To book with Booking opens on Jan 10, 9:00 AM, showed under Opens later in the To Book sheet. With a trackpad, clicking the picker's time does nothing; tapping it works.
 
 ## 2026-11-17 — Show one of Chat's named lists in the guide, in rank order (`effort/guide-list-filter`)
 

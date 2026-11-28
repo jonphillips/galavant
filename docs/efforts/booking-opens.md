@@ -2,13 +2,14 @@
 
 **Status:** Dispatched · **Summary:** Implements [ADR-0056](../decisions/0056-booking-opens.md). A to-book trip stop
 gets a **booking opens** moment. The To Book sheet splits into Open now / Opens later / Needs an opening date, and the
-header counts restaurants that need a date (S1). Jon's iPhone reminds him 30 minutes before booking opens (S2). A
-nightly `galavant-scout` on the mini finds booking windows for restaurants with no date (S3), and the app offers its
-findings for one-tap acceptance (S4). **S1 adds `tripIdeas.bookingOpensAt`, so it owes a Production schema deploy.**
+header counts restaurants that need a date (S1). Jon's iPhone reminds him 30 minutes before booking opens (S2). Chat
+supplies each restaurant's booking rule in the handoff, the rule is stored on the pool idea, and the app suggests the
+opening with one-tap **Use** (S3, ADR-0056 D7–D9). The mini's scout (S4) and its findings (S5) are parked (D10).
+**S1 adds `tripIdeas.bookingOpensAt` and S3 adds `ideas.bookingWindow`, so each owes a Production schema deploy.**
 
 **Read first:** ADR-0056; ADR-0047 (booking status, the rollup, the To Book sheet); ADR-0052 D1, D2 and D8 (the helper,
-the iCloud Drive transport, the export) before S3; jon-platform `docs/ios/persistence-and-sync.md` § Adding a synced
-table or column before S1.
+the iCloud Drive transport, the export) before S4; jon-platform `docs/ios/persistence-and-sync.md` § Adding a synced
+table or column before S1 and S3.
 
 ## Today
 
@@ -124,7 +125,87 @@ table or column before S1.
   Wendy's phone shows no prompt. Judge: is 30 minutes the right lead?
 - Closeout.
 
-## S3 — The scout
+## S3 — Rules from Chat
+
+ADR-0056 D7–D9. Read `RecommendationHandoffContractInstructions.swift`, `RecommendationHandoff.swift` (`TripCandidate`),
+`SeedReturn.swift`, `SeedPlan.swift` (`recordPlaceNotes` is the pattern for writing a place fact onto the idea), and
+`RecommendationCandidateMatching.applyReevaluation` first.
+
+### Schema
+
+- Append one migration, `Add bookingWindow to ideas (ADR-0056 D8)`: a nullable `bookingWindow` text column. Don't
+  touch any shipped `registerMigration` body.
+- `Idea.bookingWindow: String?`, with a typed accessor like `weeklyHours` over `structuredHours`, and a setter
+  `Idea.setBookingWindow(_:ideaID:in:)`.
+- Add `ideas bookingWindow` and its `sqlitedata_icloud_userModificationTime_bookingWindow` line to
+  `cloudkit-expected-fields.txt`.
+
+### Pure, in `GalavantSchema`, test-first
+
+- **`BookingWindowRule`** (ADR-0056 D5): `daysAhead`, `monthly`, `fixedDate`, `anyTime`, with `LocalTime` and
+  `LocalDateTime` value types, all `Codable`.
+- **`func opening(forMealOn: LocalDate, mealTime: LocalTime?, in: TimeZone, now: Date) -> Date?`:**
+  - `daysAhead(n, t)`: the meal date minus n calendar days, at t (default 00:00), in the zone.
+  - `monthly(d, k, t)`: day d of the month k months before the meal's month, at t.
+  - `fixedDate`: that moment in the zone.
+  - `anyTime`: `now`.
+
+  Tests cover DST boundaries, month ends (meal on the 31st with `daysAhead(30)`), a year boundary, and an invalid
+  `dayOfMonth` returning `nil`. One test is the Sweet Basil case: dinner Feb 9, 2027, `daysAhead(30)` at 09:00 in
+  America/Denver gives Jan 10, 2027, 09:00 MST.
+- **`BookingWindow`** (D8): `rule`, `timeZoneID`, `sourceURL`, `quote`, `source` (`.chat`; `.scout` is reserved for
+  S4), and `foundAt`. It's `Codable` with a JSON round trip, and a stored value that won't decode reads as `nil`
+  rather than throwing.
+- **`BookingSuggestion`**: given a stop's resolved booking, its idea's window, the meal's date and the day's zone, the
+  suggested `opensAt`. Use the window's `timeZoneID`, else the day's zone. It's `nil` when the stop isn't a to-book
+  food stop or has a date already, and rule-only when the stop has no day.
+- **The handoff field** (D7): `booking_window` decodes on `TripCandidate` and on seed places, into a `BookingWindow`
+  with `source: .chat` and `foundAt` set at import. Unknown `kind`, a missing required number, or an unparseable time
+  drop the field, not the place. Tests: each kind, a bad object dropped with the place kept, and a reply without the
+  field.
+- **The instructions** (D7): add `booking_window` to the candidate and seed field lists and to the example, and say when
+  to give it: when `book_ahead` is true, research the restaurant's reservation release policy and give its rule, local
+  zone, source URL and a short quote. Omit it rather than guess, and never give the opening date itself.
+  `GV-CONTRACT` stays v2. Update the snapshot or contract tests that pin this text.
+- **Writing it** (D8): `SeedPlan` writes the window onto the idea next to `recordPlaceNotes`, accepting a candidate does
+  the same, and `applyReevaluation` writes it onto the linked stop's idea. Present replaces; absent never clears.
+  Tests for each path.
+
+### The app
+
+- **Stop editor** (`BookingFields`): when the Booking opens row shows and a suggestion exists, a line under the toggle
+  reads "Chat: 30 days ahead at 9:00 MT → Opens Jan 10, 9:00 AM MST" with **Use**. Use sets `hasOpeningDate` and
+  `openingDate`, and Save writes them as with any edit. Format the moment through S1's `BookingOpeningFormat`, and
+  describe the rule through one helper that S5 can reuse. **Source** opens `sourceURL` in the in-app browser. With no
+  window, show the stop's `rationaleVisit` there, as secondary text that can be expanded.
+- **To Book sheet**: a *Needs an opening date* row with a suggestion shows it with **Use**, which writes
+  `bookingOpensAt` through S1's setter at once, so the row moves to Opens later (and S2 schedules its reminder). The
+  pill's count is unchanged until Use.
+- **Idea detail**: the window shows with the place's facts, as "Booking: 30 days ahead at 9:00 MT · source".
+
+### Done when (S3)
+
+- check-drift green, plus the headless run with its "Test run with N tests" line in the PR.
+- The migration is appended, and `cloudkit-expected-fields.txt` has the two new lines. The slice's `device-passes.md`
+  line names the deploy: import `ideas.bookingWindow` with `cktool`, then deploy to Production before the TestFlight
+  build.
+- Device gate (iPad or iPhone, TestFlight): in the Vail trip's Chat conversation, re-paste the project instructions
+  and re-evaluate the trip's dinners. Review and apply. Then:
+  1. Sweet Basil's editor shows "30 days ahead at 9:00 MT → Opens Jan 10, 9:00 AM MST", and **Use** then Save moves it
+     to Opens later.
+  2. Another dinner with a rule shows **Use** in the To Book sheet's *Needs an opening date* section, and one tap moves
+     it.
+  3. A dinner without a rule shows its Visit note under Booking opens.
+
+  Judge: did Chat return rules for most book-ahead dinners, and were they right? That answer decides whether the scout
+  (S4) resumes.
+- Closeout.
+
+## S4 — The scout
+
+*Parked (ADR-0056 D10) until S3 has been used on a real trip. If it resumes: it targets only ideas with no
+`bookingWindow`; `BookingWindowRule` and its arithmetic already exist from S3, so drop those bullets below; and an
+accepted finding (S5) also writes the idea's `bookingWindow` with `source: .scout`.*
 
 Code lands in this repo: `GalavantSchema`, a new `GalavantScout/` package, and `scripts/install-scout`. Nothing goes in
 jon-platform, and `GalavantMCP/` and `install-mcp-helper` don't change.
@@ -181,7 +262,7 @@ jon-platform, and `GalavantMCP/` and `install-mcp-helper` don't change.
   questions. If the key can't be read from the app's item (OQ1), the installer prompts once and stores a key under
   the `galavant-scout` service in the login keychain.
 
-### Done when (S3)
+### Done when (S4)
 
 - check-drift green, plus the headless run. `scripts/check-drift.sh` gains
   `swift test --package-path GalavantScout` beside its `GalavantMCP` line.
@@ -194,7 +275,9 @@ jon-platform, and `GalavantMCP/` and `install-mcp-helper` don't change.
   - `launchctl print` shows the agent scheduled.
 - Closeout.
 
-## S4 — Findings in the app
+## S5 — Findings in the app
+
+*Parked with S4 (ADR-0056 D10).*
 
 ### The app
 
@@ -219,7 +302,7 @@ jon-platform, and `GalavantMCP/` and `install-mcp-helper` don't change.
   jon-platform PR, following `agent-collaboration.md` § Dispatches whose code lands in jon-platform.
 - Galavant `docs/chat-access-setup.md`: a paragraph on the scout and its log.
 
-### Done when (S4)
+### Done when (S5)
 
 - check-drift green, plus the headless run.
 - No schema change.
