@@ -62,7 +62,9 @@ private enum BookingReminderClientKey: DependencyKey {
     content.body = reminder.body
     content.sound = .default
     content.userInfo = ["tripID": reminder.tripID.uuidString]
-    let components = Calendar.current.dateComponents(
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+    let components = calendar.dateComponents(
       [.year, .month, .day, .hour, .minute, .second], from: reminder.fireAt)
     let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
     try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
