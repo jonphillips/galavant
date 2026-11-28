@@ -63,7 +63,7 @@ public enum BookingReminderPlan {
       let meal = candidate.mealDate.map { BookingOpeningFormat.mealDate($0, timeZone: deviceTimeZone, locale: locale) }
       let timing = fireAt <= now ? "soon" : "in \(Int(leadSeconds / 60)) min"
       let title = "Booking opens \(timing) · \(candidate.item.title)"
-      let body = [meal.map { "Dinner \($0)" }, "opens \(opening)", candidate.tripName]
+      let body = [meal, "opens \(opening)", candidate.tripName]
         .compactMap { $0 }
         .joined(separator: " · ")
       return BookingReminder(

@@ -64,7 +64,7 @@ import Testing
       Issue.record("Expected a future opening")
       return
     }
-    #expect(result[0].body == "Dinner Fri, Jan 15 · opens 6:30 PM GMT+9 · Kyoto")
+    #expect(result[0].body == "Fri, Jan 15 · opens 6:30 PM GMT+9 · Kyoto")
   }
 
   private func candidate(

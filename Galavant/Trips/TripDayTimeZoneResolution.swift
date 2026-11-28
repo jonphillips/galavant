@@ -14,13 +14,12 @@ enum TripDayTimeZoneResolution {
   ) async -> [DayNumber: TimeZone] {
     let relevantAssignments = assignments.filter { $0.tripID == trip.id }
     let relevantOverrides = overrides.filter { $0.tripID == trip.id }
-    let relevantTripRegions = tripRegions
-    let regionIDs = Set(relevantAssignments.map(\.regionID) + relevantTripRegions.map(\.id))
+    let regionIDs = Set(relevantAssignments.map(\.regionID) + tripRegions.map(\.id))
     let regionsByID = Dictionary(
       regions.filter { regionIDs.contains($0.id) }.map { ($0.id, $0) },
       uniquingKeysWith: { first, _ in first })
     let coordinate = centroidCoordinate(
-      regions: relevantTripRegions, fallbackCoordinates: plan.scheduledStopCoordinates)
+      regions: tripRegions, fallbackCoordinates: plan.scheduledStopCoordinates)
     let centroid: TimeZone? = if let tripCentroid {
       tripCentroid
     } else if let coordinate {

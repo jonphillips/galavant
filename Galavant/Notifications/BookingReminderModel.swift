@@ -67,6 +67,9 @@ final class BookingReminderModel {
     let pending = await client.pending()
     guard enabled else {
       await client.remove(identifiers)
+      // A reminder removed by switching off was never delivered; re-enabling inside the
+      // lead window must still notify at once (ADR-0056 D3).
+      $notifiedOpeningKeysRaw.withLock { $0 = "[]" }
       return
     }
     do {
