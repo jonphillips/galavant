@@ -6,6 +6,8 @@ the one fact it lacks: when a to-book stop *can* be booked. The scout follows [A
 (a macOS-only helper, transport through Jon's iCloud Drive) and jon-platform `docs/always-on-mac.md` § What runs on the
 mini. Holds ADR-0001 (no server), ADR-0003 (no ownership flags) and ADR-0004 (the model proposes, a human tap writes).
 **Adds one synced column, `tripIdeas.bookingOpensAt`, so S1 owes a Production schema deploy.***
+*Amended 2026-11-27 (D7–D10): Chat supplies the booking rule, the rule lives on the pool idea, and the scout is
+parked. That adds `ideas.bookingWindow`, a second Production deploy, in the new S3.*
 
 Summary: A trip stop gets a nullable **booking opens** moment. The To Book sheet sorts to-book rows into *open now*,
 *opens later* and *needs an opening date*, and the trip header shows how many restaurants need a date. Jon's iPhone
@@ -181,13 +183,14 @@ In the To Book sheet, each *Needs an opening date* row that has a finding shows:
 - **Running Galavant on the mini as a windowless sync peer,** as Bright Lights does. ADR-0052 D2 already rejected this
   for Galavant, and the scout needs only read access to an export and a write into the inbox.
 - **A pool-level `Idea.bookingWindowRule` column.** It would save re-research across trips, but the scout's cache does
-  that at no schema cost. Revisit if hand entry is common.
+  that at no schema cost. Revisit if hand entry is common. *(Reversed by D8: Chat became a second source, and the app
+  has to see the rule.)*
 - **Real push via a server or CloudKit subscription.** That would break the no-server rule, or fire on changes rather
   than at a time of day.
 
 ## Consequences
 
-- One Production deploy: `tripIdeas.bookingOpensAt` (S1).
+- Two Production deploys: `tripIdeas.bookingOpensAt` (S1) and `ideas.bookingWindow` (S3, D8).
 - The export gains an optional key and the inbox a second item kind, and `ChatAccessKit` needs no change.
 - The scout spends Jon's frontier tokens nightly, but only on restaurants that need a date and aren't cached. In
   practice that's a handful each time a trip gets new dinners.
@@ -208,12 +211,76 @@ In the To Book sheet, each *Needs an opening date* row that has a finding shows:
    schema deploy.
 2. **S2 — Reminders.** The device switch, `BookingReminderPlan`, reconcile, and tapping a notification to open the To
    Book sheet.
-3. **S3 — The scout.** Export `bookingTargets`, `BookingWindowRule` and its date arithmetic, the `GalavantScout/`
-   package, cache, `.gvbooking` and `scout.json`, and `scripts/install-scout` with the LaunchAgent.
-4. **S4 — Findings in the app.** Reading `.gvbooking` and `scout.json`, Use / Use all / Dismiss, the footer, and the
-   mini's setup step in jon-platform `always-on-mac.md`.
+3. **S3 — Rules from Chat** (D7–D9). `BookingWindowRule` and its date arithmetic, `ideas.bookingWindow`, the
+   `booking_window` handoff field, and the suggested opening with **Use** in the editor and the To Book sheet. Owes a
+   schema deploy.
+4. **S4 — The scout.** *Parked (D10).* Export `bookingTargets`, the `GalavantScout/` package, cache, `.gvbooking` and
+   `scout.json`, and `scripts/install-scout` with the LaunchAgent.
+5. **S5 — Findings in the app.** *Parked with S4.* Reading `.gvbooking` and `scout.json`, Use / Use all / Dismiss, the
+   footer, and the mini's setup step in jon-platform `always-on-mac.md`.
 
-## Open questions (answered in S3, on the mini)
+## Amendment — 2026-11-27: Chat supplies the rule
+
+Jon's first device pass on S1 (Sweet Basil, Vail) showed the gap. Chat had already researched the release policy, "a
+30-day reservation release at 9 AM Mountain Time; target January 10 at 11 AM Eastern", without being asked. It put that
+in the stop's free-text `visit` note, which the stop editor doesn't show. The handoff format asks only `book_ahead:
+true/false`. So the best source of booking rules, the research conversation itself, was already producing them, and
+the format and the editor were throwing them away. D1–D6 stand except where D7–D10 say otherwise.
+
+### D7 — Chat is asked for the rule, in D5's shape
+
+The handoff format (candidates and seed places) gains an optional **`booking_window`** object. The instructions ask
+for it whenever `book_ahead` is true:
+
+```json
+"booking_window": {"kind": "days_ahead", "days": 30, "release_time": "09:00",
+                   "time_zone": "America/Denver", "source_url": "https://…", "quote": "…"}
+```
+
+- `kind` is `days_ahead` (`days`, `release_time`), `monthly` (`day_of_month`, `months_ahead`, `release_time`),
+  `fixed_date` (`date` as yyyy-MM-dd, `release_time`), or `any_time`. These are D5's four `BookingWindowRule` cases.
+- `time_zone` is the restaurant's IANA zone when the source states the release time in local time. `source_url` and
+  `quote` are asked for and kept, and the instructions say to omit the object rather than guess.
+- **The model reads the rule, and code computes the date** (D5 holds). Chat isn't asked for the opening moment itself.
+- `GV-CONTRACT` stays **v2**. The field is optional and additive: an older build ignores it, and a reply without it
+  imports as before.
+
+### D8 — The rule lives on the pool idea
+
+**`Idea.bookingWindow: String?`** is a new nullable synced column. It holds a `Codable` `BookingWindow`, stored as JSON
+text the way `structuredHours` stores `WeeklyHours`. A `BookingWindow` is the rule plus `timeZoneID`, `sourceURL`,
+`quote`, `source` (`.chat` now, and `.scout` if S4 resumes) and `foundAt`.
+
+- **It's a fact about the restaurant,** true on any trip, like `place_notes`. `bookingOpensAt` stays on the stop,
+  because the date depends on the meal (D1).
+- **Imports write it, and taps never have to.** A seed import, an accepted candidate, and a re-evaluation that links a
+  candidate to a stop already on the trip each write the idea's `bookingWindow` when the reply carries one. A reply
+  without one never clears it. Re-evaluation is how existing dinners get rules: ask Chat again in the trip's
+  conversation. No separate backfill is built.
+- Writing the rule is a fact about the place, not a plan decision, so ADR-0004 is satisfied by the import's own
+  review step. The plan decision, the stop's `bookingOpensAt`, still waits for a tap (D9).
+
+### D9 — The suggestion is computed on the device, and Use is the write
+
+When a to-book food stop has a day and its idea has a `bookingWindow`, the app computes the opening with D5's
+`BookingWindowRule.opening(…)`. It uses the window's `timeZoneID`, or else the day's zone (D1).
+
+- **In the stop editor,** under Booking opens: "Chat: 30 days ahead at 9:00 MT → Opens Jan 10, 9:00 AM MST · **Use**".
+  Use turns the row on and sets the picker; Save writes it, as with any edit. The source opens in the in-app browser.
+- **In the To Book sheet,** a *Needs an opening date* row with a suggestion shows it with **Use**, which writes
+  `bookingOpensAt` at once. It's D6's finding row with Chat as the source. A suggestion still counts in "need a date"
+  until it's used.
+- **With no rule, the editor shows the stop's `visit` note under the row,** so free-text research like Sweet Basil's
+  is visible where the date is set.
+- A dayless stop shows the rule and no date, since there's no meal date to count from.
+
+### D10 — The scout is parked
+
+With Chat as the first source, the scout (D4–D6) is parked until S3 has been used on a real trip. If it resumes, it
+targets only ideas with no `bookingWindow`, and an accepted finding writes the same `bookingWindow` (source `.scout`)
+as well as `bookingOpensAt`. OQ1–OQ3 below wait with it.
+
+## Open questions (answered in S4, on the mini, if the scout resumes)
 
 - **OQ1 — Can a LaunchAgent CLI read Jon's model key?** The app's key lives in an iCloud Keychain item that a
   differently signed binary may not be able to read. Fallback: the installer stores a key for the helper in the
