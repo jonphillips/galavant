@@ -24,9 +24,11 @@ public enum GalavantCloudSync {
 #if DEBUG
   private static let backupDisplayName = "Galavant Dev"
   private static let backupFilenamePrefix = "Galavant-Dev-Backup-"
+  private static let backupVariant = DatabaseBackupVariant.development
 #else
   private static let backupDisplayName = "Galavant"
   private static let backupFilenamePrefix = "Galavant-Backup-"
+  private static let backupVariant = DatabaseBackupVariant.production
 #endif
 
   public static let databaseBackupConfiguration = DatabaseBackupConfiguration(
@@ -38,6 +40,7 @@ public enum GalavantCloudSync {
     declaredSchemaVersion: GalavantDatabaseMigrations.schemaVersion,
     lastPreRestoreDefaultsKey: "GalavantDatabaseBackupLastPreRestorePath",
     cloudSync: configuration,
+    variant: backupVariant,
     liveStoreURL: { try GalavantStorage.liveDatabaseURL() },
     migrate: { try DependencyValues.migrateRestoreCandidate(at: $0) }
   )

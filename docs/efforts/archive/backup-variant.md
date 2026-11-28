@@ -4,7 +4,7 @@
 records whether Galavant or Galavant Dev exported it and TestFlight Galavant refuses a Galavant Dev backup. Closes
 ADR-0050 OQ2. No schema, migration, sync-contract, or UI change.
 
-**Implements:** [ADR-0050](../decisions/0050-galavant-dev-variant.md) OQ2, answered by the marker Yes Chef added to
+**Implements:** [ADR-0050](../../decisions/0050-galavant-dev-variant.md) OQ2, answered by the marker Yes Chef added to
 CloudSyncKit (yes-chef ADR-0059 D6, jon-platform #102). jon-platform `docs/ios/persistence-and-sync.md` § The Dev
 variant states the rule.
 

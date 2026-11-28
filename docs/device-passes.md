@@ -80,6 +80,7 @@ passes when both lack a field.
 - **guide-list-filter:** On the Sam Fender UK trip, confirm named lists appear only for places in the selected region and category; selecting Dim Sum shows its places in rank order, medals on open top-three choices and plain numbers after, filters the map, combines with Lunch · Open, and All places restores the guide. Judge whether list comparison is easier and the header placement is findable. ([brief](efforts/archive/guide-list-filter.md))
 - **booking-opens S2:** On Jon’s iPhone TestFlight, enable Booking reminders and allow notifications. Set a dinner’s Booking opens to 35 minutes from now on the iPad. Confirm the alert arrives on iPhone with the app closed within about five minutes, and tapping it opens the trip’s To Book sheet. Mark another future reminder booked and confirm its pending request disappears. Judge whether 30 minutes is the right lead. ([brief](efforts/archive/booking-opens.md))
 - **booking-opens S3:** Import ideas.bookingWindow with cktool, deploy it to Production before the TestFlight build, then on iPad or iPhone re-evaluate the Vail dinners in Chat and check Sweet Basil, another rule-backed dinner, and one dinner without a rule. ([brief](efforts/archive/booking-opens.md))
+- **backup-variant:** Export a backup from Galavant Dev and confirm TestFlight Galavant refuses it; confirm a TestFlight Galavant backup still restores there. ([brief](efforts/archive/backup-variant.md))
 
 ## Held
 

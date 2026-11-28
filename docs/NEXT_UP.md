@@ -1,6 +1,6 @@
-# Next Up — Backups say which build made them
+# Next Up — One-tap release from the iPad
 
-**Slices:** effort `backup-variant`
-**Briefs:** [docs/efforts/backup-variant.md](efforts/backup-variant.md)
-**Done when:** per the brief. No schema change.
+**Slices:** effort `release-on-request`
+**Briefs:** [docs/efforts/release-on-request.md](efforts/release-on-request.md)
+**Done when:** per the brief
 **Owed:** see [device-passes.md](device-passes.md)
