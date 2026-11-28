@@ -406,6 +406,53 @@ struct RecommendationHandoffTests {
     }
   }
 
+  @Test func bookingWindowKindsDecodeAndMalformedWindowDoesNotDropCandidate() throws {
+    let cases = [
+      #"{"kind":"days_ahead","days":30,"release_time":"09:00","time_zone":"America/Denver","source_url":"https://example.com","quote":"30 days"}"#,
+      #"{"kind":"monthly","day_of_month":1,"months_ahead":2,"source_url":"https://example.com","quote":"First of month"}"#,
+      #"{"kind":"fixed_date","date":"2027-02-01","release_time":"10:00","source_url":"https://example.com","quote":"Feb 1"}"#,
+      #"{"kind":"any_time","source_url":"https://example.com","quote":"Book now"}"#,
+    ]
+    for (index, value) in cases.enumerated() {
+      let candidate = try #require(TripCandidate.decodeReturn("[{\"name\":\"Place \(index)\",\"booking_window\":\(value)}]").candidates.only)
+      #expect(candidate.bookingWindow?.source == .chat)
+      #expect(candidate.bookingWindow?.sourceURL == "https://example.com")
+    }
+    let malformed = try #require(TripCandidate.decodeReturn(
+      #"[{"name":"Kept place","booking_window":{"kind":"days_ahead","source_url":"https://example.com","quote":"x"}}]"#
+    ).candidates.only)
+    #expect(malformed.name == "Kept place")
+    #expect(malformed.bookingWindow == nil)
+    let absent = try #require(TripCandidate.decodeReturn(#"[{"name":"Old reply"}]"#).candidates.only)
+    #expect(absent.bookingWindow == nil)
+  }
+
+  @Test func reevaluationWritesPresentBookingWindowToLinkedIdeaAndAbsentKeepsIt() async throws {
+    let window = BookingWindow(
+      rule: .daysAhead(30, releaseTime: nil), timeZoneID: "America/Denver",
+      sourceURL: "https://example.com", quote: "Thirty days", foundAt: Date(timeIntervalSince1970: 1))
+    let storedWindow = try await database.write { db -> BookingWindow? in
+      let trip = try Trip.create(name: "Vail", in: db)
+      let party = try TravelParty.ensureDefault(in: db)
+      let idea = Idea(id: UUID(), name: "Sweet Basil", kind: .food, travelPartyID: party.id)
+      try Idea.insert { Idea.Draft(idea) }.execute(db)
+      let stop = TripIdea(id: UUID(), tripID: trip.id, ideaID: idea.id, status: .scheduled)
+      try TripIdea.insert { TripIdea.Draft(stop) }.execute(db)
+      let prior = TripCandidate(id: UUID(-80), name: "Sweet Basil")
+      let merge = RecommendationCandidateSet.merging(existing: [prior], incoming: [
+        TripCandidate(name: "Sweet Basil", bookingWindow: window)
+      ])
+      try RecommendationCandidateSet.applyReevaluation(
+        merge, links: [HandoffCandidateLink(candidateID: prior.id, tripIdeaID: stop.id)], in: db)
+      let later = RecommendationCandidateSet.merging(
+        existing: merge.candidates, incoming: [TripCandidate(name: "Sweet Basil")])
+      try RecommendationCandidateSet.applyReevaluation(
+        later, links: [HandoffCandidateLink(candidateID: prior.id, tripIdeaID: stop.id)], in: db)
+      return try Idea.find(idea.id).fetchOne(db)?.bookingWindowValue
+    }
+    #expect(storedWindow == window)
+  }
+
   @Test func projectInstructionsDocumentTheAdditiveBookAheadHint() {
     #expect(RecommendationHandoffContract.projectInstructions.contains("GV-CONTRACT: v2"))
     #expect(RecommendationHandoffContract.projectInstructions.contains("book_ahead"))

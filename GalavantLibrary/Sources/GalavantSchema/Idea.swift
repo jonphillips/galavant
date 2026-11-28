@@ -44,6 +44,8 @@ public struct Idea: Identifiable, Equatable, Sendable {
   /// website for images + facts; M4g). `nil` = not yet enriched — the trigger for a
   /// one-time enrichment pass. Synced so a second device doesn't redo the work.
   public var enrichedAt: Date?
+  /// Reservation release policy for this place, encoded as a Codable BookingWindow.
+  public var bookingWindow: String?
   /// Apple Maps' persistent place identity (`MKMapItem.identifier.rawValue`), when the
   /// capture resolved to a real Maps POI. The dedup key (ADR-0019): a re-share of the
   /// same place is recognized by this and supplements the existing idea instead of
@@ -72,7 +74,8 @@ public struct Idea: Identifiable, Equatable, Sendable {
     structuredHours: String? = nil,
     enrichedAt: Date? = nil,
     mapItemIdentifier: String? = nil,
-    travelPartyID: TravelParty.ID? = nil
+    travelPartyID: TravelParty.ID? = nil,
+    bookingWindow: String? = nil
   ) {
     self.id = id
     self.name = name
@@ -93,5 +96,6 @@ public struct Idea: Identifiable, Equatable, Sendable {
     self.enrichedAt = enrichedAt
     self.mapItemIdentifier = mapItemIdentifier
     self.travelPartyID = travelPartyID
+    self.bookingWindow = bookingWindow
   }
 }

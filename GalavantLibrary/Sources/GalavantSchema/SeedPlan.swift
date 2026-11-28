@@ -345,6 +345,8 @@ public struct SeedPlan: Equatable, Sendable {
     for (index, row) in plan.places.enumerated() where row.include {
       if let id = row.existingTripIdeaID {
         if row.statusUpdate { try TripIdea.setStatus(row.status, stopID: id, in: db) }
+        try recordBookingWindow(
+          row.place.candidate.bookingWindow, ideaID: try TripIdea.find(id).fetchOne(db)?.ideaID, in: db)
         if plan.formsRing(at: index), let group = row.place.group {
           try TripIdea.setStatus(.considering, stopID: id, in: db)
           ringMembers[group, default: []].append(id)
@@ -381,6 +383,7 @@ public struct SeedPlan: Equatable, Sendable {
         outcomes.append(SeedMapRowOutcome(rowID: row.id, rowTitle: row.title, resolution: .unresolved))
       }
       try recordPlaceNotes(row.place.placeNotes, ideaID: finalIdeaID, now: now, in: db)
+      try recordBookingWindow(row.place.candidate.bookingWindow, ideaID: finalIdeaID, in: db)
       importedIDs[row.place.candidate.id.uuidString] = stop.id
       if plan.formsRing(at: index), let group = row.place.group { ringMembers[group, default: []].append(stop.id) }
     }
@@ -406,6 +409,13 @@ public struct SeedPlan: Equatable, Sendable {
       nativeValueText: notes, nativeDisplay: "Research note", evaluationDate: now,
       confidence: .inferred, staleness: .current, summary: notes, in: db
     )
+  }
+
+  private static func recordBookingWindow(
+    _ window: BookingWindow?, ideaID: Idea.ID?, in db: Database
+  ) throws {
+    guard let window, let ideaID else { return }
+    try Idea.setBookingWindow(window, ideaID: ideaID, in: db)
   }
 
   private static func addDocument(_ narrative: String, tripID: Trip.ID, now: Date, in db: Database) throws {

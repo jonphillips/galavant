@@ -15,12 +15,12 @@ extension RecommendationHandoffContract {
 
     GV-CONTRACT: v2
 
-    Candidate JSON fields are optional: name, locality, search_hint, why, fit, kind, visit, priority, list, day_ref, placement_after, book_ahead. Use name for the place name, locality for its town or neighborhood, search_hint for an Apple Maps-style query, and why/fit for the trip-specific rationale. priority ranks this list: 1 is your first choice, 2 the next, and so on. Omit it if you can't rank. When you rank, also give list: the same two-to-four-word name, on every ranked place in this return, for what the ranking answers (for example "Soho Indian" or "Manchester hotels"). When you revise a ranking, keep its name unless the question changed. To revise a ranking, return every place you still recommend in it, ranked together. When a ranked return repeats a place from earlier in this conversation, Galavant replaces the earlier ranking, and places you leave out lose their rank. day_ref and placement_after are advisory only. book_ahead is true when the place needs a reservation or ticket bought in advance (timed entry, popular restaurant, show); omit it otherwise.
+    Candidate JSON fields are optional: name, locality, search_hint, why, fit, kind, visit, priority, list, day_ref, placement_after, book_ahead, booking_window. Use name for the place name, locality for its town or neighborhood, search_hint for an Apple Maps-style query, and why/fit for the trip-specific rationale. priority ranks this list: 1 is your first choice, 2 the next, and so on. Omit it if you can't rank. When you rank, also give list: the same two-to-four-word name, on every ranked place in this return, for what the ranking answers (for example "Soho Indian" or "Manchester hotels"). When you revise a ranking, keep its name unless the question changed. To revise a ranking, return every place you still recommend in it, ranked together. When a ranked return repeats a place from earlier in this conversation, Galavant replaces the earlier ranking, and places you leave out lose their rank. day_ref and placement_after are advisory only. book_ahead is true when the place needs a reservation or ticket bought in advance (timed entry, popular restaurant, show); omit it otherwise. When book_ahead is true for a restaurant, research its reservation release policy and add booking_window with the rule, local time zone, source URL, and a short supporting quote. Use kind days_ahead with days, monthly with day_of_month and months_ahead, fixed_date with date (yyyy-MM-dd), or any_time. Include release_time as HH:mm when known. Omit booking_window rather than guess; never provide the opening date itself.
 
     Return shape:
     GV-HANDOFF: <token from the brief>
     GV-CONTRACT: v2
-    [{"name":"…","locality":"…","search_hint":"…","why":"…","fit":"…","kind":"…","visit":"…","priority":1,"list":"Soho Indian","day_ref":"…","placement_after":"…","book_ahead":true}]
+    [{"name":"…","locality":"…","search_hint":"…","why":"…","fit":"…","kind":"food","visit":"…","priority":1,"list":"Soho Indian","day_ref":"…","placement_after":"…","book_ahead":true,"booking_window":{"kind":"days_ahead","days":30,"release_time":"09:00","time_zone":"America/Denver","source_url":"https://…","quote":"…"}}]
 
     When asked to seed a Galavant trip, summarize our conversation so far as a Galavant seed.
     This format replaces the candidate-places format for that reply.
@@ -40,7 +40,7 @@ extension RecommendationHandoffContract {
       area's common name), check_in_day, check_out_day (day numbers, day 1 = first day), why,
       place_notes, book_ahead. Put nights in check_in_day/check_out_day, not in prose.
     - "places": everything else we discussed. name, locality, search_hint (an Apple Maps query),
-      kind, why, fit, visit, verdict, reason, future_trip, place_notes, group, day_ref, book_ahead.
+      kind, why, fit, visit, verdict, reason, future_trip, place_notes, group, day_ref, book_ahead, booking_window.
 
     Include EVERY place we discussed, especially the ones we ruled out or deferred. A ruled-out
     place and its reason matter as much as the places we chose; that is how we avoid reopening
@@ -61,5 +61,7 @@ extension RecommendationHandoffContract {
     same "group" string; don't just say "alternative" in prose. book_ahead is true when it needs a
     reservation or ticket in advance. Include only places we actually discussed. Omit a field
     rather than guess.
+
+    For a restaurant with book_ahead true, research its reservation release policy and give booking_window with the rule, local time zone, source URL, and a short supporting quote. Use days_ahead (days, optional release_time), monthly (day_of_month, months_ahead, optional release_time), fixed_date (date as yyyy-MM-dd and release_time), or any_time. Omit booking_window rather than guess, and never give the opening date itself.
     """
 }

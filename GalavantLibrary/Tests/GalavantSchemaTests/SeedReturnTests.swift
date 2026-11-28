@@ -32,6 +32,16 @@ struct SeedReturnTests {
     #expect(seed.places.first?.verdict == .unrecognized("maybe"))
   }
 
+  @Test func seedPlaceKeepsValidBookingWindowAndDropsMalformedOne() throws {
+    let seed = try SeedReturn.decode(#"""
+      GV-SEED
+      {"places":[{"name":"Good","booking_window":{"kind":"monthly","day_of_month":1,"months_ahead":1,"source_url":"https://example.com","quote":"The first"}},{"name":"Kept","booking_window":{"kind":"monthly","source_url":"https://example.com","quote":"bad"}}]}
+      """#)
+    #expect(seed.places[0].candidate.bookingWindow?.rule == .monthly(dayOfMonth: 1, monthsAhead: 1, releaseTime: nil))
+    #expect(seed.places[1].candidate.name == "Kept")
+    #expect(seed.places[1].candidate.bookingWindow == nil)
+  }
+
   @Test func fallsBackToSummaryAndFailsLoudlyForIncompleteSeeds() throws {
     let seed = try SeedReturn.decode("GV-SEED\n{\"summary\":\"A useful summary\",\"places\":[{}]}")
     #expect(seed.narrative == "A useful summary")

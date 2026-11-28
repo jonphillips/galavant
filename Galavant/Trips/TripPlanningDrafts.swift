@@ -122,6 +122,10 @@ struct BookingFieldsDraft {
   var hasOpeningDate = false
   var openingDate = Date.now
   var openingTimeZone = TimeZone.current
+  var bookingWindow: BookingWindow?
+  var suggestedOpening: Date?
+  var suggestionRule: BookingWindowRule?
+  var visitNote: String?
   /// The opening the editor was loaded with. Save writes the field only when it changed,
   /// so an untouched row never overwrites a peer's newer value (per-field sync).
   private(set) var loadedOpeningDate: Date?
@@ -139,6 +143,9 @@ struct BookingFieldsDraft {
     tracksOpening: Bool = false,
     openingDate: Date? = nil,
     openingTimeZone: TimeZone = .current,
+    bookingWindow: BookingWindow? = nil,
+    suggestion: BookingSuggestion? = nil,
+    visitNote: String? = nil,
     confirmationNumber: String = "",
     bookingURL: String = "",
     partySize: String = ""
@@ -154,6 +161,10 @@ struct BookingFieldsDraft {
     self.openingDate = openingDate
       ?? Self.defaultOpeningDate(after: now, in: openingTimeZone)
     self.openingTimeZone = openingTimeZone
+    self.bookingWindow = bookingWindow
+    self.suggestedOpening = suggestion?.opensAt
+    self.suggestionRule = suggestion?.rule
+    self.visitNote = visitNote
     self.confirmationNumber = confirmationNumber
     self.bookingURL = bookingURL
     self.partySize = partySize
@@ -199,6 +210,12 @@ struct BookingFieldsDraft {
   var bookingOpeningDate: Date? {
     guard tracksOpening, hasOpeningDate else { return nil }
     return openingDate
+  }
+
+  mutating func useSuggestedOpening() {
+    guard let suggestedOpening else { return }
+    hasOpeningDate = true
+    openingDate = suggestedOpening
   }
 
   var openingWasChanged: Bool {

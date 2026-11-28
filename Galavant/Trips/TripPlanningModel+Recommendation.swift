@@ -34,6 +34,7 @@ struct RecommendationCandidateDraft: Identifiable {
   let priority: Int?
   let list: String?
   let bookAhead: Bool?
+  let bookingWindow: BookingWindow?
 
   init(candidate: TripCandidate) {
     id = candidate.id
@@ -48,6 +49,7 @@ struct RecommendationCandidateDraft: Identifiable {
     priority = candidate.priority
     list = candidate.list
     bookAhead = candidate.bookAhead
+    bookingWindow = candidate.bookingWindow
   }
 
   var candidate: TripCandidate {
@@ -63,7 +65,8 @@ struct RecommendationCandidateDraft: Identifiable {
       list: list,
       dayRef: dayRef,
       placementAfter: placementAfter,
-      bookAhead: bookAhead
+      bookAhead: bookAhead,
+      bookingWindow: bookingWindow
     )
   }
 

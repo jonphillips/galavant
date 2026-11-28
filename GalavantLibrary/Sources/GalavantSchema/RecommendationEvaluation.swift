@@ -170,6 +170,7 @@ public enum RecommendationResolution {
   public static func confirm(
     candidateStopID: TripIdea.ID,
     capture: IdeaCapture,
+    bookingWindow: BookingWindow? = nil,
     in db: Database
   ) throws -> Result? {
     guard let candidate = try TripIdea.find(candidateStopID).fetchOne(db) else { return nil }
@@ -179,7 +180,8 @@ public enum RecommendationResolution {
       travelPartyID: party.id,
       in: db
     )
-    guard try TripIdea.attachResolvedIdea(captureResolution.ideaID, to: candidateStopID, in: db) != nil
+    guard try TripIdea.attachResolvedIdea(
+      captureResolution.ideaID, to: candidateStopID, bookingWindow: bookingWindow, in: db) != nil
     else { return nil }
     let tripIdeas = try TripIdea.where { $0.tripID.eq(candidate.tripID) }.fetchAll(db)
     let collision = ResolveReconcile(

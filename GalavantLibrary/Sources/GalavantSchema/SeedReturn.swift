@@ -176,7 +176,8 @@ public struct SeedReturn: Equatable, Sendable {
         fit: object.string("fit"), kind: object.string("kind"), visit: object.string("visit"),
         priority: object.integer("priority"), list: object.string("list"),
         dayRef: object.stringOrNumber("day_ref"),
-        placementAfter: object.string("placement_after"), bookAhead: object.bool("book_ahead")
+        placementAfter: object.string("placement_after"), bookAhead: object.bool("book_ahead"),
+        bookingWindow: (object["booking_window"] as? [String: Any]).flatMap { BookingWindow.fromHandoff($0, now: .now) }
       )
       return SeedPlace(
         candidate: candidate,

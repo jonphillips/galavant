@@ -3,6 +3,27 @@ import Foundation
 /// The one formatter for a booking opening (ADR-0056 D2), so the To Book sheet, the stop
 /// editor and S2's notification text all say the same thing.
 public enum BookingOpeningFormat {
+  public static func ruleString(_ rule: BookingWindowRule, timeZone: TimeZone) -> String {
+    let time: LocalTime?
+    let phrase: String
+    switch rule {
+    case let .daysAhead(days, releaseTime): phrase = "\(days) days ahead"; time = releaseTime
+    case let .monthly(day, months, releaseTime): phrase = "day \(day), \(months) months ahead"; time = releaseTime
+    case let .fixedDate(value): phrase = value.date.iso8601; time = value.time
+    case .anyTime: return "Any time"
+    }
+    guard let time else { return phrase }
+    var components = DateComponents()
+    components.year = 2001; components.month = 1; components.day = 1
+    components.hour = time.hour; components.minute = time.minute
+    let moment = Calendar(identifier: .gregorian).date(from: components) ?? .now
+    let clock = DateFormatter()
+    clock.timeZone = timeZone
+    clock.setLocalizedDateFormatFromTemplate("jmm")
+    let zone = timeZone.localizedName(for: .shortGeneric, locale: .current) ?? timeZone.identifier
+    return "\(phrase) at \(clock.string(from: moment)) \(zone)"
+  }
+
   public static func string(
     moment: Date, timeZone: TimeZone, deviceTimeZone: TimeZone, locale: Locale = .current
   ) -> String {

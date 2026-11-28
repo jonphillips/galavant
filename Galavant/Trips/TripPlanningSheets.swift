@@ -128,7 +128,7 @@ struct ToBookSheet: View {
     NavigationStack {
       TimelineView(.everyMinute) { context in
         let rollup = TripBookingRollup(plan: plan, currentDay: currentDay, now: context.date)
-        bookingList(rollup)
+        bookingList(rollup, now: context.date)
       }
       .navigationTitle("To Book")
       .navigationBarTitleDisplayMode(.inline)
@@ -141,7 +141,7 @@ struct ToBookSheet: View {
     .presentationDetents([.medium, .large])
   }
 
-  private func bookingList(_ rollup: TripBookingRollup) -> some View {
+  private func bookingList(_ rollup: TripBookingRollup, now: Date) -> some View {
     List {
       if !rollup.openNow.isEmpty {
         Section("Open now") {
@@ -162,7 +162,7 @@ struct ToBookSheet: View {
       if !rollup.needsDate.isEmpty {
         Section("Needs an opening date") {
           ForEach(rollup.needsDate, id: \.row) { item in
-            needsDateRow(item)
+            needsDateRow(item, now: now)
           }
         }
       }
@@ -244,11 +244,19 @@ struct ToBookSheet: View {
     .padding(.vertical, 2)
   }
 
-  private func needsDateRow(_ item: TripBookingItem) -> some View {
+  private func needsDateRow(_ item: TripBookingItem, now: Date) -> some View {
     VStack(alignment: .leading, spacing: 8) {
       itemTitle(item)
-      Button("Add date") { model.editBookingItem(item) }
-        .buttonStyle(.bordered)
+      if let suggestion = model.bookingSuggestion(for: item, now: now), let opensAt = suggestion.opensAt {
+        let zone = bookingWindow(for: item)?.timeZoneID.flatMap(TimeZone.init(identifier:)) ?? timeZone(for: item)
+        Text("Chat: \(BookingOpeningFormat.ruleString(suggestion.rule, timeZone: zone)) → Opens \(BookingOpeningFormat.string(moment: opensAt, timeZone: zone, deviceTimeZone: .current))")
+          .font(.subheadline).foregroundStyle(.secondary)
+        Button("Use") { model.useBookingSuggestion(for: item, now: now) }
+          .buttonStyle(.borderedProminent)
+      } else {
+        Button("Add date") { model.editBookingItem(item) }
+          .buttonStyle(.bordered)
+      }
     }
     .padding(.vertical, 2)
   }
@@ -259,6 +267,11 @@ struct ToBookSheet: View {
       let day = stop.entry.dayNumber
     else { return .current }
     return model.dayTimeZone(forDay: day) ?? .current
+  }
+
+  private func bookingWindow(for item: TripBookingItem) -> BookingWindow? {
+    guard case let .stop(id) = item.row else { return nil }
+    return model.plan.scheduled.first(where: { $0.id == id })?.idea?.bookingWindowValue
   }
 
   private func bookedRow(_ item: TripBookingItem) -> some View {

@@ -2,6 +2,25 @@ import Foundation
 import SQLiteData
 
 extension Idea {
+  public var bookingWindowValue: BookingWindow? {
+    get { BookingWindow.decode(bookingWindow) }
+    set { bookingWindow = newValue?.encoded() }
+  }
+
+  public static func setBookingWindow(_ window: BookingWindow?, ideaID: Idea.ID, in db: Database) throws {
+    guard try Idea.find(ideaID).fetchOne(db) != nil else { return }
+    try Idea.find(ideaID).update { $0.bookingWindow = #bind(window?.encoded()) }.execute(db)
+  }
+}
+
+extension Idea.Draft {
+  public var bookingWindowValue: BookingWindow? {
+    get { BookingWindow.decode(bookingWindow) }
+    set { bookingWindow = newValue?.encoded() }
+  }
+}
+
+extension Idea {
   /// Save the capture form's draft: default its id and travel party, upsert it,
   /// and reconcile its tags to exactly `tagNames` (reuse-or-create each by name,
   /// then add/remove only the join deltas). Returns the idea's id. The single
@@ -16,7 +35,7 @@ extension Idea {
     saving.travelPartyID = try TravelParty.ensureDefault(in: db).id
     // Upsert handles new-or-existing; RETURNING hands back the id (DB-generated
     // for a new row), so we never reconstruct the draft to inject one.
-    guard let ideaID = try Idea.upsert { saving }.returning(\.id).fetchOne(db) else {
+    guard let ideaID = try Idea.upsert(values: { saving }).returning(\.id).fetchOne(db) else {
       throw PoolError.ideaSaveFailed
     }
 

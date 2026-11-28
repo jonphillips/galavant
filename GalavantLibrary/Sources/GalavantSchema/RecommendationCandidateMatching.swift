@@ -68,7 +68,8 @@ public enum RecommendationCandidateSet {
           priority: hasRanking ? updated.priority : candidates[existingIndex].priority,
           priorityOutOf: hasRanking ? updated.priorityOutOf : candidates[existingIndex].priorityOutOf,
           list: hasRanking ? updated.list : candidates[existingIndex].list,
-          dayRef: updated.dayRef, placementAfter: updated.placementAfter, bookAhead: updated.bookAhead
+          dayRef: updated.dayRef, placementAfter: updated.placementAfter, bookAhead: updated.bookAhead,
+          bookingWindow: updated.bookingWindow ?? candidates[existingIndex].bookingWindow
         )
         candidates[existingIndex] = updated
         updatedCandidates.append(updated)
@@ -144,6 +145,9 @@ public enum RecommendationCandidateSet {
         $0.rationalePriorityOutOf = #bind(candidate.priorityOutOf)
         $0.rationalePriorityList = #bind(candidate.list)
       }.execute(db)
+      if let ideaID = stop.ideaID, let window = candidate.bookingWindow {
+        try Idea.setBookingWindow(window, ideaID: ideaID, in: db)
+      }
     }
     for candidateID in unrankedIDs {
       guard let stopID = linkByCandidate[candidateID] ?? nil,
